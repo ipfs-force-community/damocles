@@ -1,0 +1,12 @@
+[package]
+name = "venus-worker"
+version = "0.1.0"
+authors = ["dtynn <dtynn@163.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1"
+fil_types = "0.2"
+filecoin-proofs-api = "8.0"
