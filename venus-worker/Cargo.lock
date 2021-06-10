@@ -239,6 +239,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4521f3e3d031370679b3b140beb36dfe4801b09ac77e30c61941f97df3ef28b"
 
 [[package]]
+name = "base64"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
+
+[[package]]
 name = "bellperson"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -951,12 +957,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0c8096c885589be68ef7151cd5144b2611cf792f75570a83a2dfbaf1e05993"
 dependencies = [
  "async-std",
+ "base64",
  "chrono",
  "fil_clock",
  "forest_address",
  "forest_bigint",
  "forest_cid",
  "forest_encoding",
+ "forest_json_utils",
  "forest_vm",
  "git-version",
  "lazy_static",
@@ -2620,8 +2628,13 @@ name = "venus-worker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "fil_clock",
  "fil_types",
  "filecoin-proofs-api",
+ "forest_encoding",
+ "forest_json_utils",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
