@@ -3,8 +3,8 @@ use std::fmt::{self, Debug};
 use anyhow::{anyhow, Result};
 
 use super::sector::{
-    Base, Deals, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
-    SealPreCommitPhase2Output, Sector, Seed, State, Ticket,
+    Base, Deals, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output,
+    SealPreCommitPhase1Output, SealPreCommitPhase2Output, Sector, Seed, State, Ticket,
 };
 
 macro_rules! plan {
@@ -31,7 +31,7 @@ pub enum Event {
 
     AcquireDeals(Option<Deals>),
 
-    AddPiece,
+    AddPiece(Vec<PieceInfo>),
 
     AssignTicket(Ticket),
 
@@ -62,9 +62,27 @@ impl Debug for Event {
 
             AcquireDeals(_) => "AcquireDeals",
 
-            AddPiece => "AddPiece",
+            AddPiece(_) => "AddPiece",
 
-            _ => unreachable!(),
+            AssignTicket(_) => "AssignTicket",
+
+            PC1(_) => "PC1",
+
+            PC2(_) => "PC2",
+
+            SubmitPC => "SubmitPC",
+
+            AssignSeed(_) => "AssignSeed",
+
+            C1(_) => "C1",
+
+            C2(_) => "C2",
+
+            Persist => "Persist",
+
+            SubmitProof => "SubmitProof",
+
+            Finish => "Finish",
         };
 
         f.write_str(name)
@@ -99,9 +117,37 @@ impl Event {
                 std::mem::replace(&mut s.deals, deals).map(drop);
             }
 
-            AddPiece => {}
+            AddPiece(pieces) => {
+                s.phases.pieces.replace(pieces);
+            }
 
-            _ => unreachable!(),
+            AssignTicket(ticket) => {
+                s.phases.ticket.replace(ticket);
+            }
+
+            PC1(out) => {
+                s.phases.pc1out.replace(out);
+            }
+
+            PC2(out) => {
+                s.phases.pc2out.replace(out);
+            }
+
+            AssignSeed(seed) => {
+                s.phases.seed.replace(seed);
+            }
+
+            C1(out) => {
+                s.phases.c1out.replace(out);
+            }
+
+            C2(out) => {
+                s.phases.c2out.replace(out);
+            }
+
+            SubmitPC | Persist | SubmitProof => {}
+
+            Finish => {}
         };
     }
 
@@ -119,7 +165,7 @@ impl Event {
             },
 
             State::DealsAcquired => {
-                Event::AddPiece => State::PieceAdded,
+                Event::AddPiece(_) => State::PieceAdded,
             },
 
             State::PieceAdded => {

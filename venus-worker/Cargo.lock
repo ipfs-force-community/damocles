@@ -2628,11 +2628,13 @@ name = "venus-worker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "crossbeam-channel 0.5.1",
  "fil_clock",
  "fil_types",
  "filecoin-proofs-api",
  "forest_encoding",
  "forest_json_utils",
+ "log",
  "serde",
  "serde_json",
 ]

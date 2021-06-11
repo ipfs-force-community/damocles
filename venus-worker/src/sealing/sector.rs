@@ -1,13 +1,15 @@
-use fil_clock::ChainEpoch;
-use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness, SectorID};
-use filecoin_proofs_api::{PieceInfo, RegisteredSealProof};
 use forest_encoding::repr::{Deserialize_repr, Serialize_repr};
 use serde::{Deserialize, Serialize};
 
+const current_sector_version: u32 = 1;
+
+pub use fil_clock::ChainEpoch;
+pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness, SectorID};
 pub use filecoin_proofs_api::seal::{
     SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
     SealPreCommitPhase2Output,
 };
+pub use filecoin_proofs_api::{PieceInfo, RegisteredSealProof};
 
 #[derive(Debug, Clone, Copy, Deserialize_repr, Serialize_repr, PartialEq)]
 #[repr(u64)]
@@ -26,6 +28,12 @@ pub enum State {
     Persisted,
     ProofSubmitted,
     Finished,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        State::Empty
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -88,4 +96,22 @@ pub struct Sector {
     pub deals: Option<Deals>,
 
     pub phases: Phases,
+}
+
+impl Default for Sector {
+    fn default() -> Self {
+        Sector {
+            version: current_sector_version,
+
+            state: Default::default(),
+            prev_state: None,
+            retry: 0,
+
+            base: None,
+
+            deals: None,
+
+            phases: Default::default(),
+        }
+    }
 }
