@@ -14,8 +14,10 @@ serde_json = "1.0.56"
 forest_encoding = "0.2"
 forest_json_utils = "0.1"
 fil_clock = "0.1"
-log = "0.4"
 crossbeam-channel = "0.5"
+tracing = "0.1"
+tracing-subscriber = "0.2"
+crossterm = "0.20"
 
 [dependencies.fil_types]
 version = "0.2"

@@ -1,7 +1,7 @@
 use anyhow::{Context, Error, Result};
 use crossbeam_channel::{select, Receiver, TryRecvError};
-use log::{error, info, warn};
 
+use crate::logging::{debug_field, error, info, warn};
 use crate::metadb::{MetaDB, MetaDocumentDB, MetaError, PrefixedMetaDB};
 
 use event::Event;
@@ -15,8 +15,6 @@ mod store;
 const sector_info_key: &str = "info";
 const sector_meta_prefix: &str = "meta";
 const sector_trace_prefix: &str = "trace";
-
-const log_target_sealing: &str = "sealing";
 
 macro_rules! impl_failure_error {
     ($name:ident, $ename:ident) => {
@@ -231,7 +229,7 @@ where
         let mut wait_for_resume = false;
         'SEAL_LOOP: loop {
             if wait_for_resume {
-                warn!(target: log_target_sealing, "waiting for resume signal");
+                warn!("waiting for resume signal");
 
                 select! {
                     recv(self.resume_rx) -> resume_res => {
@@ -249,14 +247,11 @@ where
             }
 
             if let Err(failure) = self.seal_one() {
-                error!(target: log_target_sealing, "sealing failed: {:?}", failure);
+                error!(failure = debug_field(&failure), "sealing failed");
                 match failure {
                     Failure::Temporary(_) | Failure::Unrecoverable(_) | Failure::Critical(_) => {
                         if let Failure::Temporary(_) = failure {
-                            error!(
-                                target: log_target_sealing,
-                                "temporary error should not be popagated to the top level"
-                            );
+                            error!("temporary error should not be popagated to the top level");
                         };
 
                         wait_for_resume = true;
@@ -268,7 +263,7 @@ where
             }
 
             self.store.config.seal_interval.as_ref().map(|d| {
-                info!("wait {:?} before sealing", d);
+                info!(duration = debug_field(d), "wait before sealing");
                 std::thread::sleep(*d);
             });
         }
@@ -292,10 +287,7 @@ where
                     }
 
                     ctx.sync(|s| {
-                        warn!(
-                            target: log_target_sealing,
-                            "temp error occurred: {:?}, retry={}", terr.0, s.retry,
-                        );
+                        warn!(retry = s.retry, "temp error occurred: {:?}", terr.0,);
 
                         s.retry += 1;
 
@@ -303,7 +295,7 @@ where
                     })?;
 
                     ctx.store.config.recover_interval.as_ref().map(|d| {
-                        info!(target: log_target_sealing, "wait {:?} before recovering", d);
+                        info!(d = format!("{:?}", d).as_str(), "wait before recovering");
                         std::thread::sleep(*d);
                     });
                 }
