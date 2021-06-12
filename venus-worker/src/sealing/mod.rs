@@ -1,7 +1,7 @@
 use anyhow::{Context, Error, Result};
 use crossbeam_channel::{select, Receiver, TryRecvError};
 
-use crate::logging::{debug_field, error, info, warn};
+use crate::logging::{debug_field, error, info, info_span, warn};
 use crate::metadb::{MetaDB, MetaDocumentDB, MetaError, PrefixedMetaDB};
 
 use event::Event;
@@ -100,7 +100,7 @@ where
 
     fn sync<F: FnOnce(&mut Sector) -> Result<()>>(
         &mut self,
-        mut modify_fn: F,
+        modify_fn: F,
     ) -> Result<(), CriticalError> {
         modify_fn(&mut self.sector)?;
         self.sector_meta
@@ -226,6 +226,9 @@ where
     }
 
     pub fn start_seal(&mut self) -> Result<()> {
+        let span = info_span!("seal", loc = debug_field(&self.store.location));
+        let _span = span.enter();
+
         let mut wait_for_resume = false;
         'SEAL_LOOP: loop {
             if wait_for_resume {
@@ -274,6 +277,16 @@ where
 
         let mut event = None;
         loop {
+            let span = info_span!(
+                "seal-proc",
+                miner = debug_field(ctx.sector.base.as_ref().map(|b| b.id.miner)),
+                sector = debug_field(ctx.sector.base.as_ref().map(|b| b.id.number)),
+                state = debug_field(ctx.sector.state),
+                event = debug_field(&event),
+            );
+
+            let enter = span.enter();
+
             match ctx.handle(event.take()) {
                 Ok(Some(evt)) => {
                     event.replace(evt);
@@ -306,6 +319,8 @@ where
 
                 Err(uf @ Failure::Unrecoverable(_)) => return Err(uf),
             }
+
+            drop(enter);
         }
     }
 }

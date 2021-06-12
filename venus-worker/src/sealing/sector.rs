@@ -11,7 +11,7 @@ pub use filecoin_proofs_api::seal::{
 };
 pub use filecoin_proofs_api::{PieceInfo, RegisteredSealProof};
 
-#[derive(Debug, Clone, Copy, Deserialize_repr, Serialize_repr, PartialEq)]
+#[derive(Clone, Copy, Deserialize_repr, Serialize_repr, PartialEq)]
 #[repr(u64)]
 pub enum State {
     Empty,
@@ -28,6 +28,29 @@ pub enum State {
     Persisted,
     ProofSubmitted,
     Finished,
+}
+
+impl std::fmt::Debug for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let name = match self {
+            State::Empty => "Empty",
+            State::Allocated => "Allocated",
+            State::DealsAcquired => "DealsAcquired",
+            State::PieceAdded => "PieceAdded",
+            State::TicketAssigned => "TicketAssigned",
+            State::PC1Done => "PC1Done",
+            State::PC2Done => "PC2Done",
+            State::PCSubmitted => "PCSubmitted",
+            State::SeedAssigned => "SeedAssigned",
+            State::C1Done => "C1Done",
+            State::C2Done => "C2Done",
+            State::Persisted => "Persisted",
+            State::ProofSubmitted => "ProofSubmitted",
+            State::Finished => "Finished",
+        };
+
+        f.write_str(name)
+    }
 }
 
 impl Default for State {
