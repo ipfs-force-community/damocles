@@ -12,9 +12,9 @@ mod event;
 mod sector;
 mod store;
 
-const sector_info_key: &str = "info";
-const sector_meta_prefix: &str = "meta";
-const sector_trace_prefix: &str = "trace";
+const SECTOR_INFO_KEY: &str = "info";
+const SECTOR_META_PREFIX: &str = "meta";
+const SECTOR_TRACE_PREFIX: &str = "trace";
 
 macro_rules! impl_failure_error {
     ($name:ident, $ename:ident) => {
@@ -74,19 +74,19 @@ where
     DB: MetaDB,
 {
     fn build(s: &'c Store<DB>) -> Result<Self, CriticalError> {
-        let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(sector_meta_prefix, &s.meta));
+        let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta));
 
-        let sector: Sector = sector_meta.get(sector_info_key).or_else(|e| match e {
+        let sector: Sector = sector_meta.get(SECTOR_INFO_KEY).or_else(|e| match e {
             MetaError::NotFound => {
                 let empty = Default::default();
-                sector_meta.set(sector_info_key, &empty)?;
+                sector_meta.set(SECTOR_INFO_KEY, &empty)?;
                 Ok(empty)
             }
 
             MetaError::Failure(ie) => Err(ie),
         })?;
 
-        let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(sector_trace_prefix, &s.meta));
+        let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, &s.meta));
 
         Ok(Ctx {
             sector,
@@ -104,13 +104,13 @@ where
     ) -> Result<(), CriticalError> {
         modify_fn(&mut self.sector)?;
         self.sector_meta
-            .set(sector_info_key, &self.sector)
+            .set(SECTOR_INFO_KEY, &self.sector)
             .map_err(From::from)
     }
 
     fn finalize(self) -> Result<(), CriticalError> {
         self.store.cleanup()?;
-        self.sector_meta.remove(sector_info_key)?;
+        self.sector_meta.remove(SECTOR_INFO_KEY)?;
         Ok(())
     }
 
