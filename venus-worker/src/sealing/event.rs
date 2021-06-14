@@ -3,9 +3,10 @@ use std::fmt::{self, Debug};
 use anyhow::{anyhow, Result};
 
 use super::sector::{
-    Base, Deals, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output,
-    SealPreCommitPhase1Output, SealPreCommitPhase2Output, Sector, Seed, State, Ticket,
+    PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
+    SealPreCommitPhase2Output, Sector, State,
 };
+use crate::rpc::{AllocatedSector, Deals, Seed, Ticket};
 
 macro_rules! plan {
     ($e:expr, $st:expr, $($prev:pat => {$($evt:pat => $next:expr,)+},)*) => {
@@ -27,7 +28,7 @@ macro_rules! plan {
 }
 
 pub enum Event {
-    Allocate(Base),
+    Allocate(AllocatedSector),
 
     AcquireDeals(Option<Deals>),
 
