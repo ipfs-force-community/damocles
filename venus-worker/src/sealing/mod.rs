@@ -3,6 +3,7 @@ use crossbeam_channel::{select, Receiver, TryRecvError};
 
 use crate::logging::{debug_field, error, info, info_span, warn};
 use crate::metadb::{MetaDB, MetaDocumentDB, MetaError, PrefixedMetaDB};
+use crate::rpc::SealerRpcClient;
 
 use event::Event;
 use sector::{Sector, State};

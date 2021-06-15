@@ -21,6 +21,8 @@ crossterm = "0.20"
 jsonrpc-core = "17"
 jsonrpc-core-client = "17"
 jsonrpc-derive = "17"
+jsonrpc-client-transports = "17"
+async-std = "1.9"
 
 [dependencies.fil_types]
 version = "0.2"
