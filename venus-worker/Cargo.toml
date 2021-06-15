@@ -23,7 +23,12 @@ jsonrpc-core-client = "17"
 jsonrpc-derive = "17"
 jsonrpc-client-transports = "17"
 async-std = "1.9"
+toml = "0.5"
+humantime-serde = "1"
 
 [dependencies.fil_types]
 version = "0.2"
 features = ["json"]
+
+[dependencies.rocksdb]
+version = "0.16"

@@ -2,7 +2,7 @@ use anyhow::{Context, Error, Result};
 use crossbeam_channel::{select, Receiver, TryRecvError};
 
 use crate::logging::{debug_field, error, info, info_span, warn};
-use crate::metadb::{MetaDB, MetaDocumentDB, MetaError, PrefixedMetaDB};
+use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
 use crate::rpc::SealerRpcClient;
 
 use event::Event;
@@ -61,20 +61,18 @@ impl std::fmt::Debug for Failure {
 
 type HandleResult = Result<Event, Failure>;
 
-struct Ctx<'c, DB: MetaDB> {
+struct Ctx<'c> {
     sector: sector::Sector,
     trace: Vec<sector::Trace>,
 
-    store: &'c Store<DB>,
-    sector_meta: MetaDocumentDB<PrefixedMetaDB<'c, DB>>,
-    trace_meta: MetaDocumentDB<PrefixedMetaDB<'c, DB>>,
+    store: &'c Store,
+    rpc: &'c SealerRpcClient,
+    sector_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
+    trace_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
 }
 
-impl<'c, DB> Ctx<'c, DB>
-where
-    DB: MetaDB,
-{
-    fn build(s: &'c Store<DB>) -> Result<Self, CriticalError> {
+impl<'c> Ctx<'c> {
+    fn build(s: &'c Store, rpc: &'c SealerRpcClient) -> Result<Self, CriticalError> {
         let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta));
 
         let sector: Sector = sector_meta.get(SECTOR_INFO_KEY).or_else(|e| match e {
@@ -94,6 +92,8 @@ where
             trace: Vec::with_capacity(16),
 
             store: s,
+            rpc,
+
             sector_meta,
             trace_meta,
         })
@@ -205,24 +205,25 @@ where
     }
 }
 
-pub struct Worker<DB>
-where
-    DB: MetaDB,
-{
-    store: Store<DB>,
+pub struct Worker {
+    store: Store,
     resume_rx: Receiver<()>,
     done_rx: Receiver<()>,
+    rpc: SealerRpcClient,
 }
 
-impl<DB> Worker<DB>
-where
-    DB: MetaDB,
-{
-    pub fn new(s: Store<DB>, resume_rx: Receiver<()>, done_rx: Receiver<()>) -> Self {
+impl Worker {
+    pub fn new(
+        s: Store,
+        resume_rx: Receiver<()>,
+        done_rx: Receiver<()>,
+        rpc: SealerRpcClient,
+    ) -> Self {
         Worker {
             store: s,
             resume_rx,
             done_rx,
+            rpc,
         }
     }
 
@@ -274,7 +275,7 @@ where
     }
 
     fn seal_one(&mut self) -> Result<(), Failure> {
-        let mut ctx = Ctx::build(&self.store)?;
+        let mut ctx = Ctx::build(&self.store, &self.rpc)?;
 
         let mut event = None;
         loop {

@@ -2,6 +2,8 @@ use anyhow::{Error, Result};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::{from_slice, to_vec};
 
+pub mod rocks;
+
 pub enum MetaError {
     NotFound,
     Failure(Error),
