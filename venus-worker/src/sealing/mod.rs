@@ -11,7 +11,9 @@ use store::Store;
 
 mod event;
 mod sector;
-mod store;
+
+/// definition of the sealing store
+pub mod store;
 
 const SECTOR_INFO_KEY: &str = "info";
 const SECTOR_META_PREFIX: &str = "meta";

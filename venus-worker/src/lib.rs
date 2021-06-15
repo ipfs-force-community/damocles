@@ -7,3 +7,5 @@ pub mod logging;
 pub(crate) mod metadb;
 pub(crate) mod rpc;
 pub(crate) mod sealing;
+
+pub use sealing::store;

@@ -25,6 +25,8 @@ jsonrpc-client-transports = "17"
 async-std = "1.9"
 toml = "0.5"
 humantime-serde = "1"
+clap = "2.33"
+byte-unit = "4"
 
 [dependencies.fil_types]
 version = "0.2"
