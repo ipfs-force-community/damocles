@@ -28,6 +28,8 @@ macro_rules! plan {
 }
 
 pub enum Event {
+    Retry,
+
     Allocate(AllocatedSector),
 
     AcquireDeals(Option<Deals>),
@@ -59,6 +61,8 @@ impl Debug for Event {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Event::*;
         let name = match self {
+            Retry => "Retry",
+
             Allocate(_) => "Allocate",
 
             AcquireDeals(_) => "AcquireDeals",
@@ -94,10 +98,7 @@ impl Event {
     pub fn apply(self, s: &mut Sector) -> Result<()> {
         let next = self.plan(&s.state)?;
         if next == s.state {
-            return Err(anyhow!(
-                "state({:?}) unchanged, may be an infinite loop",
-                next
-            ));
+            return Err(anyhow!("state unchanged, may enter an infinite loop"));
         }
 
         self.apply_changes(s);
@@ -110,6 +111,8 @@ impl Event {
     fn apply_changes(self, s: &mut Sector) {
         use Event::*;
         match self {
+            Retry => {}
+
             Allocate(base) => {
                 s.base.replace(base);
             }

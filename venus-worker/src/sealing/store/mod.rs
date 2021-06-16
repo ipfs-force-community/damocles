@@ -2,13 +2,18 @@ use std::collections::BTreeMap;
 use std::fs::{self, create_dir_all, read, read_dir, remove_dir_all};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::thread;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
+use crossbeam_channel::{bounded, Receiver};
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::metadb::rocks::RocksMeta;
+use crate::rpc::SealerRpcClient;
+use crate::sealing::worker::Worker;
 
 mod util;
 
@@ -194,5 +199,29 @@ impl StoreManager {
         }
 
         Ok(())
+    }
+
+    /// start sealing loop
+    pub fn start_sealing(self, done_rx: Receiver<()>, rpc: Arc<SealerRpcClient>) {
+        let mut join_hdls = Vec::with_capacity(self.stores.len());
+        let mut resume_txs = Vec::with_capacity(self.stores.len());
+        for (_, store) in self.stores {
+            let (resume_tx, resume_rx) = bounded(0);
+            let mut worker = Worker::new(store, resume_rx, done_rx.clone(), rpc.clone());
+            resume_txs.push(resume_tx);
+
+            let hdl = thread::spawn(move || worker.start_seal());
+            join_hdls.push(hdl);
+        }
+
+        for hdl in join_hdls {
+            if let Err(e) = hdl
+                .join()
+                .map_err(|e| anyhow!("joined handler: {:?}", e))
+                .and_then(|inner| inner)
+            {
+                error!("seal worker failure: {:?}", e);
+            }
+        }
     }
 }

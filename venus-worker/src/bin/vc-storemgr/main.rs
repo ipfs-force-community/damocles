@@ -35,7 +35,7 @@ pub fn main() -> Result<()> {
                 .help("output path for store list"),
         );
 
-    let matches = App::new("storemgr")
+    let matches = App::new("vc-storemgr")
         .version(env!("CARGO_PKG_VERSION"))
         .subcommand(store_init_cmd)
         .get_matches();
