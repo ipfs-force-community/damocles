@@ -6,7 +6,7 @@ use byte_unit::Byte;
 use clap::{value_t, values_t, App, Arg, SubCommand};
 use tracing::{error, info};
 
-use venus_worker::{logging, store::Store};
+use venus_worker::{logging, sealing::store::Store};
 
 pub fn main() -> Result<()> {
     logging::init().expect("init logger");

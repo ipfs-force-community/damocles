@@ -1,15 +1,15 @@
 use fil_clock::ChainEpoch;
 use fil_types::{ActorID, InteractiveSealRandomness, PieceInfo, Randomness, SectorNumber};
-use filecoin_proofs_api::{
-    seal::{SealCommitPhase2Output, SealPreCommitPhase2Output},
-    RegisteredSealProof,
-};
+use filecoin_proofs_api::{Commitment, RegisteredSealProof};
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 
 /// provides mock impl for the SealerRpc
 pub mod mock;
+
+/// type alias for u64
+pub type DealID = u64;
 
 /// contains miner actor id & sector number
 #[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub struct AllocateSectorSpec {
 }
 
 /// basic infos for a allocated sector
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AllocatedSector {
     /// allocated sector id
     pub id: SectorID,
@@ -41,8 +41,18 @@ pub struct AllocatedSector {
     pub proof_type: RegisteredSealProof,
 }
 
-/// types alias for piece info list
-pub type Deals = Vec<PieceInfo>;
+/// deal piece info
+#[derive(Clone, Serialize, Deserialize)]
+pub struct DealInfo {
+    /// on-chain deal id
+    pub id: DealID,
+
+    /// piece data info
+    pub piece: PieceInfo,
+}
+
+/// types alias for deal piece info list
+pub type Deals = Vec<DealInfo>;
 
 /// rules for acquiring deal pieces within specified sector
 #[derive(Serialize, Deserialize)]
@@ -62,7 +72,7 @@ pub struct Ticket {
 }
 
 /// results for pre_commit & proof submission
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[repr(u64)]
 pub enum SubmitResult {
     /// submission is accepted
@@ -79,7 +89,7 @@ pub enum SubmitResult {
 }
 
 /// state for submitted pre_commit or proof
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[repr(u64)]
 pub enum OnChainState {
     /// waiting to be sent or aggregated
@@ -93,6 +103,26 @@ pub enum OnChainState {
 
     /// sector not found
     NotFound = 4,
+}
+
+/// required infos for pre commint
+#[derive(Deserialize, Serialize)]
+pub struct PreCommitOnChainInfo {
+    /// commitment replicate
+    pub comm_r: Commitment,
+
+    /// assigned ticket
+    pub ticket: Ticket,
+
+    /// included deal ids
+    pub deals: Vec<DealID>,
+}
+
+/// required infos for proof
+#[derive(Deserialize, Serialize)]
+pub struct ProofOnChainInfo {
+    /// proof bytes
+    pub proof: Vec<u8>,
 }
 
 /// response for the submit_pre_commit request
@@ -164,8 +194,8 @@ pub trait SealerRpc {
     #[rpc(name = "Venus.SubmitPreCommit")]
     fn submit_pre_commit(
         &self,
-        id: SectorID,
-        out: SealPreCommitPhase2Output,
+        sector: AllocatedSector,
+        info: PreCommitOnChainInfo,
     ) -> Result<SubmitPreCommitResp>;
 
     /// api definition
@@ -178,7 +208,7 @@ pub trait SealerRpc {
 
     /// api definition
     #[rpc(name = "Venus.SubmitProof")]
-    fn submit_proof(&self, id: SectorID, proof: SealCommitPhase2Output) -> Result<SubmitProofResp>;
+    fn submit_proof(&self, id: SectorID, proof: ProofOnChainInfo) -> Result<SubmitProofResp>;
 
     /// api definition
     #[rpc(name = "Venus.PollProofState")]

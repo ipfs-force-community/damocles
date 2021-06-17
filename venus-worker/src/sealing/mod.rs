@@ -1,7 +1,10 @@
 mod event;
 mod sector;
 
+pub(crate) mod worker;
+
 /// definition of the sealing store
 pub mod store;
 
-pub(crate) mod worker;
+/// helpers for sealing
+pub mod util;

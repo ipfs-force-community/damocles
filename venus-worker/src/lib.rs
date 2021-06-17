@@ -5,8 +5,9 @@
 pub mod logging;
 
 pub(crate) mod metadb;
-pub(crate) mod sealing;
+
+/// provide sealing helpers
+pub mod sealing;
 
 /// provides rpc definitions for SealerAPI
 pub mod rpc;
-pub use sealing::store;

@@ -40,6 +40,10 @@ pub struct Config {
     /// interval for recovering failed sectors
     #[serde(with = "humantime_serde")]
     pub recover_interval: Option<Duration>,
+
+    /// interval for rpc polling
+    #[serde(with = "humantime_serde")]
+    pub rpc_poll_interval: Option<Duration>,
 }
 
 impl Default for Config {
@@ -50,6 +54,7 @@ impl Default for Config {
             reserved_capacity: 0,
             seal_interval: Some(Duration::from_secs(30)),
             recover_interval: Some(Duration::from_secs(30)),
+            rpc_poll_interval: Some(Duration::from_secs(30)),
         }
     }
 }

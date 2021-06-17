@@ -1,10 +1,11 @@
 use std::fmt::{self, Debug};
 
 use anyhow::{anyhow, Result};
+use forest_address::Address;
 
 use super::sector::{
-    PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
-    SealPreCommitPhase2Output, Sector, State,
+    Base, PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output,
+    SealPreCommitPhase1Output, SealPreCommitPhase2Output, Sector, SectorId, State,
 };
 use crate::rpc::{AllocatedSector, Deals, Seed, Ticket};
 
@@ -113,7 +114,18 @@ impl Event {
         match self {
             Retry => {}
 
-            Allocate(base) => {
+            Allocate(sector) => {
+                let mut prover_id: ProverId = Default::default();
+                let actor_addr_payload = Address::new_id(sector.id.miner).to_bytes();
+                prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
+
+                let sector_id = SectorId::from(sector.id.number);
+
+                let base = Base {
+                    allocated: sector,
+                    prove_input: (prover_id, sector_id),
+                };
+
                 s.base.replace(base);
             }
 

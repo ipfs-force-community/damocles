@@ -2,12 +2,14 @@ use forest_encoding::repr::{Deserialize_repr, Serialize_repr};
 use serde::{Deserialize, Serialize};
 
 pub use fil_clock::ChainEpoch;
-pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness, SectorID};
+pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness};
 pub use filecoin_proofs_api::seal::{
-    SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
+    Labels, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
     SealPreCommitPhase2Output,
 };
-pub use filecoin_proofs_api::{PieceInfo, RegisteredSealProof};
+pub use filecoin_proofs_api::{
+    PaddedBytesAmount, PieceInfo, ProverId, RegisteredSealProof, SectorId, UnpaddedBytesAmount,
+};
 
 use crate::rpc::{AllocatedSector, Deals, Seed, Ticket};
 
@@ -86,6 +88,12 @@ pub struct Phases {
     pub c2out: Option<SealCommitPhase2Output>,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct Base {
+    pub allocated: AllocatedSector,
+    pub prove_input: (ProverId, SectorId),
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Sector {
     pub version: u32,
@@ -94,7 +102,7 @@ pub struct Sector {
     pub prev_state: Option<State>,
     pub retry: u32,
 
-    pub base: Option<AllocatedSector>,
+    pub base: Option<Base>,
 
     // deal pieces
     pub deals: Option<Deals>,
