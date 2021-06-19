@@ -23,6 +23,13 @@ pub fn main() -> Result<()> {
                 .short("s")
                 .takes_value(true)
                 .help("sector size for mock server"),
+        )
+        .arg(
+            Arg::with_name("store-list")
+                .long("store-list")
+                .short("l")
+                .takes_value(true)
+                .help("store list file path"),
         );
 
     let matches = App::new("vc-worker")
@@ -35,7 +42,9 @@ pub fn main() -> Result<()> {
             let miner = value_t!(m, "miner", u64)?;
             let size_str = value_t!(m, "sector-size", String)?;
             let size = Byte::from_str(size_str)?;
-            mock::start_mock(miner, size.get_bytes() as u64)
+            let store_list = value_t!(m, "store-list", String)?;
+
+            mock::start_mock(miner, size.get_bytes() as u64, store_list)
         }
 
         (other, _) => Err(anyhow!("unexpected subcommand {}", other)),

@@ -279,6 +279,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
+name = "base64-serde"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e964e3e0a930303c7c0bdb28ebf691dd98d9eee4b8b68019d2c995710b58a18"
+dependencies = [
+ "base64 0.13.0",
+ "serde",
+]
+
+[[package]]
 name = "bellperson"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4121,6 +4131,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-std",
+ "base64 0.13.0",
+ "base64-serde",
  "byte-unit",
  "clap",
  "crossbeam-channel 0.5.1",
@@ -4130,7 +4142,6 @@ dependencies = [
  "filecoin-proofs",
  "filecoin-proofs-api",
  "forest_address",
- "forest_encoding",
  "forest_json_utils",
  "humantime-serde",
  "jsonrpc-client-transports",
@@ -4140,6 +4151,7 @@ dependencies = [
  "rocksdb",
  "serde",
  "serde_json",
+ "serde_repr",
  "toml",
  "tracing",
  "tracing-subscriber",

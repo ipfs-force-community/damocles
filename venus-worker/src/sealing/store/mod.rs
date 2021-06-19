@@ -15,7 +15,7 @@ use crate::metadb::rocks::RocksMeta;
 use crate::rpc::SealerRpcClient;
 use crate::sealing::worker::Worker;
 
-mod util;
+pub mod util;
 
 const SUB_PATH_DATA: &str = "data";
 const SUB_PATH_META: &str = "meta";
@@ -191,7 +191,7 @@ pub struct StoreManager {
 
 impl StoreManager {
     /// loads specific
-    pub fn load(list: Vec<String>) -> Result<()> {
+    pub fn load(list: Vec<String>) -> Result<Self> {
         let mut stores = BTreeMap::new();
         for path in list {
             if stores.get(&path).is_some() {
@@ -203,7 +203,7 @@ impl StoreManager {
             stores.insert(path, store);
         }
 
-        Ok(())
+        Ok(StoreManager { stores })
     }
 
     /// start sealing loop

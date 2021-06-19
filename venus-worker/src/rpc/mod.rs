@@ -1,9 +1,51 @@
+use std::convert::TryFrom;
+use std::result::Result as StdResult;
+
+use anyhow::{anyhow, Error};
+use base64::STANDARD;
+use base64_serde::base64_serde_type;
 use fil_clock::ChainEpoch;
-use fil_types::{ActorID, InteractiveSealRandomness, PieceInfo, Randomness, SectorNumber};
+use fil_types::{ActorID, PieceInfo, SectorNumber};
 use filecoin_proofs_api::{Commitment, RegisteredSealProof};
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
+
+base64_serde_type! {B64SerDe, STANDARD}
+
+#[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[serde(into = "B64Vec")]
+#[serde(try_from = "B64Vec")]
+/// randomness with base64 ser & de
+pub struct Randomness(pub [u8; 32]);
+
+impl TryFrom<B64Vec> for Randomness {
+    type Error = Error;
+
+    fn try_from(v: B64Vec) -> StdResult<Self, Self::Error> {
+        if v.0.len() != 32 {
+            return Err(anyhow!("expected 32 bytes, got {}", v.0.len()));
+        }
+
+        let mut a = [0u8; 32];
+        a.copy_from_slice(&v.0[..]);
+
+        Ok(Randomness(a))
+    }
+}
+
+impl From<Randomness> for B64Vec {
+    fn from(r: Randomness) -> Self {
+        let mut v = vec![0; 32];
+        v.copy_from_slice(&r.0[..]);
+        B64Vec(v)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+/// bytes with base64 ser & de
+pub struct B64Vec(#[serde(with = "B64SerDe")] pub Vec<u8>);
 
 /// provides mock impl for the SealerRpc
 pub mod mock;
@@ -62,7 +104,7 @@ pub struct AcquireDealsSpec {
 }
 
 /// assigned ticket
-#[derive(Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Ticket {
     /// raw ticket data
     pub ticket: Randomness,
@@ -149,7 +191,7 @@ pub struct PollPreCommitStateResp {
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct Seed {
     /// raw seed data
-    pub seed: InteractiveSealRandomness,
+    pub seed: Randomness,
 
     /// chain epoch from which seed is fetched
     pub epoch: ChainEpoch,

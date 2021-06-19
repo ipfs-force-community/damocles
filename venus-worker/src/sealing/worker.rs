@@ -211,24 +211,21 @@ impl<'c> Ctx<'c> {
 
     fn cache_dir(&self, sector_id: &SectorID) -> PathBuf {
         self.store
-            .location
-            .as_ref()
+            .data_path
             .join(self.sector_path(sector_id))
             .join("cache")
     }
 
     fn sealed_file(&self, sector_id: &SectorID) -> PathBuf {
         self.store
-            .location
-            .as_ref()
+            .data_path
             .join(self.sector_path(sector_id))
             .join("sealed")
     }
 
     fn staged_file(&self, sector_id: &SectorID) -> PathBuf {
         self.store
-            .location
-            .as_ref()
+            .data_path
             .join(self.sector_path(sector_id))
             .join("staged")
     }
@@ -754,7 +751,7 @@ impl Worker {
                 }
 
                 Ok(None) => {
-                    ctx.finalize()?;
+                    // ctx.finalize()?;
                     return Ok(());
                 }
 
