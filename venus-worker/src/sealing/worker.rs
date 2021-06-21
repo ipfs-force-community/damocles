@@ -745,13 +745,15 @@ impl Worker {
 
             let enter = span.enter();
 
+            debug!("handling");
+
             match ctx.handle(event.take()) {
                 Ok(Some(evt)) => {
                     event.replace(evt);
                 }
 
                 Ok(None) => {
-                    // ctx.finalize()?;
+                    ctx.finalize()?;
                     return Ok(());
                 }
 
