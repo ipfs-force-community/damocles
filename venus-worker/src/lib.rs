@@ -11,3 +11,6 @@ pub mod sealing;
 
 /// provides rpc definitions for SealerAPI
 pub mod rpc;
+
+/// infrastructures
+pub mod infra;
