@@ -10,6 +10,7 @@ use jsonrpc_core::IoHandler;
 use jsonrpc_core_client::transports::local;
 
 use venus_worker::{
+    infra::objstore::filestore::FileStore,
     logging::{debug_field, error, info, warn},
     rpc::{self, SealerRpc, SealerRpcClient},
     sealing::store::{util::load_store_list, StoreManager},
@@ -21,7 +22,14 @@ const SIZE_512M: u64 = 512 << 20;
 const SIZE_32G: u64 = 32 << 30;
 const SIZE_64G: u64 = 64 << 30;
 
-pub fn start_mock(miner: ActorID, sector_size: u64, store_list: String) -> Result<()> {
+pub fn start_mock(
+    miner: ActorID,
+    sector_size: u64,
+    store_list: String,
+    remote_store: String,
+) -> Result<()> {
+    let remote = Arc::new(FileStore::open(remote_store)?);
+
     let store_paths = load_store_list(store_list)?;
 
     let proof_type = match sector_size {
@@ -70,7 +78,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, store_list: String) -> Resul
     let store_mgr = StoreManager::load(store_paths)?;
     thread::spawn(move || {
         info!("store mgr start");
-        store_mgr.start_sealing(done_rx, Arc::new(mock_client));
+        store_mgr.start_sealing(done_rx, Arc::new(mock_client), remote);
         drop(mgr_stop_tx);
     });
 

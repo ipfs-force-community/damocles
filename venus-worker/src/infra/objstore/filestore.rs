@@ -4,7 +4,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{copy, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 
 use super::{ObjResult, ObjectStore, Range};
 
@@ -16,10 +16,10 @@ pub struct FileStore {
 
 impl FileStore {
     /// open the file store at given path
-    pub fn open<P: AsRef<Path>>(p: P) -> ObjResult<Self> {
+    pub fn open<P: AsRef<Path>>(p: P) -> Result<Self> {
         let dir_path = p.as_ref();
         if !dir_path.metadata().map(|meta| meta.is_dir())? {
-            return Err(anyhow!("base path of the file store should a dir").into());
+            return Err(anyhow!("base path of the file store should a dir"));
         };
 
         Ok(FileStore {

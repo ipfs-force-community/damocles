@@ -40,7 +40,7 @@ pub struct Range {
 }
 
 /// definition of object store
-pub trait ObjectStore {
+pub trait ObjectStore: Send + Sync {
     /// get should return a reader for the given path
     fn get<P: AsRef<Path>>(&self, path: P) -> ObjResult<Box<dyn Read>>;
 

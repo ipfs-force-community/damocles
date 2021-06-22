@@ -12,6 +12,7 @@ use filecoin_proofs_api::seal::{
     seal_pre_commit_phase2,
 };
 
+use crate::infra::objstore::ObjectStore;
 use crate::logging::{debug, debug_field, error, info, info_span, warn};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
 use crate::rpc::{
@@ -661,25 +662,28 @@ impl<'c> Ctx<'c> {
     }
 }
 
-pub struct Worker {
+pub struct Worker<O> {
     store: Store,
     resume_rx: Receiver<()>,
     done_rx: Receiver<()>,
     rpc: Arc<SealerRpcClient>,
+    remote_store: Arc<O>,
 }
 
-impl Worker {
+impl<O: ObjectStore> Worker<O> {
     pub fn new(
         s: Store,
         resume_rx: Receiver<()>,
         done_rx: Receiver<()>,
         rpc: Arc<SealerRpcClient>,
+        remote_store: Arc<O>,
     ) -> Self {
         Worker {
             store: s,
             resume_rx,
             done_rx,
             rpc,
+            remote_store,
         }
     }
 
