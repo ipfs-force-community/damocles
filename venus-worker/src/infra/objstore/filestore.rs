@@ -2,25 +2,50 @@
 
 use std::fs::{File, OpenOptions};
 use std::io::{copy, BufReader, Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+
+use anyhow::anyhow;
 
 use super::{ObjResult, ObjectStore, Range};
 
 /// FileStore
 pub struct FileStore {
-    prefix: Path,
+    sep: String,
+    path: PathBuf,
 }
 
 impl FileStore {
-    fn abs_path<P: AsRef<Path>>(&self, p: P) -> PathBuf {
-        self.prefix.join(p)
+    /// open the file store at given path
+    pub fn open<P: AsRef<Path>>(p: P) -> ObjResult<Self> {
+        let dir_path = p.as_ref();
+        if !dir_path.metadata().map(|meta| meta.is_dir())? {
+            return Err(anyhow!("base path of the file store should a dir").into());
+        };
+
+        Ok(FileStore {
+            sep: MAIN_SEPARATOR.to_string(),
+            path: dir_path.to_owned(),
+        })
+    }
+
+    fn path<P: AsRef<Path>>(&self, sub: P) -> ObjResult<PathBuf> {
+        let p = sub.as_ref();
+        if p.starts_with(".") {
+            return Err(anyhow!("sub path starts with dot").into());
+        }
+
+        if p.starts_with(&self.sep) {
+            return Err(anyhow!("sub path starts with separator").into());
+        }
+
+        Ok(self.path.join(sub))
     }
 }
 
 impl ObjectStore for FileStore {
     /// get should return a reader for the given path
     fn get<P: AsRef<Path>>(&self, path: P) -> ObjResult<Box<dyn Read>> {
-        let f = OpenOptions::new().read(true).open(self.abs_path(path))?;
+        let f = OpenOptions::new().read(true).open(self.path(path)?)?;
         let r: Box<dyn Read> = Box::new(f);
         Ok(r)
     }
@@ -32,7 +57,7 @@ impl ObjectStore for FileStore {
             .write(true)
             .create(true)
             .truncate(true)
-            .open(self.abs_path(path))?;
+            .open(self.path(path)?)?;
 
         copy(&mut r, &mut f).map_err(From::from)
     }
@@ -43,7 +68,7 @@ impl ObjectStore for FileStore {
         path: P,
         ranges: &[Range],
     ) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>> {
-        let f = OpenOptions::new().read(true).open(self.abs_path(path))?;
+        let f = OpenOptions::new().read(true).open(self.path(path)?)?;
         let iter: Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>> = Box::new(ChunkReader {
             f,
             ranges: ranges.to_owned(),

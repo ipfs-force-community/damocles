@@ -1,6 +1,6 @@
 //! abstractions & implementations for object store
 
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::path::Path;
 
 pub mod filestore;
