@@ -1,4 +1,5 @@
 use std::error::Error as StdError;
+use std::fmt::Display;
 use std::fs::{create_dir_all, OpenOptions};
 use std::io::{self, prelude::*};
 use std::path::PathBuf;
@@ -8,11 +9,13 @@ use anyhow::{anyhow, Context, Error, Result};
 use async_std::task::block_on;
 use crossbeam_channel::{select, Receiver, TryRecvError};
 use filecoin_proofs_api::seal::{
-    add_piece, seal_commit_phase1, seal_commit_phase2, seal_pre_commit_phase1,
+    add_piece, clear_cache, seal_commit_phase1, seal_commit_phase2, seal_pre_commit_phase1,
     seal_pre_commit_phase2,
 };
+use glob::glob;
 
-use crate::logging::{debug, debug_field, error, info, info_span, warn};
+use crate::infra::objstore::ObjectStore;
+use crate::logging::{debug, debug_field, debug_span, error, info, info_span, warn};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
 use crate::rpc::{
     self, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SealerRpcClient, SectorID,
@@ -27,18 +30,29 @@ const SECTOR_INFO_KEY: &str = "info";
 const SECTOR_META_PREFIX: &str = "meta";
 const SECTOR_TRACE_PREFIX: &str = "trace";
 
+// TODO: with_level, turn std error into leveled failure
+// TODO: simpler way to add context to failure
+
 macro_rules! impl_failure_error {
     ($name:ident, $ename:ident) => {
         #[derive(Debug)]
         struct $name(Error);
 
+        #[allow(dead_code)]
         impl $name {
-            #[allow(dead_code)]
             fn new<E>(e: E) -> Self
             where
                 E: StdError + Send + Sync + 'static,
             {
                 Error::new(e).into()
+            }
+
+            fn with_context<E, C>(e: E, c: C) -> Self
+            where
+                E: StdError + Send + Sync + 'static,
+                C: Display + Send + Sync + 'static,
+            {
+                Error::new(e).context(c).into()
             }
         }
 
@@ -151,18 +165,23 @@ macro_rules! fetch_field {
     };
 }
 
-struct Ctx<'c> {
+struct Ctx<'c, O> {
     sector: Sector,
     _trace: Vec<Trace>,
 
     store: &'c Store,
     rpc: Arc<SealerRpcClient>,
+    remote_store: Arc<O>,
     sector_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
     _trace_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
 }
 
-impl<'c> Ctx<'c> {
-    fn build(s: &'c Store, rpc: Arc<SealerRpcClient>) -> Result<Self, CriticalError> {
+impl<'c, O: ObjectStore> Ctx<'c, O> {
+    fn build(
+        s: &'c Store,
+        rpc: Arc<SealerRpcClient>,
+        remote_store: Arc<O>,
+    ) -> Result<Self, CriticalError> {
         let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta));
 
         let sector: Sector = sector_meta.get(SECTOR_INFO_KEY).or_else(|e| match e {
@@ -183,6 +202,7 @@ impl<'c> Ctx<'c> {
 
             store: s,
             rpc,
+            remote_store,
 
             sector_meta,
             _trace_meta: trace_meta,
@@ -604,19 +624,81 @@ impl<'c> Ctx<'c> {
 
     fn handle_c2_done(&mut self) -> HandleResult {
         // TODO: do the copy
-        let sector_id = fetch_field! {
+        let allocated = fetch_field! {
             self.sector.base,
-            allocated.id,
+            allocated,
         }?;
+
+        let sector_id = &allocated.id;
 
         let cache_dir = self.cache_dir(sector_id);
         let sealed_file = self.sealed_file(sector_id);
 
-        warn!(
-            cache_dir = debug_field(&cache_dir),
-            sealed_file = debug_field(&sealed_file),
-            "we are copying"
+        let mut wanted = vec![sealed_file];
+
+        let sector_size = allocated.proof_type.sector_size();
+
+        // we should be careful here, use failure as temporary
+        clear_cache(sector_size.0, &cache_dir).map_err(TemporaryError::from)?;
+        debug!(
+            dir = debug_field(&cache_dir),
+            "clean up unnecessary cached files"
         );
+
+        let matches = match cache_dir.join("*").as_os_str().to_str() {
+            Some(s) => glob(s).map_err(TemporaryError::new)?,
+            None => {
+                return Err(CriticalError::from(anyhow!(
+                    "invalid glob pattern under {:?}",
+                    cache_dir
+                ))
+                .into())
+            }
+        };
+
+        for res in matches {
+            match res {
+                Ok(p) => wanted.push(p),
+                Err(e) => {
+                    let ctx = format!("glob error for {:?}", e.path());
+                    return Err(CriticalError::with_context(e.into_error(), ctx).into());
+                }
+            }
+        }
+
+        let mut opt = OpenOptions::new();
+        opt.read(true);
+
+        for one in wanted {
+            let target_path = match one.strip_prefix(&self.store.data_path) {
+                Ok(p) => p,
+                Err(e) => {
+                    return Err(CriticalError::with_context(
+                        e,
+                        format!("strip prefix {:?} for {:?}", self.store.data_path, one),
+                    )
+                    .into());
+                }
+            };
+
+            let copy_span = debug_span!(
+                "persist",
+                src = debug_field(&one),
+                dst = debug_field(&target_path),
+            );
+
+            let copy_enter = copy_span.enter();
+
+            let source = opt.open(&one).map_err(CriticalError::new)?;
+            let size = self
+                .remote_store
+                .put(target_path, source)
+                .map_err(CriticalError::new)?;
+
+            debug!(size, "persist done");
+
+            drop(copy_enter);
+        }
 
         Ok(Event::Persist)
     }
@@ -661,25 +743,28 @@ impl<'c> Ctx<'c> {
     }
 }
 
-pub struct Worker {
+pub struct Worker<O> {
     store: Store,
     resume_rx: Receiver<()>,
     done_rx: Receiver<()>,
     rpc: Arc<SealerRpcClient>,
+    remote_store: Arc<O>,
 }
 
-impl Worker {
+impl<O: ObjectStore> Worker<O> {
     pub fn new(
         s: Store,
         resume_rx: Receiver<()>,
         done_rx: Receiver<()>,
         rpc: Arc<SealerRpcClient>,
+        remote_store: Arc<O>,
     ) -> Self {
         Worker {
             store: s,
             resume_rx,
             done_rx,
             rpc,
+            remote_store,
         }
     }
 
@@ -731,7 +816,7 @@ impl Worker {
     }
 
     fn seal_one(&mut self) -> Result<(), Failure> {
-        let mut ctx = Ctx::build(&self.store, self.rpc.clone())?;
+        let mut ctx = Ctx::build(&self.store, self.rpc.clone(), self.remote_store.clone())?;
 
         let mut event = None;
         loop {

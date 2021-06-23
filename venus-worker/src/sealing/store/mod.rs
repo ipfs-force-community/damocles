@@ -11,6 +11,7 @@ use crossbeam_channel::{bounded, Receiver};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
+use crate::infra::objstore::ObjectStore;
 use crate::metadb::rocks::RocksMeta;
 use crate::rpc::SealerRpcClient;
 use crate::sealing::worker::Worker;
@@ -141,7 +142,7 @@ impl Store {
 
     /// opens the store at given location
     pub fn open<P: AsRef<Path>>(loc: P) -> Result<Self> {
-        let location = Location(loc.as_ref().to_owned());
+        let location = loc.as_ref().canonicalize().map(|l| Location(l))?;
         let data_path = location.data_path();
         if !data_path.symlink_metadata()?.is_dir() {
             return Err(anyhow!("{:?} is not a dir", data_path));
@@ -207,12 +208,23 @@ impl StoreManager {
     }
 
     /// start sealing loop
-    pub fn start_sealing(self, done_rx: Receiver<()>, rpc: Arc<SealerRpcClient>) {
+    pub fn start_sealing<O: ObjectStore + 'static>(
+        self,
+        done_rx: Receiver<()>,
+        rpc: Arc<SealerRpcClient>,
+        remote_store: Arc<O>,
+    ) {
         let mut join_hdls = Vec::with_capacity(self.stores.len());
         let mut resume_txs = Vec::with_capacity(self.stores.len());
         for (_, store) in self.stores {
             let (resume_tx, resume_rx) = bounded(0);
-            let mut worker = Worker::new(store, resume_rx, done_rx.clone(), rpc.clone());
+            let mut worker = Worker::new(
+                store,
+                resume_rx,
+                done_rx.clone(),
+                rpc.clone(),
+                remote_store.clone(),
+            );
             resume_txs.push(resume_tx);
 
             let hdl = thread::spawn(move || worker.start_seal());
