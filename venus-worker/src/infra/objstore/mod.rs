@@ -1,17 +1,38 @@
 //! abstractions & implementations for object store
 
+use std::error::Error;
+use std::fmt;
 use std::io::{self, Read};
 use std::path::Path;
 
 pub mod filestore;
 
 /// errors in object storage usage
+#[derive(Debug)]
 pub enum ObjectStoreError {
     /// io errors
     IO(io::Error),
 
     /// other errors
     Other(anyhow::Error),
+}
+
+impl fmt::Display for ObjectStoreError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::IO(inner) => write!(f, "obj store io err: {}", inner),
+            Self::Other(inner) => write!(f, "obj store err: {}", inner),
+        }
+    }
+}
+
+impl Error for ObjectStoreError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::IO(inner) => Some(inner),
+            Self::Other(inner) => Some(inner.root_cause()),
+        }
+    }
 }
 
 impl From<io::Error> for ObjectStoreError {

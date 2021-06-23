@@ -142,7 +142,7 @@ impl Store {
 
     /// opens the store at given location
     pub fn open<P: AsRef<Path>>(loc: P) -> Result<Self> {
-        let location = Location(loc.as_ref().to_owned());
+        let location = loc.as_ref().canonicalize().map(|l| Location(l))?;
         let data_path = location.data_path();
         if !data_path.symlink_metadata()?.is_dir() {
             return Err(anyhow!("{:?} is not a dir", data_path));

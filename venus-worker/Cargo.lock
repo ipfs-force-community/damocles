@@ -4143,6 +4143,7 @@ dependencies = [
  "filecoin-proofs-api",
  "forest_address",
  "forest_json_utils",
+ "glob",
  "humantime-serde",
  "jsonrpc-client-transports",
  "jsonrpc-core",

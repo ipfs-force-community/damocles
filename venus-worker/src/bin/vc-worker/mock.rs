@@ -28,10 +28,6 @@ pub fn start_mock(
     store_list: String,
     remote_store: String,
 ) -> Result<()> {
-    let remote = Arc::new(FileStore::open(remote_store)?);
-
-    let store_paths = load_store_list(store_list)?;
-
     let proof_type = match sector_size {
         SIZE_2K => RegisteredSealProof::StackedDrg2KiBV1_1,
         SIZE_8M => RegisteredSealProof::StackedDrg8MiBV1_1,
@@ -41,13 +37,18 @@ pub fn start_mock(
         other => return Err(anyhow!("invalid sector size {}", other)),
     };
 
+    let store_paths = load_store_list(store_list)?;
+
     info!(
         miner,
         sector_size,
         proof_type = debug_field(proof_type),
         stores = debug_field(&store_paths),
+        remote = debug_field(&remote_store),
         "init mock impl"
     );
+
+    let remote = Arc::new(FileStore::open(remote_store)?);
 
     let mock_impl = rpc::mock::SimpleMockSealerRpc::new(miner, proof_type);
     let mut io = IoHandler::new();
