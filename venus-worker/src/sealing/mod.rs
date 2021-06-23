@@ -8,3 +8,5 @@ pub mod store;
 
 /// helpers for sealing
 pub mod util;
+
+mod failure;

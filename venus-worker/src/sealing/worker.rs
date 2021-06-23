@@ -1,11 +1,9 @@
-use std::error::Error as StdError;
-use std::fmt::Display;
 use std::fs::{create_dir_all, OpenOptions};
 use std::io::{self, prelude::*};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::{anyhow, Context, Error, Result};
+use anyhow::{anyhow, Context, Result};
 use async_std::task::block_on;
 use crossbeam_channel::{select, Receiver, TryRecvError};
 use filecoin_proofs_api::seal::{
@@ -23,6 +21,7 @@ use crate::rpc::{
 };
 
 use super::event::Event;
+use super::failure::*;
 use super::sector::{PaddedBytesAmount, Sector, State, Trace, UnpaddedBytesAmount};
 use super::store::Store;
 
@@ -33,66 +32,6 @@ const SECTOR_TRACE_PREFIX: &str = "trace";
 // TODO: with_level, turn std error into leveled failure
 // TODO: simpler way to add context to failure
 
-macro_rules! impl_failure_error {
-    ($name:ident, $ename:ident) => {
-        #[derive(Debug)]
-        struct $name(Error);
-
-        #[allow(dead_code)]
-        impl $name {
-            fn new<E>(e: E) -> Self
-            where
-                E: StdError + Send + Sync + 'static,
-            {
-                Error::new(e).into()
-            }
-
-            fn with_context<E, C>(e: E, c: C) -> Self
-            where
-                E: StdError + Send + Sync + 'static,
-                C: Display + Send + Sync + 'static,
-            {
-                Error::new(e).context(c).into()
-            }
-        }
-
-        impl From<Error> for $name {
-            fn from(val: Error) -> Self {
-                $name(val)
-            }
-        }
-
-        impl From<$name> for Failure {
-            fn from(val: $name) -> Self {
-                Failure::$ename(val)
-            }
-        }
-    };
-}
-
-impl_failure_error! {TemporaryError, Temporary}
-impl_failure_error! {UnrecoverableError, Unrecoverable}
-impl_failure_error! {PermanentError, Permanent}
-impl_failure_error! {CriticalError, Critical}
-
-enum Failure {
-    Temporary(TemporaryError),
-    Unrecoverable(UnrecoverableError),
-    Permanent(PermanentError),
-    Critical(CriticalError),
-}
-
-impl std::fmt::Debug for Failure {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Failure::Temporary(e) => f.write_str(&format!("Temporary: {:?}", e.0)),
-            Failure::Unrecoverable(e) => f.write_str(&format!("Unrecoverable: {:?}", e.0)),
-            Failure::Permanent(e) => f.write_str(&format!("Permanent: {:?}", e.0)),
-            Failure::Critical(e) => f.write_str(&format!("Critical: {:?}", e.0)),
-        }
-    }
-}
-
 type HandleResult = Result<Event, Failure>;
 
 macro_rules! call_rpc {
@@ -101,7 +40,7 @@ macro_rules! call_rpc {
             $(
                 $arg,
             )*
-        )).map_err(|e| TemporaryError::from(anyhow!("rpc error: {:?}", e)))
+        )).map_err(|e| anyhow!("rpc error: {:?}", e).temp())
     };
 }
 
@@ -111,10 +50,10 @@ macro_rules! fetch_cloned_field {
             .as_ref()
             .map(|b| &b.$first_field$(.$field)*)
             .cloned()
-            .ok_or(PermanentError::from(anyhow!(
+            .ok_or(anyhow!(
                 "field {} is required",
                 stringify!($first_field$(.$field)*)
-            )))
+            ).abort())
     };
 
     ($target:expr, $first_field:ident$(.$field:ident)*,) => {
@@ -122,17 +61,17 @@ macro_rules! fetch_cloned_field {
             .as_ref()
             .map(|b| &b.$first_field$(.$field)*)
             .cloned()
-            .ok_or(PermanentError::from(anyhow!(
+            .ok_or(anyhow!(
                 "field {} is required",
                 stringify!($first_field$(.$field)*)
-            )))
+            ).abort())
     };
 
     ($target:expr) => {
-        $target.as_ref().cloned().ok_or(PermanentError::from(anyhow!(
+        $target.as_ref().cloned().ok_or(anyhow!(
             "field {} is required",
             stringify!($target)
-        )))
+        ).abort())
     };
 }
 
@@ -141,27 +80,27 @@ macro_rules! fetch_field {
         $target
             .as_ref()
             .map(|b| &b.$first_field$(.$field)*)
-            .ok_or(PermanentError::from(anyhow!(
+            .ok_or(anyhow!(
                 "field {} is required",
                 stringify!($first_field$(.$field)*)
-            )))
+            ).abort())
     };
 
     ($target:expr, $first_field:ident$(.$field:ident)*,) => {
         $target
             .as_ref()
             .map(|b| &b.$first_field$(.$field)*)
-            .ok_or(PermanentError::from(anyhow!(
+            .ok_or(anyhow!(
                 "field {} is required",
                 stringify!($first_field$(.$field)*)
-            )))
+            ).abort())
     };
 
     ($target:expr) => {
-        $target.as_ref().ok_or(PermanentError::from(anyhow!(
+        $target.as_ref().ok_or(anyhow!(
             "field {} is required",
             stringify!($target)
-        )))
+        ).abort())
     };
 }
 
@@ -181,18 +120,21 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         s: &'c Store,
         rpc: Arc<SealerRpcClient>,
         remote_store: Arc<O>,
-    ) -> Result<Self, CriticalError> {
+    ) -> Result<Self, Failure> {
         let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta));
 
-        let sector: Sector = sector_meta.get(SECTOR_INFO_KEY).or_else(|e| match e {
-            MetaError::NotFound => {
-                let empty = Default::default();
-                sector_meta.set(SECTOR_INFO_KEY, &empty)?;
-                Ok(empty)
-            }
+        let sector: Sector = sector_meta
+            .get(SECTOR_INFO_KEY)
+            .or_else(|e| match e {
+                MetaError::NotFound => {
+                    let empty = Default::default();
+                    sector_meta.set(SECTOR_INFO_KEY, &empty)?;
+                    Ok(empty)
+                }
 
-            MetaError::Failure(ie) => Err(ie),
-        })?;
+                MetaError::Failure(ie) => Err(ie),
+            })
+            .crit()?;
 
         let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, &s.meta));
 
@@ -209,19 +151,14 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         })
     }
 
-    fn sync<F: FnOnce(&mut Sector) -> Result<()>>(
-        &mut self,
-        modify_fn: F,
-    ) -> Result<(), CriticalError> {
-        modify_fn(&mut self.sector)?;
-        self.sector_meta
-            .set(SECTOR_INFO_KEY, &self.sector)
-            .map_err(From::from)
+    fn sync<F: FnOnce(&mut Sector) -> Result<()>>(&mut self, modify_fn: F) -> Result<(), Failure> {
+        modify_fn(&mut self.sector).crit()?;
+        self.sector_meta.set(SECTOR_INFO_KEY, &self.sector).crit()
     }
 
-    fn finalize(self) -> Result<(), CriticalError> {
-        self.store.cleanup()?;
-        self.sector_meta.remove(SECTOR_INFO_KEY)?;
+    fn finalize(self) -> Result<(), Failure> {
+        self.store.cleanup().crit()?;
+        self.sector_meta.remove(SECTOR_INFO_KEY).crit()?;
         Ok(())
     }
 
@@ -321,22 +258,18 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
 
         // init required dirs & files
         let cache_dir = self.cache_dir(&sector.id);
-        create_dir_all(&cache_dir).map_err(CriticalError::new)?;
+        create_dir_all(&cache_dir).crit()?;
 
         let mut opt = OpenOptions::new();
         opt.create(true).read(true).write(true).truncate(true);
 
         {
-            let staged_file = opt
-                .open(self.staged_file(&sector.id))
-                .map_err(CriticalError::new)?;
+            let staged_file = opt.open(self.staged_file(&sector.id)).crit()?;
             drop(staged_file);
         }
 
         {
-            let sealed_file = opt
-                .open(self.sealed_file(&sector.id))
-                .map_err(CriticalError::new)?;
+            let sealed_file = opt.open(self.sealed_file(&sector.id)).crit()?;
             drop(sealed_file);
         }
 
@@ -375,7 +308,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             .read(true)
             .write(true)
             .open(self.staged_file(sector_id))
-            .map_err(PermanentError::new)?;
+            .abort()?;
 
         // TODO: this is only for pledged sector
         let proof_type = fetch_cloned_field! {
@@ -394,7 +327,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             unpadded_size,
             &[],
         )
-        .map_err(PermanentError::from)?;
+        .abort()?;
 
         Ok(Event::AddPiece(vec![piece_info]))
     }
@@ -453,7 +386,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             ticket.0,
             piece_infos,
         )
-        .map_err(PermanentError::from)?;
+        .abort()?;
 
         Ok(Event::PC1(out))
     }
@@ -471,8 +404,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         let cache_dir = self.cache_dir(sector_id);
         let sealed_file = self.sealed_file(sector_id);
 
-        let out =
-            seal_pre_commit_phase2(pc1out, cache_dir, sealed_file).map_err(PermanentError::from)?;
+        let out = seal_pre_commit_phase2(pc1out, cache_dir, sealed_file).abort()?;
 
         Ok(Event::PC2(out))
     }
@@ -512,12 +444,10 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitPC),
 
             SubmitResult::MismatchedSubmission => {
-                Err(PermanentError::from(anyhow!("{:?}: {:?}", res.res, res.desc)).into())
+                Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort())
             }
 
-            SubmitResult::Rejected => {
-                Err(TemporaryError::from(anyhow!("{:?}: {:?}", res.res, res.desc)).into())
-            }
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).temp()),
         }
     }
 
@@ -537,9 +467,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             match state.state {
                 OnChainState::Landed => break 'POLL,
                 OnChainState::NotFound => {
-                    return Err(
-                        PermanentError::from(anyhow!("pre commit on-chain info not found")).into(),
-                    )
+                    return Err(anyhow!("pre commit on-chain info not found").abort())
                 }
                 OnChainState::Pending | OnChainState::Packed => {}
             }
@@ -602,7 +530,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             p2out,
             piece_infos,
         )
-        .map_err(PermanentError::from)?;
+        .abort()?;
 
         Ok(Event::C1(out))
     }
@@ -617,7 +545,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             prove_input,
         }?;
 
-        let out = seal_commit_phase2(c1out, prover_id, sector_id).map_err(PermanentError::from)?;
+        let out = seal_commit_phase2(c1out, prover_id, sector_id).abort()?;
 
         Ok(Event::C2(out))
     }
@@ -639,21 +567,15 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         let sector_size = allocated.proof_type.sector_size();
 
         // we should be careful here, use failure as temporary
-        clear_cache(sector_size.0, &cache_dir).map_err(TemporaryError::from)?;
+        clear_cache(sector_size.0, &cache_dir).temp()?;
         debug!(
             dir = debug_field(&cache_dir),
             "clean up unnecessary cached files"
         );
 
         let matches = match cache_dir.join("*").as_os_str().to_str() {
-            Some(s) => glob(s).map_err(TemporaryError::new)?,
-            None => {
-                return Err(CriticalError::from(anyhow!(
-                    "invalid glob pattern under {:?}",
-                    cache_dir
-                ))
-                .into())
-            }
+            Some(s) => glob(s).temp()?,
+            None => return Err(anyhow!("invalid glob pattern under {:?}", cache_dir).crit()),
         };
 
         for res in matches {
@@ -661,7 +583,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
                 Ok(p) => wanted.push(p),
                 Err(e) => {
                     let ctx = format!("glob error for {:?}", e.path());
-                    return Err(CriticalError::with_context(e.into_error(), ctx).into());
+                    return Err(e.into_error().crit()).context(ctx);
                 }
             }
         }
@@ -673,11 +595,10 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             let target_path = match one.strip_prefix(&self.store.data_path) {
                 Ok(p) => p,
                 Err(e) => {
-                    return Err(CriticalError::with_context(
-                        e,
-                        format!("strip prefix {:?} for {:?}", self.store.data_path, one),
-                    )
-                    .into());
+                    return Err(e.crit()).context(format!(
+                        "strip prefix {:?} for {:?}",
+                        self.store.data_path, one
+                    ));
                 }
             };
 
@@ -689,11 +610,8 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
 
             let copy_enter = copy_span.enter();
 
-            let source = opt.open(&one).map_err(CriticalError::new)?;
-            let size = self
-                .remote_store
-                .put(target_path, source)
-                .map_err(CriticalError::new)?;
+            let source = opt.open(&one).crit()?;
+            let size = self.remote_store.put(target_path, source).crit()?;
 
             debug!(size, "persist done");
 
@@ -727,12 +645,10 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitProof),
 
             SubmitResult::MismatchedSubmission => {
-                Err(PermanentError::from(anyhow!("{:?}: {:?}", res.res, res.desc)).into())
+                Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort())
             }
 
-            SubmitResult::Rejected => {
-                Err(TemporaryError::from(anyhow!("{:?}: {:?}", res.res, res.desc)).into())
-            }
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).temp()),
         }
     }
 
@@ -794,9 +710,9 @@ impl<O: ObjectStore> Worker<O> {
 
             if let Err(failure) = self.seal_one() {
                 error!(failure = debug_field(&failure), "sealing failed");
-                match failure {
-                    Failure::Temporary(_) | Failure::Unrecoverable(_) | Failure::Critical(_) => {
-                        if let Failure::Temporary(_) = failure {
+                match failure.0 {
+                    Level::Temporary | Level::Permanent | Level::Critical => {
+                        if failure.0 == Level::Temporary {
                             error!("temporary error should not be popagated to the top level");
                         };
 
@@ -804,7 +720,7 @@ impl<O: ObjectStore> Worker<O> {
                         continue 'SEAL_LOOP;
                     }
 
-                    Failure::Permanent(_) => {}
+                    Level::Abort => {}
                 };
             }
 
@@ -842,13 +758,13 @@ impl<O: ObjectStore> Worker<O> {
                     return Ok(());
                 }
 
-                Err(Failure::Temporary(terr)) => {
+                Err(Failure(Level::Temporary, terr)) => {
                     if ctx.sector.retry >= ctx.store.config.max_retries {
-                        return Err(Failure::Unrecoverable(terr.0.into()));
+                        return Err(terr.perm());
                     }
 
                     ctx.sync(|s| {
-                        warn!(retry = s.retry, "temp error occurred: {:?}", terr.0,);
+                        warn!(retry = s.retry, "temp error occurred: {:?}", terr,);
 
                         s.retry += 1;
 
@@ -861,11 +777,7 @@ impl<O: ObjectStore> Worker<O> {
                     });
                 }
 
-                Err(pf @ Failure::Permanent(_)) => return Err(pf),
-
-                Err(cf @ Failure::Critical(_)) => return Err(cf),
-
-                Err(uf @ Failure::Unrecoverable(_)) => return Err(uf),
+                Err(f) => return Err(f),
             }
 
             drop(enter);
