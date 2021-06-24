@@ -22,6 +22,7 @@ use crate::rpc::{
 
 use super::event::Event;
 use super::failure::*;
+use super::resource::Pool;
 use super::sector::{PaddedBytesAmount, Sector, State, Trace, UnpaddedBytesAmount};
 use super::store::Store;
 
@@ -111,6 +112,8 @@ struct Ctx<'c, O> {
     store: &'c Store,
     rpc: Arc<SealerRpcClient>,
     remote_store: Arc<O>,
+    limit: Arc<Pool>,
+
     sector_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
     _trace_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
 }
@@ -120,6 +123,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         s: &'c Store,
         rpc: Arc<SealerRpcClient>,
         remote_store: Arc<O>,
+        limit: Arc<Pool>,
     ) -> Result<Self, Failure> {
         let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta));
 
@@ -145,6 +149,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             store: s,
             rpc,
             remote_store,
+            limit,
 
             sector_meta,
             _trace_meta: trace_meta,
@@ -665,6 +670,7 @@ pub struct Worker<O> {
     done_rx: Receiver<()>,
     rpc: Arc<SealerRpcClient>,
     remote_store: Arc<O>,
+    limit: Arc<Pool>,
 }
 
 impl<O: ObjectStore> Worker<O> {
@@ -674,6 +680,7 @@ impl<O: ObjectStore> Worker<O> {
         done_rx: Receiver<()>,
         rpc: Arc<SealerRpcClient>,
         remote_store: Arc<O>,
+        limit: Arc<Pool>,
     ) -> Self {
         Worker {
             store: s,
@@ -681,6 +688,7 @@ impl<O: ObjectStore> Worker<O> {
             done_rx,
             rpc,
             remote_store,
+            limit,
         }
     }
 
@@ -732,7 +740,12 @@ impl<O: ObjectStore> Worker<O> {
     }
 
     fn seal_one(&mut self) -> Result<(), Failure> {
-        let mut ctx = Ctx::build(&self.store, self.rpc.clone(), self.remote_store.clone())?;
+        let mut ctx = Ctx::build(
+            &self.store,
+            self.rpc.clone(),
+            self.remote_store.clone(),
+            self.limit.clone(),
+        )?;
 
         let mut event = None;
         loop {

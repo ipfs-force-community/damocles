@@ -1,3 +1,5 @@
+//! helper utilities for sealing
+
 use anyhow::{anyhow, Result};
 use filecoin_proofs_api::Commitment;
 

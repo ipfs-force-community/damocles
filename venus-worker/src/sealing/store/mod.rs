@@ -1,3 +1,5 @@
+//! definition of the sealing store
+
 use std::collections::BTreeMap;
 use std::fs::{self, create_dir_all, read, read_dir, remove_dir_all};
 use std::io::Write;
@@ -14,7 +16,7 @@ use tracing::{error, warn};
 use crate::infra::objstore::ObjectStore;
 use crate::metadb::rocks::RocksMeta;
 use crate::rpc::SealerRpcClient;
-use crate::sealing::worker::Worker;
+use crate::sealing::{resource::Pool, worker::Worker};
 
 pub mod util;
 
@@ -213,6 +215,7 @@ impl StoreManager {
         done_rx: Receiver<()>,
         rpc: Arc<SealerRpcClient>,
         remote_store: Arc<O>,
+        limit: Arc<Pool>,
     ) {
         let mut join_hdls = Vec::with_capacity(self.stores.len());
         let mut resume_txs = Vec::with_capacity(self.stores.len());
@@ -224,6 +227,7 @@ impl StoreManager {
                 done_rx.clone(),
                 rpc.clone(),
                 remote_store.clone(),
+                limit.clone(),
             );
             resume_txs.push(resume_tx);
 
