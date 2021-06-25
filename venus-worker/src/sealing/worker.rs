@@ -106,6 +106,24 @@ macro_rules! fetch_field {
     };
 }
 
+enum Stage {
+    PC1,
+    PC2,
+    C1,
+    C2,
+}
+
+impl AsRef<str> for Stage {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::PC1 => "pc1",
+            Self::PC2 => "pc2",
+            Self::C1 => "c1",
+            Self::C2 => "c2",
+        }
+    }
+}
+
 struct Ctx<'c, O> {
     sector: Sector,
     _trace: Vec<Trace>,
@@ -280,7 +298,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
     }
 
     fn handle_allocated(&mut self) -> HandleResult {
-        if !self.store.config.enable_deal {
+        if !self.store.config.enable_deals {
             return Ok(Event::AcquireDeals(None));
         }
 
@@ -351,6 +369,8 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
     }
 
     fn handle_ticket_assigned(&mut self) -> HandleResult {
+        let token = self.limit.acquire(Stage::PC1).crit()?;
+
         let proof_type = fetch_cloned_field! {
             self.sector.base,
             allocated.proof_type,
@@ -391,10 +411,13 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         )
         .abort()?;
 
+        drop(token);
         Ok(Event::PC1(out))
     }
 
     fn handle_pc1_done(&mut self) -> HandleResult {
+        let token = self.limit.acquire(Stage::PC2).crit()?;
+
         let pc1out = fetch_cloned_field! {
             self.sector.phases.pc1out
         }?;
@@ -409,6 +432,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
 
         let out = seal_pre_commit_phase2(pc1out, cache_dir, sealed_file).abort()?;
 
+        drop(token);
         Ok(Event::PC2(out))
     }
 
@@ -488,6 +512,8 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
     }
 
     fn handle_seed_assigned(&mut self) -> HandleResult {
+        let token = self.limit.acquire(Stage::C1).crit()?;
+
         let sector_id = fetch_field! {
             self.sector.base,
             allocated.id,
@@ -531,10 +557,13 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         )
         .abort()?;
 
+        drop(token);
         Ok(Event::C1(out))
     }
 
     fn handle_c1_done(&mut self) -> HandleResult {
+        let token = self.limit.acquire(Stage::C2).crit()?;
+
         let c1out = fetch_cloned_field! {
             self.sector.phases.c1out
         }?;
@@ -546,6 +575,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
 
         let out = seal_commit_phase2(c1out, prover_id, sector_id).abort()?;
 
+        drop(token);
         Ok(Event::C2(out))
     }
 

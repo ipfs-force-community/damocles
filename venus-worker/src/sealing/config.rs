@@ -20,7 +20,7 @@ pub struct Sealing {
     pub allowed_sizes: Option<Vec<String>>,
 
     /// enable sealing sectors with deal pieces
-    pub enable_deal: bool,
+    pub enable_deals: bool,
 
     /// max retry times for tempoary failed sector
     pub max_retries: u32,
@@ -43,7 +43,7 @@ impl Default for Sealing {
         Sealing {
             allowed_miners: None,
             allowed_sizes: None,
-            enable_deal: false,
+            enable_deals: false,
             max_retries: 5,
             seal_interval: Duration::from_secs(30),
             recover_interval: Duration::from_secs(30),
@@ -62,7 +62,7 @@ pub struct SealingOptional {
     pub allowed_sizes: Option<Vec<String>>,
 
     /// enable sealing sectors with deal pieces
-    pub enable_deal: Option<bool>,
+    pub enable_deals: Option<bool>,
 
     /// max retry times for tempoary failed sector
     pub max_retries: Option<u32>,

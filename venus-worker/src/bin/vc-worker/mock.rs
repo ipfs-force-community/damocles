@@ -28,6 +28,8 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
 
     let cfg = config::Config::load(&cfg_path)?;
 
+    info!("config loaded:\n {:?}", cfg);
+
     let remote_store = cfg
         .remote
         .path

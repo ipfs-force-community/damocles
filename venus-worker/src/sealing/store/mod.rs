@@ -134,7 +134,7 @@ fn customized_sealing_config(common: &Sealing, cfg_opt: Option<&SealingOptional>
 
         allowed_sizes: cfg.allowed_sizes.clone().or(common.allowed_sizes.clone()),
 
-        enable_deal: cfg.enable_deal.clone().unwrap_or(common.enable_deal),
+        enable_deals: cfg.enable_deals.clone().unwrap_or(common.enable_deals),
 
         max_retries: cfg.max_retries.clone().unwrap_or(common.max_retries),
 
