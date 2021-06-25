@@ -2,6 +2,7 @@ use std::fs::{create_dir_all, OpenOptions};
 use std::io::{self, prelude::*};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::thread::sleep;
 
 use anyhow::{anyhow, Context, Result};
 use async_std::task::block_on;
@@ -202,10 +203,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
                         "Event::Retry captured"
                     );
 
-                    self.store
-                        .config
-                        .recover_interval
-                        .map(|d| std::thread::sleep(d));
+                    sleep(self.store.config.recover_interval);
                 }
 
                 other => {
@@ -477,11 +475,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
                 OnChainState::Pending | OnChainState::Packed => {}
             }
 
-            self.store
-                .config
-                .rpc_poll_interval
-                .as_ref()
-                .map(|d| std::thread::sleep(*d));
+            sleep(self.store.config.rpc_polling_interval);
         }
 
         let seed = call_rpc! {
@@ -732,10 +726,12 @@ impl<O: ObjectStore> Worker<O> {
                 };
             }
 
-            self.store.config.seal_interval.as_ref().map(|d| {
-                info!(duration = debug_field(d), "wait before sealing");
-                std::thread::sleep(*d);
-            });
+            info!(
+                duration = debug_field(self.store.config.seal_interval),
+                "wait before sealing"
+            );
+
+            sleep(self.store.config.seal_interval);
         }
     }
 
@@ -784,10 +780,11 @@ impl<O: ObjectStore> Worker<O> {
                         Ok(())
                     })?;
 
-                    ctx.store.config.recover_interval.as_ref().map(|d| {
-                        info!(d = format!("{:?}", d).as_str(), "wait before recovering");
-                        std::thread::sleep(*d);
-                    });
+                    info!(
+                        interval = debug_field(ctx.store.config.recover_interval),
+                        "wait before recovering"
+                    );
+                    sleep(ctx.store.config.recover_interval)
                 }
 
                 Err(f) => return Err(f),

@@ -6,11 +6,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver};
-use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 
 use crate::infra::objstore::ObjectStore;
@@ -18,49 +16,13 @@ use crate::metadb::rocks::RocksMeta;
 use crate::rpc::SealerRpcClient;
 use crate::sealing::{resource::Pool, worker::Worker};
 
+use super::config::Sealing;
+
 pub mod util;
 
 const SUB_PATH_DATA: &str = "data";
 const SUB_PATH_META: &str = "meta";
 const CONFIG_FILE_NAME: &str = "config.toml";
-
-#[derive(Debug, Serialize, Deserialize)]
-/// sealing storage config
-pub struct Config {
-    /// max retry times for temporary failed sealing sectors
-    pub max_retries: u32,
-
-    /// enable sector with deal pieces
-    pub enable_deal: bool,
-
-    /// reserved storage capacity for current location
-    pub reserved_capacity: u64,
-
-    /// interval for sectors
-    #[serde(with = "humantime_serde")]
-    pub seal_interval: Option<Duration>,
-
-    /// interval for recovering failed sectors
-    #[serde(with = "humantime_serde")]
-    pub recover_interval: Option<Duration>,
-
-    /// interval for rpc polling
-    #[serde(with = "humantime_serde")]
-    pub rpc_poll_interval: Option<Duration>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            max_retries: 5,
-            enable_deal: false,
-            reserved_capacity: 0,
-            seal_interval: Some(Duration::from_secs(30)),
-            recover_interval: Some(Duration::from_secs(30)),
-            rpc_poll_interval: Some(Duration::from_secs(30)),
-        }
-    }
-}
 
 /// storage location
 #[derive(Debug)]
@@ -104,7 +66,7 @@ pub struct Store {
     pub data_path: PathBuf,
 
     /// config for current store
-    pub config: Config,
+    pub config: Sealing,
 
     /// embedded meta database for current store
     pub meta: RocksMeta,

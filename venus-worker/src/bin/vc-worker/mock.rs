@@ -76,10 +76,12 @@ pub fn start_mock(
 
     let (mgr_stop_tx, mgr_stop_rx) = bounded::<()>(0);
 
+    let limit = unimplemented!();
+
     let store_mgr = StoreManager::load(store_paths)?;
     thread::spawn(move || {
         info!("store mgr start");
-        store_mgr.start_sealing(done_rx, Arc::new(mock_client), remote);
+        store_mgr.start_sealing(done_rx, Arc::new(mock_client), remote, limit);
         drop(mgr_stop_tx);
     });
 

@@ -13,10 +13,10 @@ use serde::{Deserialize, Serialize};
 
 base64_serde_type! {B64SerDe, STANDARD}
 
+/// randomness with base64 ser & de
 #[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
 #[serde(into = "B64Vec")]
 #[serde(try_from = "B64Vec")]
-/// randomness with base64 ser & de
 pub struct Randomness(pub [u8; 32]);
 
 impl TryFrom<B64Vec> for Randomness {
