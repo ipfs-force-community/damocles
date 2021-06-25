@@ -5,7 +5,6 @@ use anyhow::{anyhow, Result};
 use async_std::task;
 use crossbeam_channel::{bounded, select};
 use fil_types::ActorID;
-use filecoin_proofs_api::RegisteredSealProof;
 use jsonrpc_core::IoHandler;
 use jsonrpc_core_client::transports::local;
 

@@ -2,8 +2,12 @@
 
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Result};
-use crossbeam_channel::{Receiver, Sender};
+use anyhow::Result;
+use crossbeam_channel::{bounded, Receiver, Sender};
+
+use crate::logging::debug;
+
+const LOG_TARGET: &str = "resource";
 
 type LimitTx = Sender<()>;
 type LimitRx = Receiver<()>;
@@ -23,6 +27,12 @@ struct Limit {
 }
 
 impl Limit {
+    fn new(size: usize) -> Self {
+        let (tx, rx) = bounded(size);
+
+        Limit { tx, rx }
+    }
+
     fn acquire(&self) -> Result<Token> {
         self.tx.send(())?;
 
@@ -38,17 +48,34 @@ pub struct Pool {
 impl Pool {
     /// construct a pool with given name-size mapping
     pub fn new<'a, I: Iterator<Item = (&'a String, &'a usize)>>(iter: I) -> Self {
-        unimplemented!();
+        let mut pool = HashMap::new();
+
+        for (k, v) in iter {
+            debug!(
+                target: LOG_TARGET,
+                name = k.as_str(),
+                limit = *v,
+                "add limitation"
+            );
+            pool.insert(k.to_owned(), Limit::new(*v));
+        }
+
+        Pool { pool }
     }
 
     /// acquires a token for the named resource
-    pub fn acquire<N: AsRef<str>>(&self, name: N) -> Result<Token> {
+    pub fn acquire<N: AsRef<str>>(&self, name: N) -> Result<Option<Token>> {
         let key = name.as_ref();
-        let limit = self
-            .pool
-            .get(name.as_ref())
-            .ok_or(anyhow!("resource limit for {} is unavailable", key))?;
+        match self.pool.get(key) {
+            Some(limit) => limit.acquire().map(|t| {
+                debug!(target: LOG_TARGET, name = key, "acquired");
+                Some(t)
+            }),
 
-        limit.acquire()
+            None => {
+                debug!(target: LOG_TARGET, name = key, "unlimited");
+                Ok(None)
+            }
+        }
     }
 }

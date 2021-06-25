@@ -13,6 +13,7 @@ pub fn init() -> Result<()> {
     let builder = FmtSubscriber::builder()
         .with_ansi(std::io::stdout().is_tty() && std::io::stderr().is_tty())
         .with_env_filter(EnvFilter::from_default_env())
+        .with_target(true)
         .with_thread_ids(true)
         .with_timer(time::ChronoLocal::rfc3339());
 
