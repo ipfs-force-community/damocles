@@ -101,7 +101,7 @@ pub struct Store {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     /// common config for sealing
-    pub sealing: Sealing,
+    pub sealing: SealingOptional,
 
     /// list of sector stores
     pub store: Vec<Store>,

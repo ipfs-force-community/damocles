@@ -9,7 +9,7 @@ use std::thread;
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver};
 
-use crate::infra::objstore::ObjectStore;
+use crate::infra::{objstore::ObjectStore, util::PlaceHolder};
 use crate::logging::{debug_field, error, warn};
 use crate::metadb::rocks::RocksMeta;
 use crate::rpc::SealerRpcClient;
@@ -65,16 +65,20 @@ pub struct Store {
     /// embedded meta database for current store
     pub meta: RocksMeta,
     meta_path: PathBuf,
+
+    _holder: PlaceHolder,
 }
 
 impl Store {
     /// initialize the store at given location
     pub fn init<P: AsRef<Path>>(loc: P) -> Result<Location> {
-        let location = Location(loc.as_ref().canonicalize()?);
+        let location = Location(loc.as_ref().to_owned());
         create_dir_all(&location)?;
 
         let data_path = location.data_path();
         create_dir_all(&data_path)?;
+
+        let _holder = PlaceHolder::init(loc)?;
 
         let meta_path = location.meta_path();
         let _ = RocksMeta::open(&meta_path)?;
@@ -83,12 +87,14 @@ impl Store {
     }
 
     /// opens the store at given location
-    pub fn open<P: AsRef<Path>>(loc: P, config: Sealing) -> Result<Self> {
-        let location = loc.as_ref().canonicalize().map(|l| Location(l))?;
+    fn open(loc: PathBuf, config: Sealing) -> Result<Self> {
+        let location = Location(loc);
         let data_path = location.data_path();
         if !data_path.symlink_metadata()?.is_dir() {
             return Err(anyhow!("{:?} is not a dir", data_path));
         }
+
+        let _holder = PlaceHolder::open(&location)?;
 
         let meta_path = location.meta_path();
         let meta = RocksMeta::open(&meta_path)?;
@@ -99,6 +105,7 @@ impl Store {
             config,
             meta,
             meta_path,
+            _holder,
         })
     }
 
@@ -123,32 +130,78 @@ impl Store {
     }
 }
 
-fn customized_sealing_config(common: &Sealing, cfg_opt: Option<&SealingOptional>) -> Sealing {
-    let cfg = match cfg_opt {
-        None => return common.clone(),
-        Some(c) => c,
+macro_rules! merge_fields {
+    (SealingOptional, $common:expr, $cust:expr, $($field:ident,)+) => {
+        SealingOptional {
+            $(
+                $field: $cust.as_ref().and_then(|c| c.$field.clone()).or($common.$field.clone()),
+            )+
+        }
     };
 
-    Sealing {
-        allowed_miners: cfg.allowed_miners.clone().or(common.allowed_miners.clone()),
+    (Sealing, $def:expr, $merged:expr, {$($opt_field:ident,)*}, {$($field:ident,)*},) => {
+        Sealing {
+            $(
+                $opt_field: $merged.$opt_field.take().or($def.$opt_field),
+            )*
 
-        allowed_sizes: cfg.allowed_sizes.clone().or(common.allowed_sizes.clone()),
+            $(
+                $field: $merged.$field.take().unwrap_or($def.$field),
+            )*
+        }
+    };
 
-        enable_deals: cfg.enable_deals.clone().unwrap_or(common.enable_deals),
+    ($common:expr, $cust:expr, $def:expr, {$($opt_field:ident,)*}, {$($field:ident,)*},) => {
+        let mut merged = merge_fields! {
+            SealingOptional,
+            $common,
+            $cust,
+            $(
+                $opt_field,
+            )*
+            $(
+                $field,
+            )*
+        };
 
-        max_retries: cfg.max_retries.clone().unwrap_or(common.max_retries),
+        merge_fields! {
+            Sealing,
+            $def,
+            merged,
+            {
+                $(
+                    $opt_field,
+                )*
+            },
+            {
+                $(
+                    $field,
+                )*
+            },
+        }
+    };
+}
 
-        seal_interval: cfg.seal_interval.clone().unwrap_or(common.seal_interval),
-
-        recover_interval: cfg
-            .recover_interval
-            .clone()
-            .unwrap_or(common.recover_interval),
-
-        rpc_polling_interval: cfg
-            .rpc_polling_interval
-            .clone()
-            .unwrap_or(common.rpc_polling_interval),
+fn customized_sealing_config(
+    common: &SealingOptional,
+    customized: Option<&SealingOptional>,
+) -> Sealing {
+    let default_cfg = Sealing::default();
+    merge_fields! {
+        common,
+        customized,
+        default_cfg,
+        {
+            allowed_miners,
+            allowed_sizes,
+        },
+        {
+            enable_deals,
+            max_retries,
+            seal_interval,
+            recover_interval,
+            rpc_polling_interval,
+        },
     }
 }
 
@@ -160,7 +213,7 @@ pub struct StoreManager {
 
 impl StoreManager {
     /// loads specific
-    pub fn load(list: &[StoreConfig], common: &Sealing) -> Result<Self> {
+    pub fn load(list: &[StoreConfig], common: &SealingOptional) -> Result<Self> {
         let mut stores = HashMap::new();
         for scfg in list {
             let store_path = Path::new(&scfg.location).canonicalize()?;
@@ -171,7 +224,7 @@ impl StoreManager {
             }
 
             let sealing_config = customized_sealing_config(common, scfg.sealing.as_ref());
-            let store = Store::open(&store_path, sealing_config)?;
+            let store = Store::open(store_path.clone(), sealing_config)?;
             stores.insert(store_path, store);
         }
 

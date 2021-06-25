@@ -7,7 +7,10 @@ use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use anyhow::{anyhow, Result};
 
 use super::{ObjResult, ObjectStore, Range};
-use crate::logging::{debug_field, trace};
+use crate::{
+    infra::util::PlaceHolder,
+    logging::{debug_field, trace},
+};
 
 const LOG_TARGET: &str = "filestore";
 
@@ -15,9 +18,18 @@ const LOG_TARGET: &str = "filestore";
 pub struct FileStore {
     sep: String,
     path: PathBuf,
+    _holder: PlaceHolder,
 }
 
 impl FileStore {
+    /// init filestore, create a placeholder file in its root dir
+    pub fn init<P: AsRef<Path>>(p: P) -> Result<()> {
+        create_dir_all(p.as_ref())?;
+        let _holder = PlaceHolder::init(p.as_ref())?;
+
+        Ok(())
+    }
+
     /// open the file store at given path
     pub fn open<P: AsRef<Path>>(p: P) -> Result<Self> {
         let dir_path = p.as_ref().canonicalize()?;
@@ -25,9 +37,12 @@ impl FileStore {
             return Err(anyhow!("base path of the file store should a dir"));
         };
 
+        let _holder = PlaceHolder::open(&dir_path)?;
+
         Ok(FileStore {
             sep: MAIN_SEPARATOR.to_string(),
             path: dir_path,
+            _holder,
         })
     }
 
