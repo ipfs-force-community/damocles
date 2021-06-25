@@ -36,6 +36,11 @@ pub struct Pool {
 }
 
 impl Pool {
+    /// construct a pool with given name-size mapping
+    pub fn new<'a, I: Iterator<Item = (&'a String, &'a usize)>>(iter: I) -> Self {
+        unimplemented!();
+    }
+
     /// acquires a token for the named resource
     pub fn acquire<N: AsRef<str>>(&self, name: N) -> Result<Token> {
         let key = name.as_ref();

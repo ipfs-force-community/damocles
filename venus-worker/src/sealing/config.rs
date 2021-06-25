@@ -1,7 +1,9 @@
 //! config for sealing
 
 use std::collections::HashMap;
+use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -78,6 +80,13 @@ pub struct SealingOptional {
     pub rpc_polling_interval: Option<Duration>,
 }
 
+/// configuration for remote store
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Remote {
+    /// store path, if we are using fs based store
+    pub path: Option<String>,
+}
+
 /// configurations for sector store
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Store {
@@ -99,16 +108,25 @@ pub struct Config {
 
     /// concurrent limit for different stages
     pub limit: HashMap<String, usize>,
+
+    /// remote store config
+    pub remote: Remote,
 }
 
 impl Config {
     /// load config from the reader
-    pub fn load<R: Read>(mut r: R) -> Result<Self> {
+    pub fn from_reader<R: Read>(mut r: R) -> Result<Self> {
         let mut content = Vec::with_capacity(1 << 10);
         r.read_to_end(&mut content)?;
 
         let cfg = from_slice(&content)?;
 
         Ok(cfg)
+    }
+
+    /// load from config file
+    pub fn load<P: AsRef<Path>>(p: P) -> Result<Self> {
+        let f = File::open(p)?;
+        Self::from_reader(f)
     }
 }
