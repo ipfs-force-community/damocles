@@ -1,5 +1,25 @@
+//! helper utilities for sealing
+
 use anyhow::{anyhow, Result};
-use filecoin_proofs_api::Commitment;
+use filecoin_proofs_api::{Commitment, RegisteredSealProof};
+
+const SIZE_2K: u64 = 2 << 10;
+const SIZE_8M: u64 = 8 << 20;
+const SIZE_512M: u64 = 512 << 20;
+const SIZE_32G: u64 = 32 << 30;
+const SIZE_64G: u64 = 64 << 30;
+
+/// convert from sector size in byte to seal proof type
+pub fn size2proof(sector_size: u64) -> Result<RegisteredSealProof> {
+    match sector_size {
+        SIZE_2K => Ok(RegisteredSealProof::StackedDrg2KiBV1_1),
+        SIZE_8M => Ok(RegisteredSealProof::StackedDrg8MiBV1_1),
+        SIZE_512M => Ok(RegisteredSealProof::StackedDrg512MiBV1_1),
+        SIZE_32G => Ok(RegisteredSealProof::StackedDrg32GiBV1_1),
+        SIZE_64G => Ok(RegisteredSealProof::StackedDrg64GiBV1_1),
+        other => Err(anyhow!("invalid sector size {}", other)),
+    }
+}
 
 const ALL_ZERO_PIECE_COMMS: [Commitment; 35] = [
     [

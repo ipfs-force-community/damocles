@@ -5,7 +5,6 @@ use anyhow::{anyhow, Result};
 use async_std::task;
 use crossbeam_channel::{bounded, select};
 use fil_types::ActorID;
-use filecoin_proofs_api::RegisteredSealProof;
 use jsonrpc_core::IoHandler;
 use jsonrpc_core_client::transports::local;
 
@@ -13,41 +12,28 @@ use venus_worker::{
     infra::objstore::filestore::FileStore,
     logging::{debug_field, error, info, warn},
     rpc::{self, SealerRpc, SealerRpcClient},
-    sealing::store::{util::load_store_list, StoreManager},
+    sealing::{config, resource, store::StoreManager, util::size2proof},
 };
 
-const SIZE_2K: u64 = 2 << 10;
-const SIZE_8M: u64 = 8 << 20;
-const SIZE_512M: u64 = 512 << 20;
-const SIZE_32G: u64 = 32 << 30;
-const SIZE_64G: u64 = 64 << 30;
-
-pub fn start_mock(
-    miner: ActorID,
-    sector_size: u64,
-    store_list: String,
-    remote_store: String,
-) -> Result<()> {
-    let proof_type = match sector_size {
-        SIZE_2K => RegisteredSealProof::StackedDrg2KiBV1_1,
-        SIZE_8M => RegisteredSealProof::StackedDrg8MiBV1_1,
-        SIZE_512M => RegisteredSealProof::StackedDrg512MiBV1_1,
-        SIZE_32G => RegisteredSealProof::StackedDrg32GiBV1_1,
-        SIZE_64G => RegisteredSealProof::StackedDrg64GiBV1_1,
-        other => return Err(anyhow!("invalid sector size {}", other)),
-    };
-
-    let store_paths = load_store_list(store_list)?;
+pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<()> {
+    let proof_type = size2proof(sector_size)?;
 
     info!(
         miner,
         sector_size,
         proof_type = debug_field(proof_type),
-        stores = debug_field(&store_paths),
-        remote = debug_field(&remote_store),
-        "init mock impl"
+        config = cfg_path.as_str(),
+        "start initializing mock impl"
     );
 
+    let cfg = config::Config::load(&cfg_path)?;
+
+    info!("config loaded:\n {:?}", cfg);
+
+    let remote_store = cfg
+        .remote
+        .path
+        .ok_or(anyhow!("remote path is required for mock"))?;
     let remote = Arc::new(FileStore::open(remote_store)?);
 
     let mock_impl = rpc::mock::SimpleMockSealerRpc::new(miner, proof_type);
@@ -76,10 +62,12 @@ pub fn start_mock(
 
     let (mgr_stop_tx, mgr_stop_rx) = bounded::<()>(0);
 
-    let store_mgr = StoreManager::load(store_paths)?;
+    let limit = resource::Pool::new(cfg.limit.iter());
+
+    let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
     thread::spawn(move || {
         info!("store mgr start");
-        store_mgr.start_sealing(done_rx, Arc::new(mock_client), remote);
+        store_mgr.start_sealing(done_rx, Arc::new(mock_client), remote, Arc::new(limit));
         drop(mgr_stop_tx);
     });
 

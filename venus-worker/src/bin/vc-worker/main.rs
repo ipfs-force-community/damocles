@@ -25,18 +25,11 @@ pub fn main() -> Result<()> {
                 .help("sector size for mock server"),
         )
         .arg(
-            Arg::with_name("store-list")
-                .long("store-list")
-                .short("l")
+            Arg::with_name("config")
+                .long("config")
+                .short("c")
                 .takes_value(true)
-                .help("store list file path"),
-        )
-        .arg(
-            Arg::with_name("remote-store")
-                .long("remote-store")
-                .short("r")
-                .takes_value(true)
-                .help("remote store path"),
+                .help("path for the config file"),
         );
 
     let matches = App::new("vc-worker")
@@ -49,10 +42,9 @@ pub fn main() -> Result<()> {
             let miner = value_t!(m, "miner", u64)?;
             let size_str = value_t!(m, "sector-size", String)?;
             let size = Byte::from_str(size_str)?;
-            let store_list = value_t!(m, "store-list", String)?;
-            let remote_store = value_t!(m, "remote-store", String)?;
+            let cfg_path = value_t!(m, "config", String)?;
 
-            mock::start_mock(miner, size.get_bytes() as u64, store_list, remote_store)
+            mock::start_mock(miner, size.get_bytes() as u64, cfg_path)
         }
 
         (other, _) => Err(anyhow!("unexpected subcommand {}", other)),

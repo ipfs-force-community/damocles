@@ -2,6 +2,7 @@ use std::fs::{create_dir_all, OpenOptions};
 use std::io::{self, prelude::*};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::thread::sleep;
 
 use anyhow::{anyhow, Context, Result};
 use async_std::task::block_on;
@@ -22,6 +23,7 @@ use crate::rpc::{
 
 use super::event::Event;
 use super::failure::*;
+use super::resource::Pool;
 use super::sector::{PaddedBytesAmount, Sector, State, Trace, UnpaddedBytesAmount};
 use super::store::Store;
 
@@ -104,6 +106,24 @@ macro_rules! fetch_field {
     };
 }
 
+enum Stage {
+    PC1,
+    PC2,
+    C1,
+    C2,
+}
+
+impl AsRef<str> for Stage {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::PC1 => "pc1",
+            Self::PC2 => "pc2",
+            Self::C1 => "c1",
+            Self::C2 => "c2",
+        }
+    }
+}
+
 struct Ctx<'c, O> {
     sector: Sector,
     _trace: Vec<Trace>,
@@ -111,6 +131,8 @@ struct Ctx<'c, O> {
     store: &'c Store,
     rpc: Arc<SealerRpcClient>,
     remote_store: Arc<O>,
+    limit: Arc<Pool>,
+
     sector_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
     _trace_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
 }
@@ -120,6 +142,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         s: &'c Store,
         rpc: Arc<SealerRpcClient>,
         remote_store: Arc<O>,
+        limit: Arc<Pool>,
     ) -> Result<Self, Failure> {
         let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta));
 
@@ -145,6 +168,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             store: s,
             rpc,
             remote_store,
+            limit,
 
             sector_meta,
             _trace_meta: trace_meta,
@@ -197,10 +221,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
                         "Event::Retry captured"
                     );
 
-                    self.store
-                        .config
-                        .recover_interval
-                        .map(|d| std::thread::sleep(d));
+                    sleep(self.store.config.recover_interval);
                 }
 
                 other => {
@@ -277,7 +298,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
     }
 
     fn handle_allocated(&mut self) -> HandleResult {
-        if !self.store.config.enable_deal {
+        if !self.store.config.enable_deals {
             return Ok(Event::AcquireDeals(None));
         }
 
@@ -348,6 +369,8 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
     }
 
     fn handle_ticket_assigned(&mut self) -> HandleResult {
+        let token = self.limit.acquire(Stage::PC1).crit()?;
+
         let proof_type = fetch_cloned_field! {
             self.sector.base,
             allocated.proof_type,
@@ -388,10 +411,13 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         )
         .abort()?;
 
+        drop(token);
         Ok(Event::PC1(out))
     }
 
     fn handle_pc1_done(&mut self) -> HandleResult {
+        let token = self.limit.acquire(Stage::PC2).crit()?;
+
         let pc1out = fetch_cloned_field! {
             self.sector.phases.pc1out
         }?;
@@ -406,6 +432,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
 
         let out = seal_pre_commit_phase2(pc1out, cache_dir, sealed_file).abort()?;
 
+        drop(token);
         Ok(Event::PC2(out))
     }
 
@@ -472,11 +499,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
                 OnChainState::Pending | OnChainState::Packed => {}
             }
 
-            self.store
-                .config
-                .rpc_poll_interval
-                .as_ref()
-                .map(|d| std::thread::sleep(*d));
+            sleep(self.store.config.rpc_polling_interval);
         }
 
         let seed = call_rpc! {
@@ -489,6 +512,8 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
     }
 
     fn handle_seed_assigned(&mut self) -> HandleResult {
+        let token = self.limit.acquire(Stage::C1).crit()?;
+
         let sector_id = fetch_field! {
             self.sector.base,
             allocated.id,
@@ -532,10 +557,13 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         )
         .abort()?;
 
+        drop(token);
         Ok(Event::C1(out))
     }
 
     fn handle_c1_done(&mut self) -> HandleResult {
+        let token = self.limit.acquire(Stage::C2).crit()?;
+
         let c1out = fetch_cloned_field! {
             self.sector.phases.c1out
         }?;
@@ -547,6 +575,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
 
         let out = seal_commit_phase2(c1out, prover_id, sector_id).abort()?;
 
+        drop(token);
         Ok(Event::C2(out))
     }
 
@@ -665,6 +694,7 @@ pub struct Worker<O> {
     done_rx: Receiver<()>,
     rpc: Arc<SealerRpcClient>,
     remote_store: Arc<O>,
+    limit: Arc<Pool>,
 }
 
 impl<O: ObjectStore> Worker<O> {
@@ -674,6 +704,7 @@ impl<O: ObjectStore> Worker<O> {
         done_rx: Receiver<()>,
         rpc: Arc<SealerRpcClient>,
         remote_store: Arc<O>,
+        limit: Arc<Pool>,
     ) -> Self {
         Worker {
             store: s,
@@ -681,6 +712,7 @@ impl<O: ObjectStore> Worker<O> {
             done_rx,
             rpc,
             remote_store,
+            limit,
         }
     }
 
@@ -724,15 +756,22 @@ impl<O: ObjectStore> Worker<O> {
                 };
             }
 
-            self.store.config.seal_interval.as_ref().map(|d| {
-                info!(duration = debug_field(d), "wait before sealing");
-                std::thread::sleep(*d);
-            });
+            info!(
+                duration = debug_field(self.store.config.seal_interval),
+                "wait before sealing"
+            );
+
+            sleep(self.store.config.seal_interval);
         }
     }
 
     fn seal_one(&mut self) -> Result<(), Failure> {
-        let mut ctx = Ctx::build(&self.store, self.rpc.clone(), self.remote_store.clone())?;
+        let mut ctx = Ctx::build(
+            &self.store,
+            self.rpc.clone(),
+            self.remote_store.clone(),
+            self.limit.clone(),
+        )?;
 
         let mut event = None;
         loop {
@@ -771,10 +810,11 @@ impl<O: ObjectStore> Worker<O> {
                         Ok(())
                     })?;
 
-                    ctx.store.config.recover_interval.as_ref().map(|d| {
-                        info!(d = format!("{:?}", d).as_str(), "wait before recovering");
-                        std::thread::sleep(*d);
-                    });
+                    info!(
+                        interval = debug_field(ctx.store.config.recover_interval),
+                        "wait before recovering"
+                    );
+                    sleep(ctx.store.config.recover_interval)
                 }
 
                 Err(f) => return Err(f),

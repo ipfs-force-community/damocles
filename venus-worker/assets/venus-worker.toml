@@ -1,0 +1,17 @@
+[sealing]
+enable_deals = false
+max_retries = 3
+
+[[store]]
+location = "./tmp/store1"
+
+[[store]]
+location = "./tmp/store2"
+
+[limit]
+pc1 = 1
+pc2 = 1
+c2 = 1
+
+[remote]
+path = "./tmp/remote"
