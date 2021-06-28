@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use toml::from_slice;
 
 /// configurations for sealing sectors
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Sealing {
     /// specified miner actors
     pub allowed_miners: Option<Vec<u64>>,
@@ -26,15 +26,12 @@ pub struct Sealing {
     pub max_retries: u32,
 
     /// interval between sectors
-    #[serde(with = "humantime_serde")]
     pub seal_interval: Duration,
 
     /// interval between retry attempts
-    #[serde(with = "humantime_serde")]
     pub recover_interval: Duration,
 
     /// interval between polling requests
-    #[serde(with = "humantime_serde")]
     pub rpc_polling_interval: Duration,
 }
 
@@ -68,14 +65,17 @@ pub struct SealingOptional {
     pub max_retries: Option<u32>,
 
     /// interval between sectors
+    #[serde(default)]
     #[serde(with = "humantime_serde")]
     pub seal_interval: Option<Duration>,
 
     /// interval between retry attempts
+    #[serde(default)]
     #[serde(with = "humantime_serde")]
     pub recover_interval: Option<Duration>,
 
     /// interval between polling requests
+    #[serde(default)]
     #[serde(with = "humantime_serde")]
     pub rpc_polling_interval: Option<Duration>,
 }
