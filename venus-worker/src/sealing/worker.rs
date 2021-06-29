@@ -268,7 +268,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             allocate_sector,
             rpc::AllocateSectorSpec {
                 allowed_miners: None,
-                allowed_proot_types: None,
+                allowed_proof_types: None,
             },
         }?;
 

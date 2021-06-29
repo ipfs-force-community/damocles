@@ -49,7 +49,7 @@ impl SealerRpc for SimpleMockSealerRpc {
         }
 
         if let Some(false) = spec
-            .allowed_proot_types
+            .allowed_proof_types
             .as_ref()
             .map(|types| types.contains(&self.proof_type))
         {

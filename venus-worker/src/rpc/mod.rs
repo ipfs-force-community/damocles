@@ -70,7 +70,7 @@ pub struct AllocateSectorSpec {
     pub allowed_miners: Option<Vec<ActorID>>,
 
     /// specified seal proof types
-    pub allowed_proot_types: Option<Vec<RegisteredSealProof>>,
+    pub allowed_proof_types: Option<Vec<RegisteredSealProof>>,
 }
 
 /// basic infos for a allocated sector
