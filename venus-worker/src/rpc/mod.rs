@@ -55,6 +55,7 @@ pub type DealID = u64;
 
 /// contains miner actor id & sector number
 #[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct SectorID {
     /// miner actor id
     pub miner: ActorID,
@@ -65,6 +66,7 @@ pub struct SectorID {
 
 /// rules for allocating sector bases
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct AllocateSectorSpec {
     /// specified miner actor ids
     pub allowed_miners: Option<Vec<ActorID>>,
@@ -75,8 +77,10 @@ pub struct AllocateSectorSpec {
 
 /// basic infos for a allocated sector
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct AllocatedSector {
     /// allocated sector id
+    #[serde(rename = "ID")]
     pub id: SectorID,
 
     /// allocated seal proof type
@@ -85,8 +89,10 @@ pub struct AllocatedSector {
 
 /// deal piece info
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct DealInfo {
     /// on-chain deal id
+    #[serde(rename = "ID")]
     pub id: DealID,
 
     /// piece data info
@@ -98,6 +104,7 @@ pub type Deals = Vec<DealInfo>;
 
 /// rules for acquiring deal pieces within specified sector
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct AcquireDealsSpec {
     /// max deal count
     pub max_deals: Option<usize>,
@@ -105,6 +112,7 @@ pub struct AcquireDealsSpec {
 
 /// assigned ticket
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct Ticket {
     /// raw ticket data
     pub ticket: Randomness,
@@ -149,6 +157,7 @@ pub enum OnChainState {
 
 /// required infos for pre commint
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PreCommitOnChainInfo {
     /// commitment replicate
     pub comm_r: Commitment,
@@ -162,6 +171,7 @@ pub struct PreCommitOnChainInfo {
 
 /// required infos for proof
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct ProofOnChainInfo {
     /// proof bytes
     pub proof: Vec<u8>,
@@ -169,6 +179,7 @@ pub struct ProofOnChainInfo {
 
 /// response for the submit_pre_commit request
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct SubmitPreCommitResp {
     /// submit result
     pub res: SubmitResult,
@@ -179,6 +190,7 @@ pub struct SubmitPreCommitResp {
 
 /// response for the poll_pre_commit_state request
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PollPreCommitStateResp {
     /// on chain state
     pub state: OnChainState,
@@ -189,6 +201,7 @@ pub struct PollPreCommitStateResp {
 
 /// assigned seed
 #[derive(Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct Seed {
     /// raw seed data
     pub seed: Randomness,
@@ -199,6 +212,7 @@ pub struct Seed {
 
 /// response for the submit_proof request
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct SubmitProofResp {
     /// submit result
     pub res: SubmitResult,
@@ -209,6 +223,7 @@ pub struct SubmitProofResp {
 
 /// response for the poll_proof_state request
 #[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct PollProofStateResp {
     /// on chain state
     pub state: OnChainState,
