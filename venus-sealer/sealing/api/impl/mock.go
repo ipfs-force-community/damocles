@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 
@@ -11,6 +12,30 @@ import (
 )
 
 var _ api.SealerAPI = (*Mock)(nil)
+
+func NewMock(miner abi.ActorID, proofType abi.RegisteredSealProof) (*Mock, error) {
+	m := &Mock{
+		miner:        miner,
+		sectorNumber: 0,
+		proofType:    proofType,
+		ticket: api.Ticket{
+			Ticket: make([]byte, 32),
+			Epoch:  1,
+		},
+		seed: api.Seed{
+			Seed:  make([]byte, 32),
+			Epoch: 1,
+		},
+	}
+
+	rand.Read(m.ticket.Ticket[:])
+	rand.Read(m.seed.Seed[:])
+
+	m.preCommits.commits = map[abi.SectorID]api.PreCommitOnChainInfo{}
+	m.proofs.proofs = map[abi.SectorID]api.ProofOnChainInfo{}
+
+	return m, nil
+}
 
 type Mock struct {
 	miner        abi.ActorID
