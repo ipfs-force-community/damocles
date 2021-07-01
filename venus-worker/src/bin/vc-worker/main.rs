@@ -4,6 +4,7 @@ use clap::{value_t, App, Arg, SubCommand};
 
 use venus_worker::logging;
 
+mod daemon;
 mod mock;
 
 pub fn main() -> Result<()> {
@@ -32,8 +33,24 @@ pub fn main() -> Result<()> {
                 .help("path for the config file"),
         );
 
+    let daemon_cmd = SubCommand::with_name("daemon")
+        .arg(
+            Arg::with_name("api")
+                .long("api")
+                .takes_value(true)
+                .help("sealer api addr"),
+        )
+        .arg(
+            Arg::with_name("config")
+                .long("config")
+                .short("c")
+                .takes_value(true)
+                .help("path for the config file"),
+        );
+
     let matches = App::new("vc-worker")
         .version(env!("CARGO_PKG_VERSION"))
+        .subcommand(daemon_cmd)
         .subcommand(mock_cmd)
         .get_matches();
 
@@ -45,6 +62,12 @@ pub fn main() -> Result<()> {
             let cfg_path = value_t!(m, "config", String)?;
 
             mock::start_mock(miner, size.get_bytes() as u64, cfg_path)
+        }
+
+        ("daemon", Some(m)) => {
+            let cfg_path = value_t!(m, "config", String)?;
+
+            daemon::start_deamon(cfg_path)
         }
 
         (other, _) => Err(anyhow!("unexpected subcommand {}", other)),

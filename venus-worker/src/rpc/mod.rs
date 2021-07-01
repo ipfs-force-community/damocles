@@ -11,6 +11,11 @@ use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 
+pub mod mock;
+pub mod ws;
+
+const LOG_TARGET: &str = "rpc";
+
 base64_serde_type! {B64SerDe, STANDARD}
 
 /// randomness with base64 ser & de
@@ -46,9 +51,6 @@ impl From<Randomness> for B64Vec {
 #[serde(transparent)]
 /// bytes with base64 ser & de
 pub struct B64Vec(#[serde(with = "B64SerDe")] pub Vec<u8>);
-
-/// provides mock impl for the SealerRpc
-pub mod mock;
 
 /// type alias for u64
 pub type DealID = u64;

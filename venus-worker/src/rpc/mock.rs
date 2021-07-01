@@ -1,3 +1,5 @@
+//! provides mock impl for the SealerRpc
+
 use std::collections::HashMap;
 use std::sync::{
     atomic::{AtomicU64, Ordering},
