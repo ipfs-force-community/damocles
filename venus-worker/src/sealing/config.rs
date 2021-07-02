@@ -97,19 +97,29 @@ pub struct Store {
     pub sealing: Option<SealingOptional>,
 }
 
+/// configurations for rpc
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct RPC {
+    /// jsonrpc endpoint
+    pub endpoint: String,
+}
+
 /// global configuration
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
-    /// common config for sealing
+    /// section for rpc
+    pub rpc: RPC,
+
+    /// section for common sealing
     pub sealing: SealingOptional,
 
-    /// list of sector stores
+    /// section for list of sector stores
     pub store: Vec<Store>,
 
-    /// concurrent limit for different stages
+    /// section for concurrent limit
     pub limit: HashMap<String, usize>,
 
-    /// remote store config
+    /// section for remote store
     pub remote: Remote,
 }
 

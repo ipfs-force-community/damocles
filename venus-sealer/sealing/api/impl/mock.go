@@ -8,6 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
+	"github.com/dtynn/venus-cluster/venus-sealer/logging"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealing/api"
 )
 
@@ -26,6 +27,8 @@ func NewMock(miner abi.ActorID, proofType abi.RegisteredSealProof) (*Mock, error
 			Seed:  make([]byte, 32),
 			Epoch: 1,
 		},
+
+		l: log.With("mod", "mock"),
 	}
 
 	rand.Read(m.ticket.Ticket[:])
@@ -44,6 +47,8 @@ type Mock struct {
 	ticket       api.Ticket
 	seed         api.Seed
 
+	l *logging.ZapLogger
+
 	preCommits struct {
 		sync.RWMutex
 		commits map[abi.SectorID]api.PreCommitOnChainInfo
@@ -56,6 +61,8 @@ type Mock struct {
 }
 
 func (m *Mock) AllocateSector(ctx context.Context, spec api.AllocateSectorSpec) (*api.AllocatedSector, error) {
+	m.l.Infof("allocate sector: %#v", spec)
+
 	minerFits := len(spec.AllowedMiners) == 0
 	for _, want := range spec.AllowedMiners {
 		if want == m.miner {
@@ -90,15 +97,19 @@ func (m *Mock) AllocateSector(ctx context.Context, spec api.AllocateSectorSpec) 
 	}, nil
 }
 
-func (m *Mock) AcquireDeals(context.Context, abi.SectorID, api.AcquireDealsSpec) (api.Deals, error) {
+func (m *Mock) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.AcquireDealsSpec) (api.Deals, error) {
+	m.l.Infof("acquire deals for %d: %#v", sid, spec)
 	return nil, nil
 }
 
-func (m *Mock) AssignTicket(context.Context, abi.SectorID) (api.Ticket, error) {
+func (m *Mock) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket, error) {
+	m.l.Infof("assign ticket for %d", sid)
 	return m.ticket, nil
 }
 
 func (m *Mock) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, info api.PreCommitOnChainInfo) (api.SubmitPreCommitResp, error) {
+	m.l.Infof("submit pre commit: %v", info.CommR)
+
 	m.preCommits.Lock()
 	defer m.preCommits.Unlock()
 
@@ -117,11 +128,13 @@ func (m *Mock) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, 
 	}, nil
 }
 
-func (m *Mock) PollPreCommitState(ctx context.Context, id abi.SectorID) (api.PollPreCommitStateResp, error) {
+func (m *Mock) PollPreCommitState(ctx context.Context, sid abi.SectorID) (api.PollPreCommitStateResp, error) {
+	m.l.Infof("poll pre commit state for %d", sid)
+
 	m.preCommits.RLock()
 	defer m.preCommits.RUnlock()
 
-	if _, ok := m.preCommits.commits[id]; ok {
+	if _, ok := m.preCommits.commits[sid]; ok {
 		return api.PollPreCommitStateResp{
 			State: api.OnChainStateLanded,
 			Desc:  nil,
@@ -134,11 +147,14 @@ func (m *Mock) PollPreCommitState(ctx context.Context, id abi.SectorID) (api.Pol
 	}, nil
 }
 
-func (m *Mock) AssignSeed(context.Context, abi.SectorID) (api.Seed, error) {
+func (m *Mock) AssignSeed(ctx context.Context, sid abi.SectorID) (api.Seed, error) {
+	m.l.Infof("assign seed for %d", sid)
 	return m.seed, nil
 }
 
 func (m *Mock) SubmitProof(ctx context.Context, id abi.SectorID, info api.ProofOnChainInfo) (api.SubmitProofResp, error) {
+	m.l.Infof("submit proof: %v", info.Proof)
+
 	m.proofs.Lock()
 	defer m.proofs.Unlock()
 
@@ -157,11 +173,13 @@ func (m *Mock) SubmitProof(ctx context.Context, id abi.SectorID, info api.ProofO
 	}, nil
 }
 
-func (m *Mock) PollProofState(ctx context.Context, id abi.SectorID) (api.PollProofStateResp, error) {
+func (m *Mock) PollProofState(ctx context.Context, sid abi.SectorID) (api.PollProofStateResp, error) {
+	m.l.Infof("assign seed for %d", sid)
+
 	m.proofs.RLock()
 	defer m.proofs.RUnlock()
 
-	if _, ok := m.proofs.proofs[id]; ok {
+	if _, ok := m.proofs.proofs[sid]; ok {
 		return api.PollProofStateResp{
 			State: api.OnChainStateLanded,
 			Desc:  nil,

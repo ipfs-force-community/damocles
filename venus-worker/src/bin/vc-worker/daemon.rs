@@ -2,11 +2,13 @@ use std::sync::Arc;
 use std::thread;
 
 use anyhow::{anyhow, Result};
-use crossbeam_channel::bounded;
+use async_std::task::block_on;
+use crossbeam_channel::{bounded, select};
 
 use venus_worker::{
     infra::objstore::filestore::FileStore,
-    logging::info,
+    logging::{info, warn},
+    rpc::ws,
     sealing::{config, resource, store::StoreManager},
 };
 
@@ -24,16 +26,25 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
 
-    // let (done_tx, done_rx) = bounded(0);
+    let rpc_connect_req = ws::Request::builder().uri(&cfg.rpc.endpoint).body(())?;
+    let rpc_client = block_on(ws::connect(rpc_connect_req))?;
+
+    let (done_tx, done_rx) = bounded(0);
 
     let (mgr_stop_tx, mgr_stop_rx) = bounded::<()>(0);
-    // thread::spawn(move || {
-    //     info!("store mgr start");
-    //     store_mgr.start_sealing(done_rx, Arc::new(mock_client), remote, Arc::new(limit));
-    //     drop(mgr_stop_tx);
-    // });
+    thread::spawn(move || {
+        info!("store mgr start");
+        store_mgr.start_sealing(done_rx, Arc::new(rpc_client), remote, Arc::new(limit));
+        drop(mgr_stop_tx);
+    });
 
-    // drop(done_tx);
+    select! {
+        recv(mgr_stop_rx) -> _mgr_stop => {
+            warn!("store mgr stopped");
+        }
+    }
 
-    unimplemented!();
+    drop(done_tx);
+
+    Ok(())
 }

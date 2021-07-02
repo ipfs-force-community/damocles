@@ -4,11 +4,11 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_std::task::spawn;
 use async_tungstenite::{async_std::connect_async, tungstenite::Message};
 use jsonrpc_core_client::{
-    futures::{future::ready, Sink, SinkExt, Stream, StreamExt},
+    futures::{future::ready, FutureExt, Sink, SinkExt, Stream, StreamExt},
     transports::duplex,
     RpcChannel, RpcError,
 };
@@ -16,25 +16,30 @@ use jsonrpc_core_client::{
 pub use async_tungstenite::tungstenite::http::Request;
 
 use super::LOG_TARGET;
-use crate::logging::{debug_span, warn, Span};
+use crate::logging::{debug_span, error, trace, warn, Span};
 
 /// try to connect to the given target
 pub async fn connect<T>(req: Request<()>) -> Result<T>
 where
     T: From<RpcChannel>,
 {
+    let span = debug_span!(target: LOG_TARGET, "ws");
+
     let (ws_stream, _) = connect_async(req).await?;
+    trace!(parent: &span, "ws connected");
+
     let (ws_sink, ws_stream) = ws_stream.split();
 
-    let span = debug_span!(target: LOG_TARGET, "ws");
     let ws_client = WSClient {
         sink: ws_sink.sink_map_err(|e| RpcError::Other(Box::new(e))),
         stream: ws_stream.map(|res| res.map_err(|e| RpcError::Other(Box::new(e)))),
         queue: VecDeque::new(),
-        span: span,
+        span: span.clone(),
     };
 
     let (sink, stream) = ws_client.split();
+    trace!(parent: &span, "client splitted");
+
     let sink = Box::pin(sink);
     let stream = Box::pin(
         stream
@@ -43,9 +48,15 @@ where
     );
 
     let (rpc_client, sender) = duplex(sink, stream);
-    spawn(rpc_client)
-        .await
-        .map_err(|e| anyhow!("spawn duplex: {}", e))?;
+    trace!(parent: &span, "duplex constructed");
+
+    spawn(rpc_client.map(|r| {
+        if let Err(e) = r {
+            error!("spawn duplex: {}", e);
+        }
+    }));
+
+    trace!(parent: &span, "duplex spawned");
 
     Ok(sender.into())
 }
@@ -100,6 +111,8 @@ where
     fn poll_ready(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         let this = Pin::into_inner(self);
 
+        trace!(parent: &this.span, "ws sink: poll ready");
+
         if this.queue.is_empty() {
             return Pin::new(&mut this.sink).poll_ready(ctx);
         }
@@ -110,6 +123,8 @@ where
     }
 
     fn start_send(mut self: Pin<&mut Self>, item: String) -> Result<(), Self::Error> {
+        trace!(parent: &self.span, "ws sink: start send");
+
         let request = Message::Text(item);
 
         if self.queue.is_empty() {
@@ -124,6 +139,8 @@ where
     fn poll_flush(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         let this = Pin::into_inner(self);
 
+        trace!(parent: &this.span, "ws sink: poll flush");
+
         match Pin::new(&mut *this).try_empty_buffer(ctx) {
             Poll::Ready(value) => value?,
             Poll::Pending => return Poll::Pending,
@@ -134,6 +151,8 @@ where
 
     fn poll_close(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         let this = Pin::into_inner(self);
+
+        trace!(parent: &this.span, "ws sink: poll close");
 
         match Pin::new(&mut *this).try_empty_buffer(ctx) {
             Poll::Ready(value) => value?,
@@ -153,6 +172,9 @@ where
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = Pin::into_inner(self);
+
+        trace!(parent: &this.span, "ws stream: poll next");
+
         loop {
             match Pin::new(&mut this.stream).poll_next(ctx) {
                 Poll::Ready(Some(Ok(message))) => match message {
