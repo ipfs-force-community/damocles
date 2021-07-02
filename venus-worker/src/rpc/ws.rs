@@ -16,17 +16,20 @@ use jsonrpc_core_client::{
 pub use async_tungstenite::tungstenite::http::Request;
 
 use super::LOG_TARGET;
-use crate::logging::{debug_span, error, trace, warn, Span};
+use crate::logging::{debug_span, display_field, error, trace, warn, Span};
 
 /// try to connect to the given target
 pub async fn connect<T>(req: Request<()>) -> Result<T>
 where
     T: From<RpcChannel>,
 {
-    let span = debug_span!(target: LOG_TARGET, "ws");
+    let span = debug_span!(
+        target: LOG_TARGET,
+        "ws",
+        endpoint = display_field(req.uri())
+    );
 
     let (ws_stream, _) = connect_async(req).await?;
-    trace!(parent: &span, "ws connected");
 
     let (ws_sink, ws_stream) = ws_stream.split();
 
@@ -34,11 +37,10 @@ where
         sink: ws_sink.sink_map_err(|e| RpcError::Other(Box::new(e))),
         stream: ws_stream.map(|res| res.map_err(|e| RpcError::Other(Box::new(e)))),
         queue: VecDeque::new(),
-        span: span.clone(),
+        span,
     };
 
     let (sink, stream) = ws_client.split();
-    trace!(parent: &span, "client splitted");
 
     let sink = Box::pin(sink);
     let stream = Box::pin(
@@ -48,15 +50,12 @@ where
     );
 
     let (rpc_client, sender) = duplex(sink, stream);
-    trace!(parent: &span, "duplex constructed");
 
     spawn(rpc_client.map(|r| {
         if let Err(e) = r {
             error!("spawn duplex: {}", e);
         }
     }));
-
-    trace!(parent: &span, "duplex spawned");
 
     Ok(sender.into())
 }
@@ -123,7 +122,7 @@ where
     }
 
     fn start_send(mut self: Pin<&mut Self>, item: String) -> Result<(), Self::Error> {
-        trace!(parent: &self.span, "ws sink: start send");
+        trace!(parent: &self.span, item = item.as_str(), "ws sink: start send");
 
         let request = Message::Text(item);
 
@@ -178,7 +177,10 @@ where
         loop {
             match Pin::new(&mut this.stream).poll_next(ctx) {
                 Poll::Ready(Some(Ok(message))) => match message {
-                    Message::Text(data) => return Poll::Ready(Some(Ok(data))),
+                    Message::Text(data) => {
+                        trace!(parent: &this.span, data = data.as_str(), "received");
+                        return Poll::Ready(Some(Ok(data)));
+                    }
                     Message::Binary(data) => {
                         warn!(parent: &this.span, "server sent binary data {:?}", data);
                     }

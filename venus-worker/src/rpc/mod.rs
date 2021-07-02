@@ -1,3 +1,5 @@
+//! rpc definitions & client implementaions
+
 use std::convert::TryFrom;
 use std::result::Result as StdResult;
 
@@ -6,10 +8,12 @@ use base64::STANDARD;
 use base64_serde::base64_serde_type;
 use fil_clock::ChainEpoch;
 use fil_types::{ActorID, PieceInfo, SectorNumber};
-use filecoin_proofs_api::{Commitment, RegisteredSealProof};
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
+use super::types::SealProof;
 
 pub mod mock;
 pub mod ws;
@@ -19,12 +23,24 @@ const LOG_TARGET: &str = "rpc";
 base64_serde_type! {B64SerDe, STANDARD}
 
 /// randomness with base64 ser & de
-#[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
 #[serde(into = "B64Vec")]
 #[serde(try_from = "B64Vec")]
-pub struct Randomness(pub [u8; 32]);
+pub struct BytesArray32(pub [u8; 32]);
 
-impl TryFrom<B64Vec> for Randomness {
+/// type alias for BytesArray32
+pub type Randomness = BytesArray32;
+
+/// type alias for BytesArray32
+pub type Commitment = BytesArray32;
+
+impl From<[u8; 32]> for BytesArray32 {
+    fn from(val: [u8; 32]) -> Self {
+        BytesArray32(val)
+    }
+}
+
+impl TryFrom<B64Vec> for BytesArray32 {
     type Error = Error;
 
     fn try_from(v: B64Vec) -> StdResult<Self, Self::Error> {
@@ -35,12 +51,12 @@ impl TryFrom<B64Vec> for Randomness {
         let mut a = [0u8; 32];
         a.copy_from_slice(&v.0[..]);
 
-        Ok(Randomness(a))
+        Ok(BytesArray32(a))
     }
 }
 
-impl From<Randomness> for B64Vec {
-    fn from(r: Randomness) -> Self {
+impl From<BytesArray32> for B64Vec {
+    fn from(r: BytesArray32) -> Self {
         let mut v = vec![0; 32];
         v.copy_from_slice(&r.0[..]);
         B64Vec(v)
@@ -51,6 +67,12 @@ impl From<Randomness> for B64Vec {
 #[serde(transparent)]
 /// bytes with base64 ser & de
 pub struct B64Vec(#[serde(with = "B64SerDe")] pub Vec<u8>);
+
+impl From<Vec<u8>> for B64Vec {
+    fn from(val: Vec<u8>) -> B64Vec {
+        B64Vec(val)
+    }
+}
 
 /// type alias for u64
 pub type DealID = u64;
@@ -74,7 +96,7 @@ pub struct AllocateSectorSpec {
     pub allowed_miners: Option<Vec<ActorID>>,
 
     /// specified seal proof types
-    pub allowed_proof_types: Option<Vec<RegisteredSealProof>>,
+    pub allowed_proof_types: Option<Vec<SealProof>>,
 }
 
 /// basic infos for a allocated sector
@@ -86,7 +108,7 @@ pub struct AllocatedSector {
     pub id: SectorID,
 
     /// allocated seal proof type
-    pub proof_type: RegisteredSealProof,
+    pub proof_type: SealProof,
 }
 
 /// deal piece info
@@ -124,7 +146,7 @@ pub struct Ticket {
 }
 
 /// results for pre_commit & proof submission
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize_repr, Serialize_repr)]
 #[repr(u64)]
 pub enum SubmitResult {
     /// submission is accepted
@@ -141,7 +163,7 @@ pub enum SubmitResult {
 }
 
 /// state for submitted pre_commit or proof
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize_repr, Serialize_repr)]
 #[repr(u64)]
 pub enum OnChainState {
     /// waiting to be sent or aggregated
@@ -162,7 +184,7 @@ pub enum OnChainState {
 #[serde(rename_all = "PascalCase")]
 pub struct PreCommitOnChainInfo {
     /// commitment replicate
-    pub comm_r: Commitment,
+    pub comm_r: [u8; 32],
 
     /// assigned ticket
     pub ticket: Ticket,
@@ -176,7 +198,7 @@ pub struct PreCommitOnChainInfo {
 #[serde(rename_all = "PascalCase")]
 pub struct ProofOnChainInfo {
     /// proof bytes
-    pub proof: Vec<u8>,
+    pub proof: B64Vec,
 }
 
 /// response for the submit_pre_commit request

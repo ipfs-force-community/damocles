@@ -60,7 +60,7 @@ const (
 
 type PreCommitOnChainInfo struct {
 	CommR  [32]byte
-	Ticket abi.Randomness
+	Ticket Ticket
 	Deals  []abi.DealID
 }
 

@@ -1,3 +1,5 @@
+//! sealing mod
+
 mod event;
 mod sector;
 

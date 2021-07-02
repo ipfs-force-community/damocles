@@ -7,17 +7,19 @@ use std::sync::{
 };
 
 use fil_types::ActorID;
-use filecoin_proofs_api::RegisteredSealProof;
 use jsonrpc_core::Error;
 
 use super::*;
-use crate::logging::{debug_field, error};
+use crate::{
+    logging::{debug_field, error},
+    types::SealProof,
+};
 
 /// simplest mock server implementation
 pub struct SimpleMockSealerRpc {
     miner: ActorID,
     sector_number: AtomicU64,
-    proof_type: RegisteredSealProof,
+    proof_type: SealProof,
     ticket: Ticket,
     seed: Seed,
 
@@ -27,7 +29,7 @@ pub struct SimpleMockSealerRpc {
 
 impl SimpleMockSealerRpc {
     /// constructs a SimpleMockSealerRpc with given miner & seal proof type
-    pub fn new(miner: ActorID, proof_type: RegisteredSealProof) -> Self {
+    pub fn new(miner: ActorID, proof_type: SealProof) -> Self {
         SimpleMockSealerRpc {
             miner,
             sector_number: Default::default(),
