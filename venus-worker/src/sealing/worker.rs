@@ -268,7 +268,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             allocate_sector,
             rpc::AllocateSectorSpec {
                 allowed_miners: None,
-                allowed_proot_types: None,
+                allowed_proof_types: None,
             },
         }?;
 
@@ -338,11 +338,11 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         }?;
 
         let sector_size = proof_type.sector_size();
-        let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size.0).into();
+        let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
 
         let mut pledge_piece = io::repeat(0).take(unpadded_size.0);
         let (piece_info, _) = add_piece(
-            proof_type,
+            proof_type.into(),
             &mut pledge_piece,
             &mut staged_file,
             unpadded_size,
@@ -400,7 +400,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         }?;
 
         let out = seal_pre_commit_phase1(
-            proof_type,
+            proof_type.into(),
             cache_path,
             staged_file,
             sealed_file,
@@ -596,7 +596,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         let sector_size = allocated.proof_type.sector_size();
 
         // we should be careful here, use failure as temporary
-        clear_cache(sector_size.0, &cache_dir).temp()?;
+        clear_cache(sector_size, &cache_dir).temp()?;
         debug!(
             dir = debug_field(&cache_dir),
             "clean up unnecessary cached files"
@@ -660,7 +660,8 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             proof: fetch_cloned_field! {
                 self.sector.phases.c2out,
                 proof,
-            }?,
+            }?
+            .into(),
         };
 
         let res = call_rpc! {

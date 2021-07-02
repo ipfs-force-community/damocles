@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::sync::Arc;
 use std::thread;
 
@@ -12,11 +13,12 @@ use venus_worker::{
     infra::objstore::filestore::FileStore,
     logging::{debug_field, error, info, warn},
     rpc::{self, SealerRpc, SealerRpcClient},
-    sealing::{config, resource, store::StoreManager, util::size2proof},
+    sealing::{config, resource, store::StoreManager},
+    types::SealProof,
 };
 
 pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<()> {
-    let proof_type = size2proof(sector_size)?;
+    let proof_type = SealProof::try_from(sector_size)?;
 
     info!(
         miner,

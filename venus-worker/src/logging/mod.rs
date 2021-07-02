@@ -1,3 +1,5 @@
+//! provides logging helpers
+
 use anyhow::Result;
 use crossterm::tty::IsTty;
 use tracing::subscriber::set_global_default;
