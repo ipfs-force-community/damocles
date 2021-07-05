@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/docker/go-units v0.4.0 // indirect
+	github.com/dtynn/dix v0.1.1 // indirect
 	github.com/filecoin-project/go-jsonrpc v0.1.3 // indirect
 	github.com/filecoin-project/go-state-types v0.1.0 // indirect
 	github.com/gogo/protobuf v1.2.1 // indirect
@@ -14,5 +15,6 @@ require (
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/urfave/cli/v2 v2.3.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
+	go.uber.org/fx v1.13.1 // indirect
 	go.uber.org/zap v1.16.0 // indirect
 )
