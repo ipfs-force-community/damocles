@@ -13,7 +13,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 
-	"github.com/dtynn/venus-cluster/venus-sealer/sealing/api/impl"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealing"
 	"github.com/dtynn/venus-cluster/venus-sealer/util"
 )
 
@@ -45,7 +45,7 @@ var mockCmd = &cli.Command{
 			return fmt.Errorf("get seal proof type: %w", err)
 		}
 
-		mockServer, err := impl.NewMock(abi.ActorID(cctx.Uint64("miner")), proofType)
+		mockServer, err := sealing.NewMock(abi.ActorID(cctx.Uint64("miner")), proofType)
 		if err != nil {
 			return fmt.Errorf("construct mock server: %w", err)
 		}
