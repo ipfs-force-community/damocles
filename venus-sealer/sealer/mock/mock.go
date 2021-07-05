@@ -1,7 +1,7 @@
-package impl
+package mock
 
 import (
 	"github.com/dtynn/venus-cluster/venus-sealer/logging"
 )
 
-var log = logging.New("impl")
+var log = logging.New("mock")

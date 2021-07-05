@@ -9,11 +9,13 @@ import (
 	"syscall"
 
 	"github.com/docker/go-units"
+	"github.com/dtynn/dix"
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 
-	"github.com/dtynn/venus-cluster/venus-sealer/sealing/api/impl"
+	"github.com/dtynn/venus-cluster/venus-sealer/dep"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 	"github.com/dtynn/venus-cluster/venus-sealer/util"
 )
 
@@ -45,12 +47,21 @@ var mockCmd = &cli.Command{
 			return fmt.Errorf("get seal proof type: %w", err)
 		}
 
-		mockServer, err := impl.NewMock(abi.ActorID(cctx.Uint64("miner")), proofType)
+		var node api.SealerAPI
+		stopper, err := dix.New(
+			cctx.Context,
+			dix.Override(new(abi.ActorID), abi.ActorID(cctx.Uint64("miner"))),
+			dix.Override(new(abi.RegisteredSealProof), proofType),
+			dep.Mock(),
+			dep.Sealer(&node),
+		)
 		if err != nil {
-			return fmt.Errorf("construct mock server: %w", err)
+			return fmt.Errorf("construct mock api: %w", err)
 		}
 
-		httpHandler, err := buildRPCServer(mockServer)
+		defer stopper(cctx.Context)
+
+		httpHandler, err := buildRPCServer(node)
 		if err != nil {
 			return fmt.Errorf("construct rpc server: %w", err)
 		}
