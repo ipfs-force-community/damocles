@@ -5,7 +5,7 @@ import (
 
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
-	"github.com/dtynn/venus-cluster/venus-sealer/sealer/mock"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/mock"
 )
 
 func Mock() dix.Option {
