@@ -18,6 +18,20 @@ type cfgItem struct {
 	cancel context.CancelFunc
 }
 
+func NewLocal(dir string, dealy time.Duration) (ConfigManager, error) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, fmt.Errorf("construct fsnotify watcher: %w", err)
+	}
+
+	return &localMgr{
+		dir:     dir,
+		watcher: watcher,
+		delay:   dealy,
+		reg:     map[string]*cfgItem{},
+	}, nil
+}
+
 type localMgr struct {
 	dir     string
 	watcher *fsnotify.Watcher
@@ -86,8 +100,12 @@ func (lm *localMgr) Close(ctx context.Context) error {
 	return nil
 }
 
+func (lm *localMgr) cfgpath(key string) string {
+	return filepath.Join(lm.dir, fmt.Sprintf("%s.cfg", key))
+}
+
 func (lm *localMgr) Load(ctx context.Context, key string, c interface{}) error {
-	fname := filepath.Join(lm.dir, key)
+	fname := lm.cfgpath(key)
 	data, err := ioutil.ReadFile(fname)
 	if err != nil {
 		return fmt.Errorf("failed to load %s: %w", fname, err)
@@ -97,7 +115,8 @@ func (lm *localMgr) Load(ctx context.Context, key string, c interface{}) error {
 }
 
 func (lm *localMgr) Watch(ctx context.Context, key string, c interface{}, wlock WLocker) error {
-	fname := filepath.Join(lm.dir, key)
+	fname := lm.cfgpath(key)
+
 	lm.regmu.Lock()
 	defer lm.regmu.Unlock()
 
@@ -114,6 +133,8 @@ func (lm *localMgr) Watch(ctx context.Context, key string, c interface{}, wlock 
 		wlock:  wlock,
 		cancel: nil,
 	}
+
+	log.Infof("start to watch %s(%s)", key, fname)
 
 	return nil
 }
@@ -147,5 +168,7 @@ func (lm *localMgr) loadModified(ctx context.Context, fname string, c *cfgItem) 
 
 	if err != nil {
 		l.Errorf("failed to unmarshal: %s", err)
+	} else {
+		l.Infof("%s modified & loaded", fname)
 	}
 }

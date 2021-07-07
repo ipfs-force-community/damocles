@@ -13,6 +13,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.0 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
 	github.com/ipfs/go-log/v2 v2.1.3 // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/multiformats/go-multihash v0.0.14 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/urfave/cli/v2 v2.3.0 // indirect
