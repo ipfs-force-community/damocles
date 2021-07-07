@@ -16,7 +16,7 @@ import (
 
 	"github.com/dtynn/venus-cluster/venus-sealer/dep"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
-	"github.com/dtynn/venus-cluster/venus-sealer/util"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/util"
 )
 
 var mockCmd = &cli.Command{
