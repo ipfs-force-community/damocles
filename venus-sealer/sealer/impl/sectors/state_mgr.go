@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"sync"
-	"time"
 
 	"github.com/filecoin-project/go-state-types/abi"
 
@@ -30,31 +28,15 @@ func init() {
 
 var _ api.SectorStateManager = (*StateManager)(nil)
 
-type sectorLock struct {
-	sync.Mutex
-	last time.Time
-}
-
 type StateManager struct {
 	store kvstore.KVStore
 
-	sectorsMu sync.Mutex
-	sectors   map[abi.SectorID]*sectorLock
+	locker *sectorsLocker
 }
 
 func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals ...interface{}) error {
-	sm.sectorsMu.Lock()
-	lock, ok := sm.sectors[sid]
-	if !ok {
-		lock = &sectorLock{}
-		sm.sectors[sid] = lock
-	}
-
-	lock.last = time.Now()
-	sm.sectorsMu.Unlock()
-
-	lock.Lock()
-	defer lock.Unlock()
+	lock := sm.locker.lock(sid)
+	defer lock.unlock()
 
 	var state api.SectorState
 	key := makeSectorKey(sid)
@@ -95,5 +77,5 @@ func processStateField(rv reflect.Value, fieldval interface{}) error {
 }
 
 func makeSectorKey(sid abi.SectorID) kvstore.Key {
-	return []byte(fmt.Sprintf("m-%d-n-%d", sid.Miner, sid.Number))
+	return []byte(fmt.Sprintf("/m-%d-n-%d", sid.Miner, sid.Number))
 }

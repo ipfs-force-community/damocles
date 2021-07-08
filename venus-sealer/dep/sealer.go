@@ -31,10 +31,11 @@ func Product() dix.Option {
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
 		dix.Override(new(*sealer.Config), ProvideSealerConfig),
 		dix.Override(new(api.SectorManager), BuildLocalSectorManager),
+		dix.Override(new(MetaStore), BuildMetaStore),
+		dix.Override(new(api.SectorNumberAllocator), BuildSectorNumberAllocator),
 
 		// TODO: FIX US
 		dix.Override(new(api.MinerInfoAPI), func() (api.MinerInfoAPI, error) { return nil, nil }),
-		dix.Override(new(api.SectorNumberAllocator), func() (api.SectorNumberAllocator, error) { return nil, nil }),
 	)
 }
 
