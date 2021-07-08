@@ -10,7 +10,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/dtynn/venus-cluster/venus-sealer/pkg/types"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/kvstore"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
@@ -36,7 +36,7 @@ type sectorLock struct {
 }
 
 type StateManager struct {
-	store types.KVStore
+	store kvstore.KVStore
 
 	sectorsMu sync.Mutex
 	sectors   map[abi.SectorID]*sectorLock
@@ -58,7 +58,7 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals 
 
 	var state api.SectorState
 	key := makeSectorKey(sid)
-	if err := sm.store.View(key, func(content []byte) error {
+	if err := sm.store.View(ctx, key, func(content []byte) error {
 		return json.Unmarshal(content, &state)
 	}); err != nil {
 		return fmt.Errorf("load state: %w", err)
@@ -77,7 +77,7 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals 
 		return fmt.Errorf("marshal state: %w", err)
 	}
 
-	return sm.store.Put(key, b)
+	return sm.store.Put(ctx, key, b)
 }
 
 func processStateField(rv reflect.Value, fieldval interface{}) error {
@@ -94,6 +94,6 @@ func processStateField(rv reflect.Value, fieldval interface{}) error {
 	return fmt.Errorf("field not found for type %s", rft)
 }
 
-func makeSectorKey(sid abi.SectorID) types.Key {
-	return types.NewKey(fmt.Sprintf("m-%d-n-%d", sid.Miner, sid.Number))
+func makeSectorKey(sid abi.SectorID) kvstore.Key {
+	return []byte(fmt.Sprintf("m-%d-n-%d", sid.Miner, sid.Number))
 }
