@@ -5,11 +5,13 @@ import (
 	"sync"
 
 	"github.com/dtynn/dix"
+	venusMessager "github.com/filecoin-project/venus-messager/api/client"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/confmgr"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/commitmgr"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/mock"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/prover"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/randomness"
@@ -20,8 +22,15 @@ func Mock() dix.Option {
 		dix.Override(new(api.RandomnessAPI), mock.NewRandomness),
 		dix.Override(new(api.SectorManager), mock.NewSectorManager),
 		dix.Override(new(api.DealManager), mock.NewDealManager),
-		dix.Override(new(api.CommitmentManager), mock.NewCommitManager),
+		//dix.Override(new(api.CommitmentManager), mock.NewCommitManager),
 		dix.Override(new(api.MinerInfoAPI), mock.NewMinerInfoAPI),
+
+		// commit manager di
+		dix.Override(new(venusMessager.IMessager), mock.NewMessagerClient),
+		dix.Override(new(commitmgr.SealingAPI), nil),
+		dix.Override(new(commitmgr.Verifier), nil),
+		dix.Override(new(commitmgr.Prover), nil),
+		dix.Override(new(api.SectorsDatastore), nil),
 	)
 }
 
@@ -40,6 +49,8 @@ func Product() dix.Option {
 		dix.Override(new(api.RandomnessAPI), randomness.New),
 		dix.Override(new(api.Prover), prover.Prover),
 		dix.Override(new(api.Verifier), prover.Verifier),
+
+		dix.Override(new(api.CommitmentManager), commitmgr.NewCommitmentMgr),
 
 		// TODO: make the dependencies below available
 		dix.Override(new(chain.API), func() (chain.API, error) { return nil, nil }),
