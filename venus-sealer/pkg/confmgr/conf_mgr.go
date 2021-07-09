@@ -23,7 +23,7 @@ type WLocker interface {
 
 type ConfigManager interface {
 	Load(ctx context.Context, key string, c interface{}) error
-	Watch(ctx context.Context, key string, c interface{}, wlock WLocker) error
+	Watch(ctx context.Context, key string, c interface{}, wlock WLocker, newfn func() interface{}) error
 	Run(ctx context.Context) error
 	Close(ctx context.Context) error
 }
