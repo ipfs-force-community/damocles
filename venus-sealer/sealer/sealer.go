@@ -5,7 +5,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/dtynn/venus-cluster/venus-sealer/logging"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 

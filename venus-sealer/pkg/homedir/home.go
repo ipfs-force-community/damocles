@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/dtynn/venus-cluster/venus-sealer/pkg/confmgr"
 	"github.com/mitchellh/go-homedir"
+
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/confmgr"
 )
 
 func Open(path string) (*Home, error) {

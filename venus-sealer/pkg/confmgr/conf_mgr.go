@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/dtynn/venus-cluster/venus-sealer/logging"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 )
 
 var log = logging.New("confmgr")
