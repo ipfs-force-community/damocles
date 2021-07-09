@@ -21,7 +21,7 @@ type cfgItem struct {
 	newfn  func() interface{}
 }
 
-func NewLocal(dir string, dealy time.Duration) (ConfigManager, error) {
+func NewLocal(dir string) (ConfigManager, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("construct fsnotify watcher: %w", err)
@@ -30,7 +30,7 @@ func NewLocal(dir string, dealy time.Duration) (ConfigManager, error) {
 	return &localMgr{
 		dir:     dir,
 		watcher: watcher,
-		delay:   dealy,
+		delay:   10 * time.Second,
 		reg:     map[string]*cfgItem{},
 	}, nil
 }
@@ -105,6 +105,16 @@ func (lm *localMgr) Close(ctx context.Context) error {
 
 func (lm *localMgr) cfgpath(key string) string {
 	return filepath.Join(lm.dir, fmt.Sprintf("%s.cfg", key))
+}
+
+func (lm *localMgr) SetDefault(ctx context.Context, key string, c interface{}) error {
+	content, err := ConfigComment(c)
+	if err != nil {
+		return fmt.Errorf("marshal default content: %w", err)
+	}
+
+	fname := lm.cfgpath(key)
+	return ioutil.WriteFile(fname, content, 0644)
 }
 
 func (lm *localMgr) Load(ctx context.Context, key string, c interface{}) error {

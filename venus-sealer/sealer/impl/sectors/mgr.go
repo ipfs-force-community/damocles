@@ -8,14 +8,31 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/confmgr"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
 var _ api.SectorManager = (*Manager)(nil)
 
+func NewManager(
+	cfg *sealer.Config,
+	locker confmgr.RLocker,
+	mapi api.MinerInfoAPI,
+	numAlloc api.SectorNumberAllocator,
+) (*Manager, error) {
+	mgr := &Manager{
+		info:     mapi,
+		numAlloc: numAlloc,
+	}
+
+	mgr.cfg.Config = cfg
+	mgr.cfg.RLocker = locker
+	return mgr, nil
+}
+
 type Manager struct {
 	cfg struct {
-		*Config
+		*sealer.Config
 		confmgr.RLocker
 	}
 
@@ -25,7 +42,7 @@ type Manager struct {
 
 func (m *Manager) Allocate(ctx context.Context, allowedMiners []abi.ActorID, allowedProofs []abi.RegisteredSealProof) (*api.AllocatedSector, error) {
 	m.cfg.Lock()
-	mids := m.cfg.Miners
+	mids := m.cfg.SectorManager.Miners
 	m.cfg.Unlock()
 
 	if len(mids) == 0 {
