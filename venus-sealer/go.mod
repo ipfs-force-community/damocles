@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/dgraph-io/badger/v2 v2.2007.2 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/dtynn/dix v0.1.1 // indirect
 	github.com/filecoin-project/go-address v0.0.5 // indirect
