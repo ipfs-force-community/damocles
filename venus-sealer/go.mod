@@ -4,14 +4,17 @@ go 1.16
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/dgraph-io/badger/v2 v2.2007.2 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/dtynn/dix v0.1.1 // indirect
+	github.com/filecoin-project/go-address v0.0.5 // indirect
 	github.com/filecoin-project/go-jsonrpc v0.1.3 // indirect
 	github.com/filecoin-project/go-state-types v0.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.0 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
+	github.com/ipfs/go-datastore v0.4.5 // indirect
 	github.com/ipfs/go-log/v2 v2.1.3 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/multiformats/go-multihash v0.0.14 // indirect

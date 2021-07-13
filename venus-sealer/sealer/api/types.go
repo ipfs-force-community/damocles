@@ -1,8 +1,7 @@
 package api
 
 import (
-	"context"
-
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/ipfs/go-cid"
 )
@@ -93,20 +92,13 @@ type PollProofStateResp struct {
 	Desc  *string
 }
 
-type SealerAPI interface {
-	AllocateSector(context.Context, AllocateSectorSpec) (*AllocatedSector, error)
-
-	AcquireDeals(context.Context, abi.SectorID, AcquireDealsSpec) (Deals, error)
-
-	AssignTicket(context.Context, abi.SectorID) (Ticket, error)
-
-	SubmitPreCommit(context.Context, AllocatedSector, PreCommitOnChainInfo) (SubmitPreCommitResp, error)
-
-	PollPreCommitState(context.Context, abi.SectorID) (PollPreCommitStateResp, error)
-
-	AssignSeed(context.Context, abi.SectorID) (Seed, error)
-
-	SubmitProof(context.Context, abi.SectorID, ProofOnChainInfo) (SubmitProofResp, error)
-
-	PollProofState(context.Context, abi.SectorID) (PollProofStateResp, error)
+type MinerInfo struct {
+	ID                  abi.ActorID
+	Owner               address.Address
+	Worker              address.Address
+	NewWorker           address.Address
+	ControlAddresses    []address.Address
+	WorkerChangeEpoch   abi.ChainEpoch
+	WindowPoStProofType abi.RegisteredPoStProof
+	SealProofType       abi.RegisteredSealProof
 }

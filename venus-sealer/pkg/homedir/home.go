@@ -2,11 +2,12 @@ package homedir
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
-	"time"
+
+	"github.com/mitchellh/go-homedir"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/confmgr"
-	"github.com/mitchellh/go-homedir"
 )
 
 func Open(path string) (*Home, error) {
@@ -15,20 +16,22 @@ func Open(path string) (*Home, error) {
 		return nil, fmt.Errorf("expand home dir: %w", err)
 	}
 
-	conf, err := confmgr.NewLocal(dir, 10*time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("construct local conf mgr: %w", err)
-	}
-
 	return &Home{
-		dir:  dir,
-		Conf: conf,
+		dir: dir,
 	}, nil
 }
 
 type Home struct {
 	dir  string
 	Conf confmgr.ConfigManager
+}
+
+func (h *Home) Init() error {
+	if err := os.MkdirAll(h.dir, 0755); err != nil {
+		return fmt.Errorf("mkdir for home: %w", err)
+	}
+
+	return nil
 }
 
 func (h *Home) Dir() string {

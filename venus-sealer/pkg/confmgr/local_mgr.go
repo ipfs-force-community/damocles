@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -14,11 +15,13 @@ import (
 
 type cfgItem struct {
 	c      interface{}
+	crv    reflect.Value
 	wlock  WLocker
 	cancel context.CancelFunc
+	newfn  func() interface{}
 }
 
-func NewLocal(dir string, dealy time.Duration) (ConfigManager, error) {
+func NewLocal(dir string) (ConfigManager, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("construct fsnotify watcher: %w", err)
@@ -27,7 +30,7 @@ func NewLocal(dir string, dealy time.Duration) (ConfigManager, error) {
 	return &localMgr{
 		dir:     dir,
 		watcher: watcher,
-		delay:   dealy,
+		delay:   10 * time.Second,
 		reg:     map[string]*cfgItem{},
 	}, nil
 }
@@ -104,6 +107,16 @@ func (lm *localMgr) cfgpath(key string) string {
 	return filepath.Join(lm.dir, fmt.Sprintf("%s.cfg", key))
 }
 
+func (lm *localMgr) SetDefault(ctx context.Context, key string, c interface{}) error {
+	content, err := ConfigComment(c)
+	if err != nil {
+		return fmt.Errorf("marshal default content: %w", err)
+	}
+
+	fname := lm.cfgpath(key)
+	return ioutil.WriteFile(fname, content, 0644)
+}
+
 func (lm *localMgr) Load(ctx context.Context, key string, c interface{}) error {
 	fname := lm.cfgpath(key)
 	data, err := ioutil.ReadFile(fname)
@@ -114,7 +127,21 @@ func (lm *localMgr) Load(ctx context.Context, key string, c interface{}) error {
 	return toml.Unmarshal(data, c)
 }
 
-func (lm *localMgr) Watch(ctx context.Context, key string, c interface{}, wlock WLocker) error {
+func (lm *localMgr) Watch(ctx context.Context, key string, c interface{}, wlock WLocker, newfn func() interface{}) error {
+
+	maybe := newfn()
+	valC := reflect.ValueOf(c)
+	typC := valC.Type()
+	typMaybe := reflect.TypeOf(maybe)
+
+	if typC != typMaybe {
+		return fmt.Errorf("config type not match, target=%s, newed=%s", typC, typMaybe)
+	}
+
+	if kind := typC.Kind(); kind != reflect.Ptr {
+		return fmt.Errorf("config target should be pointer, got %s", kind)
+	}
+
 	fname := lm.cfgpath(key)
 
 	lm.regmu.Lock()
@@ -130,8 +157,10 @@ func (lm *localMgr) Watch(ctx context.Context, key string, c interface{}, wlock 
 
 	lm.reg[fname] = &cfgItem{
 		c:      c,
+		crv:    valC,
 		wlock:  wlock,
 		cancel: nil,
+		newfn:  newfn,
 	}
 
 	log.Infof("start to watch %s(%s)", key, fname)
@@ -162,13 +191,16 @@ func (lm *localMgr) loadModified(ctx context.Context, fname string, c *cfgItem) 
 		return
 	}
 
+	obj := c.newfn()
+	err = toml.Unmarshal(data, obj)
+	if err != nil {
+		l.Errorf("failed to unmarshal data: %s", err)
+		return
+	}
+
 	c.wlock.Lock()
-	err = toml.Unmarshal(data, c.c)
+	c.crv.Elem().Set(reflect.ValueOf(obj).Elem())
 	c.wlock.Unlock()
 
-	if err != nil {
-		l.Errorf("failed to unmarshal: %s", err)
-	} else {
-		l.Infof("%s modified & loaded", fname)
-	}
+	l.Infof("%s loaded & updated", fname)
 }

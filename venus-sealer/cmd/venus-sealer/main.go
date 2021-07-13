@@ -6,7 +6,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/dtynn/venus-cluster/venus-sealer/logging"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 )
 
 var log = logging.New("sealer")
@@ -18,6 +18,7 @@ func main() {
 		Name: "venus-sealer",
 		Commands: []*cli.Command{
 			mockCmd,
+			daemonCmd,
 		},
 	}
 
