@@ -44,6 +44,7 @@ var mockCmd = &cli.Command{
 		var node api.SealerAPI
 		stopper, err := dix.New(
 			cctx.Context,
+			dix.Override(new(dep.GlobalContext), cctx.Context),
 			dix.Override(new(abi.ActorID), abi.ActorID(cctx.Uint64("miner"))),
 			dix.Override(new(abi.RegisteredSealProof), proofType),
 			dep.Mock(),

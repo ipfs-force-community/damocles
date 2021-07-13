@@ -71,7 +71,12 @@ var daemonRunCmd = &cli.Command{
 		var node api.SealerAPI
 		stopper, err := dix.New(
 			cctx.Context,
+			dix.Override(new(dep.GlobalContext), cctx.Context),
 			dix.Override(new(*homedir.Home), home),
+			// TODO: remove mock components when we finished all impls
+			dep.Mock(),
+
+			dep.Product(),
 			dep.Sealer(&node),
 		)
 		if err != nil {

@@ -18,6 +18,7 @@ func Mock() dix.Option {
 		dix.Override(new(api.SectorManager), mock.NewSectorManager),
 		dix.Override(new(api.DealManager), mock.NewDealManager),
 		dix.Override(new(api.CommitmentManager), mock.NewCommitManager),
+		dix.Override(new(api.MinerInfoAPI), mock.NewMinerInfoAPI),
 	)
 }
 
@@ -33,9 +34,6 @@ func Product() dix.Option {
 		dix.Override(new(api.SectorManager), BuildLocalSectorManager),
 		dix.Override(new(MetaStore), BuildMetaStore),
 		dix.Override(new(api.SectorNumberAllocator), BuildSectorNumberAllocator),
-
-		// TODO: FIX US
-		dix.Override(new(api.MinerInfoAPI), func() (api.MinerInfoAPI, error) { return nil, nil }),
 	)
 }
 
