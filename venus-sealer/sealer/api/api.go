@@ -19,7 +19,7 @@ type SealerAPI interface {
 
 	PollPreCommitState(context.Context, abi.SectorID) (PollPreCommitStateResp, error)
 
-	AssignSeed(context.Context, abi.SectorID) (Seed, error)
+	WaitSeed(context.Context, abi.SectorID) (WaitSeedResp, error)
 
 	SubmitProof(context.Context, abi.SectorID, ProofOnChainInfo) (SubmitProofResp, error)
 

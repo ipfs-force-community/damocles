@@ -1,13 +1,16 @@
 package sealer
 
 import (
+	"bytes"
 	"context"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/policy"
 )
 
 var _ api.SealerAPI = (*Sealer)(nil)
@@ -39,8 +42,33 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.Ac
 	return s.deal.Acquire(ctx, sid, spec.MaxDeals)
 }
 
+func (s *Sealer) getRandomnessEntropy(mid abi.ActorID) ([]byte, error) {
+	maddr, err := address.NewIDAddress(uint64(mid))
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	if err := maddr.MarshalCBOR(&buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
 func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket, error) {
-	panic("impl this")
+	ts, err := s.capi.ChainHead(ctx)
+	if err != nil {
+		return api.Ticket{}, err
+	}
+
+	entropy, err := s.getRandomnessEntropy(sid.Miner)
+	if err != nil {
+		return api.Ticket{}, nil
+	}
+
+	ticketEpoch := ts.Height() - policy.SealRandomnessLookback
+	return s.rand.GetTicket(ctx, ts.Key(), ticketEpoch, entropy)
 }
 
 func (s *Sealer) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, info api.PreCommitOnChainInfo) (api.SubmitPreCommitResp, error) {
@@ -51,8 +79,49 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (api.
 	return s.commit.PreCommitState(ctx, sid)
 }
 
-func (s *Sealer) AssignSeed(ctx context.Context, sid abi.SectorID) (api.Seed, error) {
-	panic("impl this")
+func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedResp, error) {
+	maddr, err := address.NewIDAddress(uint64(sid.Miner))
+	if err != nil {
+		return api.WaitSeedResp{}, err
+	}
+
+	ts, err := s.capi.ChainHead(ctx)
+	if err != nil {
+		return api.WaitSeedResp{}, err
+	}
+
+	tsk := ts.Key()
+	pci, err := s.capi.StateSectorPreCommitInfo(ctx, maddr, sid.Number, tsk)
+	if err != nil {
+		return api.WaitSeedResp{}, err
+	}
+
+	curEpoch := ts.Height()
+	seedEpoch := pci.PreCommitEpoch + policy.GetPreCommitChallengeDelay()
+	confEpoch := seedEpoch + policy.InteractivePoRepConfidence
+	if curEpoch < confEpoch {
+		return api.WaitSeedResp{
+			ShouldWait: true,
+			Delay:      int((confEpoch - curEpoch) * policy.EpochDurationSeconds),
+			Seed:       nil,
+		}, nil
+	}
+
+	entropy, err := s.getRandomnessEntropy(sid.Miner)
+	if err != nil {
+		return api.WaitSeedResp{}, err
+	}
+
+	seed, err := s.rand.GetSeed(ctx, tsk, seedEpoch, entropy)
+	if err != nil {
+		return api.WaitSeedResp{}, err
+	}
+
+	return api.WaitSeedResp{
+		ShouldWait: false,
+		Delay:      0,
+		Seed:       &seed,
+	}, nil
 }
 
 func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofOnChainInfo) (api.SubmitProofResp, error) {

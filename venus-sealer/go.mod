@@ -10,6 +10,7 @@ require (
 	github.com/filecoin-project/go-address v0.0.5 // indirect
 	github.com/filecoin-project/go-jsonrpc v0.1.4-0.20210217175800-45ea43ac2bec // indirect
 	github.com/filecoin-project/go-state-types v0.1.1-0.20210506134452-99b279731c48 // indirect
+	github.com/filecoin-project/specs-actors/v5 v5.0.1 // indirect
 	github.com/filecoin-project/venus v1.0.2 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
