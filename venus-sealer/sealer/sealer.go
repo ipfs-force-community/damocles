@@ -5,6 +5,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
@@ -13,7 +14,7 @@ var _ api.SealerAPI = (*Sealer)(nil)
 
 var log = logging.New("sealing")
 
-func New(rand api.RandomnessAPI, sector api.SectorManager, deal api.DealManager, commit api.CommitmentManager) (*Sealer, error) {
+func New(capi chain.API, rand api.RandomnessAPI, sector api.SectorManager, deal api.DealManager, commit api.CommitmentManager) (*Sealer, error) {
 	return &Sealer{
 		rand:   rand,
 		sector: sector,
@@ -23,6 +24,7 @@ func New(rand api.RandomnessAPI, sector api.SectorManager, deal api.DealManager,
 }
 
 type Sealer struct {
+	capi   chain.API
 	rand   api.RandomnessAPI
 	sector api.SectorManager
 	deal   api.DealManager
@@ -38,7 +40,7 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.Ac
 }
 
 func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket, error) {
-	return s.rand.GetTicket(ctx)
+	panic("impl this")
 }
 
 func (s *Sealer) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, info api.PreCommitOnChainInfo) (api.SubmitPreCommitResp, error) {
@@ -50,7 +52,7 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (api.
 }
 
 func (s *Sealer) AssignSeed(ctx context.Context, sid abi.SectorID) (api.Seed, error) {
-	return s.rand.GetSeed(ctx)
+	panic("impl this")
 }
 
 func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofOnChainInfo) (api.SubmitProofResp, error) {
