@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 
+	"github.com/filecoin-project/venus/pkg/types"
+
 	"github.com/filecoin-project/go-state-types/abi"
 )
 
@@ -25,8 +27,8 @@ type SealerAPI interface {
 }
 
 type RandomnessAPI interface {
-	GetTicket(context.Context) (Ticket, error)
-	GetSeed(context.Context) (Seed, error)
+	GetTicket(context.Context, types.TipSetKey, abi.ChainEpoch, []byte) (Ticket, error)
+	GetSeed(context.Context, types.TipSetKey, abi.ChainEpoch, []byte) (Seed, error)
 }
 
 type MinerInfoAPI interface {
