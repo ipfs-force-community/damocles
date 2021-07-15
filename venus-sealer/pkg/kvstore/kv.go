@@ -8,10 +8,14 @@ import (
 var ErrKeyNotFound = fmt.Errorf("key not found")
 
 type (
-	Key      = []byte
+	Key      []byte
 	Val      = []byte
 	Callback = func(Val) error
 )
+
+func (k Key) String() string {
+	return string(k)
+}
 
 type KVStore interface {
 	Get(context.Context, Key) (Val, error)

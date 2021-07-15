@@ -1,15 +1,31 @@
 package kvstore
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 var _ KVStore = (*WrappedKVStore)(nil)
 
-func NewWrappedKVStore(prefix []byte, inner KVStore) *WrappedKVStore {
+func NewWrappedKVStore(prefix []byte, inner KVStore) (*WrappedKVStore, error) {
+	prefixLen := len(prefix)
+	if prefixLen == 0 {
+		return nil, fmt.Errorf("empty prefix is not allowed")
+	}
+
+	if prefix[prefixLen-1] != '/' {
+		prefixLen++
+		p := make([]byte, prefixLen)
+		copy(p, prefix)
+		p[prefixLen-1] = '/'
+		prefix = p
+	}
+
 	return &WrappedKVStore{
 		prefix:    prefix,
-		prefixLen: len(prefix),
+		prefixLen: prefixLen,
 		inner:     inner,
-	}
+	}, nil
 }
 
 type WrappedKVStore struct {

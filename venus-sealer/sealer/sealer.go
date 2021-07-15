@@ -17,10 +17,11 @@ var _ api.SealerAPI = (*Sealer)(nil)
 
 var log = logging.New("sealing")
 
-func New(capi chain.API, rand api.RandomnessAPI, sector api.SectorManager, deal api.DealManager, commit api.CommitmentManager) (*Sealer, error) {
+func New(capi chain.API, rand api.RandomnessAPI, sector api.SectorManager, state api.SectorStateManager, deal api.DealManager, commit api.CommitmentManager) (*Sealer, error) {
 	return &Sealer{
 		rand:   rand,
 		sector: sector,
+		state:  state,
 		deal:   deal,
 		commit: commit,
 	}, nil
@@ -30,6 +31,7 @@ type Sealer struct {
 	capi   chain.API
 	rand   api.RandomnessAPI
 	sector api.SectorManager
+	state  api.SectorStateManager
 	deal   api.DealManager
 	commit api.CommitmentManager
 }
