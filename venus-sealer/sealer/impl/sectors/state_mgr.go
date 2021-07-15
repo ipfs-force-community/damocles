@@ -53,6 +53,29 @@ func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *api.Se
 	return nil
 }
 
+func (sm *StateManager) All(ctx context.Context) ([]*api.SectorState, error) {
+	iter, err := sm.store.Scan(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	defer iter.Close()
+
+	states := make([]*api.SectorState, 0, 32)
+	for iter.Next() {
+		var state api.SectorState
+		if err := iter.View(ctx, func(data []byte) error {
+			return json.Unmarshal(data, &state)
+		}); err != nil {
+			return nil, fmt.Errorf("scan state item of key %s: %w", string(iter.Key()), err)
+		}
+
+		states = append(states, &state)
+	}
+
+	return states, nil
+}
+
 func (sm *StateManager) Insert(ctx context.Context, sid abi.SectorID, state *api.SectorState) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
@@ -106,6 +129,11 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals 
 
 func processStateField(rv reflect.Value, fieldval interface{}) error {
 	rfv := reflect.ValueOf(fieldval)
+	// most likely, reflect.ValueOf(nil)
+	if !rfv.IsValid() {
+		return fmt.Errorf("invalid field value: %s", rfv)
+	}
+
 	rft := rfv.Type()
 
 	for i, sf := range stateFields {
