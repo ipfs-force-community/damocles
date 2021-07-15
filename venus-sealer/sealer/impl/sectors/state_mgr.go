@@ -60,7 +60,7 @@ func (sm *StateManager) Insert(ctx context.Context, sid abi.SectorID, state *api
 	key := makeSectorKey(sid)
 	err := sm.store.View(ctx, key, func([]byte) error { return nil })
 	if err == nil {
-		return fmt.Errorf("sector %s already initialized", key)
+		return fmt.Errorf("sector %s already initialized", string(key))
 	}
 
 	if err != kvstore.ErrKeyNotFound {

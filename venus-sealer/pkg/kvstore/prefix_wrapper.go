@@ -16,8 +16,10 @@ func NewWrappedKVStore(prefix []byte, inner KVStore) (*WrappedKVStore, error) {
 	if prefix[prefixLen-1] != '/' {
 		prefixLen++
 		p := make([]byte, prefixLen)
-		copy(p, prefix)
-		p[prefixLen-1] = '/'
+
+		// copied must be the size of prefix, thus it is also the last index of the p
+		copied := copy(p, prefix)
+		p[copied] = '/'
 		prefix = p
 	}
 
@@ -61,10 +63,40 @@ func (w *WrappedKVStore) Del(ctx context.Context, key Key) error {
 	return w.inner.Del(ctx, w.makeKey(key))
 }
 
+func (w *WrappedKVStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
+	iter, err := w.inner.Scan(ctx, w.makeKey(prefix))
+	if err != nil {
+		return nil, err
+	}
+
+	return &WrappedIter{
+		prefixLen: w.prefixLen,
+		inner:     iter,
+	}, nil
+}
+
 func (w *WrappedKVStore) Run(ctx context.Context) error {
 	return nil
 }
 
 func (w *WrappedKVStore) Close(ctx context.Context) error {
 	return nil
+}
+
+type WrappedIter struct {
+	prefixLen int
+	inner     Iter
+}
+
+func (wi *WrappedIter) Next() bool                                  { return wi.inner.Next() }
+func (wi *WrappedIter) View(ctx context.Context, cb Callback) error { return wi.inner.View(ctx, cb) }
+func (wi *WrappedIter) Close()                                      { wi.inner.Close() }
+
+func (wi *WrappedIter) Key() Key {
+	key := wi.inner.Key()
+	if len(key) > wi.prefixLen {
+		key = key[wi.prefixLen:]
+	}
+
+	return key
 }

@@ -78,7 +78,7 @@ func BuildMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (Me
 }
 
 func BuildSectorNumberAllocator(meta MetaStore) (api.SectorNumberAllocator, error) {
-	store, err := kvstore.NewWrappedKVStore([]byte("/sector-number"), meta)
+	store, err := kvstore.NewWrappedKVStore([]byte("sector-number"), meta)
 	if err != nil {
 		return nil, err
 	}
