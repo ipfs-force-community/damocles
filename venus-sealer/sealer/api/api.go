@@ -56,7 +56,7 @@ type SectorNumberAllocator interface {
 }
 
 type SectorStateManager interface {
-	Insert(context.Context, abi.SectorID, *SectorState) error
+	Init(context.Context, abi.SectorID) error
 	Load(context.Context, abi.SectorID) (*SectorState, error)
 	Update(context.Context, abi.SectorID, ...interface{}) error
 	All(ctx context.Context) ([]*SectorState, error)

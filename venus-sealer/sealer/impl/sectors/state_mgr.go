@@ -34,7 +34,7 @@ type StateManager struct {
 	locker *sectorsLocker
 }
 
-func (sm *StateManager) save(ctx context.Context, key kvstore.Key, state *api.SectorState) error {
+func (sm *StateManager) save(ctx context.Context, key kvstore.Key, state api.SectorState) error {
 	b, err := json.Marshal(state)
 	if err != nil {
 		return fmt.Errorf("marshal state: %w", err)
@@ -76,9 +76,13 @@ func (sm *StateManager) All(ctx context.Context) ([]*api.SectorState, error) {
 	return states, nil
 }
 
-func (sm *StateManager) Insert(ctx context.Context, sid abi.SectorID, state *api.SectorState) error {
+func (sm *StateManager) Init(ctx context.Context, sid abi.SectorID) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
+
+	state := api.SectorState{
+		ID: sid,
+	}
 
 	key := makeSectorKey(sid)
 	err := sm.store.View(ctx, key, func([]byte) error { return nil })
@@ -124,7 +128,7 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals 
 		}
 	}
 
-	return sm.save(ctx, key, &state)
+	return sm.save(ctx, key, state)
 }
 
 func processStateField(rv reflect.Value, fieldval interface{}) error {

@@ -3,6 +3,7 @@ package sealer
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -11,6 +12,10 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/policy"
+)
+
+var (
+	ErrSectorAllocated = fmt.Errorf("sector allocated")
 )
 
 var _ api.SealerAPI = (*Sealer)(nil)
@@ -36,8 +41,49 @@ type Sealer struct {
 	commit api.CommitmentManager
 }
 
+func (s *Sealer) checkSectorNumber(ctx context.Context, sid abi.SectorID) (bool, error) {
+	maddr, err := address.NewIDAddress(uint64(sid.Miner))
+	if err != nil {
+		return false, err
+	}
+
+	ts, err := s.capi.ChainHead(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	allocated, err := s.capi.StateMinerSectorAllocated(ctx, maddr, sid.Number, ts.Key())
+	if err != nil {
+		return false, err
+	}
+
+	return allocated, err
+}
+
 func (s *Sealer) AllocateSector(ctx context.Context, spec api.AllocateSectorSpec) (*api.AllocatedSector, error) {
-	return s.sector.Allocate(ctx, spec.AllowedMiners, spec.AllowedProofTypes)
+	sector, err := s.sector.Allocate(ctx, spec.AllowedMiners, spec.AllowedProofTypes)
+	if err != nil {
+		return nil, err
+	}
+
+	if sector == nil {
+		return nil, nil
+	}
+
+	allocated, err := s.checkSectorNumber(ctx, sector.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if allocated {
+		return nil, fmt.Errorf("%w: m-%d-s-%d", ErrSectorAllocated, sector.ID.Miner, sector.ID.Number)
+	}
+
+	if err := s.state.Init(ctx, sector.ID); err != nil {
+		return nil, err
+	}
+
+	return sector, nil
 }
 
 func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.AcquireDealsSpec) (api.Deals, error) {
