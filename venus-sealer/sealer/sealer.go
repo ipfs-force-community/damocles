@@ -22,6 +22,10 @@ var _ api.SealerAPI = (*Sealer)(nil)
 
 var log = logging.New("sealing")
 
+func sectorLogger(sid abi.SectorID) *logging.ZapLogger {
+	return log.With("miner", sid.Miner, "num", sid.Number)
+}
+
 func New(capi chain.API, rand api.RandomnessAPI, sector api.SectorManager, state api.SectorStateManager, deal api.DealManager, commit api.CommitmentManager) (*Sealer, error) {
 	return &Sealer{
 		rand:   rand,
@@ -87,7 +91,20 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec api.AllocateSectorSpec
 }
 
 func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.AcquireDealsSpec) (api.Deals, error) {
-	return s.deal.Acquire(ctx, sid, spec.MaxDeals)
+	deals, err := s.deal.Acquire(ctx, sid, spec.MaxDeals)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.state.Update(ctx, sid, deals)
+	if err != nil {
+		if rerr := s.deal.Release(ctx, deals); rerr != nil {
+			sectorLogger(sid).Errorf("failed to release deals %v", deals)
+		}
+		return nil, err
+	}
+
+	return deals, nil
 }
 
 func (s *Sealer) getRandomnessEntropy(mid abi.ActorID) ([]byte, error) {
@@ -112,11 +129,20 @@ func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket
 
 	entropy, err := s.getRandomnessEntropy(sid.Miner)
 	if err != nil {
-		return api.Ticket{}, nil
+		return api.Ticket{}, err
 	}
 
 	ticketEpoch := ts.Height() - policy.SealRandomnessLookback
-	return s.rand.GetTicket(ctx, ts.Key(), ticketEpoch, entropy)
+	ticket, err := s.rand.GetTicket(ctx, ts.Key(), ticketEpoch, entropy)
+	if err != nil {
+		return api.Ticket{}, err
+	}
+
+	if err := s.state.Update(ctx, sid, &ticket); err != nil {
+		return api.Ticket{}, err
+	}
+
+	return ticket, nil
 }
 
 func (s *Sealer) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, info api.PreCommitOnChainInfo) (api.SubmitPreCommitResp, error) {
@@ -162,6 +188,10 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedRe
 
 	seed, err := s.rand.GetSeed(ctx, tsk, seedEpoch, entropy)
 	if err != nil {
+		return api.WaitSeedResp{}, err
+	}
+
+	if err := s.state.Update(ctx, sid, &seed); err != nil {
 		return api.WaitSeedResp{}, err
 	}
 

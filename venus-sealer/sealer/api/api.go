@@ -41,6 +41,7 @@ type SectorManager interface {
 
 type DealManager interface {
 	Acquire(context.Context, abi.SectorID, *uint) (Deals, error)
+	Release(context.Context, Deals) error
 }
 
 type CommitmentManager interface {
