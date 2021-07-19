@@ -6,5 +6,8 @@ import (
 
 type API interface {
 	apiface.IChainInfo
+	apiface.ISyncer
+	apiface.IActor
+	apiface.IBlockStore
 	apiface.IMinerState
 }

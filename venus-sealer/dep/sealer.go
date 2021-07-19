@@ -27,7 +27,6 @@ func Mock() dix.Option {
 		dix.Override(new(api.MinerInfoAPI), mock.NewMinerInfoAPI),
 
 		// commit manager di
-		dix.Override(new(commitmgr.SealingAPI), nil),
 		dix.Override(new(commitmgr.Verifier), nil),
 		dix.Override(new(commitmgr.Prover), nil),
 		dix.Override(new(api.SectorsDatastore), nil),
@@ -52,6 +51,8 @@ func Product() dix.Option {
 
 		dix.Override(new(api.CommitmentManager), commitmgr.NewCommitmentMgr),
 		dix.Override(new(venusMessager.IMessager), message_client.NewMessageClient),
+		dix.Override(new(commitmgr.SealingAPI), commitmgr.NewSealingAPIImpl),
+
 		// TODO: make the dependencies below available
 		dix.Override(new(chain.API), func() (chain.API, error) { return nil, nil }),
 	)
