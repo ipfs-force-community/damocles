@@ -9,6 +9,7 @@ import (
 
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/confmgr"
+	message_client "github.com/dtynn/venus-cluster/venus-sealer/pkg/message-client"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/commitmgr"
@@ -26,7 +27,6 @@ func Mock() dix.Option {
 		dix.Override(new(api.MinerInfoAPI), mock.NewMinerInfoAPI),
 
 		// commit manager di
-		dix.Override(new(venusMessager.IMessager), mock.NewMessagerClient),
 		dix.Override(new(commitmgr.SealingAPI), nil),
 		dix.Override(new(commitmgr.Verifier), nil),
 		dix.Override(new(commitmgr.Prover), nil),
@@ -51,7 +51,7 @@ func Product() dix.Option {
 		dix.Override(new(api.Verifier), prover.Verifier),
 
 		dix.Override(new(api.CommitmentManager), commitmgr.NewCommitmentMgr),
-
+		dix.Override(new(venusMessager.IMessager), message_client.NewMessageClient),
 		// TODO: make the dependencies below available
 		dix.Override(new(chain.API), func() (chain.API, error) { return nil, nil }),
 	)

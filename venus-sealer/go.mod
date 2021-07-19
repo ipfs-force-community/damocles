@@ -25,8 +25,9 @@ require (
 	github.com/filecoin-project/venus v1.0.2
 	github.com/filecoin-project/venus-messager v1.1.0
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/ipfs-force-community/venus-common-utils v0.0.0-20210714054928-2042a9040759
 	github.com/ipfs/go-cid v0.0.7
-	github.com/ipfs/go-log/v2 v2.1.3
+	github.com/ipfs/go-log/v2 v2.3.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/fx v1.13.1

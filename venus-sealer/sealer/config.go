@@ -13,12 +13,14 @@ func DefaultConfig() Config {
 	return Config{
 		SectorManager:     DefaultSectorManagerConfig(),
 		CommitmentManager: DefaultCommitmentManagerConfig(),
+		MessagerClient:    DefaultMessagerClientConfig(),
 	}
 }
 
 type Config struct {
 	SectorManager     SectorManagerConfig
 	CommitmentManager CommitmentManagerConfig
+	MessagerClient    MessagerClientConfig
 }
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
@@ -87,5 +89,17 @@ func DefaultCommitmentManagerConfig() CommitmentManagerConfig {
 		PreCommitControlAddress:         nil,
 		ProCommitControlAddress:         nil,
 		MsgConfidence:                   0,
+	}
+}
+
+type MessagerClientConfig struct {
+	Api   string
+	Token string
+}
+
+func DefaultMessagerClientConfig() MessagerClientConfig {
+	return MessagerClientConfig{
+		Api:   "",
+		Token: "",
 	}
 }
