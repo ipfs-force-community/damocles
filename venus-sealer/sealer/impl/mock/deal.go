@@ -20,3 +20,7 @@ type nullDeal struct {
 func (*nullDeal) Acquire(context.Context, abi.SectorID, *uint) (api.Deals, error) {
 	return nil, nil
 }
+
+func (*nullDeal) Release(context.Context, api.Deals) error {
+	return nil
+}
