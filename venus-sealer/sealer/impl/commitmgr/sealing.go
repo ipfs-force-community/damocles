@@ -12,7 +12,6 @@ import (
 	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
 	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
 	market5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/market"
-	chain_store "github.com/filecoin-project/venus/app/submodule/chain"
 	"github.com/filecoin-project/venus/pkg/chain"
 	"github.com/filecoin-project/venus/pkg/specactors"
 	"github.com/filecoin-project/venus/pkg/specactors/builtin/market"
@@ -115,7 +114,7 @@ func (s SealingAPIImpl) StateSectorPreCommitInfo(ctx context.Context, maddr addr
 	if err != nil {
 		return nil, xerrors.Errorf("handleSealFailed(%d): temp error: %+v", sectorNumber, err)
 	}
-	stor := chain.ActorStore(ctx, chain_store.NewAPIBlockstore(s.api))
+	stor := chain.ActorStore(ctx, chainAPI.NewAPIBlockstore(s.api))
 
 	state, err := miner1.Load(stor, act)
 	if err != nil {
