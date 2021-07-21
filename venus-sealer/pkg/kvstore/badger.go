@@ -95,8 +95,78 @@ func (b *BadgerKVStore) Del(ctx context.Context, key Key) error {
 	})
 }
 
+func (b *BadgerKVStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
+	txn := b.db.NewTransaction(false)
+	iter := txn.NewIterator(badger.DefaultIteratorOptions)
+
+	return &BadgerIter{
+		txn:    txn,
+		iter:   iter,
+		seeked: false,
+		valid:  false,
+		prefix: prefix,
+	}, nil
+}
+
 func (b *BadgerKVStore) Run(context.Context) error { return nil }
 
 func (b *BadgerKVStore) Close(context.Context) error {
 	return b.db.Close()
+}
+
+var _ Iter = (*BadgerIter)(nil)
+
+type BadgerIter struct {
+	txn  *badger.Txn
+	iter *badger.Iterator
+	item *badger.Item
+
+	seeked bool
+	valid  bool
+	prefix []byte
+}
+
+func (bi *BadgerIter) Next() bool {
+	if bi.seeked {
+		bi.Next()
+	} else {
+		if len(bi.prefix) == 0 {
+			bi.iter.Rewind()
+		} else {
+			bi.iter.Seek(bi.prefix)
+		}
+	}
+
+	if len(bi.prefix) == 0 {
+		bi.valid = bi.iter.Valid()
+	} else {
+		bi.valid = bi.iter.ValidForPrefix(bi.prefix)
+	}
+
+	if bi.valid {
+		bi.item = bi.iter.Item()
+	}
+
+	return bi.valid
+}
+
+func (bi *BadgerIter) Key() Key {
+	if !bi.valid {
+		return nil
+	}
+
+	return bi.item.Key()
+}
+
+func (bi *BadgerIter) View(ctx context.Context, cb Callback) error {
+	if !bi.valid {
+		return ErrIterItemNotValid
+	}
+
+	return bi.item.Value(cb)
+}
+
+func (bi *BadgerIter) Close() {
+	bi.iter.Close()
+	bi.txn.Discard()
 }

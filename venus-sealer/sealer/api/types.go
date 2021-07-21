@@ -77,6 +77,12 @@ type PollPreCommitStateResp struct {
 	Desc  *string
 }
 
+type WaitSeedResp struct {
+	ShouldWait bool
+	Delay      int
+	Seed       *Seed
+}
+
 type Seed struct {
 	Seed  abi.Randomness
 	Epoch abi.ChainEpoch

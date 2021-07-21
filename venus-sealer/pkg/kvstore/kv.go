@@ -5,13 +5,25 @@ import (
 	"fmt"
 )
 
-var ErrKeyNotFound = fmt.Errorf("key not found")
+var (
+	ErrKeyNotFound      = fmt.Errorf("key not found")
+	ErrIterItemNotValid = fmt.Errorf("iter item not valid")
+)
 
 type (
 	Key      = []byte
 	Val      = []byte
+	Prefix   = []byte
 	Callback = func(Val) error
 )
+
+// Iter is not guaranteed to be thread-safe
+type Iter interface {
+	Next() bool
+	Key() Key
+	View(context.Context, Callback) error
+	Close()
+}
 
 type KVStore interface {
 	Get(context.Context, Key) (Val, error)
@@ -19,6 +31,10 @@ type KVStore interface {
 	View(context.Context, Key, Callback) error
 	Put(context.Context, Key, Val) error
 	Del(context.Context, Key) error
+
+	// in most implementations, scan will hold a read lock
+	Scan(context.Context, Prefix) (Iter, error)
+
 	Run(context.Context) error
 	Close(context.Context) error
 }

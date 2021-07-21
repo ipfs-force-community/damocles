@@ -6,4 +6,5 @@ import (
 
 type API interface {
 	apiface.IChainInfo
+	apiface.IMinerState
 }

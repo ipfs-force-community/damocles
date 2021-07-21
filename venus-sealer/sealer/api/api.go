@@ -19,7 +19,7 @@ type SealerAPI interface {
 
 	PollPreCommitState(context.Context, abi.SectorID) (PollPreCommitStateResp, error)
 
-	AssignSeed(context.Context, abi.SectorID) (Seed, error)
+	WaitSeed(context.Context, abi.SectorID) (WaitSeedResp, error)
 
 	SubmitProof(context.Context, abi.SectorID, ProofOnChainInfo) (SubmitProofResp, error)
 
@@ -41,6 +41,7 @@ type SectorManager interface {
 
 type DealManager interface {
 	Acquire(context.Context, abi.SectorID, *uint) (Deals, error)
+	Release(context.Context, Deals) error
 }
 
 type CommitmentManager interface {
@@ -56,5 +57,8 @@ type SectorNumberAllocator interface {
 }
 
 type SectorStateManager interface {
+	Init(context.Context, abi.SectorID) error
+	Load(context.Context, abi.SectorID) (*SectorState, error)
 	Update(context.Context, abi.SectorID, ...interface{}) error
+	All(ctx context.Context) ([]*SectorState, error)
 }
