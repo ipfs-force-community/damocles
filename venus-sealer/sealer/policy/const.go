@@ -1,18 +1,15 @@
 package policy
 
 import (
-	"github.com/filecoin-project/go-state-types/abi"
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
+	"github.com/filecoin-project/venus/pkg/specactors/builtin"
+	"github.com/filecoin-project/venus/pkg/specactors/policy"
 )
 
 const (
-	EpochDurationSeconds           = builtin5.EpochDurationSeconds
-	ChainFinality                  = miner5.ChainFinality
+	EpochDurationSeconds           = builtin.EpochDurationSeconds
+	ChainFinality                  = policy.ChainFinality
 	SealRandomnessLookback         = ChainFinality
-	MaxPreCommitRandomnessLookback = builtin5.EpochsInDay + SealRandomnessLookback
+	MaxPreCommitRandomnessLookback = builtin.EpochsInDay + SealRandomnessLookback
 )
 
-func GetPreCommitChallengeDelay() abi.ChainEpoch {
-	return miner5.PreCommitChallengeDelay
-}
+var GetPreCommitChallengeDelay = policy.GetPreCommitChallengeDelay

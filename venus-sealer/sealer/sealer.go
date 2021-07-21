@@ -11,6 +11,7 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
+
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/policy"
 )
 
