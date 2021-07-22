@@ -34,15 +34,15 @@ type SectorManagerConfig struct {
 }
 
 type CommitmentManagerConfig struct {
-	MaxCommitBatch   int
-	MinCommitBatch   int
-	CommitBatchWait  time.Duration
-	CommitBatchSlack time.Duration
+	CommitBatchThreshold int
+	CommitBatchMaxWait   time.Duration
+	CommitCheckInterval  time.Duration
+	EnableBatchProCommit bool
 
-	MaxPreCommitBatch   int
-	MinPreCommitBatch   int
-	PreCommitBatchWait  time.Duration
-	PreCommitBatchSlack time.Duration
+	PreCommitBatchThreshold int
+	PreCommitBatchMaxWait   time.Duration
+	PreCommitCheckInterval  time.Duration
+	EnableBatchPreCommit    bool
 
 	CheaperBaseFee abi.TokenAmount
 
@@ -56,9 +56,6 @@ type CommitmentManagerConfig struct {
 	MaxBatchPreCommitFeeCap big.Int
 	MaxBatchProCommitFeeCap big.Int
 
-	EnableBatchPreCommit bool
-	EnableBatchProCommit bool
-
 	PreCommitControlAddress map[string]string
 	ProCommitControlAddress map[string]string
 
@@ -67,14 +64,10 @@ type CommitmentManagerConfig struct {
 
 func DefaultCommitmentManagerConfig() CommitmentManagerConfig {
 	return CommitmentManagerConfig{
-		MaxCommitBatch:                  0,
-		MinCommitBatch:                  0,
-		CommitBatchWait:                 0,
-		CommitBatchSlack:                0,
-		MaxPreCommitBatch:               0,
-		MinPreCommitBatch:               0,
-		PreCommitBatchWait:              0,
-		PreCommitBatchSlack:             0,
+		CommitBatchThreshold:    0,
+		PreCommitBatchThreshold: 0,
+		CommitBatchMaxWait:      0,
+
 		CheaperBaseFee:                  abi.TokenAmount{},
 		PreCommitGasOverEstimation:      0,
 		ProCommitGasOverEstimation:      0,

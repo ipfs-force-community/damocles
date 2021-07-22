@@ -3,70 +3,47 @@ package commitmgr
 import (
 	"bytes"
 	"context"
+	"fmt"
 
 	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/go-state-types/abi"
 	venusMessager "github.com/filecoin-project/venus-messager/api/client"
 	messager "github.com/filecoin-project/venus-messager/types"
 	"github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
-	"golang.org/x/xerrors"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
-func pushPreCommitSingle(ctx context.Context, ds api.SectorsDatastore, msgClient venusMessager.IMessager,
-	from address.Address, s abi.SectorID, spec messager.MsgMeta, stateMgr SealingAPI) error {
-	sector, err := ds.GetSector(ctx, s)
-	if err != nil {
-		log.Infof("Sector %v not found in db, there must be something weird", s)
-		return err
-	}
-	params, deposit, _, err := preCommitParams(ctx, stateMgr, sector)
+func pushPreCommitSingle(ctx context.Context, msgClient venusMessager.IMessager,
+	from, to address.Address, s *api.Sector, spec messager.MsgMeta, stateMgr SealingAPI) error {
+	params, deposit, _, err := preCommitParams(ctx, stateMgr, *s)
 	if err != nil {
 		return err
 	}
 	enc := new(bytes.Buffer)
 	if err := params.MarshalCBOR(enc); err != nil {
-		return xerrors.Errorf("serialize pre-commit sector parameters: %w", err)
-	}
-
-	to, err := address.NewIDAddress(uint64(sector.SectorID.Miner))
-	if err != nil {
-		return xerrors.Errorf("marshal into to failed %w", err)
+		return fmt.Errorf("serialize pre-commit sector parameters: %w", err)
 	}
 
 	mcid, err := pushMessage(ctx, from, to, deposit, miner.Methods.ProveCommitSector, msgClient, spec, enc.Bytes())
 	if err != nil {
 		return err
 	}
-	log.Infof("precommit of sector %d sent cid: %s", s.Number, mcid)
+	log.Infof("precommit of sector %d sent cid: %s", s.SectorID.Number, mcid)
 
-	sector.PreCommitCid = &mcid
-	sector.NeedSend = false
-	return ds.PutSector(ctx, sector)
+	s.PreCommitCid = &mcid
+	return nil
 }
 
-func pushCommitSingle(ctx context.Context, ds api.SectorsDatastore, msgClient venusMessager.IMessager,
-	from address.Address, s abi.SectorID, spec messager.MsgMeta, stateMgr SealingAPI) error {
-	sector, err := ds.GetSector(ctx, s)
-	if err != nil {
-		log.Infof("Sector %v not found in db, there must be something weird", s)
-		return err
-	}
-
+func pushCommitSingle(ctx context.Context, msgClient venusMessager.IMessager,
+	from, to address.Address, s *api.Sector, spec messager.MsgMeta, stateMgr SealingAPI) error {
 	params := &miner.ProveCommitSectorParams{
-		SectorNumber: s.Number,
-		Proof:        sector.Proof,
+		SectorNumber: s.SectorID.Number,
+		Proof:        s.Proof,
 	}
 
 	enc := new(bytes.Buffer)
 	if err := params.MarshalCBOR(enc); err != nil {
-		return xerrors.Errorf("serialize pre-commit sector parameters: %w", err)
-	}
-
-	to, err := address.NewIDAddress(uint64(sector.SectorID.Miner))
-	if err != nil {
-		return xerrors.Errorf("marshal into to failed %w", err)
+		return fmt.Errorf("serialize pre-commit sector parameters: %w", err)
 	}
 
 	tok, _, err := stateMgr.ChainHead(ctx)
@@ -74,7 +51,7 @@ func pushCommitSingle(ctx context.Context, ds api.SectorsDatastore, msgClient ve
 		return err
 	}
 
-	collateral, err := getSectorCollateral(ctx, stateMgr, to, s.Number, tok)
+	collateral, err := getSectorCollateral(ctx, stateMgr, to, s.SectorID.Number, tok)
 	if err != nil {
 		return err
 	}
@@ -83,8 +60,7 @@ func pushCommitSingle(ctx context.Context, ds api.SectorsDatastore, msgClient ve
 	if err != nil {
 		return err
 	}
-	log.Infof("prove of sector %d sent cid: %s", s.Number, mcid)
-	sector.CommitCid = &mcid
-	sector.NeedSend = false
-	return ds.PutSector(ctx, sector)
+	log.Infof("prove of sector %d sent cid: %s", s.SectorID.Number, mcid)
+	s.CommitCid = &mcid
+	return nil
 }

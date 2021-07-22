@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"sync"
 
 	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
@@ -40,13 +39,11 @@ type CommitmentMgrImpl struct {
 		confmgr.RLocker
 	}
 
-	commitBatcher map[abi.ActorID]*CommitBatcher
-	CommitBatcherCtor
-	preCommitBatcher map[abi.ActorID]*PreCommitBatcher
-	PreCommitBatcherCtor
+	commitBatcher    map[abi.ActorID]*Batcher
+	preCommitBatcher map[abi.ActorID]*Batcher
 
-	prePendingChan chan abi.SectorID
-	proPendingChan chan abi.SectorID
+	prePendingChan chan api.Sector
+	proPendingChan chan api.Sector
 
 	verif  Verifier
 	prover Prover
@@ -57,8 +54,9 @@ type CommitmentMgrImpl struct {
 func NewCommitmentMgr(ctx context.Context, commitApi venusMessager.IMessager, stateMgr SealingAPI, ds api.SectorsDatastore,
 	cfg *sealer.Config, locker confmgr.RLocker, verif Verifier, prover Prover,
 ) (*CommitmentMgrImpl, error) {
-	pendingChan := make(chan abi.SectorID, 1024)
-	prePendingChan := make(chan abi.SectorID, 1024)
+	pendingChan := make(chan api.Sector, 1024)
+	prePendingChan := make(chan api.Sector, 1024)
+
 	mgr := CommitmentMgrImpl{
 		ctx:       ctx,
 		msgClient: commitApi,
@@ -69,10 +67,8 @@ func NewCommitmentMgr(ctx context.Context, commitApi venusMessager.IMessager, st
 			confmgr.RLocker
 		}{cfg, locker},
 
-		commitBatcher:        map[abi.ActorID]*CommitBatcher{},
-		CommitBatcherCtor:    NewCommitBatcher,
-		preCommitBatcher:     map[abi.ActorID]*PreCommitBatcher{},
-		PreCommitBatcherCtor: NewPreCommitBatcher,
+		commitBatcher:    map[abi.ActorID]*Batcher{},
+		preCommitBatcher: map[abi.ActorID]*Batcher{},
 
 		prePendingChan: prePendingChan,
 
@@ -81,14 +77,16 @@ func NewCommitmentMgr(ctx context.Context, commitApi venusMessager.IMessager, st
 		prover:         prover,
 		stop:           make(chan struct{}),
 	}
-	ch := mgr.Run(ctx)
+
+	mgr.Run()
+
 	go func() {
 		select {
 		case <-ctx.Done():
 			close(pendingChan)
 			close(prePendingChan)
 		}
-		<-ch
+
 		for i := range mgr.commitBatcher {
 			mgr.commitBatcher[i].waitStop()
 		}
@@ -128,24 +126,6 @@ func getProCommitControlAddress(miner address.Address, cfg struct {
 	}
 
 	return address.NewFromString(control)
-}
-
-func (c *CommitmentMgrImpl) pushPreCommitSingle(ctx context.Context, s abi.SectorID) error {
-	to, err := address.NewIDAddress(uint64(s.Miner))
-	if err != nil {
-		return xerrors.Errorf("marshal into to failed %w", err)
-	}
-	from, err := getPreCommitControlAddress(to, c.cfg)
-	if err != nil {
-		return err
-	}
-	var spec messager.MsgMeta
-	c.cfg.Lock()
-	spec.GasOverEstimation = c.cfg.CommitmentManager.PreCommitGasOverEstimation
-	spec.MaxFeeCap = c.cfg.CommitmentManager.MaxPreCommitFeeCap
-	c.cfg.Unlock()
-
-	return pushPreCommitSingle(ctx, c.ds, c.msgClient, from, s, spec, c.stateMgr)
 }
 
 func pushMessage(ctx context.Context, from, to address.Address, value abi.TokenAmount, method abi.MethodNum,
@@ -193,31 +173,6 @@ func pushMessage(ctx context.Context, from, to address.Address, value abi.TokenA
 	return mcid, err
 }
 
-func getMsgMeta(cfg struct {
-	*sealer.Config
-	confmgr.RLocker
-}) messager.MsgMeta {
-	var spec messager.MsgMeta
-	cfg.Lock()
-	spec.GasOverEstimation = cfg.CommitmentManager.ProCommitGasOverEstimation
-	spec.MaxFeeCap = cfg.CommitmentManager.MaxProCommitFeeCap
-	cfg.Unlock()
-	return spec
-}
-
-func (c *CommitmentMgrImpl) pushCommitSingle(ctx context.Context, s abi.SectorID) error {
-	to, err := address.NewIDAddress(uint64(s.Miner))
-	if err != nil {
-		return xerrors.Errorf("marshal into to failed %w", err)
-	}
-	from, err := getProCommitControlAddress(to, c.cfg)
-	if err != nil {
-		return err
-	}
-	spec := getMsgMeta(c.cfg)
-	return pushCommitSingle(ctx, c.ds, c.msgClient, from, s, spec, c.stateMgr)
-}
-
 func NewMIdFromBytes(seed []byte) (cid.Cid, error) {
 	pref := cid.Prefix{
 		Version:  1,
@@ -234,61 +189,42 @@ func NewMIdFromBytes(seed []byte) (cid.Cid, error) {
 	return c, nil
 }
 
-func (c *CommitmentMgrImpl) Run(ctx context.Context) <-chan struct{} {
-	wg := sync.WaitGroup{}
-	ch := make(chan struct{})
+func (c *CommitmentMgrImpl) Run() {
 	{
-		wg.Add(1)
 		go func() {
-			defer wg.Done()
 			for s := range c.prePendingChan {
-				c.cfg.Lock()
-				individual := c.cfg.CommitmentManager.EnableBatchPreCommit
-				c.cfg.Unlock()
-				if individual {
-					err := c.pushPreCommitSingle(c.ctx, s)
+				miner := s.SectorID.Miner
+				if _, ok := c.commitBatcher[miner]; !ok {
+					maddr, err := address.NewIDAddress(uint64(miner))
 					if err != nil {
-						log.Error(err)
+						log.Error("trans miner from actor to address failed: ", err)
 					}
-					continue
+					c.preCommitBatcher[miner] = NewBatcher(c.ctx, maddr, c.stateMgr, c.msgClient, &c.prover,
+						c.cfg.Config, c.cfg.RLocker, c.ds, PreCommitProcesser{})
 				}
 
-				err := c.preCommitBatcher[s.Miner].Add(c.ctx, s)
-				if err != nil {
-					log.Errorf("add %d %s into pre commit batch pool meet error %s", s.Number, s.Miner, err.Error())
-				}
+				c.preCommitBatcher[miner].Add(s)
 			}
 		}()
 	}
 
 	{
-		wg.Add(1)
 		go func() {
-			defer wg.Done()
 			for s := range c.proPendingChan {
-				c.cfg.Lock()
-				individual := c.cfg.CommitmentManager.EnableBatchProCommit
-				c.cfg.Unlock()
-				if individual {
-					err := c.pushCommitSingle(c.ctx, s)
+				miner := s.SectorID.Miner
+				if _, ok := c.commitBatcher[miner]; !ok {
+					maddr, err := address.NewIDAddress(uint64(miner))
 					if err != nil {
-						log.Error(err)
+						log.Error("trans miner from actor to address failed: ", err)
 					}
-					continue
+					c.commitBatcher[miner] = NewBatcher(c.ctx, maddr, c.stateMgr, c.msgClient, &c.prover,
+						c.cfg.Config, c.cfg.RLocker, c.ds, CommitProcesser{})
 				}
-
-				err := c.commitBatcher[s.Miner].Add(c.ctx, s)
-				if err != nil {
-					log.Errorf("add %d %s into commit batch pool meet error %s", s.Number, s.Miner, err.Error())
-				}
+				c.commitBatcher[miner].Add(s)
 			}
 		}()
 	}
-	go func() {
-		wg.Wait()
-		close(ch)
-	}()
-	return ch
+	return
 }
 
 func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info api.PreCommitOnChainInfo) (api.SubmitPreCommitResp, error) {
@@ -377,7 +313,7 @@ func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID,
 		return api.SubmitPreCommitResp{}, err
 	}
 	go func() {
-		c.prePendingChan <- id
+		c.prePendingChan <- sector
 	}()
 	return api.SubmitPreCommitResp{
 		Res: api.SubmitAccepted,
@@ -512,7 +448,7 @@ func (c CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, inf
 		return api.SubmitProofResp{}, err
 	}
 	go func() {
-		c.proPendingChan <- id
+		c.proPendingChan <- sector
 	}()
 	return api.SubmitProofResp{
 		Res: api.SubmitAccepted,
