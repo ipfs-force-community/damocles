@@ -1,3 +1,5 @@
+unexport GOTAGS
+
 FFI_PATH:=extern/filecoin-ffi/
 FFI_DEPS:=.install-filcrypto
 FFI_DEPS:=$(addprefix $(FFI_PATH),$(FFI_DEPS))
@@ -26,5 +28,16 @@ build-dep/.update-modules:
 
 CLEAN+=build-dep/.update-modules
 
-build-venus-selaer: $(BUILD_DEPS)
-	go build -o venus-sealer ./cmd/venus-sealer
+clean:
+	rm -rf $(CLEAN) $(BINS)
+	-$(MAKE) -C $(FFI_PATH) clean
+.PHONY: clean
+
+build-all: GOTAGS+=prod
+build-all: build-venus-sealer
+
+build-venus-sealer: $(BUILD_DEPS)
+	go build -tags "$(GOTAGS)" -o venus-sealer ./cmd/venus-sealer
+
+.PHONY: venus-sealer
+BINS+=venus-sealer
