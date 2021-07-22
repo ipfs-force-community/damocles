@@ -27,8 +27,6 @@ func Mock() dix.Option {
 		dix.Override(new(api.MinerInfoAPI), mock.NewMinerInfoAPI),
 
 		// commit manager di
-		dix.Override(new(commitmgr.Verifier), nil),
-		dix.Override(new(commitmgr.Prover), nil),
 		dix.Override(new(api.SectorsDatastore), nil),
 	)
 }

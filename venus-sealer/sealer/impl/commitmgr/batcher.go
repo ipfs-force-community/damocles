@@ -20,7 +20,7 @@ type Cfg struct {
 
 type Processer interface {
 	Process(ctx context.Context, msgClient venusMessager.IMessager, sectors []api.Sector, enableBatch bool, api SealingAPI,
-		wg *sync.WaitGroup, maddr address.Address, prover *Prover, ds api.SectorsDatastore, config Cfg)
+		wg *sync.WaitGroup, maddr address.Address, prover *api.Prover, ds api.SectorsDatastore, config Cfg)
 
 	PickTimeOutSector(ctx context.Context, sectors *[]api.Sector, api SealingAPI, config Cfg) ([]api.Sector, error)
 
@@ -36,7 +36,7 @@ type Batcher struct {
 
 	ds        api.SectorsDatastore
 	msgClient venusMessager.IMessager
-	prover    *Prover
+	prover    *api.Prover
 
 	pendingCh chan api.Sector
 
@@ -110,7 +110,7 @@ func (b *Batcher) run() {
 }
 
 func NewBatcher(ctx context.Context, maddr address.Address, sealing SealingAPI,
-	msgClient venusMessager.IMessager, prover *Prover, cfg *sealer.Config, locker confmgr.RLocker, ds api.SectorsDatastore, processer Processer) *Batcher {
+	msgClient venusMessager.IMessager, prover *api.Prover, cfg *sealer.Config, locker confmgr.RLocker, ds api.SectorsDatastore, processer Processer) *Batcher {
 	b := &Batcher{
 		ctx:       ctx,
 		api:       sealing,

@@ -45,14 +45,14 @@ type CommitmentMgrImpl struct {
 	prePendingChan chan api.Sector
 	proPendingChan chan api.Sector
 
-	verif  Verifier
-	prover Prover
+	verif  api.Verifier
+	prover api.Prover
 
 	stop chan struct{}
 }
 
 func NewCommitmentMgr(ctx context.Context, commitApi venusMessager.IMessager, stateMgr SealingAPI, ds api.SectorsDatastore,
-	cfg *sealer.Config, locker confmgr.RLocker, verif Verifier, prover Prover,
+	cfg *sealer.Config, locker confmgr.RLocker, verif api.Verifier, prover api.Prover,
 ) (*CommitmentMgrImpl, error) {
 	pendingChan := make(chan api.Sector, 1024)
 	prePendingChan := make(chan api.Sector, 1024)

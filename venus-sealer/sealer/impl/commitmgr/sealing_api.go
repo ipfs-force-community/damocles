@@ -12,7 +12,6 @@ import (
 	"github.com/filecoin-project/venus/pkg/specactors/builtin/market"
 	"github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
 
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
 	"github.com/ipfs/go-cid"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
@@ -38,13 +37,4 @@ type SealingAPI interface {
 
 	// validate random, may need to consider the place here
 	ChainGetRandomnessFromBeacon(ctx context.Context, tok api.TipSetToken, personalization crypto.DomainSeparationTag, randEpoch abi.ChainEpoch, entropy []byte) (abi.Randomness, error)
-}
-
-type Verifier interface {
-	VerifySeal(proof5.SealVerifyInfo) (bool, error)
-	VerifyAggregateSeals(aggregate proof5.AggregateSealVerifyProofAndInfos) (bool, error)
-}
-
-type Prover interface {
-	AggregateSealProofs(aggregateInfo proof5.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error)
 }

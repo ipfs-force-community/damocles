@@ -110,7 +110,7 @@ func checkPieces(ctx context.Context, maddr address.Address, si api.Sector, api 
 	return nil
 }
 
-func checkCommit(ctx context.Context, si api.Sector, proof []byte, tok api.TipSetToken, maddr address.Address, verif Verifier, api SealingAPI) (err error) {
+func checkCommit(ctx context.Context, si api.Sector, proof []byte, tok api.TipSetToken, maddr address.Address, verif api.Verifier, api SealingAPI) (err error) {
 	if si.SeedEpoch == 0 {
 		return &ErrBadSeed{xerrors.Errorf("seed epoch was not set")}
 	}

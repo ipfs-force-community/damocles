@@ -44,7 +44,7 @@ func (p PreCommitProcesser) processIndividually(ctx context.Context, msgClient v
 }
 
 func (p PreCommitProcesser) Process(ctx context.Context, msgClient venusMessager.IMessager, sectors []api.Sector,
-	enableBatch bool, sapi SealingAPI, wg *sync.WaitGroup, maddr address.Address, prover *Prover, ds api.SectorsDatastore, config Cfg) {
+	enableBatch bool, sapi SealingAPI, wg *sync.WaitGroup, maddr address.Address, prover *api.Prover, ds api.SectorsDatastore, config Cfg) {
 	defer func() {
 		// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 		cleanSector(ctx, sectors, ds)
