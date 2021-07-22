@@ -23,7 +23,7 @@ func Mock() dix.Option {
 		dix.Override(new(api.RandomnessAPI), mock.NewRandomness),
 		dix.Override(new(api.SectorManager), mock.NewSectorManager),
 		dix.Override(new(api.DealManager), mock.NewDealManager),
-		//dix.Override(new(api.CommitmentManager), mock.NewCommitManager),
+		dix.Override(new(api.CommitmentManager), mock.NewCommitManager),
 		dix.Override(new(api.MinerInfoAPI), mock.NewMinerInfoAPI),
 
 		// commit manager di
