@@ -1,0 +1,3 @@
+[submodule "venus-sealer/extern/filecoin-ffi"]
+	path = venus-sealer/extern/filecoin-ffi
+	url = https://github.com/filecoin-project/filecoin-ffi.git
