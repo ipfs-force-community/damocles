@@ -1,0 +1,43 @@
+unexport GOTAGS
+
+FFI_PATH:=extern/filecoin-ffi/
+FFI_DEPS:=.install-filcrypto
+FFI_DEPS:=$(addprefix $(FFI_PATH),$(FFI_DEPS))
+
+$(FFI_DEPS): build-dep/.filecoin-install ;
+
+MODULES:=
+
+CLEAN:=
+BINS:=
+
+build-dep/.filecoin-install: $(FFI_PATH)
+	$(MAKE) -C $(FFI_PATH) $(FFI_DEPS:$(FFI_PATH)%=%)
+	@touch $@
+
+MODULES+=$(FFI_PATH)
+BUILD_DEPS+=build-dep/.filecoin-install
+CLEAN+=build-dep/.filecoin-install
+
+$(MODULES): build-dep/.update-modules ;
+
+# dummy file that marks the last time modules were updated
+build-dep/.update-modules:
+	git submodule update --init --recursive
+	touch $@
+
+CLEAN+=build-dep/.update-modules
+
+clean:
+	rm -rf $(CLEAN) $(BINS)
+	-$(MAKE) -C $(FFI_PATH) clean
+.PHONY: clean
+
+build-all: GOTAGS+=prod
+build-all: build-venus-sealer
+
+build-venus-sealer: $(BUILD_DEPS)
+	go build -tags "$(GOTAGS)" -o venus-sealer ./cmd/venus-sealer
+
+.PHONY: venus-sealer
+BINS+=venus-sealer

@@ -1,2 +1,5 @@
 /dist
 .idea
+
+/venus-sealer/venus-sealer
+/venus-sealer/build-dep/.*

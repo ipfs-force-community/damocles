@@ -11,6 +11,7 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/mock"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/prover"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/randomness"
 )
 
@@ -37,6 +38,8 @@ func Product() dix.Option {
 		dix.Override(new(MetaStore), BuildMetaStore),
 		dix.Override(new(api.SectorNumberAllocator), BuildSectorNumberAllocator),
 		dix.Override(new(api.RandomnessAPI), randomness.New),
+		dix.Override(new(api.Prover), prover.Prover),
+		dix.Override(new(api.Verifier), prover.Verifier),
 
 		// TODO: make the dependencies below available
 		dix.Override(new(chain.API), func() (chain.API, error) { return nil, nil }),
