@@ -10,6 +10,7 @@ MODULES:=
 
 CLEAN:=
 BINS:=
+BUILDS:=
 
 build-dep/.filecoin-install: $(FFI_PATH)
 	$(MAKE) -C $(FFI_PATH) $(FFI_DEPS:$(FFI_PATH)%=%)
@@ -33,11 +34,16 @@ clean:
 	-$(MAKE) -C $(FFI_PATH) clean
 .PHONY: clean
 
-build-all: GOTAGS+=prod
-build-all: build-venus-sealer
 
-build-venus-sealer: $(BUILD_DEPS)
+build-venus-sealer:
+	rm -rf ./venus-sealer
 	go build -tags "$(GOTAGS)" -o venus-sealer ./cmd/venus-sealer
 
 .PHONY: venus-sealer
 BINS+=venus-sealer
+BUILDS+=build-venus-sealer
+
+build-all: GOTAGS+=prod
+build-all: $(BUILD_DEPS) $(BUILDS)
+
+build-all-dev: $(MODULES) $(BUILDS)
