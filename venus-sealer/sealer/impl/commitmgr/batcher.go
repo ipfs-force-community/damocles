@@ -3,10 +3,8 @@ package commitmgr
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/filecoin-project/go-address"
-	venusMessager "github.com/filecoin-project/venus-messager/api/client"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/confmgr"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
@@ -18,33 +16,15 @@ type Cfg struct {
 	confmgr.RLocker
 }
 
-type Processer interface {
-	Process(ctx context.Context, msgClient venusMessager.IMessager, sectors []api.Sector, enableBatch bool, api SealingAPI,
-		wg *sync.WaitGroup, maddr address.Address, prover *api.Prover, ds api.SectorsDatastore, config Cfg)
-
-	PickTimeOutSector(ctx context.Context, sectors *[]api.Sector, api SealingAPI, config Cfg) ([]api.Sector, error)
-
-	NewTimer(config Cfg) *time.Timer
-	Threshold(config Cfg) int
-	EnableBatch(config Cfg) bool
-}
-
 type Batcher struct {
 	ctx   context.Context
-	api   SealingAPI
 	maddr address.Address
-
-	ds        api.SectorsDatastore
-	msgClient venusMessager.IMessager
-	prover    *api.Prover
 
 	pendingCh chan api.Sector
 
-	cfg Cfg
-
 	force, stop chan struct{}
 
-	Processer
+	processor Processor
 }
 
 func (b *Batcher) waitStop() {
@@ -56,7 +36,7 @@ func (b *Batcher) Add(sector api.Sector) {
 }
 
 func (b *Batcher) run() {
-	timer := b.NewTimer(b.cfg)
+	timer := b.processor.CheckAfter(b.maddr)
 	wg := &sync.WaitGroup{}
 
 	defer func() {
@@ -64,68 +44,86 @@ func (b *Batcher) run() {
 		close(b.stop)
 	}()
 
-	pending := []api.Sector{}
+	pendingCap := b.processor.Threshold(b.maddr)
+	if pendingCap > 128 {
+		pendingCap /= 4
+	}
+
+	pending := make([]api.Sector, 0, pendingCap)
 
 	for {
-		checkInterval, manual := false, false
-		processList := []api.Sector{}
+		tick, manual := false, false
+
 		select {
 		case <-b.ctx.Done():
 			return
 		case <-b.force:
 			manual = true
 		case <-timer.C:
-			checkInterval = true
+			tick = true
 		case s := <-b.pendingCh:
 			pending = append(pending, s)
 		}
 
-		if !b.EnableBatch(b.cfg) {
-			processList = pending
-			pending = []api.Sector{}
-			wg.Add(1)
-			go b.Process(b.ctx, b.msgClient, processList, false, b.api, wg, b.maddr, b.prover, b.ds, b.cfg)
-			timer = b.NewTimer(b.cfg)
-			continue
-		}
+		full := len(pending) >= b.processor.Threshold(b.maddr)
+		cleanAll := false
+		if len(pending) > 0 {
+			mlog := log.With("miner", b.maddr)
 
-		if manual || len(pending) >= b.Threshold(b.cfg) {
-			processList = pending
-			pending = []api.Sector{}
-		} else if checkInterval && len(pending) < b.Threshold(b.cfg) {
-			var err error
-			processList, err = b.PickTimeOutSector(b.ctx, &pending, b.api, b.cfg)
-			if err != nil {
-				log.Errorf("pick time out sector failed: %s", err.Error())
-				continue
+			var processList []api.Sector
+			if full || manual || !b.processor.EnableBatch(b.maddr) {
+				processList = make([]api.Sector, len(pending))
+				copy(processList, pending)
+
+				pending = pending[:0]
+
+				cleanAll = true
+			} else if tick {
+				expired, err := b.processor.Expire(b.ctx, pending, b.maddr)
+				if err != nil {
+					mlog.Warnf("check expired sectors: %s", err)
+				}
+
+				if len(expired) > 0 {
+					remain := pending[:0]
+					processList = make([]api.Sector, 0, len(pending))
+					for i := range pending {
+						if _, ok := expired[pending[i].SectorID]; ok {
+							processList = append(processList, pending[i])
+						} else {
+							remain = append(remain, pending[i])
+						}
+					}
+
+					pending = remain
+				}
+			}
+
+			if len(processList) > 0 {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					if err := b.processor.Process(b.ctx, processList, b.maddr); err != nil {
+						mlog.Errorf("process failed: %s", err)
+					}
+				}()
 			}
 		}
 
-		if len(processList) != 0 {
-			wg.Add(1)
-			go b.Process(b.ctx, b.msgClient, processList, true, b.api, wg, b.maddr, b.prover, b.ds, b.cfg)
-			timer = b.NewTimer(b.cfg)
+		if tick || cleanAll {
+			timer = b.processor.CheckAfter(b.maddr)
 		}
 	}
 }
 
-func NewBatcher(ctx context.Context, maddr address.Address, sealing SealingAPI,
-	msgClient venusMessager.IMessager, prover *api.Prover, cfg *sealer.Config, locker confmgr.RLocker, ds api.SectorsDatastore, processer Processer) *Batcher {
+func NewBatcher(ctx context.Context, maddr address.Address, processer Processor) *Batcher {
 	b := &Batcher{
 		ctx:       ctx,
-		api:       sealing,
 		maddr:     maddr,
-		ds:        ds,
-		msgClient: msgClient,
-		prover:    prover,
 		pendingCh: make(chan api.Sector),
-		cfg: Cfg{
-			Config:  cfg,
-			RLocker: locker,
-		},
 		force:     make(chan struct{}),
 		stop:      make(chan struct{}),
-		Processer: processer,
+		processor: processer,
 	}
 	go b.run()
 	return b

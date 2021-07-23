@@ -3,6 +3,7 @@ package sealer
 import (
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 )
@@ -19,7 +20,7 @@ func DefaultConfig() Config {
 
 type Config struct {
 	SectorManager     SectorManagerConfig
-	CommitmentManager CommitmentManagerConfig
+	CommitmentManager map[address.Address]CommitmentManagerConfig
 	MessagerClient    MessagerClientConfig
 }
 
@@ -54,34 +55,14 @@ type CommitmentManagerConfig struct {
 	MaxBatchPreCommitFeeCap big.Int
 	MaxBatchProCommitFeeCap big.Int
 
-	PreCommitControlAddress map[string]string
-	ProCommitControlAddress map[string]string
+	PreCommitControlAddress string
+	ProCommitControlAddress string
 
 	MsgConfidence int64
 }
 
-func DefaultCommitmentManagerConfig() CommitmentManagerConfig {
-	return CommitmentManagerConfig{
-		CommitBatchThreshold:            0,
-		CommitBatchMaxWait:              0,
-		CommitCheckInterval:             0,
-		EnableBatchProCommit:            false,
-		PreCommitBatchThreshold:         0,
-		PreCommitBatchMaxWait:           0,
-		PreCommitCheckInterval:          0,
-		EnableBatchPreCommit:            false,
-		PreCommitGasOverEstimation:      0,
-		ProCommitGasOverEstimation:      0,
-		BatchPreCommitGasOverEstimation: 0,
-		BatchProCommitGasOverEstimation: 0,
-		MaxPreCommitFeeCap:              big.Int{},
-		MaxProCommitFeeCap:              big.Int{},
-		MaxBatchPreCommitFeeCap:         big.Int{},
-		MaxBatchProCommitFeeCap:         big.Int{},
-		PreCommitControlAddress:         nil,
-		ProCommitControlAddress:         nil,
-		MsgConfidence:                   0,
-	}
+func DefaultCommitmentManagerConfig() map[address.Address]CommitmentManagerConfig {
+	return map[address.Address]CommitmentManagerConfig{}
 }
 
 type MessagerClientConfig struct {

@@ -105,13 +105,8 @@ func getPreCommitControlAddress(miner address.Address, cfg struct {
 	confmgr.RLocker
 }) (address.Address, error) {
 	cfg.Lock()
-	control, ok := cfg.CommitmentManager.PreCommitControlAddress[miner.String()]
-	cfg.Unlock()
-	if !ok {
-		return address.Undef, xerrors.Errorf("no preCommit control address of Miner %s in config file, this is not approved", miner.String())
-	}
-
-	return address.NewFromString(control)
+	defer cfg.Unlock()
+	return address.NewFromString(cfg.CommitmentManager[miner].PreCommitControlAddress)
 }
 
 func getProCommitControlAddress(miner address.Address, cfg struct {
@@ -119,13 +114,9 @@ func getProCommitControlAddress(miner address.Address, cfg struct {
 	confmgr.RLocker
 }) (address.Address, error) {
 	cfg.Lock()
-	control, ok := cfg.CommitmentManager.ProCommitControlAddress[miner.String()]
-	cfg.Unlock()
-	if !ok {
-		return address.Undef, xerrors.Errorf("no proCommit control address of Miner %s in config file, this is not approved", miner.String())
-	}
+	defer cfg.Unlock()
 
-	return address.NewFromString(control)
+	return address.NewFromString(cfg.CommitmentManager[miner].ProCommitControlAddress)
 }
 
 func pushMessage(ctx context.Context, from, to address.Address, value abi.TokenAmount, method abi.MethodNum,
@@ -198,9 +189,14 @@ func (c *CommitmentMgrImpl) Run() {
 					maddr, err := address.NewIDAddress(uint64(miner))
 					if err != nil {
 						log.Error("trans miner from actor to address failed: ", err)
+						continue
 					}
-					c.preCommitBatcher[miner] = NewBatcher(c.ctx, maddr, c.stateMgr, c.msgClient, &c.prover,
-						c.cfg.Config, c.cfg.RLocker, c.ds, PreCommitProcesser{})
+					c.preCommitBatcher[miner] = NewBatcher(c.ctx, maddr, PreCommitProcessor{
+						api:       c.stateMgr,
+						msgClient: c.msgClient,
+						ds:        c.ds,
+						config:    c.cfg,
+					})
 				}
 
 				c.preCommitBatcher[miner].Add(s)
@@ -216,9 +212,16 @@ func (c *CommitmentMgrImpl) Run() {
 					maddr, err := address.NewIDAddress(uint64(miner))
 					if err != nil {
 						log.Error("trans miner from actor to address failed: ", err)
+						continue
 					}
-					c.commitBatcher[miner] = NewBatcher(c.ctx, maddr, c.stateMgr, c.msgClient, &c.prover,
-						c.cfg.Config, c.cfg.RLocker, c.ds, CommitProcesser{})
+
+					c.commitBatcher[miner] = NewBatcher(c.ctx, maddr, CommitProcessor{
+						api:       c.stateMgr,
+						msgClient: c.msgClient,
+						ds:        c.ds,
+						config:    c.cfg,
+						prover:    c.prover,
+					})
 				}
 				c.commitBatcher[miner].Add(s)
 			}
@@ -281,7 +284,7 @@ func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID,
 		switch msg.State {
 		case messager.OnChainMsg:
 			c.cfg.Lock()
-			confidence := c.cfg.CommitmentManager.MsgConfidence
+			confidence := c.cfg.CommitmentManager[maddr].MsgConfidence
 			c.cfg.Unlock()
 			if msg.Confidence < confidence {
 				return api.SubmitPreCommitResp{Res: api.SubmitDuplicateSubmit}, err
@@ -352,7 +355,7 @@ func (c CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) 
 	switch msg.State {
 	case messager.OnChainMsg:
 		c.cfg.Lock()
-		confidence := c.cfg.CommitmentManager.MsgConfidence
+		confidence := c.cfg.CommitmentManager[maddr].MsgConfidence
 		c.cfg.Unlock()
 		if msg.Confidence < confidence {
 			return api.PollPreCommitStateResp{State: api.OnChainStatePending}, err
@@ -416,7 +419,7 @@ func (c CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, inf
 		switch msg.State {
 		case messager.OnChainMsg:
 			c.cfg.Lock()
-			confidence := c.cfg.CommitmentManager.MsgConfidence
+			confidence := c.cfg.CommitmentManager[maddr].MsgConfidence
 			c.cfg.Unlock()
 
 			if msg.Confidence < confidence {
@@ -488,7 +491,7 @@ func (c CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (api
 	switch msg.State {
 	case messager.OnChainMsg:
 		c.cfg.Lock()
-		confidence := c.cfg.CommitmentManager.MsgConfidence
+		confidence := c.cfg.CommitmentManager[maddr].MsgConfidence
 		c.cfg.Unlock()
 		if msg.Confidence < confidence {
 			return api.PollProofStateResp{State: api.OnChainStatePending}, err
