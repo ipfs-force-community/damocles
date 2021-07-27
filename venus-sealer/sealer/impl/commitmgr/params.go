@@ -48,14 +48,14 @@ func Expiration(ctx context.Context, api SealingAPI, ps api.Deals) (abi.ChainEpo
 	return *end, nil
 }
 
-func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector) (*miner.SectorPreCommitInfo, big.Int, api.TipSetToken, error) {
+func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.SectorState) (*miner.SectorPreCommitInfo, big.Int, api.TipSetToken, error) {
 	tok, _, err := stateMgr.ChainHead(ctx)
 	if err != nil {
 		log.Errorf("handlePreCommitting: api error, not proceeding: %+v", err)
 		return nil, big.Zero(), nil, err
 	}
 
-	maddr, err := address.NewIDAddress(uint64(sector.SectorID.Miner))
+	maddr, err := address.NewIDAddress(uint64(sector.ID.Miner))
 	if err != nil {
 		return nil, big.Zero(), nil, err
 	}
@@ -72,7 +72,7 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 		case *ErrBadTicket:
 			return nil, big.Zero(), nil, xerrors.Errorf("bad ticket: %w", err)
 		case *ErrInvalidDeals:
-			log.Warnf("invalid deals in sector %d: %v", sector.SectorID, err)
+			log.Warnf("invalid deals in sector %d: %v", sector.ID, err)
 			return nil, big.Zero(), nil, xerrors.Errorf("invalid deals: %w", err)
 		case *ErrExpiredDeals:
 			return nil, big.Zero(), nil, xerrors.Errorf("sector deals expired: %w", err)
@@ -99,17 +99,17 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 
 	msd := policy.GetMaxProveCommitDuration(specactors.Version(nv), sector.SectorType)
 	// TODO: get costumer config
-	if minExpiration := sector.TicketEpoch + policy.MaxPreCommitRandomnessLookback + msd + miner.MinSectorExpiration; expiration < minExpiration {
+	if minExpiration := sector.Ticket.Epoch + policy.MaxPreCommitRandomnessLookback + msd + miner.MinSectorExpiration; expiration < minExpiration {
 		expiration = minExpiration
 	}
 
 	params := &miner.SectorPreCommitInfo{
 		Expiration:   expiration,
-		SectorNumber: sector.SectorID.Number,
+		SectorNumber: sector.ID.Number,
 		SealProof:    sector.SectorType,
 
-		SealedCID:     *sector.CommR,
-		SealRandEpoch: sector.TicketEpoch,
+		SealedCID:     *sector.Pre.CommR,
+		SealRandEpoch: sector.Ticket.Epoch,
 		DealIDs:       sector.DealIDs(),
 	}
 

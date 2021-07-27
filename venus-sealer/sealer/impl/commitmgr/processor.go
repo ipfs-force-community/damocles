@@ -11,9 +11,9 @@ import (
 )
 
 type Processor interface {
-	Process(ctx context.Context, sectors []api.Sector, maddr address.Address) error
+	Process(ctx context.Context, sectors []api.SectorState, maddr address.Address) error
 
-	Expire(ctx context.Context, sectors []api.Sector, maddr address.Address) (map[abi.SectorID]struct{}, error)
+	Expire(ctx context.Context, sectors []api.SectorState, maddr address.Address) (map[abi.SectorID]struct{}, error)
 
 	CheckAfter(maddr address.Address) *time.Timer
 	Threshold(maddr address.Address) int

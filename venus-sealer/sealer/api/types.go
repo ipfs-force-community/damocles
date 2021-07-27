@@ -62,8 +62,8 @@ const (
 )
 
 type PreCommitOnChainInfo struct {
-	CommR  [32]byte
-	CommD  [32]byte
+	CommR  *cid.Cid
+	CommD  *cid.Cid
 	Ticket Ticket
 	Deals  []abi.DealID
 }
@@ -125,4 +125,10 @@ type AggregateInput struct {
 type PreCommitEntry struct {
 	Deposit abi.TokenAmount
 	Pci     *miner.SectorPreCommitInfo
+}
+
+type MessageInfo struct {
+	PreCommitCid *cid.Cid
+	CommitCid    *cid.Cid
+	NeedSend     bool
 }

@@ -27,14 +27,14 @@ type CommitProcessor struct {
 	api       SealingAPI
 	msgClient venusMessager.IMessager
 
-	ds api.SectorsDatastore
+	smgr api.SectorStateManager
 
 	config Cfg
 
 	prover api.Prover
 }
 
-func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.Sector, from, maddr address.Address) {
+func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.SectorState, from, maddr address.Address) {
 	var spec messager.MsgMeta
 	c.config.Lock()
 	spec.GasOverEstimation = c.config.CommitmentManager[maddr].ProCommitGasOverEstimation
@@ -48,8 +48,8 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 			defer wg.Done()
 
 			params := &miner.ProveCommitSectorParams{
-				SectorNumber: sectors[idx].SectorID.Number,
-				Proof:        sectors[idx].Proof,
+				SectorNumber: sectors[idx].ID.Number,
+				Proof:        sectors[idx].Proof.Proof,
 			}
 
 			enc := new(bytes.Buffer)
@@ -64,7 +64,7 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 				return
 			}
 
-			collateral, err := getSectorCollateral(ctx, c.api, maddr, sectors[idx].SectorID.Number, tok)
+			collateral, err := getSectorCollateral(ctx, c.api, maddr, sectors[idx].ID.Number, tok)
 			if err != nil {
 				log.Error("get sector collateral failed: ", err)
 				return
@@ -76,16 +76,16 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 				return
 			}
 
-			log.Infof("prove of sector %d sent cid: %s", sectors[idx].SectorID.Number, mcid)
-			sectors[idx].CommitCid = &mcid
+			log.Infof("prove of sector %d sent cid: %s", sectors[idx].ID.Number, mcid)
+			sectors[idx].MessageInfo.CommitCid = &mcid
 		}(i)
 	}
 	wg.Wait()
 }
 
-func (c CommitProcessor) Process(ctx context.Context, sectors []api.Sector, maddr address.Address) error {
+func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState, maddr address.Address) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
-	defer cleanSector(ctx, sectors, c.ds)
+	defer c.cleanSector(ctx, sectors)
 
 	from, err := getProCommitControlAddress(maddr, c.config)
 	if err != nil {
@@ -102,23 +102,24 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.Sector, madd
 	}
 
 	infos := []proof5.AggregateSealVerifyInfo{}
-	sectorsMap := map[abi.SectorNumber]api.Sector{}
+	sectorsMap := map[abi.SectorNumber]api.SectorState{}
 	failed := map[abi.SectorID]struct{}{}
 
 	for i, p := range sectors {
-		sectorsMap[p.SectorID.Number] = sectors[i]
-		_, err := getSectorCollateral(ctx, c.api, maddr, p.SectorID.Number, tok)
+		sectorsMap[p.ID.Number] = sectors[i]
+		_, err := getSectorCollateral(ctx, c.api, maddr, p.ID.Number, tok)
 		if err != nil {
-			log.Errorf("get sector %s %d collateral failed: %s\n", maddr, p.SectorID.Number, err)
-			failed[sectors[i].SectorID] = struct{}{}
+			log.Errorf("get sector %s %d collateral failed: %s\n", maddr, p.ID.Number, err)
+			failed[sectors[i].ID] = struct{}{}
 			continue
 		}
+
 		infos = append(infos, proof5.AggregateSealVerifyInfo{
-			Number:                p.SectorID.Number,
-			Randomness:            p.TicketValue,
-			InteractiveRandomness: p.SeedValue,
-			SealedCID:             *p.CommR,
-			UnsealedCID:           *p.CommD,
+			Number:                p.ID.Number,
+			Randomness:            abi.SealRandomness(p.Ticket.Ticket),
+			InteractiveRandomness: abi.InteractiveSealRandomness(p.Seed.Seed),
+			SealedCID:             *p.Pre.CommR,
+			UnsealedCID:           *p.Pre.CommD,
 		})
 	}
 
@@ -146,7 +147,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.Sector, madd
 		collateral = big.Add(collateral, sc)
 		params.SectorNumbers.Set(uint64(infos[i].Number))
 
-		proofs = append(proofs, sectorsMap[infos[i].Number].Proof)
+		proofs = append(proofs, sectorsMap[infos[i].Number].Proof.Proof)
 	}
 
 	params.AggregateProof, err = c.prover.AggregateSealProofs(proof5.AggregateSealVerifyProofAndInfos{
@@ -176,15 +177,15 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.Sector, madd
 	}
 
 	for i := range sectors {
-		if _, ok := failed[sectors[i].SectorID]; !ok {
-			sectors[i].CommitCid = &ccid
+		if _, ok := failed[sectors[i].ID]; !ok {
+			sectors[i].MessageInfo.CommitCid = &ccid
 		}
 	}
 
 	return nil
 }
 
-func (c CommitProcessor) Expire(ctx context.Context, sectors []api.Sector, maddr address.Address) (map[abi.SectorID]struct{}, error) {
+func (c CommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, maddr address.Address) (map[abi.SectorID]struct{}, error) {
 	c.config.Lock()
 	maxWait := c.config.CommitmentManager[maddr].CommitBatchMaxWait
 	c.config.Lock()
@@ -196,8 +197,8 @@ func (c CommitProcessor) Expire(ctx context.Context, sectors []api.Sector, maddr
 	}
 	expire := map[abi.SectorID]struct{}{}
 	for _, s := range sectors {
-		if h-s.TicketEpoch > maxWaitHeight {
-			expire[s.SectorID] = struct{}{}
+		if h-s.Seed.Epoch > maxWaitHeight {
+			expire[s.ID] = struct{}{}
 		}
 	}
 	return expire, nil
@@ -221,12 +222,12 @@ func (c CommitProcessor) EnableBatch(maddr address.Address) bool {
 	return c.config.CommitmentManager[maddr].EnableBatchProCommit
 }
 
-func cleanSector(ctx context.Context, sector []api.Sector, ds api.SectorsDatastore) {
+func (c CommitProcessor) cleanSector(ctx context.Context, sector []api.SectorState) {
 	for i := range sector {
-		sector[i].NeedSend = false
-		err := ds.PutSector(ctx, sector[i])
+		sector[i].MessageInfo.NeedSend = false
+		err := c.smgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
 		if err != nil {
-			log.Error("clean sector failed: ", err)
+			log.Error("Update sector %s MessageInfo failed: ", err)
 		}
 	}
 }

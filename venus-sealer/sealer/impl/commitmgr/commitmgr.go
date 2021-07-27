@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/filecoin-project/go-address"
-	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	venusMessager "github.com/filecoin-project/venus-messager/api/client"
@@ -32,7 +32,7 @@ type CommitmentMgrImpl struct {
 
 	stateMgr SealingAPI
 
-	ds api.SectorsDatastore
+	smgr api.SectorStateManager
 
 	cfg struct {
 		*sealer.Config
@@ -42,8 +42,8 @@ type CommitmentMgrImpl struct {
 	commitBatcher    map[abi.ActorID]*Batcher
 	preCommitBatcher map[abi.ActorID]*Batcher
 
-	prePendingChan chan api.Sector
-	proPendingChan chan api.Sector
+	prePendingChan chan api.SectorState
+	proPendingChan chan api.SectorState
 
 	verif  api.Verifier
 	prover api.Prover
@@ -51,17 +51,17 @@ type CommitmentMgrImpl struct {
 	stop chan struct{}
 }
 
-func NewCommitmentMgr(ctx context.Context, commitApi venusMessager.IMessager, stateMgr SealingAPI, ds api.SectorsDatastore,
+func NewCommitmentMgr(ctx context.Context, commitApi venusMessager.IMessager, stateMgr SealingAPI, smgr api.SectorStateManager,
 	cfg *sealer.Config, locker confmgr.RLocker, verif api.Verifier, prover api.Prover,
 ) (*CommitmentMgrImpl, error) {
-	pendingChan := make(chan api.Sector, 1024)
-	prePendingChan := make(chan api.Sector, 1024)
+	pendingChan := make(chan api.SectorState, 1024)
+	prePendingChan := make(chan api.SectorState, 1024)
 
 	mgr := CommitmentMgrImpl{
 		ctx:       ctx,
 		msgClient: commitApi,
 		stateMgr:  stateMgr,
-		ds:        ds,
+		smgr:      smgr,
 		cfg: struct {
 			*sealer.Config
 			confmgr.RLocker
@@ -184,7 +184,7 @@ func (c *CommitmentMgrImpl) Run() {
 	{
 		go func() {
 			for s := range c.prePendingChan {
-				miner := s.SectorID.Miner
+				miner := s.ID.Miner
 				if _, ok := c.commitBatcher[miner]; !ok {
 					maddr, err := address.NewIDAddress(uint64(miner))
 					if err != nil {
@@ -194,7 +194,7 @@ func (c *CommitmentMgrImpl) Run() {
 					c.preCommitBatcher[miner] = NewBatcher(c.ctx, maddr, PreCommitProcessor{
 						api:       c.stateMgr,
 						msgClient: c.msgClient,
-						ds:        c.ds,
+						smgr:      c.smgr,
 						config:    c.cfg,
 					})
 				}
@@ -207,7 +207,7 @@ func (c *CommitmentMgrImpl) Run() {
 	{
 		go func() {
 			for s := range c.proPendingChan {
-				miner := s.SectorID.Miner
+				miner := s.ID.Miner
 				if _, ok := c.commitBatcher[miner]; !ok {
 					maddr, err := address.NewIDAddress(uint64(miner))
 					if err != nil {
@@ -218,7 +218,7 @@ func (c *CommitmentMgrImpl) Run() {
 					c.commitBatcher[miner] = NewBatcher(c.ctx, maddr, CommitProcessor{
 						api:       c.stateMgr,
 						msgClient: c.msgClient,
-						ds:        c.ds,
+						smgr:      c.smgr,
 						config:    c.cfg,
 						prover:    c.prover,
 					})
@@ -231,42 +231,32 @@ func (c *CommitmentMgrImpl) Run() {
 }
 
 func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info api.PreCommitOnChainInfo) (api.SubmitPreCommitResp, error) {
-	// Can these codes move to lower bound?
-	select {
-	case <-c.ctx.Done():
-		return api.SubmitPreCommitResp{}, xerrors.Errorf("server is closing!")
-	default:
-	}
-
-	sector, err := c.ds.GetSector(ctx, id)
+	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.SubmitPreCommitResp{Res: api.SubmitUnknown}, err
 	}
-	commR, err := commcid.ReplicaCommitmentV1ToCID(info.CommR[:])
-	if err != nil {
-		return api.SubmitPreCommitResp{}, xerrors.Errorf("CommR invalid %w", err)
-	}
-	commD, err := commcid.ReplicaCommitmentV1ToCID(info.CommD[:])
-	if err != nil {
-		return api.SubmitPreCommitResp{}, xerrors.Errorf("CommD invalid %w", err)
+
+	if sector.Pre != nil {
+		if sector.Pre.CommD != nil && *sector.Pre.CommD != *info.CommD {
+			return api.SubmitPreCommitResp{Res: api.SubmitMismatchedSubmission}, nil
+		}
+
+		if sector.Pre.CommR != nil && *sector.Pre.CommR != *info.CommR {
+			return api.SubmitPreCommitResp{Res: api.SubmitMismatchedSubmission}, nil
+		}
+
+		if sector.Pre.Ticket.Epoch != info.Ticket.Epoch || !bytes.Equal(sector.Pre.Ticket.Ticket, info.Ticket.Ticket) {
+			return api.SubmitPreCommitResp{Res: api.SubmitMismatchedSubmission}, nil
+		}
 	}
 
-	if sector.CommD != nil && *sector.CommD != commD {
-		return api.SubmitPreCommitResp{Res: api.SubmitMismatchedSubmission}, nil
-	}
-
-	if sector.CommR != nil && *sector.CommR != commR {
-		return api.SubmitPreCommitResp{Res: api.SubmitMismatchedSubmission}, nil
-	}
-
-	sector.CommR = &commR
-	sector.NeedSend = true
+	sector.Pre = &info
 
 	maddr, err := address.NewIDAddress(uint64(id.Miner))
 	if err != nil {
 		return api.SubmitPreCommitResp{Res: api.SubmitUnknown}, err
 	}
-	err = checkPrecommit(ctx, maddr, sector, c.stateMgr)
+	err = checkPrecommit(ctx, maddr, *sector, c.stateMgr)
 
 	if _, ok := err.(ErrPrecommitOnChain); ok {
 		return api.SubmitPreCommitResp{Res: api.SubmitDuplicateSubmit}, err
@@ -276,8 +266,8 @@ func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID,
 		return api.SubmitPreCommitResp{Res: api.SubmitRejected}, err
 	}
 
-	if sector.PreCommitCid != nil {
-		msg, err := c.msgClient.GetMessageByUid(ctx, sector.PreCommitCid.String())
+	if sector.MessageInfo != nil && sector.MessageInfo.PreCommitCid != nil {
+		msg, err := c.msgClient.GetMessageByUid(ctx, sector.MessageInfo.PreCommitCid.String())
 		if err != nil {
 			return api.SubmitPreCommitResp{Res: api.SubmitUnknown}, err
 		}
@@ -303,7 +293,7 @@ func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID,
 			if pci != nil {
 				return api.SubmitPreCommitResp{Res: api.SubmitDuplicateSubmit}, err
 			}
-			log.Infof("get sector %d info return nil err and nil pci, that's wired!!!", sector.SectorID.Number)
+			log.Infof("get sector %d info return nil err and nil pci, that's wired!!!", sector.ID.Number)
 		case messager.FailedMsg:
 			// same reason and threaten as prove commit
 		default:
@@ -311,12 +301,12 @@ func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID,
 		}
 	}
 
-	err = c.ds.PutSector(ctx, sector)
+	err = c.smgr.Update(ctx, sector.ID, sector.Pre)
 	if err != nil {
 		return api.SubmitPreCommitResp{}, err
 	}
 	go func() {
-		c.prePendingChan <- sector
+		c.prePendingChan <- *sector
 	}()
 	return api.SubmitPreCommitResp{
 		Res: api.SubmitAccepted,
@@ -324,26 +314,20 @@ func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID,
 }
 
 func (c CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) (api.PollPreCommitStateResp, error) {
-	select {
-	case <-c.ctx.Done():
-		return api.PollPreCommitStateResp{}, xerrors.Errorf("server is closing!")
-	default:
-	}
-
-	sector, err := c.ds.GetSector(ctx, id)
+	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.PollPreCommitStateResp{State: api.OnChainStateUnknown}, err
 	}
 	// pending
-	if sector.PreCommitCid == nil && sector.NeedSend {
-		return api.PollPreCommitStateResp{State: api.OnChainStatePending}, err
+	if sector.MessageInfo == nil || (sector.MessageInfo.PreCommitCid == nil && sector.MessageInfo.NeedSend) {
+		return api.PollPreCommitStateResp{State: api.OnChainStatePending}, nil
 	}
 	// failed
-	if sector.PreCommitCid == nil {
-		return api.PollPreCommitStateResp{State: api.OnChainStateFailed}, err
+	if sector.MessageInfo.PreCommitCid == nil {
+		return api.PollPreCommitStateResp{State: api.OnChainStateFailed}, nil
 	}
 
-	msg, err := c.msgClient.GetMessageByUid(ctx, sector.PreCommitCid.String())
+	msg, err := c.msgClient.GetMessageByUid(ctx, sector.MessageInfo.PreCommitCid.String())
 	if err != nil {
 		return api.PollPreCommitStateResp{State: api.OnChainStateUnknown}, err
 	}
@@ -373,7 +357,7 @@ func (c CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) 
 		}
 
 		if pci != nil {
-			return api.PollPreCommitStateResp{State: api.OnChainStateLanded}, err
+			return api.PollPreCommitStateResp{State: api.OnChainStateLanded}, nil
 		}
 	case messager.FailedMsg:
 		return api.PollPreCommitStateResp{State: api.OnChainStateFailed}, err
@@ -384,35 +368,32 @@ func (c CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) 
 }
 
 func (c CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, info api.ProofOnChainInfo) (api.SubmitProofResp, error) {
-	select {
-	case <-c.ctx.Done():
-		return api.SubmitProofResp{}, xerrors.Errorf("server is closing!")
-	default:
-	}
-
-	sector, err := c.ds.GetSector(ctx, id)
+	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.SubmitProofResp{Res: api.SubmitUnknown}, err
 	}
-	if len(sector.Proof) != 0 && !bytes.Equal(sector.Proof, info.Proof) {
+
+	if sector.Pre == nil || sector.MessageInfo == nil {
+		return api.SubmitProofResp{Res: api.SubmitRejected}, fmt.Errorf("miss pre info in sector state")
+	}
+
+	if sector.Proof != nil && !bytes.Equal(sector.Proof.Proof, info.Proof) {
 		return api.SubmitProofResp{Res: api.SubmitMismatchedSubmission}, err
 	}
 
-	sector.Proof = info.Proof
-	sector.NeedSend = true
-
+	sector.Proof = &info
 	maddr, err := address.NewIDAddress(uint64(id.Miner))
 	if err != nil {
 		return api.SubmitProofResp{Res: api.SubmitUnknown}, err
 	}
-	err = checkCommit(ctx, sector, info.Proof, nil, maddr, c.verif, c.stateMgr)
+	err = checkCommit(ctx, *sector, info.Proof, nil, maddr, c.verif, c.stateMgr)
 	// TODO: err can retry and err can not retry
 	if err != nil {
 		return api.SubmitProofResp{Res: api.SubmitRejected}, err
 	}
 
-	if sector.CommitCid != nil {
-		msg, err := c.msgClient.GetMessageByUid(ctx, sector.CommitCid.String())
+	if sector.MessageInfo.CommitCid != nil {
+		msg, err := c.msgClient.GetMessageByUid(ctx, sector.MessageInfo.CommitCid.String())
 		if err != nil {
 			return api.SubmitProofResp{Res: api.SubmitUnknown}, err
 		}
@@ -437,7 +418,7 @@ func (c CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, inf
 			if s != nil {
 				return api.SubmitProofResp{Res: api.SubmitDuplicateSubmit}, err
 			}
-			log.Infof("no proof found after cron, will retry send msg of sector %d", sector.SectorID.Number)
+			log.Infof("no proof found after cron, will retry send msg of sector %d", sector.ID.Number)
 		case messager.FailedMsg:
 			// this mostly cause by estimate fail
 			// since sector pass validate check, let it retry is fine
@@ -445,13 +426,15 @@ func (c CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, inf
 			return api.SubmitProofResp{Res: api.SubmitDuplicateSubmit}, err
 		}
 	}
+	sector.MessageInfo.NeedSend = true
+	sector.MessageInfo.CommitCid = nil
 
-	err = c.ds.PutSector(ctx, sector)
+	err = c.smgr.Update(ctx, id, sector.Proof, sector.MessageInfo)
 	if err != nil {
 		return api.SubmitProofResp{}, err
 	}
 	go func() {
-		c.proPendingChan <- sector
+		c.proPendingChan <- *sector
 	}()
 	return api.SubmitProofResp{
 		Res: api.SubmitAccepted,
@@ -459,23 +442,19 @@ func (c CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, inf
 }
 
 func (c CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (api.PollProofStateResp, error) {
-	select {
-	case <-c.ctx.Done():
-		return api.PollProofStateResp{}, xerrors.Errorf("server is closing!")
-	default:
-	}
-
-	sector, err := c.ds.GetSector(ctx, id)
+	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.PollProofStateResp{State: api.OnChainStateUnknown}, err
 	}
-
+	if sector.MessageInfo == nil {
+		return api.PollProofStateResp{State: api.OnChainStateUnknown}, fmt.Errorf("miss pre info in sector state")
+	}
 	// pending
-	if sector.CommitCid == nil && sector.NeedSend {
+	if sector.MessageInfo.CommitCid == nil && sector.MessageInfo.NeedSend {
 		return api.PollProofStateResp{State: api.OnChainStatePending}, err
 	}
 	// unknown state
-	if sector.CommitCid == nil {
+	if sector.MessageInfo.CommitCid == nil {
 		return api.PollProofStateResp{State: api.OnChainStateUnknown}, err
 	}
 
@@ -484,7 +463,7 @@ func (c CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (api
 		return api.PollProofStateResp{State: api.OnChainStateUnknown}, err
 	}
 
-	msg, err := c.msgClient.GetMessageByUid(ctx, sector.CommitCid.String())
+	msg, err := c.msgClient.GetMessageByUid(ctx, sector.MessageInfo.CommitCid.String())
 	if err != nil {
 		return api.PollProofStateResp{State: api.OnChainStateUnknown}, err
 	}

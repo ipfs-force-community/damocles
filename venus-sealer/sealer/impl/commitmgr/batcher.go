@@ -20,7 +20,7 @@ type Batcher struct {
 	ctx   context.Context
 	maddr address.Address
 
-	pendingCh chan api.Sector
+	pendingCh chan api.SectorState
 
 	force, stop chan struct{}
 
@@ -31,7 +31,7 @@ func (b *Batcher) waitStop() {
 	<-b.stop
 }
 
-func (b *Batcher) Add(sector api.Sector) {
+func (b *Batcher) Add(sector api.SectorState) {
 	b.pendingCh <- sector
 }
 
@@ -49,7 +49,7 @@ func (b *Batcher) run() {
 		pendingCap /= 4
 	}
 
-	pending := make([]api.Sector, 0, pendingCap)
+	pending := make([]api.SectorState, 0, pendingCap)
 
 	for {
 		tick, manual := false, false
@@ -70,9 +70,9 @@ func (b *Batcher) run() {
 		if len(pending) > 0 {
 			mlog := log.With("miner", b.maddr)
 
-			var processList []api.Sector
+			var processList []api.SectorState
 			if full || manual || !b.processor.EnableBatch(b.maddr) {
-				processList = make([]api.Sector, len(pending))
+				processList = make([]api.SectorState, len(pending))
 				copy(processList, pending)
 
 				pending = pending[:0]
@@ -86,9 +86,9 @@ func (b *Batcher) run() {
 
 				if len(expired) > 0 {
 					remain := pending[:0]
-					processList = make([]api.Sector, 0, len(pending))
+					processList = make([]api.SectorState, 0, len(pending))
 					for i := range pending {
-						if _, ok := expired[pending[i].SectorID]; ok {
+						if _, ok := expired[pending[i].ID]; ok {
 							processList = append(processList, pending[i])
 						} else {
 							remain = append(remain, pending[i])
@@ -121,7 +121,7 @@ func NewBatcher(ctx context.Context, maddr address.Address, processer Processor)
 	b := &Batcher{
 		ctx:       ctx,
 		maddr:     maddr,
-		pendingCh: make(chan api.Sector),
+		pendingCh: make(chan api.SectorState),
 		force:     make(chan struct{}),
 		stop:      make(chan struct{}),
 		processor: processer,

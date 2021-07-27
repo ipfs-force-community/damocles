@@ -31,9 +31,6 @@ type Sector struct {
 	// when restart，it should be add to send loop
 	// this flag is set to true when add to send and clean when send a msg
 	NeedSend bool
-
-	// debug
-	Logs []Log // everytime change this struct, should log!
 }
 
 func (s Sector) DealIDs() []abi.DealID {
@@ -42,14 +39,4 @@ func (s Sector) DealIDs() []abi.DealID {
 		res[i] = s.Deals[i].ID
 	}
 	return res
-}
-
-type Log struct {
-	Timestamp uint64
-	Trace     string // for errors
-
-	Message string
-
-	// additional data (Event info)
-	Kind string
 }

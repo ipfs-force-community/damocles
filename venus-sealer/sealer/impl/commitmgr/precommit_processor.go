@@ -24,12 +24,12 @@ type PreCommitProcessor struct {
 	api       SealingAPI
 	msgClient venusMessager.IMessager
 
-	ds api.SectorsDatastore
+	smgr api.SectorStateManager
 
 	config Cfg
 }
 
-func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []api.Sector, from, maddr address.Address) {
+func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []api.SectorState, from, maddr address.Address) {
 	var spec messager.MsgMeta
 	p.config.Lock()
 	spec.GasOverEstimation = p.config.CommitmentManager[maddr].PreCommitGasOverEstimation
@@ -57,17 +57,21 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 				log.Error("push pre-commit single failed: ", err)
 				return
 			}
-			log.Infof("precommit of sector %d sent cid: %s", sectors[idx].SectorID.Number, mcid)
+			log.Infof("precommit of sector %d sent cid: %s", sectors[idx].ID.Number, mcid)
 
-			sectors[idx].PreCommitCid = &mcid
+			sectors[idx].MessageInfo = &api.MessageInfo{
+				PreCommitCid: &mcid,
+				CommitCid:    nil,
+				NeedSend:     false,
+			}
 		}(i)
 	}
 	wg.Wait()
 }
 
-func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.Sector, maddr address.Address) error {
+func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorState, maddr address.Address) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
-	defer cleanSector(ctx, sectors, p.ds)
+	defer p.cleanSector(ctx, sectors)
 
 	from, err := getPreCommitControlAddress(maddr, p.config)
 	if err != nil {
@@ -83,8 +87,8 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.Sector, m
 	for _, s := range sectors {
 		params, deposit, _, err := preCommitParams(ctx, p.api, s)
 		if err != nil {
-			log.Errorf("get precommit %s %d params failed: %s\n", s.SectorID.Miner, s.SectorID.Number, err)
-			failed[s.SectorID] = struct{}{}
+			log.Errorf("get precommit %s %d params failed: %s\n", s.ID.Miner, s.ID.Number, err)
+			failed[s.ID] = struct{}{}
 			continue
 		}
 		infos = append(infos, api.PreCommitEntry{
@@ -116,14 +120,18 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.Sector, m
 		return fmt.Errorf("push batch precommit message failed: %s", err.Error())
 	}
 	for i := range sectors {
-		if _, ok := failed[sectors[i].SectorID]; !ok {
-			sectors[i].PreCommitCid = &ccid
+		if _, ok := failed[sectors[i].ID]; !ok {
+			sectors[i].MessageInfo = &api.MessageInfo{
+				PreCommitCid: &ccid,
+				CommitCid:    nil,
+				NeedSend:     false,
+			}
 		}
 	}
 	return nil
 }
 
-func (p PreCommitProcessor) Expire(ctx context.Context, sectors []api.Sector, maddr address.Address) (map[abi.SectorID]struct{}, error) {
+func (p PreCommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, maddr address.Address) (map[abi.SectorID]struct{}, error) {
 	p.config.Lock()
 	maxWait := p.config.CommitmentManager[maddr].PreCommitBatchMaxWait
 	p.config.Lock()
@@ -135,8 +143,8 @@ func (p PreCommitProcessor) Expire(ctx context.Context, sectors []api.Sector, ma
 
 	expire := map[abi.SectorID]struct{}{}
 	for _, s := range sectors {
-		if h-s.SeedEpoch > maxWaitHeight {
-			expire[s.SectorID] = struct{}{}
+		if h-s.Ticket.Epoch > maxWaitHeight {
+			expire[s.ID] = struct{}{}
 		}
 	}
 
@@ -159,6 +167,16 @@ func (p PreCommitProcessor) EnableBatch(maddr address.Address) bool {
 	p.config.Lock()
 	defer p.config.Unlock()
 	return p.config.CommitmentManager[maddr].EnableBatchPreCommit
+}
+
+func (p PreCommitProcessor) cleanSector(ctx context.Context, sector []api.SectorState) {
+	for i := range sector {
+		sector[i].MessageInfo.NeedSend = false
+		err := p.smgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
+		if err != nil {
+			log.Error("Update sector %s MessageInfo failed: ", err)
+		}
+	}
 }
 
 var _ Processor = (*PreCommitProcessor)(nil)
