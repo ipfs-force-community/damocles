@@ -69,8 +69,8 @@ impl FileStore {
 
 impl ObjectStore for FileStore {
     /// get should return a reader for the given path
-    fn get<P: AsRef<Path>>(&self, path: P) -> ObjResult<Box<dyn Read>> {
-        trace!(target: LOG_TARGET, path = debug_field(path.as_ref()), "get");
+    fn get(&self, path: &Path) -> ObjResult<Box<dyn Read>> {
+        trace!(target: LOG_TARGET, path = debug_field(path), "get");
 
         let f = OpenOptions::new().read(true).open(self.path(path)?)?;
         let r: Box<dyn Read> = Box::new(f);
@@ -78,8 +78,8 @@ impl ObjectStore for FileStore {
     }
 
     /// put an object
-    fn put<P: AsRef<Path>, R: Read>(&self, path: P, mut r: R) -> ObjResult<u64> {
-        trace!(target: LOG_TARGET, path = debug_field(path.as_ref()), "put");
+    fn put(&self, path: &Path, mut r: Box<dyn Read>) -> ObjResult<u64> {
+        trace!(target: LOG_TARGET, path = debug_field(path), "put");
 
         let dst = self.path(path)?;
 
@@ -106,14 +106,14 @@ impl ObjectStore for FileStore {
     }
 
     /// get specified pieces
-    fn get_chunks<P: AsRef<Path>>(
+    fn get_chunks(
         &self,
-        path: P,
+        path: &Path,
         ranges: &[Range],
     ) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>> {
         trace!(
             target: LOG_TARGET,
-            path = debug_field(path.as_ref()),
+            path = debug_field(path),
             pieces = ranges.len(),
             "get_chunks"
         );

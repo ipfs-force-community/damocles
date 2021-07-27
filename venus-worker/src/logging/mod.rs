@@ -10,10 +10,11 @@ pub use tracing::{
     field::display as display_field, info, info_span, trace, trace_span, warn, warn_span, Span,
 };
 
-/// initiaate the global tracing subscriber
+/// initiate the global tracing subscriber
 pub fn init() -> Result<()> {
     let builder = FmtSubscriber::builder()
-        .with_ansi(std::io::stdout().is_tty() && std::io::stderr().is_tty())
+        .with_writer(std::io::stderr)
+        .with_ansi(std::io::stderr().is_tty())
         .with_env_filter(EnvFilter::from_default_env())
         .with_target(true)
         .with_thread_ids(true)

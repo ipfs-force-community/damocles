@@ -542,6 +542,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "cgroups-rs"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c5c9f6e5c72958dc962baa5f8bb37fb611017854b0d774b8adab4d7416ab445"
+dependencies = [
+ "libc",
+ "log",
+ "nix",
+ "regex",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2145,6 +2157,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa9b4819da1bc61c0ea48b63b7bc8604064dd43013e7cc325df098d49cd7c18a"
+dependencies = [
+ "bitflags 1.2.1",
+ "cc",
+ "cfg-if 1.0.0",
+ "libc",
+]
+
+[[package]]
 name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3571,6 +3595,7 @@ dependencies = [
  "base64",
  "base64-serde",
  "byte-unit",
+ "cgroups-rs",
  "clap",
  "crossbeam-channel 0.5.1",
  "crossterm",
@@ -3589,6 +3614,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
+ "signal-hook",
  "toml",
  "tracing",
  "tracing-subscriber",

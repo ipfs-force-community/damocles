@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Context, Result};
-use clap::{values_t, App, Arg, SubCommand};
+use clap::{values_t, App, Arg, ArgMatches, SubCommand};
 use tracing::{error, info};
 
-use venus_worker::{infra::objstore::filestore::FileStore, logging, sealing::store::Store};
+use venus_worker::{logging, FileStore, Store};
 
-pub fn main() -> Result<()> {
-    logging::init().expect("init logger");
+pub const SUB_CMD_NAME: &str = "store";
 
+pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
     let store_init_cmd = SubCommand::with_name("seal-init").arg(
         Arg::with_name("location")
             .long("loc")
@@ -25,13 +25,13 @@ pub fn main() -> Result<()> {
             .help("location of the store"),
     );
 
-    let matches = App::new("vc-storemgr")
-        .version(env!("CARGO_PKG_VERSION"))
+    SubCommand::with_name(SUB_CMD_NAME)
         .subcommand(store_init_cmd)
         .subcommand(filestore_init_cmd)
-        .get_matches();
+}
 
-    match matches.subcommand() {
+pub(crate) fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
+    match subargs.subcommand() {
         ("seal-init", Some(m)) => {
             let locs = values_t!(m, "location", String).context("get locations from flag")?;
 
@@ -66,6 +66,9 @@ pub fn main() -> Result<()> {
             Ok(())
         }
 
-        (other, _) => Err(anyhow!("unexpected subcommand {}", other)),
+        (other, _) => Err(anyhow!(
+            "unexpected subcommand `{}` inside processor",
+            other
+        )),
     }
 }

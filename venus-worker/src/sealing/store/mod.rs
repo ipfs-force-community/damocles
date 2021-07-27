@@ -3,19 +3,16 @@
 use std::collections::HashMap;
 use std::fs::{create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::thread;
 
 use anyhow::{anyhow, Result};
-use crossbeam_channel::{bounded, Receiver};
+use crossbeam_channel::{bounded, Sender};
 
-use crate::infra::{objstore::ObjectStore, util::PlaceHolder};
-use crate::logging::{debug_field, error, warn};
+use crate::infra::util::PlaceHolder;
+use crate::logging::{debug_field, warn};
 use crate::metadb::rocks::RocksMeta;
-use crate::rpc::SealerRpcClient;
-use crate::sealing::{resource::Pool, worker::Worker};
+use crate::sealing::worker::Worker;
 
-use super::config::{Sealing, SealingOptional, Store as StoreConfig};
+use crate::config::{Sealing, SealingOptional, Store as StoreConfig};
 
 pub mod util;
 
@@ -231,40 +228,15 @@ impl StoreManager {
         Ok(StoreManager { stores })
     }
 
-    /// start sealing loop
-    pub fn start_sealing<O: ObjectStore + 'static>(
-        self,
-        done_rx: Receiver<()>,
-        rpc: Arc<SealerRpcClient>,
-        remote_store: Arc<O>,
-        limit: Arc<Pool>,
-    ) {
-        let mut join_hdls = Vec::with_capacity(self.stores.len());
-        let mut resume_txs = Vec::with_capacity(self.stores.len());
+    /// build workers
+    pub fn into_workers(self) -> Vec<(Sender<()>, Worker)> {
+        let mut workers = Vec::with_capacity(self.stores.len());
         for (_, store) in self.stores {
             let (resume_tx, resume_rx) = bounded(0);
-            let mut worker = Worker::new(
-                store,
-                resume_rx,
-                done_rx.clone(),
-                rpc.clone(),
-                remote_store.clone(),
-                limit.clone(),
-            );
-            resume_txs.push(resume_tx);
-
-            let hdl = thread::spawn(move || worker.start_seal());
-            join_hdls.push(hdl);
+            let worker = Worker::new(store, resume_rx);
+            workers.push((resume_tx, worker));
         }
 
-        for hdl in join_hdls {
-            if let Err(e) = hdl
-                .join()
-                .map_err(|e| anyhow!("joined handler: {:?}", e))
-                .and_then(|inner| inner)
-            {
-                error!("seal worker failure: {:?}", e);
-            }
-        }
+        workers
     }
 }
