@@ -111,6 +111,7 @@ func (b *Batcher) run() {
 		}
 
 		if tick || cleanAll {
+			timer.Stop()
 			timer = b.processor.CheckAfter(b.maddr)
 		}
 	}
