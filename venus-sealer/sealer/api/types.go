@@ -3,6 +3,8 @@ package api
 import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
+	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
 	"github.com/ipfs/go-cid"
 )
 
@@ -45,6 +47,7 @@ const (
 	SubmitDuplicateSubmit
 	SubmitMismatchedSubmission
 	SubmitRejected
+	Submitted
 )
 
 type OnChainState uint64
@@ -55,10 +58,12 @@ const (
 	OnChainStatePacked
 	OnChainStateLanded
 	OnChainStateNotFound
+	OnChainStateFailed
 )
 
 type PreCommitOnChainInfo struct {
-	CommR  [32]byte
+	CommR  *cid.Cid
+	CommD  *cid.Cid
 	Ticket Ticket
 	Deals  []abi.DealID
 }
@@ -107,4 +112,23 @@ type MinerInfo struct {
 	WorkerChangeEpoch   abi.ChainEpoch
 	WindowPoStProofType abi.RegisteredPoStProof
 	SealProofType       abi.RegisteredSealProof
+}
+
+type TipSetToken []byte
+
+type AggregateInput struct {
+	Spt   abi.RegisteredSealProof
+	Info  proof5.AggregateSealVerifyInfo
+	Proof []byte
+}
+
+type PreCommitEntry struct {
+	Deposit abi.TokenAmount
+	Pci     *miner.SectorPreCommitInfo
+}
+
+type MessageInfo struct {
+	PreCommitCid *cid.Cid
+	CommitCid    *cid.Cid
+	NeedSend     bool
 }
