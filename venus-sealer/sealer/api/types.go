@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/filecoin-project/go-address"
+	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
@@ -62,10 +63,29 @@ const (
 )
 
 type PreCommitOnChainInfo struct {
-	CommR  *cid.Cid
-	CommD  *cid.Cid
+	CommR  [32]byte
+	CommD  [32]byte
 	Ticket Ticket
 	Deals  []abi.DealID
+}
+
+func (pi PreCommitOnChainInfo) IntoPreCommitInfo() (PreCommitInfo, error) {
+	commR, err := commcid.ReplicaCommitmentV1ToCID(pi.CommR[:])
+	if err != nil {
+		return PreCommitInfo{}, err
+	}
+
+	commD, err := commcid.DataCommitmentV1ToCID(pi.CommD[:])
+	if err != nil {
+		return PreCommitInfo{}, err
+	}
+
+	return PreCommitInfo{
+		CommR:  commR,
+		CommD:  commD,
+		Ticket: pi.Ticket,
+		Deals:  pi.Deals,
+	}, nil
 }
 
 type ProofOnChainInfo struct {
@@ -115,6 +135,15 @@ type MinerInfo struct {
 }
 
 type TipSetToken []byte
+
+type PreCommitInfo struct {
+	CommR  cid.Cid
+	CommD  cid.Cid
+	Ticket Ticket
+	Deals  []abi.DealID
+}
+
+type ProofInfo = ProofOnChainInfo
 
 type AggregateInput struct {
 	Spt   abi.RegisteredSealProof

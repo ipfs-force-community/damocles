@@ -11,6 +11,8 @@ pub const EXT_STABLE_WAIT: Duration = Duration::from_secs(5);
 /// configurations for cgroup used in processor
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Cgroup {
+    pub group_name: Option<String>,
+
     /// the cpuset which will be applied onto the control group of the external processor
     pub cpuset: Option<String>,
 }

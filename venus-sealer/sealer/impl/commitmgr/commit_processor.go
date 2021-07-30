@@ -98,7 +98,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 
 	tok, _, err := c.api.ChainHead(ctx)
 	if err != nil {
-		return fmt.Errorf("get chain head failed: ", err)
+		return fmt.Errorf("get chain head failed: %w", err)
 	}
 
 	infos := []proof5.AggregateSealVerifyInfo{}
@@ -118,8 +118,8 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 			Number:                p.ID.Number,
 			Randomness:            abi.SealRandomness(p.Ticket.Ticket),
 			InteractiveRandomness: abi.InteractiveSealRandomness(p.Seed.Seed),
-			SealedCID:             *p.Pre.CommR,
-			UnsealedCID:           *p.Pre.CommD,
+			SealedCID:             p.Pre.CommR,
+			UnsealedCID:           p.Pre.CommD,
 		})
 	}
 
@@ -133,7 +133,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 
 	actorID, err := address.IDFromAddress(maddr)
 	if err != nil {
-		return fmt.Errorf("trans maddr to actorID failed: ", err)
+		return fmt.Errorf("trans maddr to actorID failed: %w", err)
 	}
 
 	proofs := make([][]byte, 0)

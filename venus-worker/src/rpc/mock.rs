@@ -113,17 +113,20 @@ impl SealerRpc for SimpleMockSealerRpc {
         &self,
         sector: AllocatedSector,
         info: PreCommitOnChainInfo,
+        reset: bool,
     ) -> Result<SubmitPreCommitResp> {
         let mut pre_commits = self.pre_commits.write().map_err(|e| {
             error!(err = debug_field(&e), "acquire write lock");
             Error::internal_error()
         })?;
 
-        if let Some(_exist) = pre_commits.get(&sector.id) {
-            return Ok(SubmitPreCommitResp {
-                res: SubmitResult::DuplicateSubmit,
-                desc: None,
-            });
+        if !reset {
+            if let Some(_exist) = pre_commits.get(&sector.id) {
+                return Ok(SubmitPreCommitResp {
+                    res: SubmitResult::DuplicateSubmit,
+                    desc: None,
+                });
+            }
         }
 
         pre_commits.insert(sector.id, info);
@@ -152,21 +155,32 @@ impl SealerRpc for SimpleMockSealerRpc {
         }
     }
 
-    fn assign_seed(&self, _id: SectorID) -> Result<Seed> {
-        Ok(self.seed.clone())
+    fn wait_seed(&self, _id: SectorID) -> Result<WaitSeedResp> {
+        Ok(WaitSeedResp {
+            should_wait: false,
+            delay: 0,
+            seed: Some(self.seed.clone()),
+        })
     }
 
-    fn submit_proof(&self, id: SectorID, proof: ProofOnChainInfo) -> Result<SubmitProofResp> {
+    fn submit_proof(
+        &self,
+        id: SectorID,
+        proof: ProofOnChainInfo,
+        reset: bool,
+    ) -> Result<SubmitProofResp> {
         let mut proofs = self.proofs.write().map_err(|e| {
             error!(err = debug_field(&e), "acquire write lock");
             Error::internal_error()
         })?;
 
-        if let Some(_exist) = proofs.get(&id) {
-            return Ok(SubmitProofResp {
-                res: SubmitResult::DuplicateSubmit,
-                desc: None,
-            });
+        if !reset {
+            if let Some(_exist) = proofs.get(&id) {
+                return Ok(SubmitProofResp {
+                    res: SubmitResult::DuplicateSubmit,
+                    desc: None,
+                });
+            }
         }
 
         proofs.insert(id, proof);

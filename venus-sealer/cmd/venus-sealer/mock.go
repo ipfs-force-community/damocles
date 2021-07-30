@@ -48,7 +48,7 @@ var mockCmd = &cli.Command{
 			dix.Override(new(abi.ActorID), abi.ActorID(cctx.Uint64("miner"))),
 			dix.Override(new(abi.RegisteredSealProof), proofType),
 			dep.Mock(),
-			dep.Sealer(&node),
+			dep.MockSealer(&node),
 		)
 		if err != nil {
 			return fmt.Errorf("construct mock api: %w", err)

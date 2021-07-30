@@ -4,16 +4,11 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use filecoin_proofs_api::{
-    seal::{
-        seal_commit_phase2, seal_pre_commit_phase2, SealCommitPhase1Output, SealCommitPhase2Output,
-        SealPreCommitPhase1Output, SealPreCommitPhase2Output,
-    },
-    ProverId, SectorId,
-};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 pub mod external;
+mod safe;
+pub use safe::*;
 
 /// enum for processor stages
 #[derive(Copy, Clone, Debug)]

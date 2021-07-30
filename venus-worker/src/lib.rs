@@ -13,9 +13,10 @@ pub(crate) mod sealing;
 
 mod run;
 
-pub use infra::objstore::filestore::FileStore;
+pub use infra::objstore;
 pub use run::{start_deamon, start_mock};
-pub use sealing::processor::external::sub::{run_c2, run_pc2};
-pub use sealing::store::Store;
+pub use sealing::seal::external::sub::{run_c2, run_pc2};
+pub use sealing::store;
+pub use sealing::util as seal_util;
 
 pub mod logging;

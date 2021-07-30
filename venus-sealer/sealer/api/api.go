@@ -15,13 +15,13 @@ type SealerAPI interface {
 
 	AssignTicket(context.Context, abi.SectorID) (Ticket, error)
 
-	SubmitPreCommit(context.Context, AllocatedSector, PreCommitOnChainInfo) (SubmitPreCommitResp, error)
+	SubmitPreCommit(context.Context, AllocatedSector, PreCommitOnChainInfo, bool) (SubmitPreCommitResp, error)
 
 	PollPreCommitState(context.Context, abi.SectorID) (PollPreCommitStateResp, error)
 
 	WaitSeed(context.Context, abi.SectorID) (WaitSeedResp, error)
 
-	SubmitProof(context.Context, abi.SectorID, ProofOnChainInfo) (SubmitProofResp, error)
+	SubmitProof(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error)
 
 	PollProofState(context.Context, abi.SectorID) (PollProofStateResp, error)
 }
@@ -45,10 +45,10 @@ type DealManager interface {
 }
 
 type CommitmentManager interface {
-	SubmitPreCommit(context.Context, abi.SectorID, PreCommitOnChainInfo) (SubmitPreCommitResp, error)
+	SubmitPreCommit(context.Context, abi.SectorID, PreCommitInfo, bool) (SubmitPreCommitResp, error)
 	PreCommitState(context.Context, abi.SectorID) (PollPreCommitStateResp, error)
 
-	SubmitProof(context.Context, abi.SectorID, ProofOnChainInfo) (SubmitProofResp, error)
+	SubmitProof(context.Context, abi.SectorID, ProofInfo, bool) (SubmitProofResp, error)
 	ProofState(context.Context, abi.SectorID) (PollProofStateResp, error)
 }
 

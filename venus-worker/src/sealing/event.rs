@@ -3,11 +3,12 @@ use std::fmt::{self, Debug};
 use anyhow::{anyhow, Result};
 use forest_address::Address;
 
-use super::sector::{
-    Base, PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output,
-    SealPreCommitPhase1Output, SealPreCommitPhase2Output, Sector, SectorId, State,
-};
+use super::sector::{Base, Sector, State};
 use crate::rpc::{AllocatedSector, Deals, Seed, Ticket};
+use crate::sealing::seal::{
+    PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
+    SealPreCommitPhase2Output, SectorId,
+};
 
 macro_rules! plan {
     ($e:expr, $st:expr, $($prev:pat => {$($evt:pat => $next:expr,)+},)*) => {

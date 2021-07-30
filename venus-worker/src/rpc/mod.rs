@@ -31,9 +31,6 @@ pub struct BytesArray32(pub [u8; 32]);
 /// type alias for BytesArray32
 pub type Randomness = BytesArray32;
 
-/// type alias for BytesArray32
-pub type Commitment = BytesArray32;
-
 impl From<[u8; 32]> for BytesArray32 {
     fn from(val: [u8; 32]) -> Self {
         BytesArray32(val)
@@ -177,6 +174,9 @@ pub enum OnChainState {
 
     /// sector not found
     NotFound = 4,
+
+    /// on chain msg exec failed
+    Failed = 5,
 }
 
 /// required infos for pre commint
@@ -185,6 +185,9 @@ pub enum OnChainState {
 pub struct PreCommitOnChainInfo {
     /// commitment replicate
     pub comm_r: [u8; 32],
+
+    /// commitment data
+    pub comm_d: [u8; 32],
 
     /// assigned ticket
     pub ticket: Ticket,
@@ -234,6 +237,14 @@ pub struct Seed {
     pub epoch: ChainEpoch,
 }
 
+#[derive(Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WaitSeedResp {
+    pub should_wait: bool,
+    pub delay: u64,
+    pub seed: Option<Seed>,
+}
+
 /// response for the submit_proof request
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -277,6 +288,7 @@ pub trait SealerRpc {
         &self,
         sector: AllocatedSector,
         info: PreCommitOnChainInfo,
+        reset: bool,
     ) -> Result<SubmitPreCommitResp>;
 
     /// api definition
@@ -284,12 +296,17 @@ pub trait SealerRpc {
     fn poll_pre_commit_state(&self, id: SectorID) -> Result<PollPreCommitStateResp>;
 
     /// api definition
-    #[rpc(name = "Venus.AssignSeed")]
-    fn assign_seed(&self, id: SectorID) -> Result<Seed>;
+    #[rpc(name = "Venus.WaitSeed")]
+    fn wait_seed(&self, id: SectorID) -> Result<WaitSeedResp>;
 
     /// api definition
     #[rpc(name = "Venus.SubmitProof")]
-    fn submit_proof(&self, id: SectorID, proof: ProofOnChainInfo) -> Result<SubmitProofResp>;
+    fn submit_proof(
+        &self,
+        id: SectorID,
+        proof: ProofOnChainInfo,
+        reset: bool,
+    ) -> Result<SubmitProofResp>;
 
     /// api definition
     #[rpc(name = "Venus.PollProofState")]

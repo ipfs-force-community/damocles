@@ -29,6 +29,7 @@ func sectorLogger(sid abi.SectorID) *logging.ZapLogger {
 
 func New(capi chain.API, rand api.RandomnessAPI, sector api.SectorManager, state api.SectorStateManager, deal api.DealManager, commit api.CommitmentManager) (*Sealer, error) {
 	return &Sealer{
+		capi:   capi,
 		rand:   rand,
 		sector: sector,
 		state:  state,
@@ -146,8 +147,13 @@ func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket
 	return ticket, nil
 }
 
-func (s *Sealer) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, info api.PreCommitOnChainInfo) (api.SubmitPreCommitResp, error) {
-	return s.commit.SubmitPreCommit(ctx, sector.ID, info)
+func (s *Sealer) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, info api.PreCommitOnChainInfo, reset bool) (api.SubmitPreCommitResp, error) {
+	pinfo, err := info.IntoPreCommitInfo()
+	if err != nil {
+		return api.SubmitPreCommitResp{}, err
+	}
+
+	return s.commit.SubmitPreCommit(ctx, sector.ID, pinfo, reset)
 }
 
 func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (api.PollPreCommitStateResp, error) {
@@ -203,8 +209,8 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedRe
 	}, nil
 }
 
-func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofOnChainInfo) (api.SubmitProofResp, error) {
-	return s.commit.SubmitProof(ctx, sid, info)
+func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofOnChainInfo, reset bool) (api.SubmitProofResp, error) {
+	return s.commit.SubmitProof(ctx, sid, info, reset)
 }
 
 func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (api.PollProofStateResp, error) {

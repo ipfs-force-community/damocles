@@ -11,9 +11,6 @@ use super::{event::Event, failure::*, store::Store};
 mod sealer;
 use sealer::Sealer;
 
-// TODO: with_level, turn std error into leveled failure
-// TODO: simpler way to add context to failure
-
 type HandleResult = Result<Event, Failure>;
 
 pub struct Worker {

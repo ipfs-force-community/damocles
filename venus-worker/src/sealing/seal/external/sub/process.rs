@@ -2,13 +2,12 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout};
 
 use anyhow::{anyhow, Result};
-use cgroups_rs::Cgroup;
 use crossbeam_channel::{select, Receiver, Sender};
 use serde_json::{from_str, to_string};
 
-use super::{super::Input, Response};
+use super::{super::Input, cgroup::CtrlGroup, Response};
 use crate::{
-    logging::{error, error_span, info},
+    logging::{error, info},
     watchdog::{Ctx, Module},
 };
 
@@ -19,7 +18,7 @@ pub struct SubProcess<I: Input> {
     child: Child,
     stdin: ChildStdin,
     stdout: ChildStdout,
-    cgroup: Option<Cgroup>,
+    _cgroup: Option<CtrlGroup>,
 }
 
 impl<I: Input> SubProcess<I> {
@@ -29,7 +28,7 @@ impl<I: Input> SubProcess<I> {
         child: Child,
         stdin: ChildStdin,
         stdout: ChildStdout,
-        cgroup: Option<Cgroup>,
+        cgroup: Option<CtrlGroup>,
     ) -> Self {
         SubProcess {
             input_rx,
@@ -37,7 +36,7 @@ impl<I: Input> SubProcess<I> {
             child,
             stdin,
             stdout,
-            cgroup,
+            _cgroup: cgroup,
         }
     }
 
@@ -102,24 +101,9 @@ impl<I: Input> Module for SubProcess<I> {
 
 impl<I: Input> Drop for SubProcess<I> {
     fn drop(&mut self) {
-        let pname = self.name.as_str();
-        let pid = self.child.id();
-
-        let span = error_span!("subprocess", pid, pname);
-        let _guard = span.enter();
-
         info!("kill child");
         let _ = self.child.kill();
         let _ = self.child.wait();
-        if let Some(res) = self.cgroup.take().map(|ctrl| {
-            info!("delete cgroup");
-            ctrl.delete()
-        }) {
-            if let Err(e) = res {
-                error!("failed to delete cgroup: {:?}", e);
-            }
-        }
-
         info!("cleaned up");
     }
 }

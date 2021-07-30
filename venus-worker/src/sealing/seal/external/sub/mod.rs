@@ -7,8 +7,7 @@ use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::thread;
 
-use anyhow::{anyhow, Result};
-use cgroups_rs::{cgroup_builder::CgroupBuilder, Cgroup};
+use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::{after, bounded, select, Receiver, Sender};
 use serde::{Deserialize, Serialize};
 
@@ -16,12 +15,15 @@ use super::{
     super::{Input, Stage},
     config,
 };
+use crate::logging::info;
 
 mod run;
 pub use run::*;
 
 mod process;
 pub use process::*;
+
+mod cgroup;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Response<T> {
@@ -39,12 +41,21 @@ pub(super) fn start_sub_process<I: Input>(
     input_rx: Receiver<(I, Sender<Result<I::Out>>)>,
 ) -> Result<SubProcess<I>> {
     let stage = I::STAGE;
-    let name = format!("vcworker-sub-{}-{}", stage.name(), std::process::id());
+    let name = format!("sub-{}-{}", stage.name(), std::process::id());
 
     let (child, stdin, stdout) = start_child(stage, cfg)?;
-    let cg = cfg.cgroup.as_ref().map(|c| start_cgroup(&name, c));
-    if let Some(inner) = cg.as_ref() {
-        inner.add_task((child.id() as u64).into())?;
+    let mut cg = cfg
+        .cgroup
+        .as_ref()
+        .map(|c| cgroup::CtrlGroup::new(&name, c))
+        .transpose()?;
+
+    if let Some(inner) = cg.as_mut() {
+        let pid = child.id() as u64;
+        info!(child = pid, group = name.as_str(), "add into cgroup");
+        inner
+            .add_task(pid.into())
+            .context("add task id into cgroup")?;
     }
 
     let proc: SubProcess<_> = SubProcess::new(input_rx, name, child, stdin, stdout, cg);
@@ -137,14 +148,4 @@ fn wait_for_process_ready(
         let _ = res_tx.send(res);
         buf.into_inner()
     })
-}
-
-fn start_cgroup(name: &str, cfg: &config::Cgroup) -> Cgroup {
-    let hier = cgroups_rs::hierarchies::auto();
-    let mut builder = CgroupBuilder::new(name);
-    if let Some(cpuset) = cfg.cpuset.as_ref().cloned() {
-        builder = builder.cpu().cpus(cpuset).done();
-    }
-
-    builder.build(hier)
 }

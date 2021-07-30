@@ -1,7 +1,8 @@
 //! helper utilities for sealing
 
 use anyhow::{anyhow, Result};
-use filecoin_proofs_api::Commitment;
+
+use crate::sealing::seal::Commitment;
 
 const ALL_ZERO_PIECE_COMMS: [Commitment; 35] = [
     [
