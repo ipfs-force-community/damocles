@@ -31,6 +31,8 @@ humantime-serde = "1"
 clap = "2.33"
 byte-unit = "4"
 glob = "0.3"
+cgroups-rs = "0.2"
+signal-hook = "0.3"
 
 [dependencies.fil_types]
 version = "0.2"

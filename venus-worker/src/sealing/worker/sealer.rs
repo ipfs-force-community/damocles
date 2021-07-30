@@ -1,40 +1,35 @@
 use std::fs::{create_dir_all, OpenOptions};
 use std::io::{self, prelude::*};
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::thread::sleep;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use async_std::task::block_on;
-use crossbeam_channel::{select, Receiver, TryRecvError};
 use filecoin_proofs_api::seal::{
-    add_piece, clear_cache, seal_commit_phase1, seal_commit_phase2, seal_pre_commit_phase1,
-    seal_pre_commit_phase2,
+    add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1,
 };
 use glob::glob;
 
-use crate::infra::objstore::ObjectStore;
-use crate::logging::{debug, debug_field, debug_span, error, info, info_span, warn};
+use crate::logging::{debug, debug_field, debug_span, info, info_span, warn};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
 use crate::rpc::{
-    self, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SealerRpcClient, SectorID,
-    SubmitResult,
+    self, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SectorID, SubmitResult,
+};
+use crate::watchdog::Ctx;
+
+use super::super::{
+    event::Event,
+    failure::*,
+    processor::Stage,
+    sector::{PaddedBytesAmount, Sector, State, Trace, UnpaddedBytesAmount},
+    store::Store,
 };
 
-use super::event::Event;
-use super::failure::*;
-use super::resource::Pool;
-use super::sector::{PaddedBytesAmount, Sector, State, Trace, UnpaddedBytesAmount};
-use super::store::Store;
+use super::HandleResult;
 
 const SECTOR_INFO_KEY: &str = "info";
 const SECTOR_META_PREFIX: &str = "meta";
 const SECTOR_TRACE_PREFIX: &str = "trace";
-
-// TODO: with_level, turn std error into leveled failure
-// TODO: simpler way to add context to failure
-
-type HandleResult = Result<Event, Failure>;
 
 macro_rules! call_rpc {
     ($client:expr, $method:ident, $($arg:expr,)*) => {
@@ -106,44 +101,19 @@ macro_rules! fetch_field {
     };
 }
 
-enum Stage {
-    PC1,
-    PC2,
-    C1,
-    C2,
-}
-
-impl AsRef<str> for Stage {
-    fn as_ref(&self) -> &str {
-        match self {
-            Self::PC1 => "pc1",
-            Self::PC2 => "pc2",
-            Self::C1 => "c1",
-            Self::C2 => "c2",
-        }
-    }
-}
-
-struct Ctx<'c, O> {
+pub struct Sealer<'c> {
     sector: Sector,
     _trace: Vec<Trace>,
 
+    ctx: &'c Ctx,
     store: &'c Store,
-    rpc: Arc<SealerRpcClient>,
-    remote_store: Arc<O>,
-    limit: Arc<Pool>,
 
     sector_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
     _trace_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
 }
 
-impl<'c, O: ObjectStore> Ctx<'c, O> {
-    fn build(
-        s: &'c Store,
-        rpc: Arc<SealerRpcClient>,
-        remote_store: Arc<O>,
-        limit: Arc<Pool>,
-    ) -> Result<Self, Failure> {
+impl<'c> Sealer<'c> {
+    pub fn build(ctx: &'c Ctx, s: &'c Store) -> Result<Self, Failure> {
         let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta));
 
         let sector: Sector = sector_meta
@@ -161,18 +131,68 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
 
         let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, &s.meta));
 
-        Ok(Ctx {
+        Ok(Sealer {
             sector,
             _trace: Vec::with_capacity(16),
 
+            ctx,
             store: s,
-            rpc,
-            remote_store,
-            limit,
 
             sector_meta,
             _trace_meta: trace_meta,
         })
+    }
+
+    pub fn seal(mut self) -> Result<(), Failure> {
+        let mut event = None;
+        loop {
+            let span = info_span!(
+                "sealer",
+                miner = debug_field(self.sector.base.as_ref().map(|b| b.allocated.id.miner)),
+                sector = debug_field(self.sector.base.as_ref().map(|b| b.allocated.id.number)),
+                state = debug_field(self.sector.state),
+                event = debug_field(&event),
+            );
+
+            let enter = span.enter();
+
+            debug!("handling");
+
+            match self.handle(event.take()) {
+                Ok(Some(evt)) => {
+                    event.replace(evt);
+                }
+
+                Ok(None) => {
+                    self.finalize()?;
+                    return Ok(());
+                }
+
+                Err(Failure(Level::Temporary, terr)) => {
+                    if self.sector.retry >= self.store.config.max_retries {
+                        return Err(terr.perm());
+                    }
+
+                    self.sync(|s| {
+                        warn!(retry = s.retry, "temp error occurred: {:?}", terr,);
+
+                        s.retry += 1;
+
+                        Ok(())
+                    })?;
+
+                    info!(
+                        interval = debug_field(self.store.config.recover_interval),
+                        "wait before recovering"
+                    );
+                    sleep(self.store.config.recover_interval)
+                }
+
+                Err(f) => return Err(f),
+            }
+
+            drop(enter);
+        }
     }
 
     fn sync<F: FnOnce(&mut Sector) -> Result<()>>(&mut self, modify_fn: F) -> Result<(), Failure> {
@@ -264,7 +284,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
 
     fn handle_empty(&mut self) -> HandleResult {
         let maybe_allocated = call_rpc! {
-            self.rpc,
+            self.ctx.global.rpc,
             allocate_sector,
             rpc::AllocateSectorSpec {
                 allowed_miners: None,
@@ -308,7 +328,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         }?;
 
         let deals = call_rpc! {
-            self.rpc,
+            self.ctx.global.rpc,
             acquire_deals,
             sector_id,
             rpc::AcquireDealsSpec {
@@ -360,7 +380,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         }?;
 
         let ticket = call_rpc! {
-            self.rpc,
+            self.ctx.global.rpc,
             assign_ticket,
             sector_id,
         }?;
@@ -369,7 +389,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
     }
 
     fn handle_ticket_assigned(&mut self) -> HandleResult {
-        let token = self.limit.acquire(Stage::PC1).crit()?;
+        let token = self.ctx.global.limit.acquire(Stage::PC1).crit()?;
 
         let proof_type = fetch_cloned_field! {
             self.sector.base,
@@ -416,7 +436,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
     }
 
     fn handle_pc1_done(&mut self) -> HandleResult {
-        let token = self.limit.acquire(Stage::PC2).crit()?;
+        let token = self.ctx.global.limit.acquire(Stage::PC2).crit()?;
 
         let pc1out = fetch_cloned_field! {
             self.sector.phases.pc1out
@@ -430,7 +450,12 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         let cache_dir = self.cache_dir(sector_id);
         let sealed_file = self.sealed_file(sector_id);
 
-        let out = seal_pre_commit_phase2(pc1out, cache_dir, sealed_file).abort()?;
+        let out = self
+            .ctx
+            .global
+            .pc2
+            .process(pc1out, cache_dir, sealed_file)
+            .abort()?;
 
         drop(token);
         Ok(Event::PC2(out))
@@ -461,7 +486,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         };
 
         let res = call_rpc! {
-            self.rpc,
+            self.ctx.global.rpc,
             submit_pre_commit,
             sector,
             info,
@@ -486,7 +511,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
 
         'POLL: loop {
             let state = call_rpc! {
-                self.rpc,
+                self.ctx.global.rpc,
                 poll_pre_commit_state,
                 sector_id.clone(),
             }?;
@@ -503,7 +528,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         }
 
         let seed = call_rpc! {
-            self.rpc,
+            self.ctx.global.rpc,
             assign_seed,
             sector_id.clone(),
         }?;
@@ -512,7 +537,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
     }
 
     fn handle_seed_assigned(&mut self) -> HandleResult {
-        let token = self.limit.acquire(Stage::C1).crit()?;
+        let token = self.ctx.global.limit.acquire(Stage::C1).crit()?;
 
         let sector_id = fetch_field! {
             self.sector.base,
@@ -562,7 +587,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
     }
 
     fn handle_c1_done(&mut self) -> HandleResult {
-        let token = self.limit.acquire(Stage::C2).crit()?;
+        let token = self.ctx.global.limit.acquire(Stage::C2).crit()?;
 
         let c1out = fetch_cloned_field! {
             self.sector.phases.c1out
@@ -573,7 +598,12 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             prove_input,
         }?;
 
-        let out = seal_commit_phase2(c1out, prover_id, sector_id).abort()?;
+        let out = self
+            .ctx
+            .global
+            .c2
+            .process(c1out, prover_id, sector_id)
+            .abort()?;
 
         drop(token);
         Ok(Event::C2(out))
@@ -640,7 +670,12 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
             let copy_enter = copy_span.enter();
 
             let source = opt.open(&one).crit()?;
-            let size = self.remote_store.put(target_path, source).crit()?;
+            let size = self
+                .ctx
+                .global
+                .remote_store
+                .put(target_path, Box::new(source))
+                .crit()?;
 
             debug!(size, "persist done");
 
@@ -665,7 +700,7 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         };
 
         let res = call_rpc! {
-            self.rpc,
+            self.ctx.global.rpc,
             submit_proof,
             sector_id,
             info,
@@ -686,142 +721,5 @@ impl<'c, O: ObjectStore> Ctx<'c, O> {
         // TODO: check proof landed on chain
         warn!("proof submitted");
         Ok(Event::Finish)
-    }
-}
-
-pub struct Worker<O> {
-    store: Store,
-    resume_rx: Receiver<()>,
-    done_rx: Receiver<()>,
-    rpc: Arc<SealerRpcClient>,
-    remote_store: Arc<O>,
-    limit: Arc<Pool>,
-}
-
-impl<O: ObjectStore> Worker<O> {
-    pub fn new(
-        s: Store,
-        resume_rx: Receiver<()>,
-        done_rx: Receiver<()>,
-        rpc: Arc<SealerRpcClient>,
-        remote_store: Arc<O>,
-        limit: Arc<Pool>,
-    ) -> Self {
-        Worker {
-            store: s,
-            resume_rx,
-            done_rx,
-            rpc,
-            remote_store,
-            limit,
-        }
-    }
-
-    pub fn start_seal(&mut self) -> Result<()> {
-        let span = info_span!("seal", loc = debug_field(&self.store.location));
-        let _span = span.enter();
-
-        let mut wait_for_resume = false;
-        'SEAL_LOOP: loop {
-            if wait_for_resume {
-                warn!("waiting for resume signal");
-
-                select! {
-                    recv(self.resume_rx) -> resume_res => {
-                        resume_res.context("resume signal channel closed unexpectedly")?;
-                    },
-
-                    recv(self.done_rx) -> _done_res => {
-                        return Ok(())
-                    },
-                }
-            }
-
-            if self.done_rx.try_recv() != Err(TryRecvError::Empty) {
-                return Ok(());
-            }
-
-            if let Err(failure) = self.seal_one() {
-                error!(failure = debug_field(&failure), "sealing failed");
-                match failure.0 {
-                    Level::Temporary | Level::Permanent | Level::Critical => {
-                        if failure.0 == Level::Temporary {
-                            error!("temporary error should not be popagated to the top level");
-                        };
-
-                        wait_for_resume = true;
-                        continue 'SEAL_LOOP;
-                    }
-
-                    Level::Abort => {}
-                };
-            }
-
-            info!(
-                duration = debug_field(self.store.config.seal_interval),
-                "wait before sealing"
-            );
-
-            sleep(self.store.config.seal_interval);
-        }
-    }
-
-    fn seal_one(&mut self) -> Result<(), Failure> {
-        let mut ctx = Ctx::build(
-            &self.store,
-            self.rpc.clone(),
-            self.remote_store.clone(),
-            self.limit.clone(),
-        )?;
-
-        let mut event = None;
-        loop {
-            let span = info_span!(
-                "seal-proc",
-                miner = debug_field(ctx.sector.base.as_ref().map(|b| b.allocated.id.miner)),
-                sector = debug_field(ctx.sector.base.as_ref().map(|b| b.allocated.id.number)),
-                state = debug_field(ctx.sector.state),
-                event = debug_field(&event),
-            );
-
-            let enter = span.enter();
-
-            debug!("handling");
-
-            match ctx.handle(event.take()) {
-                Ok(Some(evt)) => {
-                    event.replace(evt);
-                }
-
-                Ok(None) => {
-                    ctx.finalize()?;
-                    return Ok(());
-                }
-
-                Err(Failure(Level::Temporary, terr)) => {
-                    if ctx.sector.retry >= ctx.store.config.max_retries {
-                        return Err(terr.perm());
-                    }
-
-                    ctx.sync(|s| {
-                        warn!(retry = s.retry, "temp error occurred: {:?}", terr,);
-
-                        s.retry += 1;
-
-                        Ok(())
-                    })?;
-
-                    info!(
-                        interval = debug_field(ctx.store.config.recover_interval),
-                        "wait before recovering"
-                    );
-                    sleep(ctx.store.config.recover_interval)
-                }
-
-                Err(f) => return Err(f),
-            }
-
-            drop(enter);
-        }
     }
 }

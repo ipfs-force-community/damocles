@@ -18,3 +18,9 @@ c2 = 1
 
 [remote]
 path = "./tmp/remote"
+
+[processors.pc2]
+external = true
+
+[processors.c2]
+external = true

@@ -1,4 +1,4 @@
-//! config for sealing
+//! config for venus-worker
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -9,6 +9,8 @@ use std::time::Duration;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use toml::from_slice;
+
+use crate::sealing::processor::external::config::Ext;
 
 /// configurations for sealing sectors
 #[derive(Debug, Clone)]
@@ -104,6 +106,16 @@ pub struct RPC {
     pub endpoint: String,
 }
 
+/// configurations for processors
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Processors {
+    /// section for pc2 processor
+    pub pc2: Option<Ext>,
+
+    /// section for c2 processor
+    pub c2: Option<Ext>,
+}
+
 /// global configuration
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -121,6 +133,9 @@ pub struct Config {
 
     /// section for remote store
     pub remote: Remote,
+
+    /// section for processors
+    pub processors: Option<Processors>,
 }
 
 impl Config {

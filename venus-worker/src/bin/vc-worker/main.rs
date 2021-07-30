@@ -2,10 +2,10 @@ use anyhow::{anyhow, Result};
 use byte_unit::Byte;
 use clap::{value_t, App, Arg, SubCommand};
 
-use venus_worker::logging;
+use venus_worker::{logging, start_deamon, start_mock};
 
-mod daemon;
-mod mock;
+mod processor;
+mod store;
 
 pub fn main() -> Result<()> {
     logging::init()?;
@@ -48,11 +48,17 @@ pub fn main() -> Result<()> {
                 .help("path for the config file"),
         );
 
-    let matches = App::new("vc-worker")
+    let processor_cmd = processor::subcommand();
+    let store_cmd = store::subcommand();
+
+    let app = App::new("vc-worker")
         .version(env!("CARGO_PKG_VERSION"))
         .subcommand(daemon_cmd)
         .subcommand(mock_cmd)
-        .get_matches();
+        .subcommand(processor_cmd)
+        .subcommand(store_cmd);
+
+    let matches = app.get_matches();
 
     match matches.subcommand() {
         ("mock", Some(m)) => {
@@ -61,15 +67,19 @@ pub fn main() -> Result<()> {
             let size = Byte::from_str(size_str)?;
             let cfg_path = value_t!(m, "config", String)?;
 
-            mock::start_mock(miner, size.get_bytes() as u64, cfg_path)
+            start_mock(miner, size.get_bytes() as u64, cfg_path)
         }
 
         ("daemon", Some(m)) => {
             let cfg_path = value_t!(m, "config", String)?;
 
-            daemon::start_deamon(cfg_path)
+            start_deamon(cfg_path)
         }
 
-        (other, _) => Err(anyhow!("unexpected subcommand {}", other)),
+        (processor::SUB_CMD_NAME, Some(args)) => processor::submatch(args),
+
+        (store::SUB_CMD_NAME, Some(args)) => store::submatch(args),
+
+        (name, _) => Err(anyhow!("unexpected subcommand `{}`", name)),
     }
 }

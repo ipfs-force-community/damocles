@@ -63,15 +63,15 @@ pub struct Range {
 /// definition of object store
 pub trait ObjectStore: Send + Sync {
     /// get should return a reader for the given path
-    fn get<P: AsRef<Path>>(&self, path: P) -> ObjResult<Box<dyn Read>>;
+    fn get(&self, path: &Path) -> ObjResult<Box<dyn Read>>;
 
     /// put an object
-    fn put<P: AsRef<Path>, R: Read>(&self, path: P, r: R) -> ObjResult<u64>;
+    fn put(&self, path: &Path, r: Box<dyn Read>) -> ObjResult<u64>;
 
     /// get specified pieces
-    fn get_chunks<P: AsRef<Path>>(
+    fn get_chunks(
         &self,
-        path: P,
+        path: &Path,
         ranges: &[Range],
     ) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>>;
 }
