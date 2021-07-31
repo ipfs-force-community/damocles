@@ -72,7 +72,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 
 	from, err := getPreCommitControlAddress(maddr, p.config)
 	if err != nil {
-		return fmt.Errorf("get pro commit control address failed: %s", err)
+		return fmt.Errorf("get pro commit control address failed: %w", err)
 	}
 
 	if !p.EnableBatch(maddr) {
@@ -103,7 +103,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 
 	enc := new(bytes.Buffer)
 	if err := params.MarshalCBOR(enc); err != nil {
-		return fmt.Errorf("couldn't serialize PreCommitSectorBatchParams: %s", err.Error())
+		return fmt.Errorf("couldn't serialize PreCommitSectorBatchParams: %w", err)
 	}
 	var spec messager.MsgMeta
 	p.config.Lock()
@@ -114,7 +114,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	ccid, err := pushMessage(ctx, from, maddr, deposit, builtin5.MethodsMiner.PreCommitSectorBatch,
 		p.msgClient, spec, enc.Bytes())
 	if err != nil {
-		return fmt.Errorf("push batch precommit message failed: %s", err.Error())
+		return fmt.Errorf("push batch precommit message failed: %w", err)
 	}
 	for i := range sectors {
 		if _, ok := failed[sectors[i].ID]; !ok {
@@ -167,7 +167,7 @@ func (p PreCommitProcessor) cleanSector(ctx context.Context, sector []api.Sector
 		sector[i].MessageInfo.NeedSend = false
 		err := p.smgr.Update(ctx, sector[i].ID, &sector[i].MessageInfo)
 		if err != nil {
-			log.Error("Update sector %s MessageInfo failed: ", err)
+			log.Errorf("Update sector %s MessageInfo failed: ", err)
 		}
 	}
 }

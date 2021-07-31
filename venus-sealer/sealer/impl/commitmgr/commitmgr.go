@@ -153,7 +153,7 @@ func pushMessage(ctx context.Context, from, to address.Address, value abi.TokenA
 
 	uid, err := msgClient.PushMessageWithId(ctx, mcid.String(), &msg, &spec)
 	if err != nil {
-		return cid.Undef, fmt.Errorf("push message with id failed: %s", err)
+		return cid.Undef, fmt.Errorf("push message with id failed: %w", err)
 	}
 
 	if uid != mcid.String() {

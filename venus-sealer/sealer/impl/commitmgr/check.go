@@ -36,7 +36,7 @@ type ErrCommitWaitFailed struct{ error }
 func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorState, api SealingAPI) (err error) {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
-		return ErrApi{fmt.Errorf("get chain head failed %s", err)}
+		return ErrApi{fmt.Errorf("get chain head failed %w", err)}
 	}
 
 	if err := checkPieces(ctx, maddr, si, api); err != nil {
@@ -45,7 +45,7 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorSta
 
 	commD, err := api.StateComputeDataCommitment(ctx, maddr, si.SectorType, si.DealIDs(), tok)
 	if err != nil {
-		return &ErrApi{fmt.Errorf("calling StateComputeDataCommitment: %s", err)}
+		return &ErrApi{fmt.Errorf("calling StateComputeDataCommitment: %w", err)}
 	}
 
 	if si.Pre == nil || !commD.Equals(si.Pre.CommD) {
@@ -63,7 +63,7 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorSta
 		if err == ErrSectorAllocated {
 			return &ErrSectorNumberAllocated{err}
 		}
-		return &ErrApi{fmt.Errorf("getting precommit info: %s", err)}
+		return &ErrApi{fmt.Errorf("getting precommit info: %w", err)}
 	}
 
 	if pci != nil {

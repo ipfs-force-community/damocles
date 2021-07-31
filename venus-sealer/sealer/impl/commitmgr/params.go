@@ -64,18 +64,18 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 		switch err := err.(type) {
 		case *ErrApi:
 			log.Errorf("handlePreCommitting: api error, not proceeding: %s", err)
-			return nil, big.Zero(), nil, fmt.Errorf("call api failed %s", err)
+			return nil, big.Zero(), nil, fmt.Errorf("call api failed %w", err)
 		case *ErrBadCommD: // TODO: Should this just back to packing? (not really needed since handlePreCommit1 will do that too)
-			return nil, big.Zero(), nil, fmt.Errorf("bad CommD error: %s", err)
+			return nil, big.Zero(), nil, fmt.Errorf("bad CommD error: %w", err)
 		case *ErrExpiredTicket:
-			return nil, big.Zero(), nil, fmt.Errorf("ticket expired: %s", err)
+			return nil, big.Zero(), nil, fmt.Errorf("ticket expired: %w", err)
 		case *ErrBadTicket:
-			return nil, big.Zero(), nil, fmt.Errorf("bad ticket: %s", err)
+			return nil, big.Zero(), nil, fmt.Errorf("bad ticket: %w", err)
 		case *ErrInvalidDeals:
 			log.Warnf("invalid deals in sector %d: %v", sector.ID, err)
-			return nil, big.Zero(), nil, fmt.Errorf("invalid deals: %s", err)
+			return nil, big.Zero(), nil, fmt.Errorf("invalid deals: %w", err)
 		case *ErrExpiredDeals:
-			return nil, big.Zero(), nil, fmt.Errorf("sector deals expired: %s", err)
+			return nil, big.Zero(), nil, fmt.Errorf("sector deals expired: %w", err)
 		case *ErrPrecommitOnChain:
 			return nil, big.Zero(), nil, fmt.Errorf("precommit land on chain")
 		case *ErrSectorNumberAllocated:
@@ -83,18 +83,18 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 			// TODO: check if the sector is committed (not sure how we'd end up here)
 			return nil, big.Zero(), nil, ErrSectorAllocated
 		default:
-			return nil, big.Zero(), nil, fmt.Errorf("checkPrecommit sanity check error: %s", err)
+			return nil, big.Zero(), nil, fmt.Errorf("checkPrecommit sanity check error: %w", err)
 		}
 	}
 
 	expiration, err := Expiration(ctx, stateMgr, sector.Deals)
 	if err != nil {
-		return nil, big.Zero(), nil, fmt.Errorf("handlePreCommitting: failed to compute pre-commit expiry: %s", err)
+		return nil, big.Zero(), nil, fmt.Errorf("handlePreCommitting: failed to compute pre-commit expiry: %w", err)
 	}
 
 	nv, err := stateMgr.StateNetworkVersion(ctx, tok)
 	if err != nil {
-		return nil, big.Zero(), nil, fmt.Errorf("failed to get network version: %s", err)
+		return nil, big.Zero(), nil, fmt.Errorf("failed to get network version: %w", err)
 	}
 
 	msd := policy.GetMaxProveCommitDuration(specactors.Version(nv), sector.SectorType)
@@ -117,7 +117,7 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 
 	deposit, err := stateMgr.StateMinerPreCommitDepositForPower(ctx, maddr, *params, tok)
 	if err != nil {
-		return nil, big.Zero(), nil, fmt.Errorf("getting initial pledge collateral: %s", err)
+		return nil, big.Zero(), nil, fmt.Errorf("getting initial pledge collateral: %w", err)
 	}
 
 	return params, deposit, tok, nil
@@ -126,7 +126,7 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, maddr address.Address, sn abi.SectorNumber, tok api.TipSetToken) (abi.TokenAmount, error) {
 	pci, err := stateMgr.StateSectorPreCommitInfo(ctx, maddr, sn, tok)
 	if err != nil {
-		return big.Zero(), fmt.Errorf("getting precommit info: %s", err)
+		return big.Zero(), fmt.Errorf("getting precommit info: %w", err)
 	}
 	if pci == nil {
 		return big.Zero(), fmt.Errorf("precommit info not found on chain")
@@ -134,7 +134,7 @@ func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, maddr address
 
 	collateral, err := stateMgr.StateMinerInitialPledgeCollateral(ctx, maddr, pci.Info, tok)
 	if err != nil {
-		return big.Zero(), fmt.Errorf("getting initial pledge collateral: %s", err)
+		return big.Zero(), fmt.Errorf("getting initial pledge collateral: %w", err)
 	}
 
 	collateral = big.Sub(collateral, pci.PreCommitDeposit)
