@@ -147,13 +147,12 @@ func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket
 	return ticket, nil
 }
 
-func (s *Sealer) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, info api.PreCommitOnChainInfo, reset bool) (api.SubmitPreCommitResp, error) {
+func (s *Sealer) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, info api.PreCommitOnChainInfo, hardReset bool) (api.SubmitPreCommitResp, error) {
 	pinfo, err := info.IntoPreCommitInfo()
 	if err != nil {
 		return api.SubmitPreCommitResp{}, err
 	}
-
-	return s.commit.SubmitPreCommit(ctx, sector.ID, pinfo, reset)
+	return s.commit.SubmitPreCommit(ctx, sector.ID, pinfo, hardReset)
 }
 
 func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (api.PollPreCommitStateResp, error) {
@@ -209,8 +208,8 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedRe
 	}, nil
 }
 
-func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofOnChainInfo, reset bool) (api.SubmitProofResp, error) {
-	return s.commit.SubmitProof(ctx, sid, info, reset)
+func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofOnChainInfo, hardReset bool) (api.SubmitProofResp, error) {
+	return s.commit.SubmitProof(ctx, sid, info, hardReset)
 }
 
 func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (api.PollProofStateResp, error) {

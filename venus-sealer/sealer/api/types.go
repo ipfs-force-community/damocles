@@ -48,7 +48,7 @@ const (
 	SubmitDuplicateSubmit
 	SubmitMismatchedSubmission
 	SubmitRejected
-	Submitted
+	SubmitInvalidInfo
 )
 
 type OnChainState uint64
@@ -60,6 +60,7 @@ const (
 	OnChainStateLanded
 	OnChainStateNotFound
 	OnChainStateFailed
+	OnChainStatePermFailed
 )
 
 type PreCommitOnChainInfo struct {

@@ -15,7 +15,7 @@ type SectorState struct {
 	Pre    *PreCommitInfo
 	Proof  *ProofInfo
 
-	MessageInfo *MessageInfo
+	MessageInfo MessageInfo
 }
 
 func (s SectorState) DealIDs() []abi.DealID {

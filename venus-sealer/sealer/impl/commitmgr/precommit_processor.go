@@ -45,6 +45,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 			params, deposit, _, err := preCommitParams(ctx, p.api, sectors[idx])
 			if err != nil {
 				log.Error("get pre-commit params failed: ", err)
+				return
 			}
 			enc := new(bytes.Buffer)
 			if err := params.MarshalCBOR(enc); err != nil {
@@ -59,11 +60,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 			}
 			log.Infof("precommit of sector %d sent cid: %s", sectors[idx].ID.Number, mcid)
 
-			sectors[idx].MessageInfo = &api.MessageInfo{
-				PreCommitCid: &mcid,
-				CommitCid:    nil,
-				NeedSend:     false,
-			}
+			sectors[idx].MessageInfo.PreCommitCid = &mcid
 		}(i)
 	}
 	wg.Wait()
@@ -121,11 +118,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	}
 	for i := range sectors {
 		if _, ok := failed[sectors[i].ID]; !ok {
-			sectors[i].MessageInfo = &api.MessageInfo{
-				PreCommitCid: &ccid,
-				CommitCid:    nil,
-				NeedSend:     false,
-			}
+			sectors[i].MessageInfo.PreCommitCid = &ccid
 		}
 	}
 	return nil
@@ -172,7 +165,7 @@ func (p PreCommitProcessor) EnableBatch(maddr address.Address) bool {
 func (p PreCommitProcessor) cleanSector(ctx context.Context, sector []api.SectorState) {
 	for i := range sector {
 		sector[i].MessageInfo.NeedSend = false
-		err := p.smgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
+		err := p.smgr.Update(ctx, sector[i].ID, &sector[i].MessageInfo)
 		if err != nil {
 			log.Error("Update sector %s MessageInfo failed: ", err)
 		}

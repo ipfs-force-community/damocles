@@ -36,11 +36,11 @@ type commitMgr struct {
 	}
 }
 
-func (c *commitMgr) SubmitPreCommit(ctx context.Context, sid abi.SectorID, info api.PreCommitInfo, reset bool) (api.SubmitPreCommitResp, error) {
+func (c *commitMgr) SubmitPreCommit(ctx context.Context, sid abi.SectorID, info api.PreCommitOnChainInfo, hardReset bool) (api.SubmitPreCommitResp, error) {
 	c.pres.Lock()
 	defer c.pres.Unlock()
 
-	if !reset {
+	if !hardReset {
 		if _, ok := c.pres.commits[sid]; ok {
 			return api.SubmitPreCommitResp{
 				Res:  api.SubmitDuplicateSubmit,
@@ -49,7 +49,11 @@ func (c *commitMgr) SubmitPreCommit(ctx context.Context, sid abi.SectorID, info 
 		}
 	}
 
-	c.pres.commits[sid] = info
+	var err error
+	c.pres.commits[sid], err = info.IntoPreCommitInfo()
+	if err != nil {
+		return api.SubmitPreCommitResp{}, err
+	}
 
 	return api.SubmitPreCommitResp{
 		Res:  api.SubmitAccepted,
@@ -74,11 +78,11 @@ func (c *commitMgr) PreCommitState(ctx context.Context, sid abi.SectorID) (api.P
 	}, nil
 }
 
-func (c *commitMgr) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofInfo, reset bool) (api.SubmitProofResp, error) {
+func (c *commitMgr) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofOnChainInfo, hardReset bool) (api.SubmitProofResp, error) {
 	c.proofs.Lock()
 	defer c.proofs.Unlock()
 
-	if !reset {
+	if !hardReset {
 		if _, ok := c.proofs.proofs[sid]; ok {
 			return api.SubmitProofResp{
 				Res:  api.SubmitDuplicateSubmit,
