@@ -18,17 +18,26 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/randomness"
 )
 
+type GlobalContext context.Context
+
 func Mock() dix.Option {
 	return dix.Options(
 		dix.Override(new(api.RandomnessAPI), mock.NewRandomness),
 		dix.Override(new(api.SectorManager), mock.NewSectorManager),
 		dix.Override(new(api.DealManager), mock.NewDealManager),
 		dix.Override(new(api.CommitmentManager), mock.NewCommitManager),
-		dix.Override(new(api.MinerInfoAPI), mock.NewMinerInfoAPI),
 	)
 }
 
-type GlobalContext context.Context
+func MockSealer(s *api.SealerAPI) dix.Option {
+	return dix.Options(
+		dix.Override(new(*mock.Sealer), mock.NewSealer),
+		dix.Override(InjectSealerAPI, func(instance *mock.Sealer) error {
+			*s = instance
+			return nil
+		}),
+	)
+}
 
 func Product() dix.Option {
 	cfgmu := &sync.RWMutex{}

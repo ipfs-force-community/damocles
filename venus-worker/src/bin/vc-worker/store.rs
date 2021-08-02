@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{values_t, App, Arg, ArgMatches, SubCommand};
 use tracing::{error, info};
 
-use venus_worker::{logging, FileStore, Store};
+use venus_worker::{logging, objstore::filestore::FileStore, store::Store};
 
 pub const SUB_CMD_NAME: &str = "store";
 

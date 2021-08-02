@@ -12,8 +12,8 @@ type SectorState struct {
 	Deals  Deals
 	Ticket *Ticket
 	Seed   *Seed
-	Pre    *PreCommitOnChainInfo
-	Proof  *ProofOnChainInfo
+	Pre    *PreCommitInfo
+	Proof  *ProofInfo
 
 	MessageInfo *MessageInfo
 }

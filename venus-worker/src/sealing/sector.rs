@@ -3,15 +3,12 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 pub use fil_clock::ChainEpoch;
 pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness};
-pub use filecoin_proofs_api::seal::{
-    Labels, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
-    SealPreCommitPhase2Output,
-};
-pub use filecoin_proofs_api::{
-    PaddedBytesAmount, PieceInfo, ProverId, RegisteredSealProof, SectorId, UnpaddedBytesAmount,
-};
 
 use crate::rpc::{AllocatedSector, Deals, Seed, Ticket};
+use crate::sealing::seal::{
+    PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
+    SealPreCommitPhase2Output, SectorId,
+};
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
 

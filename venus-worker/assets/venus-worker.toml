@@ -24,3 +24,6 @@ external = true
 
 [processors.c2]
 external = true
+
+[processors.c2.cgroup]
+cpuset = "24-47"

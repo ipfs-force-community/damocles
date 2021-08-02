@@ -108,7 +108,7 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 		SectorNumber: sector.ID.Number,
 		SealProof:    sector.SectorType,
 
-		SealedCID:     *sector.Pre.CommR,
+		SealedCID:     sector.Pre.CommR,
 		SealRandEpoch: sector.Ticket.Epoch,
 		DealIDs:       sector.DealIDs(),
 	}

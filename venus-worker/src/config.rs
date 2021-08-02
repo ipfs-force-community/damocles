@@ -10,7 +10,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use toml::from_slice;
 
-use crate::sealing::processor::external::config::Ext;
+use crate::sealing::seal::external::config::Ext;
 
 /// configurations for sealing sectors
 #[derive(Debug, Clone)]

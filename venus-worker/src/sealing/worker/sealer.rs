@@ -2,12 +2,10 @@ use std::fs::{create_dir_all, OpenOptions};
 use std::io::{self, prelude::*};
 use std::path::PathBuf;
 use std::thread::sleep;
+use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use async_std::task::block_on;
-use filecoin_proofs_api::seal::{
-    add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1,
-};
 use glob::glob;
 
 use crate::logging::{debug, debug_field, debug_span, info, info_span, warn};
@@ -15,13 +13,14 @@ use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB}
 use crate::rpc::{
     self, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SectorID, SubmitResult,
 };
+use crate::sealing::seal::{add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1};
 use crate::watchdog::Ctx;
 
 use super::super::{
     event::Event,
     failure::*,
-    processor::Stage,
-    sector::{PaddedBytesAmount, Sector, State, Trace, UnpaddedBytesAmount},
+    seal::{PaddedBytesAmount, Stage, UnpaddedBytesAmount},
+    sector::{Sector, State, Trace},
     store::Store,
 };
 
@@ -479,17 +478,23 @@ impl<'c> Sealer<'c> {
                 self.sector.phases.pc2out,
                 comm_r,
             }?,
+            comm_d: fetch_cloned_field! {
+                self.sector.phases.pc2out,
+                comm_d,
+            }?,
             ticket: fetch_cloned_field! {
                 self.sector.phases.ticket
             }?,
             deals,
         };
 
+        // TODO: handle submit reset
         let res = call_rpc! {
             self.ctx.global.rpc,
             submit_pre_commit,
             sector,
             info,
+            false,
         }?;
 
         match res.res {
@@ -521,17 +526,34 @@ impl<'c> Sealer<'c> {
                 OnChainState::NotFound => {
                     return Err(anyhow!("pre commit on-chain info not found").abort())
                 }
+
+                // TODO: handle retry for this
+                OnChainState::Failed => {
+                    return Err(anyhow!("pre commit on-chain info failed").abort())
+                }
                 OnChainState::Pending | OnChainState::Packed => {}
             }
 
             sleep(self.store.config.rpc_polling_interval);
         }
 
-        let seed = call_rpc! {
-            self.ctx.global.rpc,
-            assign_seed,
-            sector_id.clone(),
-        }?;
+        let seed = loop {
+            let wait = call_rpc! {
+                self.ctx.global.rpc,
+                wait_seed,
+                sector_id.clone(),
+            }?;
+
+            if let Some(seed) = wait.seed {
+                break seed;
+            };
+
+            if !wait.should_wait || wait.delay == 0 {
+                return Err(anyhow!("invalid empty wait_seed response").temp());
+            }
+
+            sleep(Duration::from_secs(wait.delay));
+        };
 
         Ok(Event::AssignSeed(seed))
     }
@@ -610,7 +632,6 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle_c2_done(&mut self) -> HandleResult {
-        // TODO: do the copy
         let allocated = fetch_field! {
             self.sector.base,
             allocated,
@@ -699,11 +720,13 @@ impl<'c> Sealer<'c> {
             .into(),
         };
 
+        // TODO: submit reset
         let res = call_rpc! {
             self.ctx.global.rpc,
             submit_proof,
             sector_id,
             info,
+            false,
         }?;
 
         match res.res {

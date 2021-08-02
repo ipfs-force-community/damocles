@@ -48,7 +48,7 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorSta
 		return &ErrApi{fmt.Errorf("calling StateComputeDataCommitment: %w", err)}
 	}
 
-	if si.Pre == nil || !commD.Equals(*si.Pre.CommD) {
+	if si.Pre == nil || !commD.Equals(si.Pre.CommD) {
 		return &ErrBadCommD{fmt.Errorf("on chain CommD differs from sector: %s ", commD)}
 	}
 
@@ -153,7 +153,7 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 		return &ErrBadSeed{fmt.Errorf("seed has changed")}
 	}
 
-	if *si.Pre.CommR != pci.Info.SealedCID {
+	if si.Pre.CommR != pci.Info.SealedCID {
 		log.Warn("on-chain sealed CID doesn't match!")
 	}
 
@@ -164,7 +164,7 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 		Proof:                 proof,
 		Randomness:            abi.SealRandomness(si.Ticket.Ticket),
 		InteractiveRandomness: abi.InteractiveSealRandomness(si.Seed.Seed),
-		UnsealedCID:           *si.Pre.CommD,
+		UnsealedCID:           si.Pre.CommD,
 	})
 	if err != nil {
 		return &ErrInvalidProof{fmt.Errorf("verify seal: %w", err)}

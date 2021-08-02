@@ -3601,7 +3601,6 @@ dependencies = [
  "crossterm",
  "fil_clock",
  "fil_types",
- "filecoin-proofs",
  "filecoin-proofs-api",
  "forest_address",
  "forest_json_utils",

@@ -230,18 +230,18 @@ func (c *CommitmentMgrImpl) Run() {
 	return
 }
 
-func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info api.PreCommitOnChainInfo) (api.SubmitPreCommitResp, error) {
+func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info api.PreCommitInfo, reset bool) (api.SubmitPreCommitResp, error) {
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.SubmitPreCommitResp{Res: api.SubmitUnknown}, err
 	}
 
 	if sector.Pre != nil {
-		if sector.Pre.CommD != nil && *sector.Pre.CommD != *info.CommD {
+		if sector.Pre.CommD != info.CommD {
 			return api.SubmitPreCommitResp{Res: api.SubmitMismatchedSubmission}, nil
 		}
 
-		if sector.Pre.CommR != nil && *sector.Pre.CommR != *info.CommR {
+		if sector.Pre.CommR != info.CommR {
 			return api.SubmitPreCommitResp{Res: api.SubmitMismatchedSubmission}, nil
 		}
 
@@ -367,7 +367,7 @@ func (c CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) 
 	return api.PollPreCommitStateResp{State: api.OnChainStateUnknown}, err
 }
 
-func (c CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, info api.ProofOnChainInfo) (api.SubmitProofResp, error) {
+func (c CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, info api.ProofInfo, reset bool) (api.SubmitProofResp, error) {
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.SubmitProofResp{Res: api.SubmitUnknown}, err

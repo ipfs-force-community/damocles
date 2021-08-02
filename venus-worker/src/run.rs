@@ -12,7 +12,7 @@ use crate::{
     infra::objstore::filestore::FileStore,
     logging::{debug_field, info},
     rpc::{self, mock::Mock, ws, SealerRpc, SealerRpcClient},
-    sealing::{processor, resource, store::StoreManager},
+    sealing::{resource, seal, store::StoreManager},
     signal::Signal,
     types::SealProof,
     watchdog::{GlobalModules, WatchDog},
@@ -46,28 +46,28 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let mut io = IoHandler::new();
     io.extend_with(mock_impl.to_delegate());
 
-    let (pc2, pc2sub): (processor::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
+    let (pc2, pc2sub): (seal::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
         .as_ref()
         .and_then(|p| p.pc2.as_ref())
         .and_then(|ext| if ext.external { Some(ext) } else { None })
     {
-        let (proc, sub) = processor::external::PC2::build(ext)?;
+        let (proc, sub) = seal::external::PC2::build(ext)?;
         (Box::new(proc), Some(sub))
     } else {
-        (Box::new(processor::internal::PC2), None)
+        (Box::new(seal::internal::PC2), None)
     };
 
-    let (c2, c2sub): (processor::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
+    let (c2, c2sub): (seal::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
         .as_ref()
         .and_then(|p| p.c2.as_ref())
         .and_then(|ext| if ext.external { Some(ext) } else { None })
     {
-        let (proc, sub) = processor::external::C2::build(ext)?;
+        let (proc, sub) = seal::external::C2::build(ext)?;
         (Box::new(proc), Some(sub))
     } else {
-        (Box::new(processor::internal::C2), None)
+        (Box::new(seal::internal::C2), None)
     };
 
     let (mock_client, mock_server) = local::connect::<SealerRpcClient, _, _>(io);
@@ -105,7 +105,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     dog.start_module(Signal);
 
     // TODO: handle result
-    dog.wait();
+    let _ = dog.wait();
 
     Ok(())
 }
@@ -128,9 +128,29 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     let rpc_connect_req = ws::Request::builder().uri(&cfg.rpc.endpoint).body(())?;
     let rpc_client = block_on(ws::connect(rpc_connect_req))?;
 
-    // TODO: external  processor
-    let pc2 = Box::new(processor::internal::PC2);
-    let c2 = Box::new(processor::internal::C2);
+    let (pc2, pc2sub): (seal::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
+        .processors
+        .as_ref()
+        .and_then(|p| p.pc2.as_ref())
+        .and_then(|ext| if ext.external { Some(ext) } else { None })
+    {
+        let (proc, sub) = seal::external::PC2::build(ext)?;
+        (Box::new(proc), Some(sub))
+    } else {
+        (Box::new(seal::internal::PC2), None)
+    };
+
+    let (c2, c2sub): (seal::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
+        .processors
+        .as_ref()
+        .and_then(|p| p.c2.as_ref())
+        .and_then(|ext| if ext.external { Some(ext) } else { None })
+    {
+        let (proc, sub) = seal::external::C2::build(ext)?;
+        (Box::new(proc), Some(sub))
+    } else {
+        (Box::new(seal::internal::C2), None)
+    };
 
     let workers = store_mgr.into_workers();
 
@@ -150,10 +170,18 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         dog.start_module(worker);
     }
 
+    if let Some(sub) = pc2sub {
+        dog.start_module(sub);
+    };
+
+    if let Some(sub) = c2sub {
+        dog.start_module(sub)
+    }
+
     dog.start_module(Signal);
 
     // TODO: handle result
-    dog.wait();
+    let _ = dog.wait();
 
     Ok(())
 }

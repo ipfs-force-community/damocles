@@ -15,8 +15,8 @@ var _ api.CommitmentManager = (*commitMgr)(nil)
 func NewCommitManager() api.CommitmentManager {
 	cmgr := &commitMgr{}
 
-	cmgr.pres.commits = map[abi.SectorID]api.PreCommitOnChainInfo{}
-	cmgr.proofs.proofs = map[abi.SectorID]api.ProofOnChainInfo{}
+	cmgr.pres.commits = map[abi.SectorID]api.PreCommitInfo{}
+	cmgr.proofs.proofs = map[abi.SectorID]api.ProofInfo{}
 	return cmgr
 }
 
@@ -27,24 +27,26 @@ func NewMessagerClient() venusMessager.IMessager {
 type commitMgr struct {
 	pres struct {
 		sync.RWMutex
-		commits map[abi.SectorID]api.PreCommitOnChainInfo
+		commits map[abi.SectorID]api.PreCommitInfo
 	}
 
 	proofs struct {
 		sync.RWMutex
-		proofs map[abi.SectorID]api.ProofOnChainInfo
+		proofs map[abi.SectorID]api.ProofInfo
 	}
 }
 
-func (c *commitMgr) SubmitPreCommit(ctx context.Context, sid abi.SectorID, info api.PreCommitOnChainInfo) (api.SubmitPreCommitResp, error) {
+func (c *commitMgr) SubmitPreCommit(ctx context.Context, sid abi.SectorID, info api.PreCommitInfo, reset bool) (api.SubmitPreCommitResp, error) {
 	c.pres.Lock()
 	defer c.pres.Unlock()
 
-	if _, ok := c.pres.commits[sid]; ok {
-		return api.SubmitPreCommitResp{
-			Res:  api.SubmitDuplicateSubmit,
-			Desc: nil,
-		}, nil
+	if !reset {
+		if _, ok := c.pres.commits[sid]; ok {
+			return api.SubmitPreCommitResp{
+				Res:  api.SubmitDuplicateSubmit,
+				Desc: nil,
+			}, nil
+		}
 	}
 
 	c.pres.commits[sid] = info
@@ -72,15 +74,17 @@ func (c *commitMgr) PreCommitState(ctx context.Context, sid abi.SectorID) (api.P
 	}, nil
 }
 
-func (c *commitMgr) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofOnChainInfo) (api.SubmitProofResp, error) {
+func (c *commitMgr) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofInfo, reset bool) (api.SubmitProofResp, error) {
 	c.proofs.Lock()
 	defer c.proofs.Unlock()
 
-	if _, ok := c.proofs.proofs[sid]; ok {
-		return api.SubmitProofResp{
-			Res:  api.SubmitDuplicateSubmit,
-			Desc: nil,
-		}, nil
+	if !reset {
+		if _, ok := c.proofs.proofs[sid]; ok {
+			return api.SubmitProofResp{
+				Res:  api.SubmitDuplicateSubmit,
+				Desc: nil,
+			}, nil
+		}
 	}
 
 	c.proofs.proofs[sid] = info
