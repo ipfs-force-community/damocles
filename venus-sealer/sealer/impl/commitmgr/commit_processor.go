@@ -89,7 +89,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 
 	from, err := getProCommitControlAddress(maddr, c.config)
 	if err != nil {
-		return fmt.Errorf("get pro commit control address failed: %s", err)
+		return fmt.Errorf("get pro commit control address failed: %w", err)
 	}
 	if !c.EnableBatch(maddr) || len(sectors) < miner.MinAggregatedSectors {
 		c.processIndividually(ctx, sectors, from, maddr)
@@ -109,7 +109,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 		sectorsMap[p.ID.Number] = sectors[i]
 		_, err := getSectorCollateral(ctx, c.api, maddr, p.ID.Number, tok)
 		if err != nil {
-			log.Errorf("get sector %s %d collateral failed: %s\n", maddr, p.ID.Number, err)
+			log.Errorf("get sector %s %d collateral failed: %s\n", maddr, p.ID.Number, err.Error())
 			failed[sectors[i].ID] = struct{}{}
 			continue
 		}
@@ -158,12 +158,12 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	}, proofs)
 
 	if err != nil {
-		return fmt.Errorf("aggregate sector failed: %s", err.Error())
+		return fmt.Errorf("aggregate sector failed: %w", err)
 	}
 
 	enc := new(bytes.Buffer)
 	if err := params.MarshalCBOR(enc); err != nil {
-		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %s", err.Error())
+		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %w", err)
 	}
 	var spec messager.MsgMeta
 	c.config.Lock()
@@ -173,7 +173,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	ccid, err := pushMessage(ctx, from, maddr, collateral, builtin5.MethodsMiner.ProveCommitAggregate,
 		c.msgClient, spec, enc.Bytes())
 	if err != nil {
-		return fmt.Errorf("push aggregate prove message failed: %s", err.Error())
+		return fmt.Errorf("push aggregate prove message failed: %w", err)
 	}
 
 	for i := range sectors {
@@ -225,9 +225,9 @@ func (c CommitProcessor) EnableBatch(maddr address.Address) bool {
 func (c CommitProcessor) cleanSector(ctx context.Context, sector []api.SectorState) {
 	for i := range sector {
 		sector[i].MessageInfo.NeedSend = false
-		err := c.smgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
+		err := c.smgr.Update(ctx, sector[i].ID, &sector[i].MessageInfo)
 		if err != nil {
-			log.Error("Update sector %s MessageInfo failed: ", err)
+			log.Errorf("Update sector %s MessageInfo failed: ", err)
 		}
 	}
 }

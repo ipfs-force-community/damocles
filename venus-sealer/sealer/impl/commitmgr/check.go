@@ -25,7 +25,7 @@ type ErrExpiredTicket struct{ error }
 type ErrBadTicket struct{ error }
 type ErrPrecommitOnChain struct{ error }
 type ErrSectorNumberAllocated struct{ error }
-
+type ErrMarshalAddr struct{ error }
 type ErrBadSeed struct{ error }
 type ErrInvalidProof struct{ error }
 type ErrNoPrecommit struct{ error }
@@ -36,7 +36,7 @@ type ErrCommitWaitFailed struct{ error }
 func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorState, api SealingAPI) (err error) {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
-		return err
+		return ErrApi{fmt.Errorf("get chain head failed %w", err)}
 	}
 
 	if err := checkPieces(ctx, maddr, si, api); err != nil {
@@ -88,7 +88,7 @@ func checkPieces(ctx context.Context, maddr address.Address, si api.SectorState,
 
 		proposal, err := api.StateMarketStorageDealProposal(ctx, p.ID, tok)
 		if err != nil {
-			return &ErrInvalidDeals{fmt.Errorf("getting deal %d for piece %d: %w", p, i, err)}
+			return &ErrApi{fmt.Errorf("getting deal %d for piece %d: %w", p.ID, i, err)}
 		}
 
 		if proposal.Provider != maddr {
@@ -118,17 +118,10 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 
 	pci, err := api.StateSectorPreCommitInfo(ctx, maddr, si.ID.Number, tok)
 	if err == ErrSectorAllocated {
-		// not much more we can check here, basically try to wait for commit,
-		// and hope that this will work
-
-		if si.MessageInfo != nil && si.MessageInfo.CommitCid != nil {
-			return &ErrCommitWaitFailed{err}
-		}
-
-		return err
+		return &ErrSectorNumberAllocated{err}
 	}
 	if err != nil {
-		return fmt.Errorf("getting precommit info: %w", err)
+		return &ErrApi{fmt.Errorf("get sector precommit info failed")}
 	}
 
 	if pci == nil {
@@ -141,7 +134,7 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 
 	buf := new(bytes.Buffer)
 	if err := maddr.MarshalCBOR(buf); err != nil {
-		return err
+		return &ErrMarshalAddr{err}
 	}
 
 	seed, err := api.ChainGetRandomnessFromBeacon(ctx, tok, crypto.DomainSeparationTag_InteractiveSealChallengeSeed, si.Seed.Epoch, buf.Bytes())
@@ -151,10 +144,6 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 
 	if string(seed) != string(si.Seed.Seed) {
 		return &ErrBadSeed{fmt.Errorf("seed has changed")}
-	}
-
-	if si.Pre.CommR != pci.Info.SealedCID {
-		log.Warn("on-chain sealed CID doesn't match!")
 	}
 
 	ok, err := verif.VerifySeal(proof2.SealVerifyInfo{

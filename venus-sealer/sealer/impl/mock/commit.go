@@ -36,11 +36,11 @@ type commitMgr struct {
 	}
 }
 
-func (c *commitMgr) SubmitPreCommit(ctx context.Context, sid abi.SectorID, info api.PreCommitInfo, reset bool) (api.SubmitPreCommitResp, error) {
+func (c *commitMgr) SubmitPreCommit(ctx context.Context, sid abi.SectorID, info api.PreCommitInfo, hardReset bool) (api.SubmitPreCommitResp, error) {
 	c.pres.Lock()
 	defer c.pres.Unlock()
 
-	if !reset {
+	if !hardReset {
 		if _, ok := c.pres.commits[sid]; ok {
 			return api.SubmitPreCommitResp{
 				Res:  api.SubmitDuplicateSubmit,
@@ -74,11 +74,11 @@ func (c *commitMgr) PreCommitState(ctx context.Context, sid abi.SectorID) (api.P
 	}, nil
 }
 
-func (c *commitMgr) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofInfo, reset bool) (api.SubmitProofResp, error) {
+func (c *commitMgr) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofInfo, hardReset bool) (api.SubmitProofResp, error) {
 	c.proofs.Lock()
 	defer c.proofs.Unlock()
 
-	if !reset {
+	if !hardReset {
 		if _, ok := c.proofs.proofs[sid]; ok {
 			return api.SubmitProofResp{
 				Res:  api.SubmitDuplicateSubmit,
