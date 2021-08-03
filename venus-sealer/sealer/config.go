@@ -3,7 +3,6 @@ package sealer
 import (
 	"time"
 
-	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 )
@@ -21,7 +20,7 @@ func DefaultConfig() Config {
 
 type Config struct {
 	SectorManager     SectorManagerConfig
-	CommitmentManager map[address.Address]CommitmentManagerConfig
+	CommitmentManager map[string]CommitmentManagerConfig
 	ChainClient       RPCClientConfig
 	MessagerClient    RPCClientConfig
 }
@@ -63,8 +62,8 @@ type CommitmentManagerConfig struct {
 	MsgConfidence int64
 }
 
-func DefaultCommitmentManagerConfig() map[address.Address]CommitmentManagerConfig {
-	return map[address.Address]CommitmentManagerConfig{}
+func DefaultCommitmentManagerConfig() map[string]CommitmentManagerConfig {
+	return map[string]CommitmentManagerConfig{}
 }
 
 type RPCClientConfig struct {
