@@ -14,14 +14,16 @@ func DefaultConfig() Config {
 	return Config{
 		SectorManager:     DefaultSectorManagerConfig(),
 		CommitmentManager: DefaultCommitmentManagerConfig(),
-		MessagerClient:    DefaultMessagerClientConfig(),
+		ChainClient:       RPCClientConfig{},
+		MessagerClient:    RPCClientConfig{},
 	}
 }
 
 type Config struct {
 	SectorManager     SectorManagerConfig
 	CommitmentManager map[address.Address]CommitmentManagerConfig
-	MessagerClient    MessagerClientConfig
+	ChainClient       RPCClientConfig
+	MessagerClient    RPCClientConfig
 }
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
@@ -65,14 +67,7 @@ func DefaultCommitmentManagerConfig() map[address.Address]CommitmentManagerConfi
 	return map[address.Address]CommitmentManagerConfig{}
 }
 
-type MessagerClientConfig struct {
+type RPCClientConfig struct {
 	Api   string
 	Token string
-}
-
-func DefaultMessagerClientConfig() MessagerClientConfig {
-	return MessagerClientConfig{
-		Api:   "",
-		Token: "",
-	}
 }
