@@ -19,17 +19,17 @@ func (c *Cfg) policy(mid abi.ActorID) sealer.CommitmentPolicyConfig {
 	defer c.Unlock()
 
 	key := strconv.FormatUint(uint64(mid), 10)
-	cmcfg, ok := c.Commitment[key]
-	if !ok {
-		cmcfg = c.Commitment[sealer.DefaultCommitmentKey]
-	}
-
-	return cmcfg.CommitmentPolicyConfig
+	return c.Config.Commitment.MustPolicy(key)
 }
 
-func (c *Cfg) ctrl(mid abi.ActorID) *sealer.CommitmentControlAddress {
+func (c *Cfg) ctrl(mid abi.ActorID) (sealer.CommitmentControlAddress, bool) {
 	c.Lock()
 	defer c.Unlock()
 
-	return c.Commitment[strconv.FormatUint(uint64(mid), 10)].Control
+	cmcfg, ok := c.Commitment.Miners[strconv.FormatUint(uint64(mid), 10)]
+	if !ok {
+		return sealer.CommitmentControlAddress{}, false
+	}
+
+	return cmcfg.Controls, true
 }

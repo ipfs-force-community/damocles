@@ -173,8 +173,8 @@ func (c *CommitmentMgrImpl) Run() {
 						continue
 					}
 
-					ctrl := c.cfg.ctrl(miner)
-					if ctrl == nil || ctrl.PreCommit == address.Undef {
+					ctrl, ok := c.cfg.ctrl(miner)
+					if !ok || ctrl.PreCommit == address.Undef {
 						log.Error("no available prove commit control address for %d", miner)
 						continue
 					}
@@ -203,8 +203,8 @@ func (c *CommitmentMgrImpl) Run() {
 						continue
 					}
 
-					ctrl := c.cfg.ctrl(miner)
-					if ctrl == nil || ctrl.ProveCommit == address.Undef {
+					ctrl, ok := c.cfg.ctrl(miner)
+					if !ok || ctrl.ProveCommit == address.Undef {
 						log.Error("no available prove commit control address for %d", miner)
 						continue
 					}
