@@ -4,14 +4,16 @@ import (
 	"context"
 	"sync"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
 type Batcher struct {
-	ctx context.Context
-	mid abi.ActorID
+	ctx      context.Context
+	mid      abi.ActorID
+	ctrlAddr address.Address
 
 	pendingCh chan api.SectorState
 
@@ -96,7 +98,7 @@ func (b *Batcher) run() {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					if err := b.processor.Process(b.ctx, processList, b.mid); err != nil {
+					if err := b.processor.Process(b.ctx, processList, b.mid, b.ctrlAddr); err != nil {
 						mlog.Errorf("process failed: %s", err)
 					}
 				}()
@@ -110,10 +112,11 @@ func (b *Batcher) run() {
 	}
 }
 
-func NewBatcher(ctx context.Context, mid abi.ActorID, processer Processor) *Batcher {
+func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, processer Processor) *Batcher {
 	b := &Batcher{
 		ctx:       ctx,
 		mid:       mid,
+		ctrlAddr:  ctrlAddr,
 		pendingCh: make(chan api.SectorState),
 		force:     make(chan struct{}),
 		stop:      make(chan struct{}),

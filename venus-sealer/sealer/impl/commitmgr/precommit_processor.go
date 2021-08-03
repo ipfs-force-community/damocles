@@ -30,9 +30,9 @@ type PreCommitProcessor struct {
 
 func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []api.SectorState, from address.Address, mid abi.ActorID) {
 	var spec messager.MsgMeta
-	cmcfg := p.config.commitment(mid)
-	spec.GasOverEstimation = cmcfg.PreCommitGasOverEstimation
-	spec.MaxFeeCap = cmcfg.MaxPreCommitFeeCap
+	policy := p.config.policy(mid)
+	spec.GasOverEstimation = policy.PreCommitGasOverEstimation
+	spec.MaxFeeCap = policy.MaxPreCommitFeeCap
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(sectors))
@@ -64,13 +64,12 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 	wg.Wait()
 }
 
-func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) error {
+func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	defer p.cleanSector(ctx, sectors)
 
-	from := p.config.commitment(mid).PreCommitControlAddress
 	if !p.EnableBatch(mid) {
-		p.processIndividually(ctx, sectors, from, mid)
+		p.processIndividually(ctx, sectors, ctrlAddr, mid)
 		return nil
 	}
 	infos := []api.PreCommitEntry{}
@@ -100,11 +99,11 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 		return fmt.Errorf("couldn't serialize PreCommitSectorBatchParams: %w", err)
 	}
 	var spec messager.MsgMeta
-	cmcfg := p.config.commitment(mid)
-	spec.GasOverEstimation = cmcfg.BatchProCommitGasOverEstimation
-	spec.MaxFeeCap = cmcfg.MaxBatchProCommitFeeCap
+	policy := p.config.policy(mid)
+	spec.GasOverEstimation = policy.BatchProCommitGasOverEstimation
+	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap
 
-	ccid, err := pushMessage(ctx, from, mid, deposit, builtin5.MethodsMiner.PreCommitSectorBatch,
+	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, builtin5.MethodsMiner.PreCommitSectorBatch,
 		p.msgClient, spec, enc.Bytes())
 	if err != nil {
 		return fmt.Errorf("push batch precommit message failed: %w", err)
@@ -118,7 +117,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 }
 
 func (p PreCommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
-	maxWait := p.config.commitment(mid).PreCommitBatchMaxWait
+	maxWait := p.config.policy(mid).PreCommitBatchMaxWait
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := p.api.ChainHead(ctx)
 	if err != nil {
@@ -136,15 +135,15 @@ func (p PreCommitProcessor) Expire(ctx context.Context, sectors []api.SectorStat
 }
 
 func (p PreCommitProcessor) CheckAfter(mid abi.ActorID) *time.Timer {
-	return time.NewTimer(p.config.commitment(mid).PreCommitCheckInterval)
+	return time.NewTimer(p.config.policy(mid).PreCommitCheckInterval)
 }
 
 func (p PreCommitProcessor) Threshold(mid abi.ActorID) int {
-	return p.config.commitment(mid).PreCommitBatchThreshold
+	return p.config.policy(mid).PreCommitBatchThreshold
 }
 
 func (p PreCommitProcessor) EnableBatch(mid abi.ActorID) bool {
-	return p.config.commitment(mid).EnableBatchPreCommit
+	return p.config.policy(mid).EnableBatchPreCommit
 }
 
 func (p PreCommitProcessor) cleanSector(ctx context.Context, sector []api.SectorState) {

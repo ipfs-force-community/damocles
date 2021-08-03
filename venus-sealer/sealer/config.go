@@ -37,7 +37,7 @@ type SectorManagerConfig struct {
 	Miners []abi.ActorID
 }
 
-type CommitmentManagerConfig struct {
+type CommitmentPolicyConfig struct {
 	CommitBatchThreshold int
 	CommitBatchMaxWait   time.Duration
 	CommitCheckInterval  time.Duration
@@ -57,11 +57,17 @@ type CommitmentManagerConfig struct {
 	MaxProCommitFeeCap      big.Int
 	MaxBatchPreCommitFeeCap big.Int
 	MaxBatchProCommitFeeCap big.Int
+	MsgConfidence           int64
+}
 
-	PreCommitControlAddress address.Address
-	ProCommitControlAddress address.Address
+type CommitmentControlAddress struct {
+	PreCommit   address.Address
+	ProveCommit address.Address
+}
 
-	MsgConfidence int64
+type CommitmentManagerConfig struct {
+	Control *CommitmentControlAddress
+	CommitmentPolicyConfig
 }
 
 func DefaultCommitmentManagerConfig() CommitmentManagerConfig {

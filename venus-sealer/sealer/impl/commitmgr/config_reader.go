@@ -14,15 +14,22 @@ type Cfg struct {
 	confmgr.RLocker
 }
 
-func (c *Cfg) commitment(mid abi.ActorID) sealer.CommitmentManagerConfig {
+func (c *Cfg) policy(mid abi.ActorID) sealer.CommitmentPolicyConfig {
 	c.Lock()
 	defer c.Unlock()
+
 	key := strconv.FormatUint(uint64(mid), 10)
 	cmcfg, ok := c.Commitment[key]
-	if ok {
-		return cmcfg
+	if !ok {
+		cmcfg = c.Commitment[sealer.DefaultCommitmentKey]
 	}
 
-	cmcfg = c.Commitment[sealer.DefaultCommitmentKey]
-	return cmcfg
+	return cmcfg.CommitmentPolicyConfig
+}
+
+func (c *Cfg) ctrl(mid abi.ActorID) *sealer.CommitmentControlAddress {
+	c.Lock()
+	defer c.Unlock()
+
+	return c.Commitment[strconv.FormatUint(uint64(mid), 10)].Control
 }

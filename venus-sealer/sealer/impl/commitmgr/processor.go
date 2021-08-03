@@ -4,13 +4,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
 type Processor interface {
-	Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) error
+	Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID, ctrlAddr address.Address) error
 
 	Expire(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error)
 

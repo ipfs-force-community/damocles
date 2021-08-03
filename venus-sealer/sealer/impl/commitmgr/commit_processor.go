@@ -35,9 +35,9 @@ type CommitProcessor struct {
 
 func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.SectorState, from address.Address, mid abi.ActorID) {
 	var spec messager.MsgMeta
-	cmcfg := c.config.commitment(mid)
-	spec.GasOverEstimation = cmcfg.ProCommitGasOverEstimation
-	spec.MaxFeeCap = cmcfg.MaxProCommitFeeCap
+	policy := c.config.policy(mid)
+	spec.GasOverEstimation = policy.ProCommitGasOverEstimation
+	spec.MaxFeeCap = policy.MaxProCommitFeeCap
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(sectors))
@@ -81,14 +81,12 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 	wg.Wait()
 }
 
-func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) error {
+func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	defer c.cleanSector(ctx, sectors)
 
-	from := c.config.commitment(mid).ProCommitControlAddress
-
 	if !c.EnableBatch(mid) || len(sectors) < miner.MinAggregatedSectors {
-		c.processIndividually(ctx, sectors, from, mid)
+		c.processIndividually(ctx, sectors, ctrlAddr, mid)
 		return nil
 	}
 
@@ -157,11 +155,11 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %w", err)
 	}
 	var spec messager.MsgMeta
-	cmcfg := c.config.commitment(mid)
-	spec.GasOverEstimation = cmcfg.BatchProCommitGasOverEstimation
-	spec.MaxFeeCap = cmcfg.MaxBatchProCommitFeeCap
+	policy := c.config.policy(mid)
+	spec.GasOverEstimation = policy.BatchProCommitGasOverEstimation
+	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap
 
-	ccid, err := pushMessage(ctx, from, mid, collateral, builtin5.MethodsMiner.ProveCommitAggregate,
+	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, builtin5.MethodsMiner.ProveCommitAggregate,
 		c.msgClient, spec, enc.Bytes())
 	if err != nil {
 		return fmt.Errorf("push aggregate prove message failed: %w", err)
@@ -177,7 +175,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 }
 
 func (c CommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
-	maxWait := c.config.commitment(mid).CommitBatchMaxWait
+	maxWait := c.config.policy(mid).CommitBatchMaxWait
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := c.api.ChainHead(ctx)
 	if err != nil {
@@ -193,15 +191,15 @@ func (c CommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, 
 }
 
 func (c CommitProcessor) CheckAfter(mid abi.ActorID) *time.Timer {
-	return time.NewTimer(c.config.commitment(mid).CommitCheckInterval)
+	return time.NewTimer(c.config.policy(mid).CommitCheckInterval)
 }
 
 func (c CommitProcessor) Threshold(mid abi.ActorID) int {
-	return c.config.commitment(mid).CommitBatchThreshold
+	return c.config.policy(mid).CommitBatchThreshold
 }
 
 func (c CommitProcessor) EnableBatch(mid abi.ActorID) bool {
-	return c.config.commitment(mid).EnableBatchProCommit
+	return c.config.policy(mid).EnableBatchProCommit
 }
 
 func (c CommitProcessor) cleanSector(ctx context.Context, sector []api.SectorState) {

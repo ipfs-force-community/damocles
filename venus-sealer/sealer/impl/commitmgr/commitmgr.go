@@ -173,7 +173,13 @@ func (c *CommitmentMgrImpl) Run() {
 						continue
 					}
 
-					c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, PreCommitProcessor{
+					ctrl := c.cfg.ctrl(miner)
+					if ctrl == nil || ctrl.PreCommit == address.Undef {
+						log.Error("no available prove commit control address for %d", miner)
+						continue
+					}
+
+					c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.PreCommit, PreCommitProcessor{
 						api:       c.stateMgr,
 						msgClient: c.msgClient,
 						smgr:      c.smgr,
@@ -193,11 +199,17 @@ func (c *CommitmentMgrImpl) Run() {
 				if _, ok := c.commitBatcher[miner]; !ok {
 					_, err := address.NewIDAddress(uint64(miner))
 					if err != nil {
-						log.Error("trans miner from actor to address failed: ", err)
+						log.Error("trans miner from actor %d to address failed: ", miner, err)
 						continue
 					}
 
-					c.commitBatcher[miner] = NewBatcher(c.ctx, miner, CommitProcessor{
+					ctrl := c.cfg.ctrl(miner)
+					if ctrl == nil || ctrl.ProveCommit == address.Undef {
+						log.Error("no available prove commit control address for %d", miner)
+						continue
+					}
+
+					c.commitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.ProveCommit, CommitProcessor{
 						api:       c.stateMgr,
 						msgClient: c.msgClient,
 						smgr:      c.smgr,
@@ -303,9 +315,7 @@ func (c CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) 
 
 	switch msg.State {
 	case messager.OnChainMsg:
-		c.cfg.Lock()
-		confidence := c.cfg.commitment(id.Miner).MsgConfidence
-		c.cfg.Unlock()
+		confidence := c.cfg.policy(id.Miner).MsgConfidence
 		if msg.Confidence < confidence {
 			return api.PollPreCommitStateResp{State: api.OnChainStatePacked}, nil
 		}
@@ -417,7 +427,7 @@ func (c CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (api
 
 	switch msg.State {
 	case messager.OnChainMsg:
-		confidence := c.cfg.commitment(id.Miner).MsgConfidence
+		confidence := c.cfg.policy(id.Miner).MsgConfidence
 		if msg.Confidence < confidence {
 			return api.PollProofStateResp{State: api.OnChainStatePacked}, nil
 		}
