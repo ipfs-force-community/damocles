@@ -5,8 +5,11 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/venus-messager/api/client"
+	"github.com/filecoin-project/venus-messager/types"
 	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
 )
+
+type MsgMeta = types.MsgMeta
 
 type API interface {
 	client.IMessager

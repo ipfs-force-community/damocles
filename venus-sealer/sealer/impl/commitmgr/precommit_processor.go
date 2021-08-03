@@ -13,16 +13,15 @@ import (
 	"github.com/filecoin-project/specs-actors/v5/actors/builtin"
 	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
 	"github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
-	venusMessager "github.com/filecoin-project/venus-messager/api/client"
-	messager "github.com/filecoin-project/venus-messager/types"
 	specactors "github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
 
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/messager"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
 type PreCommitProcessor struct {
 	api       SealingAPI
-	msgClient venusMessager.IMessager
+	msgClient messager.API
 
 	smgr api.SectorStateManager
 

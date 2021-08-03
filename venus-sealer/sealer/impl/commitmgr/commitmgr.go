@@ -9,16 +9,14 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/exitcode"
-	venusMessager "github.com/filecoin-project/venus-messager/api/client"
-	messager "github.com/filecoin-project/venus-messager/types"
 	venusTypes "github.com/filecoin-project/venus/pkg/types"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 
-	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
-	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
-
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/confmgr"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/messager"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
@@ -27,7 +25,7 @@ var log = logging.New("commitmgr")
 type CommitmentMgrImpl struct {
 	ctx context.Context
 
-	msgClient venusMessager.IMessager
+	msgClient messager.API
 
 	stateMgr SealingAPI
 
@@ -50,7 +48,7 @@ type CommitmentMgrImpl struct {
 	stop chan struct{}
 }
 
-func NewCommitmentMgr(ctx context.Context, commitApi venusMessager.IMessager, stateMgr SealingAPI, smgr api.SectorStateManager,
+func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr SealingAPI, smgr api.SectorStateManager,
 	cfg *sealer.Config, locker confmgr.RLocker, verif api.Verifier, prover api.Prover,
 ) (*CommitmentMgrImpl, error) {
 	pendingChan := make(chan api.SectorState, 1024)
@@ -119,7 +117,7 @@ func getProCommitControlAddress(miner address.Address, cfg struct {
 }
 
 func pushMessage(ctx context.Context, from, to address.Address, value abi.TokenAmount, method abi.MethodNum,
-	msgClient venusMessager.IMessager, spec messager.MsgMeta, params []byte) (cid.Cid, error) {
+	msgClient messager.API, spec messager.MsgMeta, params []byte) (cid.Cid, error) {
 	msg := venusTypes.UnsignedMessage{
 		To:     to,
 		From:   from,
