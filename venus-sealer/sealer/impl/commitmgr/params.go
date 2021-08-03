@@ -123,7 +123,12 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 	return params, deposit, tok, nil
 }
 
-func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, maddr address.Address, sn abi.SectorNumber, tok api.TipSetToken) (abi.TokenAmount, error) {
+func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, mid abi.ActorID, sn abi.SectorNumber, tok api.TipSetToken) (abi.TokenAmount, error) {
+	maddr, err := address.NewIDAddress(uint64(mid))
+	if err != nil {
+		return big.Zero(), fmt.Errorf("invalid miner actor id: %w", err)
+	}
+
 	pci, err := stateMgr.StateSectorPreCommitInfo(ctx, maddr, sn, tok)
 	if err != nil {
 		return big.Zero(), fmt.Errorf("getting precommit info: %w", err)

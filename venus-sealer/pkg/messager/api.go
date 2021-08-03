@@ -11,6 +11,11 @@ import (
 
 type MsgMeta = types.MsgMeta
 
+var (
+	OnChainMsg = types.OnChainMsg
+	FailedMsg  = types.FailedMsg
+)
+
 type API interface {
 	client.IMessager
 }

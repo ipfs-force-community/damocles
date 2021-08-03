@@ -31,10 +31,7 @@ type CommitmentMgrImpl struct {
 
 	smgr api.SectorStateManager
 
-	cfg struct {
-		*sealer.Config
-		confmgr.RLocker
-	}
+	cfg Cfg
 
 	commitBatcher    map[abi.ActorID]*Batcher
 	preCommitBatcher map[abi.ActorID]*Batcher
@@ -97,27 +94,14 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 	return &mgr, nil
 }
 
-func getPreCommitControlAddress(miner address.Address, cfg struct {
-	*sealer.Config
-	confmgr.RLocker
-}) (address.Address, error) {
-	cfg.Lock()
-	defer cfg.Unlock()
-	return address.NewFromString(cfg.CommitmentManager[miner].PreCommitControlAddress)
-}
-
-func getProCommitControlAddress(miner address.Address, cfg struct {
-	*sealer.Config
-	confmgr.RLocker
-}) (address.Address, error) {
-	cfg.Lock()
-	defer cfg.Unlock()
-
-	return address.NewFromString(cfg.CommitmentManager[miner].ProCommitControlAddress)
-}
-
-func pushMessage(ctx context.Context, from, to address.Address, value abi.TokenAmount, method abi.MethodNum,
+func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, value abi.TokenAmount, method abi.MethodNum,
 	msgClient messager.API, spec messager.MsgMeta, params []byte) (cid.Cid, error) {
+
+	to, err := address.NewIDAddress(uint64(mid))
+	if err != nil {
+		return cid.Undef, err
+	}
+
 	msg := venusTypes.UnsignedMessage{
 		To:     to,
 		From:   from,
@@ -183,12 +167,13 @@ func (c *CommitmentMgrImpl) Run() {
 			for s := range c.prePendingChan {
 				miner := s.ID.Miner
 				if _, ok := c.commitBatcher[miner]; !ok {
-					maddr, err := address.NewIDAddress(uint64(miner))
+					_, err := address.NewIDAddress(uint64(miner))
 					if err != nil {
 						log.Error("trans miner from actor to address failed: ", err)
 						continue
 					}
-					c.preCommitBatcher[miner] = NewBatcher(c.ctx, maddr, PreCommitProcessor{
+
+					c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, PreCommitProcessor{
 						api:       c.stateMgr,
 						msgClient: c.msgClient,
 						smgr:      c.smgr,
@@ -206,13 +191,13 @@ func (c *CommitmentMgrImpl) Run() {
 			for s := range c.proPendingChan {
 				miner := s.ID.Miner
 				if _, ok := c.commitBatcher[miner]; !ok {
-					maddr, err := address.NewIDAddress(uint64(miner))
+					_, err := address.NewIDAddress(uint64(miner))
 					if err != nil {
 						log.Error("trans miner from actor to address failed: ", err)
 						continue
 					}
 
-					c.commitBatcher[miner] = NewBatcher(c.ctx, maddr, CommitProcessor{
+					c.commitBatcher[miner] = NewBatcher(c.ctx, miner, CommitProcessor{
 						api:       c.stateMgr,
 						msgClient: c.msgClient,
 						smgr:      c.smgr,
@@ -319,7 +304,7 @@ func (c CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) 
 	switch msg.State {
 	case messager.OnChainMsg:
 		c.cfg.Lock()
-		confidence := c.cfg.CommitmentManager[maddr].MsgConfidence
+		confidence := c.cfg.commitment(id.Miner).MsgConfidence
 		c.cfg.Unlock()
 		if msg.Confidence < confidence {
 			return api.PollPreCommitStateResp{State: api.OnChainStatePacked}, nil
@@ -432,9 +417,7 @@ func (c CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (api
 
 	switch msg.State {
 	case messager.OnChainMsg:
-		c.cfg.Lock()
-		confidence := c.cfg.CommitmentManager[maddr].MsgConfidence
-		c.cfg.Unlock()
+		confidence := c.cfg.commitment(id.Miner).MsgConfidence
 		if msg.Confidence < confidence {
 			return api.PollProofStateResp{State: api.OnChainStatePacked}, nil
 		}

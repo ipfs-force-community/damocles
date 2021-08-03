@@ -90,7 +90,7 @@ func BuildSectorNumberAllocator(meta MetaStore) (api.SectorNumberAllocator, erro
 
 func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, locker confmgr.RLocker) (messager.API, error) {
 	locker.Lock()
-	api, token := scfg.MessagerClient.Api, scfg.MessagerClient.Token
+	api, token := scfg.Messager.Api, scfg.Messager.Token
 	locker.Unlock()
 
 	mcli, mcloser, err := messager.New(gctx, api, token)
@@ -110,7 +110,7 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Confi
 
 func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, locker confmgr.RLocker) (chain.API, error) {
 	locker.Lock()
-	api, token := scfg.ChainClient.Api, scfg.ChainClient.Token
+	api, token := scfg.Chain.Api, scfg.Chain.Token
 	locker.Unlock()
 
 	mcli, mcloser, err := chain.New(gctx, api, token)

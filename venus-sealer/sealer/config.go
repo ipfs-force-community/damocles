@@ -3,26 +3,28 @@ package sealer
 import (
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 )
 
 const ConfigKey = "sealer"
+const DefaultCommitmentKey = "default"
 
 func DefaultConfig() Config {
 	return Config{
-		SectorManager:     DefaultSectorManagerConfig(),
-		CommitmentManager: DefaultCommitmentManagerConfig(),
-		ChainClient:       RPCClientConfig{},
-		MessagerClient:    RPCClientConfig{},
+		SectorManager: DefaultSectorManagerConfig(),
+		Commitment:    DefaultCommitment(),
+		Chain:         RPCClientConfig{},
+		Messager:      RPCClientConfig{},
 	}
 }
 
 type Config struct {
-	SectorManager     SectorManagerConfig
-	CommitmentManager map[string]CommitmentManagerConfig
-	ChainClient       RPCClientConfig
-	MessagerClient    RPCClientConfig
+	SectorManager SectorManagerConfig
+	Commitment    map[string]CommitmentManagerConfig
+	Chain         RPCClientConfig
+	Messager      RPCClientConfig
 }
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
@@ -56,14 +58,20 @@ type CommitmentManagerConfig struct {
 	MaxBatchPreCommitFeeCap big.Int
 	MaxBatchProCommitFeeCap big.Int
 
-	PreCommitControlAddress string
-	ProCommitControlAddress string
+	PreCommitControlAddress address.Address
+	ProCommitControlAddress address.Address
 
 	MsgConfidence int64
 }
 
-func DefaultCommitmentManagerConfig() map[string]CommitmentManagerConfig {
-	return map[string]CommitmentManagerConfig{}
+func DefaultCommitmentManagerConfig() CommitmentManagerConfig {
+	return CommitmentManagerConfig{}
+}
+
+func DefaultCommitment() map[string]CommitmentManagerConfig {
+	return map[string]CommitmentManagerConfig{
+		DefaultCommitmentKey: CommitmentManagerConfig{},
+	}
 }
 
 type RPCClientConfig struct {
