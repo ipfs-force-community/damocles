@@ -3,16 +3,12 @@ package sealer
 import (
 	"bytes"
 	"reflect"
-	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/big"
 )
 
 const ConfigKey = "sealer"
-const DefaultCommitmentKey = "default"
 
 func init() {
 	checkOptionalConfig(reflect.TypeOf(CommitmentPolicyConfig{}), reflect.TypeOf(CommitmentPolicyConfigOptional{}))
@@ -47,7 +43,9 @@ type SectorManagerConfig struct {
 func DefaultCommitment() CommitmentManagerConfig {
 	return CommitmentManagerConfig{
 		DefaultPolicy: DefaultCommitmentPolicy(),
-		Miners:        map[string]CommitmentMinerConfig{},
+		Miners: map[string]CommitmentMinerConfig{
+			"example": CommitmentMinerConfig{},
+		},
 	}
 }
 
@@ -96,13 +94,13 @@ func (c *CommitmentManagerConfig) Policy(key string) (CommitmentPolicyConfig, er
 
 type CommitmentPolicyConfig struct {
 	CommitBatchThreshold int
-	CommitBatchMaxWait   time.Duration
-	CommitCheckInterval  time.Duration
+	CommitBatchMaxWait   Duration
+	CommitCheckInterval  Duration
 	EnableBatchProCommit bool
 
 	PreCommitBatchThreshold int
-	PreCommitBatchMaxWait   time.Duration
-	PreCommitCheckInterval  time.Duration
+	PreCommitBatchMaxWait   Duration
+	PreCommitCheckInterval  Duration
 	EnableBatchPreCommit    bool
 
 	PreCommitGasOverEstimation      float64
@@ -110,10 +108,10 @@ type CommitmentPolicyConfig struct {
 	BatchPreCommitGasOverEstimation float64
 	BatchProCommitGasOverEstimation float64
 
-	MaxPreCommitFeeCap      big.Int
-	MaxProCommitFeeCap      big.Int
-	MaxBatchPreCommitFeeCap big.Int
-	MaxBatchProCommitFeeCap big.Int
+	MaxPreCommitFeeCap      BigInt
+	MaxProCommitFeeCap      BigInt
+	MaxBatchPreCommitFeeCap BigInt
+	MaxBatchProCommitFeeCap BigInt
 	MsgConfidence           int64
 }
 
@@ -124,13 +122,13 @@ func DefaultCommitmentPolicy() CommitmentPolicyConfig {
 
 type CommitmentPolicyConfigOptional struct {
 	CommitBatchThreshold *int
-	CommitBatchMaxWait   *time.Duration
-	CommitCheckInterval  *time.Duration
+	CommitBatchMaxWait   *Duration
+	CommitCheckInterval  *Duration
 	EnableBatchProCommit *bool
 
 	PreCommitBatchThreshold *int
-	PreCommitBatchMaxWait   *time.Duration
-	PreCommitCheckInterval  *time.Duration
+	PreCommitBatchMaxWait   *Duration
+	PreCommitCheckInterval  *Duration
 	EnableBatchPreCommit    *bool
 
 	PreCommitGasOverEstimation      *float64
@@ -138,16 +136,16 @@ type CommitmentPolicyConfigOptional struct {
 	BatchPreCommitGasOverEstimation *float64
 	BatchProCommitGasOverEstimation *float64
 
-	MaxPreCommitFeeCap      *big.Int
-	MaxProCommitFeeCap      *big.Int
-	MaxBatchPreCommitFeeCap *big.Int
-	MaxBatchProCommitFeeCap *big.Int
+	MaxPreCommitFeeCap      *BigInt
+	MaxProCommitFeeCap      *BigInt
+	MaxBatchPreCommitFeeCap *BigInt
+	MaxBatchProCommitFeeCap *BigInt
 	MsgConfidence           *int64
 }
 
 type CommitmentControlAddress struct {
-	PreCommit   address.Address
-	ProveCommit address.Address
+	PreCommit   MustAddress
+	ProveCommit MustAddress
 }
 
 type CommitmentMinerConfig struct {

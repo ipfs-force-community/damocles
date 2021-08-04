@@ -37,7 +37,7 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 	var spec messager.MsgMeta
 	policy := c.config.policy(mid)
 	spec.GasOverEstimation = policy.ProCommitGasOverEstimation
-	spec.MaxFeeCap = policy.MaxProCommitFeeCap
+	spec.MaxFeeCap = policy.MaxProCommitFeeCap.Std()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(sectors))
@@ -157,7 +157,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	var spec messager.MsgMeta
 	policy := c.config.policy(mid)
 	spec.GasOverEstimation = policy.BatchProCommitGasOverEstimation
-	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap
+	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap.Std()
 
 	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, builtin5.MethodsMiner.ProveCommitAggregate,
 		c.msgClient, spec, enc.Bytes())
@@ -175,7 +175,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 }
 
 func (c CommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
-	maxWait := c.config.policy(mid).CommitBatchMaxWait
+	maxWait := c.config.policy(mid).CommitBatchMaxWait.Std()
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := c.api.ChainHead(ctx)
 	if err != nil {
@@ -191,7 +191,7 @@ func (c CommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, 
 }
 
 func (c CommitProcessor) CheckAfter(mid abi.ActorID) *time.Timer {
-	return time.NewTimer(c.config.policy(mid).CommitCheckInterval)
+	return time.NewTimer(c.config.policy(mid).CommitCheckInterval.Std())
 }
 
 func (c CommitProcessor) Threshold(mid abi.ActorID) int {

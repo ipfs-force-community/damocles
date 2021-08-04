@@ -174,12 +174,12 @@ func (c *CommitmentMgrImpl) Run() {
 					}
 
 					ctrl, ok := c.cfg.ctrl(miner)
-					if !ok || ctrl.PreCommit == address.Undef {
+					if !ok {
 						log.Error("no available prove commit control address for %d", miner)
 						continue
 					}
 
-					c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.PreCommit, PreCommitProcessor{
+					c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.PreCommit.Std(), PreCommitProcessor{
 						api:       c.stateMgr,
 						msgClient: c.msgClient,
 						smgr:      c.smgr,
@@ -204,12 +204,12 @@ func (c *CommitmentMgrImpl) Run() {
 					}
 
 					ctrl, ok := c.cfg.ctrl(miner)
-					if !ok || ctrl.ProveCommit == address.Undef {
+					if !ok {
 						log.Error("no available prove commit control address for %d", miner)
 						continue
 					}
 
-					c.commitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.ProveCommit, CommitProcessor{
+					c.commitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.ProveCommit.Std(), CommitProcessor{
 						api:       c.stateMgr,
 						msgClient: c.msgClient,
 						smgr:      c.smgr,

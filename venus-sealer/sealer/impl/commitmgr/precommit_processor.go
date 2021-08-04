@@ -32,7 +32,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 	var spec messager.MsgMeta
 	policy := p.config.policy(mid)
 	spec.GasOverEstimation = policy.PreCommitGasOverEstimation
-	spec.MaxFeeCap = policy.MaxPreCommitFeeCap
+	spec.MaxFeeCap = policy.MaxPreCommitFeeCap.Std()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(sectors))
@@ -101,7 +101,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	var spec messager.MsgMeta
 	policy := p.config.policy(mid)
 	spec.GasOverEstimation = policy.BatchProCommitGasOverEstimation
-	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap
+	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap.Std()
 
 	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, builtin5.MethodsMiner.PreCommitSectorBatch,
 		p.msgClient, spec, enc.Bytes())
@@ -117,7 +117,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 }
 
 func (p PreCommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
-	maxWait := p.config.policy(mid).PreCommitBatchMaxWait
+	maxWait := p.config.policy(mid).PreCommitBatchMaxWait.Std()
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := p.api.ChainHead(ctx)
 	if err != nil {
@@ -135,7 +135,7 @@ func (p PreCommitProcessor) Expire(ctx context.Context, sectors []api.SectorStat
 }
 
 func (p PreCommitProcessor) CheckAfter(mid abi.ActorID) *time.Timer {
-	return time.NewTimer(p.config.policy(mid).PreCommitCheckInterval)
+	return time.NewTimer(p.config.policy(mid).PreCommitCheckInterval.Std())
 }
 
 func (p PreCommitProcessor) Threshold(mid abi.ActorID) int {
