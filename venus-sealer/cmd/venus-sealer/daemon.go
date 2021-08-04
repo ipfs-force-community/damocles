@@ -4,24 +4,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/dtynn/dix"
 	"github.com/urfave/cli/v2"
 
-	"github.com/dtynn/dix"
+	"github.com/dtynn/venus-cluster/venus-sealer/cmd/venus-sealer/internal"
 	"github.com/dtynn/venus-cluster/venus-sealer/dep"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/confmgr"
-	"github.com/dtynn/venus-cluster/venus-sealer/pkg/homedir"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
 var daemonCmd = &cli.Command{
-	Name: "daemon",
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "home",
-			Value: "~/.venus-sealer",
-		},
-	},
+	Name:  "daemon",
+	Flags: []cli.Flag{},
 	Subcommands: []*cli.Command{
 		daemonInitCmd,
 		daemonRunCmd,
@@ -31,13 +26,9 @@ var daemonCmd = &cli.Command{
 var daemonInitCmd = &cli.Command{
 	Name: "init",
 	Action: func(cctx *cli.Context) error {
-		home, err := homedir.Open(cctx.String("home"))
+		home, err := internal.HomeFromCLICtx(cctx)
 		if err != nil {
-			return fmt.Errorf("open home: %w", err)
-		}
-
-		if err := home.Init(); err != nil {
-			return fmt.Errorf("init home: %w", err)
+			return err
 		}
 
 		cfgmgr, err := confmgr.NewLocal(home.Dir())
@@ -64,19 +55,14 @@ var daemonRunCmd = &cli.Command{
 		},
 	},
 	Action: func(cctx *cli.Context) error {
-		home, err := homedir.Open(cctx.String("home"))
-		if err != nil {
-			return fmt.Errorf("open home: %s", err)
-		}
-
-		gctx, gcancel := newSigContext(context.Background())
+		gctx, gcancel := internal.NewSigContext(context.Background())
 		defer gcancel()
 
 		var node api.SealerAPI
 		stopper, err := dix.New(
-			cctx.Context,
+			gctx,
+			internal.DepsFromCLICtx(cctx),
 			dix.Override(new(dep.GlobalContext), gctx),
-			dix.Override(new(*homedir.Home), home),
 			dep.Product(),
 			dep.Sealer(&node),
 		)

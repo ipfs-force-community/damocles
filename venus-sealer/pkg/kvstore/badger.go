@@ -11,6 +11,8 @@ import (
 
 var _ KVStore = (*BadgerKVStore)(nil)
 
+var blog = logging.New("badger")
+
 type blogger struct {
 	*logging.ZapLogger
 }
@@ -22,8 +24,7 @@ func (bl *blogger) Warningf(format string, args ...interface{}) {
 func DefaultBadgerOption(path string) badger.Options {
 	opt := badger.DefaultOptions(path)
 
-	log := logging.New("badgerkv").With("path", path)
-	opt = opt.WithLogger(&blogger{log})
+	opt = opt.WithLogger(&blogger{blog.With("path", path)})
 	return opt
 }
 

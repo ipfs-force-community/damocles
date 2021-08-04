@@ -123,19 +123,19 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, 
 	api, token := scfg.Chain.Api, scfg.Chain.Token
 	locker.Unlock()
 
-	mcli, mcloser, err := chain.New(gctx, api, token)
+	ccli, ccloser, err := chain.New(gctx, api, token)
 	if err != nil {
 		return chain.API{}, err
 	}
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
-			mcloser()
+			ccloser()
 			return nil
 		},
 	})
 
-	return mcli, nil
+	return ccli, nil
 }
 
 func BuildCommitmentManager(

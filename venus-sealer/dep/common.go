@@ -7,4 +7,5 @@ import (
 const (
 	ignoredInvoke dix.Invoke = iota
 	InjectSealerAPI
+	InjectChainAPI
 )

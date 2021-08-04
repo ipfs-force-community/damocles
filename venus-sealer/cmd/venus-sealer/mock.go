@@ -8,6 +8,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 
+	"github.com/dtynn/venus-cluster/venus-sealer/cmd/venus-sealer/internal"
 	"github.com/dtynn/venus-cluster/venus-sealer/dep"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/util"
@@ -41,12 +42,12 @@ var mockCmd = &cli.Command{
 			return fmt.Errorf("get seal proof type: %w", err)
 		}
 
-		gctx, gcancel := newSigContext(cctx.Context)
+		gctx, gcancel := internal.NewSigContext(cctx.Context)
 		defer gcancel()
 
 		var node api.SealerAPI
 		stopper, err := dix.New(
-			cctx.Context,
+			gctx,
 			dix.Override(new(dep.GlobalContext), gctx),
 			dix.Override(new(abi.ActorID), abi.ActorID(cctx.Uint64("miner"))),
 			dix.Override(new(abi.RegisteredSealProof), proofType),

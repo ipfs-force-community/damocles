@@ -5,18 +5,12 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os/signal"
-	"syscall"
 
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"github.com/dtynn/dix"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
-
-func newSigContext(parent context.Context) (context.Context, context.CancelFunc) {
-	return signal.NotifyContext(parent, syscall.SIGABRT, syscall.SIGTERM, syscall.SIGINT)
-}
 
 func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node api.SealerAPI, addr string) error {
 	httpHandler, err := buildRPCServer(node)

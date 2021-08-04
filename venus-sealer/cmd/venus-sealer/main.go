@@ -6,10 +6,11 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/dtynn/venus-cluster/venus-sealer/cmd/venus-sealer/internal"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 )
 
-var log = logging.New("sealer")
+var log = internal.Log
 
 func main() {
 	logging.Setup()
@@ -19,6 +20,10 @@ func main() {
 		Commands: []*cli.Command{
 			mockCmd,
 			daemonCmd,
+			internal.UtilCmd,
+		},
+		Flags: []cli.Flag{
+			internal.HomeFlag,
 		},
 	}
 
