@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
@@ -125,12 +124,14 @@ type PollProofStateResp struct {
 }
 
 type MinerInfo struct {
-	ID                  abi.ActorID
-	Owner               address.Address
-	Worker              address.Address
-	NewWorker           address.Address
-	ControlAddresses    []address.Address
-	WorkerChangeEpoch   abi.ChainEpoch
+	ID abi.ActorID
+	// Addr                address.Address
+	// Owner               address.Address
+	// Worker              address.Address
+	// NewWorker           address.Address
+	// ControlAddresses    []address.Address
+	// WorkerChangeEpoch   abi.ChainEpoch
+	SectorSize          abi.SectorSize
 	WindowPoStProofType abi.RegisteredPoStProof
 	SealProofType       abi.RegisteredSealProof
 }

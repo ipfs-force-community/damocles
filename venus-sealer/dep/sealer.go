@@ -46,11 +46,13 @@ func Product() dix.Option {
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
 		dix.Override(new(*sealer.Config), ProvideSealerConfig),
 		dix.Override(new(api.SectorManager), BuildLocalSectorManager),
+		dix.Override(new(api.SectorStateManager), BuildLocalSectorStateManager),
 		dix.Override(new(MetaStore), BuildMetaStore),
 		dix.Override(new(api.SectorNumberAllocator), BuildSectorNumberAllocator),
 		dix.Override(new(api.RandomnessAPI), randomness.New),
 		dix.Override(new(api.Prover), prover.Prover),
 		dix.Override(new(api.Verifier), prover.Verifier),
+		dix.Override(new(api.MinerInfoAPI), chain.NewMinerInfoAPI),
 
 		dix.Override(new(api.CommitmentManager), commitmgr.NewCommitmentMgr),
 		dix.Override(new(messager.API), BuildMessagerClient),

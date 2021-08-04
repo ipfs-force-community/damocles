@@ -88,6 +88,15 @@ func BuildSectorNumberAllocator(meta MetaStore) (api.SectorNumberAllocator, erro
 	return sectors.NewNumerAllocator(store)
 }
 
+func BuildLocalSectorStateManager(meta MetaStore) (api.SectorStateManager, error) {
+	store, err := kvstore.NewWrappedKVStore([]byte("sector-states"), meta)
+	if err != nil {
+		return nil, err
+	}
+
+	return sectors.NewStateManager(store)
+}
+
 func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, locker confmgr.RLocker) (messager.API, error) {
 	locker.Lock()
 	api, token := scfg.Messager.Api, scfg.Messager.Token
