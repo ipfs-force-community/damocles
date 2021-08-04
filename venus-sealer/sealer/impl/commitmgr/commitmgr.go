@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -42,14 +43,15 @@ type CommitmentMgrImpl struct {
 	verif  api.Verifier
 	prover api.Prover
 
-	stop chan struct{}
+	stopOnce sync.Once
+	stop     chan struct{}
 }
 
 func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr SealingAPI, smgr api.SectorStateManager,
 	cfg *sealer.Config, locker confmgr.RLocker, verif api.Verifier, prover api.Prover,
 ) (*CommitmentMgrImpl, error) {
-	pendingChan := make(chan api.SectorState, 1024)
 	prePendingChan := make(chan api.SectorState, 1024)
+	proPendingChan := make(chan api.SectorState, 1024)
 
 	mgr := CommitmentMgrImpl{
 		ctx:       ctx,
@@ -65,31 +67,12 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 		preCommitBatcher: map[abi.ActorID]*Batcher{},
 
 		prePendingChan: prePendingChan,
+		proPendingChan: proPendingChan,
 
-		proPendingChan: pendingChan,
-		verif:          verif,
-		prover:         prover,
-		stop:           make(chan struct{}),
+		verif:  verif,
+		prover: prover,
+		stop:   make(chan struct{}),
 	}
-
-	mgr.Run()
-
-	go func() {
-		select {
-		case <-ctx.Done():
-			close(pendingChan)
-			close(prePendingChan)
-		}
-
-		for i := range mgr.commitBatcher {
-			mgr.commitBatcher[i].waitStop()
-		}
-		for i := range mgr.commitBatcher {
-			mgr.preCommitBatcher[i].waitStop()
-		}
-
-		close(mgr.stop)
-	}()
 
 	return &mgr, nil
 }
@@ -162,69 +145,88 @@ func NewMIdFromBytes(seed []byte) (cid.Cid, error) {
 }
 
 func (c *CommitmentMgrImpl) Run() {
-	{
-		go func() {
-			for s := range c.prePendingChan {
-				miner := s.ID.Miner
-				if _, ok := c.commitBatcher[miner]; !ok {
-					_, err := address.NewIDAddress(uint64(miner))
-					if err != nil {
-						log.Error("trans miner from actor to address failed: ", err)
-						continue
-					}
-
-					ctrl, ok := c.cfg.ctrl(miner)
-					if !ok {
-						log.Error("no available prove commit control address for %d", miner)
-						continue
-					}
-
-					c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.PreCommit.Std(), PreCommitProcessor{
-						api:       c.stateMgr,
-						msgClient: c.msgClient,
-						smgr:      c.smgr,
-						config:    c.cfg,
-					})
-				}
-
-				c.preCommitBatcher[miner].Add(s)
-			}
-		}()
-	}
-
-	{
-		go func() {
-			for s := range c.proPendingChan {
-				miner := s.ID.Miner
-				if _, ok := c.commitBatcher[miner]; !ok {
-					_, err := address.NewIDAddress(uint64(miner))
-					if err != nil {
-						log.Error("trans miner from actor %d to address failed: ", miner, err)
-						continue
-					}
-
-					ctrl, ok := c.cfg.ctrl(miner)
-					if !ok {
-						log.Error("no available prove commit control address for %d", miner)
-						continue
-					}
-
-					c.commitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.ProveCommit.Std(), CommitProcessor{
-						api:       c.stateMgr,
-						msgClient: c.msgClient,
-						smgr:      c.smgr,
-						config:    c.cfg,
-						prover:    c.prover,
-					})
-				}
-				c.commitBatcher[miner].Add(s)
-			}
-		}()
-	}
-	return
+	go c.startPreLoop()
+	go c.startProLoop()
 }
 
-func (c CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info api.PreCommitInfo, hardReset bool) (api.SubmitPreCommitResp, error) {
+func (c *CommitmentMgrImpl) Stop() {
+	c.stopOnce.Do(func() {
+		close(c.prePendingChan)
+		close(c.proPendingChan)
+		close(c.stop)
+
+		for i := range c.commitBatcher {
+			c.commitBatcher[i].waitStop()
+		}
+		for i := range c.commitBatcher {
+			c.preCommitBatcher[i].waitStop()
+		}
+	})
+}
+
+func (c *CommitmentMgrImpl) startPreLoop() {
+	log.Info("pre commit pending loop start")
+	defer log.Info("pre commit pending loop stop")
+
+	for s := range c.prePendingChan {
+		miner := s.ID.Miner
+		if _, ok := c.commitBatcher[miner]; !ok {
+			_, err := address.NewIDAddress(uint64(miner))
+			if err != nil {
+				log.Error("trans miner from actor to address failed: ", err)
+				continue
+			}
+
+			ctrl, ok := c.cfg.ctrl(miner)
+			if !ok {
+				log.Error("no available prove commit control address for %d", miner)
+				continue
+			}
+
+			c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.PreCommit.Std(), PreCommitProcessor{
+				api:       c.stateMgr,
+				msgClient: c.msgClient,
+				smgr:      c.smgr,
+				config:    c.cfg,
+			})
+		}
+
+		c.preCommitBatcher[miner].Add(s)
+	}
+}
+
+func (c *CommitmentMgrImpl) startProLoop() {
+	log.Info("prove commit pending loop start")
+	defer log.Info("prove commit pending loop stop")
+
+	for s := range c.proPendingChan {
+		miner := s.ID.Miner
+		if _, ok := c.commitBatcher[miner]; !ok {
+			_, err := address.NewIDAddress(uint64(miner))
+			if err != nil {
+				log.Error("trans miner from actor %d to address failed: ", miner, err)
+				continue
+			}
+
+			ctrl, ok := c.cfg.ctrl(miner)
+			if !ok {
+				log.Error("no available prove commit control address for %d", miner)
+				continue
+			}
+
+			c.commitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.ProveCommit.Std(), CommitProcessor{
+				api:       c.stateMgr,
+				msgClient: c.msgClient,
+				smgr:      c.smgr,
+				config:    c.cfg,
+				prover:    c.prover,
+			})
+		}
+		c.commitBatcher[miner].Add(s)
+	}
+}
+
+func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info api.PreCommitInfo, hardReset bool) (api.SubmitPreCommitResp, error) {
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.SubmitPreCommitResp{}, err
@@ -290,7 +292,7 @@ Commit:
 	}, nil
 }
 
-func (c CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) (api.PollPreCommitStateResp, error) {
+func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) (api.PollPreCommitStateResp, error) {
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.PollPreCommitStateResp{}, err
@@ -340,7 +342,7 @@ func (c CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) 
 	}
 }
 
-func (c CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, info api.ProofInfo, hardReset bool) (api.SubmitProofResp, error) {
+func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, info api.ProofInfo, hardReset bool) (api.SubmitProofResp, error) {
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.SubmitProofResp{}, err
@@ -403,7 +405,7 @@ Commit:
 	}, nil
 }
 
-func (c CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (api.PollProofStateResp, error) {
+func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (api.PollProofStateResp, error) {
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.PollProofStateResp{}, err

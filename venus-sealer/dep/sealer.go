@@ -11,7 +11,6 @@ import (
 	messager "github.com/dtynn/venus-cluster/venus-sealer/pkg/messager"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
-	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/commitmgr"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/mock"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/prover"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/randomness"
@@ -54,10 +53,9 @@ func Product() dix.Option {
 		dix.Override(new(api.Verifier), prover.Verifier),
 		dix.Override(new(api.MinerInfoAPI), chain.NewMinerInfoAPI),
 
-		dix.Override(new(api.CommitmentManager), commitmgr.NewCommitmentMgr),
+		dix.Override(new(api.CommitmentManager), BuildCommitmentManager),
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.Override(new(chain.API), BuildChainClient),
-		dix.Override(new(commitmgr.SealingAPI), commitmgr.NewSealingAPIImpl),
 	)
 }
 

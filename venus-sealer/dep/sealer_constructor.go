@@ -12,6 +12,7 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/messager"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/commitmgr"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/sectors"
 )
 
@@ -135,4 +136,45 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, 
 	})
 
 	return mcli, nil
+}
+
+func BuildCommitmentManager(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	capi chain.API,
+	mapi messager.API,
+	stmgr api.SectorStateManager,
+	scfg *sealer.Config,
+	rlock confmgr.RLocker,
+	verif api.Verifier,
+	prover api.Prover,
+) (api.CommitmentManager, error) {
+	mgr, err := commitmgr.NewCommitmentMgr(
+		gctx,
+		mapi,
+		commitmgr.NewSealingAPIImpl(capi),
+		stmgr,
+		scfg,
+		rlock,
+		verif,
+		prover,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			mgr.Run()
+			return nil
+		},
+
+		OnStop: func(ctx context.Context) error {
+			mgr.Stop()
+			return nil
+		},
+	})
+
+	return mgr, nil
 }
