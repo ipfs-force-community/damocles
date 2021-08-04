@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/urfave/cli/v2"
@@ -68,14 +69,14 @@ var daemonRunCmd = &cli.Command{
 			return fmt.Errorf("open home: %s", err)
 		}
 
+		gctx, gcancel := newSigContext(context.Background())
+		defer gcancel()
+
 		var node api.SealerAPI
 		stopper, err := dix.New(
 			cctx.Context,
-			dix.Override(new(dep.GlobalContext), cctx.Context),
+			dix.Override(new(dep.GlobalContext), gctx),
 			dix.Override(new(*homedir.Home), home),
-			// TODO: remove mock components when we finished all impls
-			dep.Mock(),
-
 			dep.Product(),
 			dep.Sealer(&node),
 		)
@@ -83,8 +84,6 @@ var daemonRunCmd = &cli.Command{
 			return fmt.Errorf("construct sealer api: %w", err)
 		}
 
-		defer stopper(cctx.Context)
-
-		return serveSealerAPI(node, cctx.String("listen"))
+		return serveSealerAPI(gctx, stopper, node, cctx.String("listen"))
 	},
 }

@@ -24,5 +24,6 @@ func main() {
 
 	if err := app.Run(os.Args); err != nil {
 		log.Errorf("run app: %s", err)
+		os.Exit(1)
 	}
 }

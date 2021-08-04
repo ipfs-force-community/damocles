@@ -150,6 +150,7 @@ func (c *CommitmentMgrImpl) Run() {
 }
 
 func (c *CommitmentMgrImpl) Stop() {
+	log.Info("stop commitment manager")
 	c.stopOnce.Do(func() {
 		close(c.prePendingChan)
 		close(c.proPendingChan)
