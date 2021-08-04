@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/filecoin-project/go-state-types/abi"
-	venusMessager "github.com/filecoin-project/venus-messager/api/client"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
@@ -18,10 +17,6 @@ func NewCommitManager() api.CommitmentManager {
 	cmgr.pres.commits = map[abi.SectorID]api.PreCommitInfo{}
 	cmgr.proofs.proofs = map[abi.SectorID]api.ProofInfo{}
 	return cmgr
-}
-
-func NewMessagerClient() venusMessager.IMessager {
-	return nil
 }
 
 type commitMgr struct {

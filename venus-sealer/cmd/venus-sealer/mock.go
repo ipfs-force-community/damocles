@@ -41,21 +41,23 @@ var mockCmd = &cli.Command{
 			return fmt.Errorf("get seal proof type: %w", err)
 		}
 
+		gctx, gcancel := newSigContext(cctx.Context)
+		defer gcancel()
+
 		var node api.SealerAPI
 		stopper, err := dix.New(
 			cctx.Context,
-			dix.Override(new(dep.GlobalContext), cctx.Context),
+			dix.Override(new(dep.GlobalContext), gctx),
 			dix.Override(new(abi.ActorID), abi.ActorID(cctx.Uint64("miner"))),
 			dix.Override(new(abi.RegisteredSealProof), proofType),
 			dep.Mock(),
 			dep.MockSealer(&node),
 		)
+
 		if err != nil {
 			return fmt.Errorf("construct mock api: %w", err)
 		}
 
-		defer stopper(cctx.Context)
-
-		return serveSealerAPI(node, cctx.String("listen"))
+		return serveSealerAPI(gctx, stopper, node, cctx.String("listen"))
 	},
 }

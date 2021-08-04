@@ -5,20 +5,15 @@ import (
 	"sync"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/dtynn/venus-cluster/venus-sealer/pkg/confmgr"
-	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
-type Cfg struct {
-	*sealer.Config
-	confmgr.RLocker
-}
-
 type Batcher struct {
-	ctx   context.Context
-	maddr address.Address
+	ctx      context.Context
+	mid      abi.ActorID
+	ctrlAddr address.Address
 
 	pendingCh chan api.SectorState
 
@@ -36,7 +31,7 @@ func (b *Batcher) Add(sector api.SectorState) {
 }
 
 func (b *Batcher) run() {
-	timer := b.processor.CheckAfter(b.maddr)
+	timer := b.processor.CheckAfter(b.mid)
 	wg := &sync.WaitGroup{}
 
 	defer func() {
@@ -44,7 +39,7 @@ func (b *Batcher) run() {
 		close(b.stop)
 	}()
 
-	pendingCap := b.processor.Threshold(b.maddr)
+	pendingCap := b.processor.Threshold(b.mid)
 	if pendingCap > 128 {
 		pendingCap /= 4
 	}
@@ -65,13 +60,13 @@ func (b *Batcher) run() {
 			pending = append(pending, s)
 		}
 
-		full := len(pending) >= b.processor.Threshold(b.maddr)
+		full := len(pending) >= b.processor.Threshold(b.mid)
 		cleanAll := false
 		if len(pending) > 0 {
-			mlog := log.With("miner", b.maddr)
+			mlog := log.With("miner", b.mid)
 
 			var processList []api.SectorState
-			if full || manual || !b.processor.EnableBatch(b.maddr) {
+			if full || manual || !b.processor.EnableBatch(b.mid) {
 				processList = make([]api.SectorState, len(pending))
 				copy(processList, pending)
 
@@ -79,7 +74,7 @@ func (b *Batcher) run() {
 
 				cleanAll = true
 			} else if tick {
-				expired, err := b.processor.Expire(b.ctx, pending, b.maddr)
+				expired, err := b.processor.Expire(b.ctx, pending, b.mid)
 				if err != nil {
 					mlog.Warnf("check expired sectors: %s", err)
 				}
@@ -103,7 +98,7 @@ func (b *Batcher) run() {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					if err := b.processor.Process(b.ctx, processList, b.maddr); err != nil {
+					if err := b.processor.Process(b.ctx, processList, b.mid, b.ctrlAddr); err != nil {
 						mlog.Errorf("process failed: %s", err)
 					}
 				}()
@@ -112,15 +107,16 @@ func (b *Batcher) run() {
 
 		if tick || cleanAll {
 			timer.Stop()
-			timer = b.processor.CheckAfter(b.maddr)
+			timer = b.processor.CheckAfter(b.mid)
 		}
 	}
 }
 
-func NewBatcher(ctx context.Context, maddr address.Address, processer Processor) *Batcher {
+func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, processer Processor) *Batcher {
 	b := &Batcher{
 		ctx:       ctx,
-		maddr:     maddr,
+		mid:       mid,
+		ctrlAddr:  ctrlAddr,
 		pendingCh: make(chan api.SectorState),
 		force:     make(chan struct{}),
 		stop:      make(chan struct{}),

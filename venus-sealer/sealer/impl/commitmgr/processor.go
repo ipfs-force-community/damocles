@@ -11,11 +11,11 @@ import (
 )
 
 type Processor interface {
-	Process(ctx context.Context, sectors []api.SectorState, maddr address.Address) error
+	Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID, ctrlAddr address.Address) error
 
-	Expire(ctx context.Context, sectors []api.SectorState, maddr address.Address) (map[abi.SectorID]struct{}, error)
+	Expire(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error)
 
-	CheckAfter(maddr address.Address) *time.Timer
-	Threshold(maddr address.Address) int
-	EnableBatch(maddr address.Address) bool
+	CheckAfter(mid abi.ActorID) *time.Timer
+	Threshold(mid abi.ActorID) int
+	EnableBatch(mid abi.ActorID) bool
 }

@@ -28,6 +28,15 @@ func init() {
 
 var _ api.SectorStateManager = (*StateManager)(nil)
 
+func NewStateManager(kvs kvstore.KVStore) (*StateManager, error) {
+	return &StateManager{
+		store: kvs,
+		locker: &sectorsLocker{
+			sectors: map[abi.SectorID]*sectorLocker{},
+		},
+	}, nil
+}
+
 type StateManager struct {
 	store kvstore.KVStore
 

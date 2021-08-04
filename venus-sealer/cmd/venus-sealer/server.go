@@ -3,17 +3,22 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/filecoin-project/go-jsonrpc"
 
+	"github.com/dtynn/dix"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
-func serveSealerAPI(node api.SealerAPI, addr string) error {
+func newSigContext(parent context.Context) (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(parent, syscall.SIGABRT, syscall.SIGTERM, syscall.SIGINT)
+}
+
+func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node api.SealerAPI, addr string) error {
 	httpHandler, err := buildRPCServer(node)
 	if err != nil {
 		return fmt.Errorf("construct rpc server: %w", err)
@@ -22,6 +27,9 @@ func serveSealerAPI(node api.SealerAPI, addr string) error {
 	httpServer := &http.Server{
 		Addr:    addr,
 		Handler: httpHandler,
+		BaseContext: func(net.Listener) context.Context {
+			return ctx
+		},
 	}
 
 	errCh := make(chan error, 1)
@@ -33,31 +41,23 @@ func serveSealerAPI(node api.SealerAPI, addr string) error {
 		}
 	}()
 
-	shutdown := make(chan struct{}, 0)
-	sigCh := make(chan os.Signal, 1)
+	log.Info("daemon running")
+	select {
+	case <-ctx.Done():
+		log.Warn("process signal captured")
 
-	go func() {
-		defer close(shutdown)
+	case e := <-errCh:
+		log.Errorf("error occured: %s", e)
+	}
 
-		select {
-		case sig := <-sigCh:
-			log.Warnf("signal %s captured", sig)
+	log.Info("stop application")
+	stopper(context.Background())
 
-		case e := <-errCh:
-			log.Errorf("error occured: %s", e)
-		}
+	log.Info("http server shutdown")
+	if err := httpServer.Shutdown(context.Background()); err != nil {
+		log.Errorf("shutdown http server: %s", err)
+	}
 
-		if err := httpServer.Shutdown(context.Background()); err != nil {
-			log.Errorf("shutdown http server: %s", err)
-		} else {
-			log.Info("http server shutdown")
-		}
-
-	}()
-
-	signal.Notify(sigCh, syscall.SIGABRT, syscall.SIGTERM, syscall.SIGINT)
-
-	<-shutdown
 	_ = log.Sync()
 	return nil
 }
