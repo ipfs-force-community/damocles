@@ -32,12 +32,14 @@ type Config struct {
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
 	return SectorManagerConfig{
-		Miners: []abi.ActorID{},
+		Miners:   []abi.ActorID{},
+		PreFetch: true,
 	}
 }
 
 type SectorManagerConfig struct {
-	Miners []abi.ActorID
+	Miners   []abi.ActorID
+	PreFetch bool
 }
 
 func DefaultCommitment() CommitmentManagerConfig {

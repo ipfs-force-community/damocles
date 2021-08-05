@@ -51,7 +51,7 @@ func Product() dix.Option {
 		dix.Override(new(api.RandomnessAPI), randomness.New),
 		dix.Override(new(api.Prover), prover.Prover),
 		dix.Override(new(api.Verifier), prover.Verifier),
-		dix.Override(new(api.MinerInfoAPI), chain.NewMinerInfoAPI),
+		dix.Override(new(api.MinerInfoAPI), BuildMinerInfoAPI),
 
 		dix.Override(new(api.CommitmentManager), BuildCommitmentManager),
 		dix.Override(new(messager.API), BuildMessagerClient),

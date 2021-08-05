@@ -2,6 +2,7 @@ package dep
 
 import (
 	"context"
+	"sync"
 
 	"go.uber.org/fx"
 
@@ -136,6 +137,45 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, 
 	})
 
 	return ccli, nil
+}
+
+func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *sealer.Config, locker confmgr.RLocker) (api.MinerInfoAPI, error) {
+	mapi := chain.NewMinerInfoAPI(capi)
+
+	locker.Lock()
+	prefetch := scfg.SectorManager.PreFetch
+	miners := scfg.SectorManager.Miners
+	locker.Unlock()
+
+	if prefetch && len(miners) > 0 {
+		lc.Append(fx.Hook{
+			OnStart: func(ctx context.Context) error {
+				var wg sync.WaitGroup
+				wg.Add(len(miners))
+
+				for i := range miners {
+					go func(mi int) {
+						defer wg.Done()
+						mid := miners[mi]
+
+						mlog := log.With("miner", mid)
+						_, err := mapi.Get(gctx, mid)
+						if err == nil {
+							mlog.Info("miner info pre-fetched")
+						} else {
+							mlog.Warnf("miner info pre-fetch failed: %v", err)
+						}
+					}(i)
+				}
+
+				wg.Wait()
+
+				return nil
+			},
+		})
+	}
+
+	return mapi, nil
 }
 
 func BuildCommitmentManager(
