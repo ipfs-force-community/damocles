@@ -6,5 +6,6 @@ var UtilCmd = &cli.Command{
 	Name: "util",
 	Subcommands: []*cli.Command{
 		utilChainCmd,
+		utilMinerCmd,
 	},
 }

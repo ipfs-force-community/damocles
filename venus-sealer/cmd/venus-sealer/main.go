@@ -2,7 +2,6 @@ package main
 
 import (
 	_ "net/http/pprof"
-	"os"
 
 	"github.com/urfave/cli/v2"
 
@@ -27,8 +26,5 @@ func main() {
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
-		log.Errorf("run app: %s", err)
-		os.Exit(1)
-	}
+	internal.RunApp(app)
 }
