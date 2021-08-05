@@ -72,7 +72,7 @@ func Sealer(s *api.SealerAPI) dix.Option {
 	)
 }
 
-func Chain(c *chain.API) dix.Option {
+func API(c *chain.API, m *messager.API) dix.Option {
 	cfgmu := &sync.RWMutex{}
 	return dix.Options(
 		dix.Override(new(confmgr.WLocker), cfgmu),
@@ -80,9 +80,18 @@ func Chain(c *chain.API) dix.Option {
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
 		dix.Override(new(*sealer.Config), ProvideSealerConfig),
 		dix.Override(new(chain.API), BuildChainClient),
-		dix.Override(InjectChainAPI, func(instance chain.API) error {
-			*c = instance
-			return nil
-		}),
+		dix.Override(new(messager.API), BuildMessagerClient),
+		dix.If(c != nil,
+			dix.Override(InjectChainAPI, func(instance chain.API) error {
+				*c = instance
+				return nil
+			}),
+		),
+		dix.If(m != nil,
+			dix.Override(InjectMessagerAPI, func(instance messager.API) error {
+				*m = instance
+				return nil
+			}),
+		),
 	)
 }

@@ -317,7 +317,7 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 	}
 
 	switch msg.State {
-	case messager.OnChainMsg:
+	case messager.MessageState.OnChainMsg:
 		confidence := c.cfg.policy(id.Miner).MsgConfidence
 		if msg.Confidence < confidence {
 			return api.PollPreCommitStateResp{State: api.OnChainStatePacked}, nil
@@ -336,7 +336,7 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 		}
 
 		return api.PollPreCommitStateResp{State: api.OnChainStateLanded}, nil
-	case messager.FailedMsg:
+	case messager.MessageState.FailedMsg:
 		return api.PollPreCommitStateResp{State: api.OnChainStateFailed}, nil
 	default:
 		return api.PollPreCommitStateResp{State: api.OnChainStatePending}, nil
@@ -429,7 +429,7 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (ap
 	}
 
 	switch msg.State {
-	case messager.OnChainMsg:
+	case messager.MessageState.OnChainMsg:
 		confidence := c.cfg.policy(id.Miner).MsgConfidence
 		if msg.Confidence < confidence {
 			return api.PollProofStateResp{State: api.OnChainStatePacked}, nil
@@ -449,7 +449,7 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (ap
 		}
 
 		return api.PollProofStateResp{State: api.OnChainStateFailed}, nil
-	case messager.FailedMsg:
+	case messager.MessageState.FailedMsg:
 		return api.PollProofStateResp{State: api.OnChainStateFailed}, err
 	default:
 		return api.PollProofStateResp{State: api.OnChainStatePending}, err

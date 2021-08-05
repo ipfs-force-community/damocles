@@ -14,14 +14,14 @@ var utilChainCmd = &cli.Command{
 var utilChainHeadCmd = &cli.Command{
 	Name: "head",
 	Action: func(cctx *cli.Context) error {
-		api, gctx, stop, err := extractChainAPI(cctx)
+		api, gctx, stop, err := extractAPI(cctx)
 		if err != nil {
 			return err
 		}
 
 		defer stop()
 
-		head, err := api.ChainHead(gctx)
+		head, err := api.Chain.ChainHead(gctx)
 		if err != nil {
 			return err
 		}

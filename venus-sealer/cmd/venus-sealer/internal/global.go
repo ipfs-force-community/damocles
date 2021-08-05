@@ -4,15 +4,18 @@ import (
 	"context"
 	"fmt"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/dtynn/dix"
+	"github.com/filecoin-project/go-address"
 	"github.com/urfave/cli/v2"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/dep"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/homedir"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/messager"
 )
 
 var Log = logging.New("sealer")
@@ -48,31 +51,57 @@ func HomeFromCLICtx(cctx *cli.Context) (*homedir.Home, error) {
 	return home, nil
 }
 
-func extractChainAPI(cctx *cli.Context) (chain.API, context.Context, stopper, error) {
+type API struct {
+	Chain    chain.API
+	Messager messager.API
+}
+
+func extractAPI(cctx *cli.Context) (*API, context.Context, stopper, error) {
 	logging.SetupForSub("sealer")
 
 	gctx, gcancel := NewSigContext(cctx.Context)
 
-	var api chain.API
+	var capi chain.API
+	var mapi messager.API
 
 	stopper, err := dix.New(
 		gctx,
 		DepsFromCLICtx(cctx),
 		dix.Override(new(dep.GlobalContext), gctx),
-		dep.Chain(&api),
+		dep.API(&capi, &mapi),
 	)
 
 	if err != nil {
 		gcancel()
-		return api, nil, nil, fmt.Errorf("construct sealer api: %w", err)
+		return nil, nil, nil, fmt.Errorf("construct sealer api: %w", err)
 	}
 
-	return api, gctx, func() {
-		stopper(cctx.Context)
-		gcancel()
-	}, nil
+	return &API{
+			Chain:    capi,
+			Messager: mapi,
+		}, gctx, func() {
+			stopper(cctx.Context)
+			gcancel()
+		}, nil
 }
 
 func RPCCallError(method string, err error) error {
 	return fmt.Errorf("rpc %s: %w", method, err)
+}
+
+var ErrEmptyAddressString = fmt.Errorf("empty address string")
+
+func ShouldAddress(s string, checkEmpty bool, allowActor bool) (address.Address, error) {
+	if checkEmpty && s == "" {
+		return address.Undef, ErrEmptyAddressString
+	}
+
+	if allowActor {
+		id, err := strconv.ParseUint(s, 10, 64)
+		if err == nil {
+			return address.NewIDAddress(id)
+		}
+	}
+
+	return address.NewFromString(s)
 }

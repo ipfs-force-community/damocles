@@ -39,10 +39,12 @@ func ShowHelpf(cctx *cli.Context, format string, args ...interface{}) error {
 
 func RunApp(app *cli.App) {
 	if err := app.Run(os.Args); err != nil {
-		Log.Warnf("%+v", err)
 		var phe *PrintHelpErr
 		if errors.As(err, &phe) {
 			_ = cli.ShowCommandHelp(phe.Ctx, phe.Ctx.Command.Name)
+			fmt.Fprintf(os.Stderr, "ERROR: %+v\n", err)
+		} else {
+			Log.Errorf("%+v", err)
 		}
 		os.Exit(1)
 	}
