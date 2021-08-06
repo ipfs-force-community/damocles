@@ -48,8 +48,12 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorSta
 		return &ErrApi{fmt.Errorf("calling StateComputeDataCommitment: %w", err)}
 	}
 
-	if si.Pre == nil || !commD.Equals(si.Pre.CommD) {
-		return &ErrBadCommD{fmt.Errorf("on chain CommD differs from sector: %s ", commD)}
+	if si.Pre == nil {
+		return &ErrBadCommD{fmt.Errorf("no pre commit on chain info available")}
+	}
+
+	if !commD.Equals(si.Pre.CommD) {
+		return &ErrBadCommD{fmt.Errorf("on chain CommD differs: %s != %s ", si.Pre.CommD, commD)}
 	}
 
 	ticketEarliest := height - policy.MaxPreCommitRandomnessLookback

@@ -180,7 +180,7 @@ pub enum OnChainState {
 }
 
 /// required infos for pre commint
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PreCommitOnChainInfo {
     /// commitment replicate

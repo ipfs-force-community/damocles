@@ -149,13 +149,11 @@ impl<'c> Sealer<'c> {
                 "sealer",
                 miner = debug_field(self.sector.base.as_ref().map(|b| b.allocated.id.miner)),
                 sector = debug_field(self.sector.base.as_ref().map(|b| b.allocated.id.number)),
-                state = debug_field(self.sector.state),
+                prev = debug_field(self.sector.state),
                 event = debug_field(&event),
             );
 
             let enter = span.enter();
-
-            debug!("handling");
 
             match self.handle(event.take()) {
                 Ok(Some(evt)) => {
@@ -248,6 +246,8 @@ impl<'c> Sealer<'c> {
                 }
             };
         };
+
+        debug!(state = debug_field(self.sector.state), "handling");
 
         match self.sector.state {
             State::Empty => self.handle_empty(),
@@ -473,7 +473,7 @@ impl<'c> Sealer<'c> {
             .map(|d| d.iter().map(|i| i.id).collect())
             .unwrap_or(vec![]);
 
-        let info = PreCommitOnChainInfo {
+        let pinfo = PreCommitOnChainInfo {
             comm_r: fetch_cloned_field! {
                 self.sector.phases.pc2out,
                 comm_r,
@@ -488,12 +488,14 @@ impl<'c> Sealer<'c> {
             deals,
         };
 
+        debug!("on chain info: {:?}", pinfo);
+
         // TODO: handle submit reset
         let res = call_rpc! {
             self.ctx.global.rpc,
             submit_pre_commit,
             sector,
-            info,
+            pinfo,
             false,
         }?;
 
