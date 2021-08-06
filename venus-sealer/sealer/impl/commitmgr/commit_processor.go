@@ -18,6 +18,7 @@ import (
 	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
 	specactors "github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
 
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/messager"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
@@ -33,7 +34,7 @@ type CommitProcessor struct {
 	prover api.Prover
 }
 
-func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.SectorState, from address.Address, mid abi.ActorID) {
+func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.SectorState, from address.Address, mid abi.ActorID, plog *logging.ZapLogger) {
 	var spec messager.MsgMeta
 	policy := c.config.policy(mid)
 	spec.GasOverEstimation = policy.ProCommitGasOverEstimation
@@ -43,6 +44,8 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 	wg.Add(len(sectors))
 	for i := range sectors {
 		go func(idx int) {
+			slog := plog.With("sector", sectors[idx].ID.Number)
+
 			defer wg.Done()
 
 			params := &miner.ProveCommitSectorParams{
@@ -52,29 +55,28 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 
 			enc := new(bytes.Buffer)
 			if err := params.MarshalCBOR(enc); err != nil {
-				log.Error("serialize commit sector parameters failed: ", err)
+				slog.Error("serialize commit sector parameters failed: ", err)
 				return
 			}
 
 			tok, _, err := c.api.ChainHead(ctx)
 			if err != nil {
-				log.Error("get chain head: ", err)
+				slog.Error("get chain head: ", err)
 				return
 			}
 
 			collateral, err := getSectorCollateral(ctx, c.api, mid, sectors[idx].ID.Number, tok)
 			if err != nil {
-				log.Error("get sector collateral failed: ", err)
+				slog.Error("get sector collateral failed: ", err)
 				return
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, collateral, specactors.Methods.ProveCommitSector, c.msgClient, spec, enc.Bytes())
+			mcid, err := pushMessage(ctx, from, mid, collateral, specactors.Methods.ProveCommitSector, c.msgClient, spec, enc.Bytes(), slog)
 			if err != nil {
-				log.Error("push commit single failed: ", err)
+				slog.Error("push commit single failed: ", err)
 				return
 			}
 
-			log.Infof("prove of sector %d sent cid: %s", sectors[idx].ID.Number, mcid)
 			sectors[idx].MessageInfo.CommitCid = &mcid
 		}(i)
 	}
@@ -83,10 +85,12 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 
 func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
-	defer c.cleanSector(ctx, sectors)
+	plog := log.With("proc", "prove", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
+
+	defer updateSector(ctx, c.smgr, sectors, plog)
 
 	if !c.EnableBatch(mid) || len(sectors) < miner.MinAggregatedSectors {
-		c.processIndividually(ctx, sectors, ctrlAddr, mid)
+		c.processIndividually(ctx, sectors, ctrlAddr, mid, plog)
 		return nil
 	}
 
@@ -99,14 +103,17 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	sectorsMap := map[abi.SectorNumber]api.SectorState{}
 	failed := map[abi.SectorID]struct{}{}
 
+	collateral := big.Zero()
 	for i, p := range sectors {
 		sectorsMap[p.ID.Number] = sectors[i]
-		_, err := getSectorCollateral(ctx, c.api, mid, p.ID.Number, tok)
+		sc, err := getSectorCollateral(ctx, c.api, mid, p.ID.Number, tok)
 		if err != nil {
-			log.Errorf("get sector %d %d collateral failed: %s\n", mid, p.ID.Number, err.Error())
+			plog.Errorf("get sector collateral for %d failed: %s\n", p.ID.Number, err)
 			failed[sectors[i].ID] = struct{}{}
 			continue
 		}
+
+		collateral = big.Add(collateral, sc)
 
 		infos = append(infos, proof5.AggregateSealVerifyInfo{
 			Number:                p.ID.Number,
@@ -126,14 +133,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	}
 
 	proofs := make([][]byte, 0)
-	collateral := big.Zero()
 	for i := range infos {
-		sc, err := getSectorCollateral(ctx, c.api, mid, infos[i].Number, tok)
-		if err != nil {
-			// just log and keep the train on
-			log.Errorf("get collateral failed: %s", err.Error())
-		}
-		collateral = big.Add(collateral, sc)
 		params.SectorNumbers.Set(uint64(infos[i].Number))
 
 		proofs = append(proofs, sectorsMap[infos[i].Number].Proof.Proof)
@@ -154,13 +154,14 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	if err := params.MarshalCBOR(enc); err != nil {
 		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %w", err)
 	}
+
 	var spec messager.MsgMeta
 	policy := c.config.policy(mid)
 	spec.GasOverEstimation = policy.BatchProCommitGasOverEstimation
 	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap.Std()
 
 	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, builtin5.MethodsMiner.ProveCommitAggregate,
-		c.msgClient, spec, enc.Bytes())
+		c.msgClient, spec, enc.Bytes(), plog)
 	if err != nil {
 		return fmt.Errorf("push aggregate prove message failed: %w", err)
 	}
@@ -200,16 +201,6 @@ func (c CommitProcessor) Threshold(mid abi.ActorID) int {
 
 func (c CommitProcessor) EnableBatch(mid abi.ActorID) bool {
 	return c.config.policy(mid).EnableBatchProCommit
-}
-
-func (c CommitProcessor) cleanSector(ctx context.Context, sector []api.SectorState) {
-	for i := range sector {
-		sector[i].MessageInfo.NeedSend = false
-		err := c.smgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
-		if err != nil {
-			log.Errorf("Update sector %s MessageInfo failed: ", err)
-		}
-	}
 }
 
 var _ Processor = (*CommitProcessor)(nil)

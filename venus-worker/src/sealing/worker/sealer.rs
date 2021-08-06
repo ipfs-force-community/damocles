@@ -488,8 +488,6 @@ impl<'c> Sealer<'c> {
             deals,
         };
 
-        debug!("on chain info: {:?}", pinfo);
-
         // TODO: handle submit reset
         let res = call_rpc! {
             self.ctx.global.rpc,
