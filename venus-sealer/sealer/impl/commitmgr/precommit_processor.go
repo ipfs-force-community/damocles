@@ -149,7 +149,7 @@ func (p PreCommitProcessor) EnableBatch(mid abi.ActorID) bool {
 func (p PreCommitProcessor) cleanSector(ctx context.Context, sector []api.SectorState) {
 	for i := range sector {
 		sector[i].MessageInfo.NeedSend = false
-		err := p.smgr.Update(ctx, sector[i].ID, &sector[i].MessageInfo)
+		err := p.smgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
 		if err != nil {
 			log.Errorf("Update sector %s MessageInfo failed: ", err)
 		}

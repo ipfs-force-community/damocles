@@ -85,7 +85,7 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec api.AllocateSectorSpec
 		return nil, fmt.Errorf("%w: m-%d-s-%d", ErrSectorAllocated, sector.ID.Miner, sector.ID.Number)
 	}
 
-	if err := s.state.Init(ctx, sector.ID); err != nil {
+	if err := s.state.Init(ctx, sector.ID, sector.ProofType); err != nil {
 		return nil, err
 	}
 

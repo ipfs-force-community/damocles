@@ -174,13 +174,13 @@ func (c *CommitmentMgrImpl) startPreLoop() {
 		if _, ok := c.commitBatcher[miner]; !ok {
 			_, err := address.NewIDAddress(uint64(miner))
 			if err != nil {
-				log.Error("trans miner from actor to address failed: ", err)
+				log.Errorf("trans miner from actor %d to address failed: %s", miner, err)
 				continue
 			}
 
 			ctrl, ok := c.cfg.ctrl(miner)
 			if !ok {
-				log.Error("no available prove commit control address for %d", miner)
+				log.Errorf("no available prove commit control address for %d", miner)
 				continue
 			}
 
@@ -205,13 +205,13 @@ func (c *CommitmentMgrImpl) startProLoop() {
 		if _, ok := c.commitBatcher[miner]; !ok {
 			_, err := address.NewIDAddress(uint64(miner))
 			if err != nil {
-				log.Error("trans miner from actor %d to address failed: ", miner, err)
+				log.Errorf("trans miner from actor %d to address failed: %s", miner, err)
 				continue
 			}
 
 			ctrl, ok := c.cfg.ctrl(miner)
 			if !ok {
-				log.Error("no available prove commit control address for %d", miner)
+				log.Errorf("no available prove commit control address for %d", miner)
 				continue
 			}
 
@@ -232,6 +232,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 	if err != nil {
 		return api.SubmitPreCommitResp{}, err
 	}
+
 	maddr, err := address.NewIDAddress(uint64(id.Miner))
 	if err != nil {
 		return api.SubmitPreCommitResp{Res: api.SubmitInvalidInfo}, err
@@ -283,7 +284,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 		}()
 	}
 Commit:
-	err = c.smgr.Update(ctx, sector.ID, sector.Pre, &sector.MessageInfo)
+	err = c.smgr.Update(ctx, sector.ID, sector.Pre, sector.MessageInfo)
 	if err != nil {
 		return api.SubmitPreCommitResp{}, err
 	}
@@ -396,7 +397,7 @@ func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, in
 	}
 
 Commit:
-	err = c.smgr.Update(ctx, id, sector.Proof, &sector.MessageInfo)
+	err = c.smgr.Update(ctx, id, sector.Proof, sector.MessageInfo)
 	if err != nil {
 		return api.SubmitProofResp{}, err
 	}

@@ -57,7 +57,7 @@ type SectorNumberAllocator interface {
 }
 
 type SectorStateManager interface {
-	Init(context.Context, abi.SectorID) error
+	Init(context.Context, abi.SectorID, abi.RegisteredSealProof) error
 	Load(context.Context, abi.SectorID) (*SectorState, error)
 	Update(context.Context, abi.SectorID, ...interface{}) error
 	All(ctx context.Context) ([]*SectorState, error)

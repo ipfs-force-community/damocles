@@ -85,12 +85,13 @@ func (sm *StateManager) All(ctx context.Context) ([]*api.SectorState, error) {
 	return states, nil
 }
 
-func (sm *StateManager) Init(ctx context.Context, sid abi.SectorID) error {
+func (sm *StateManager) Init(ctx context.Context, sid abi.SectorID, st abi.RegisteredSealProof) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
 	state := api.SectorState{
-		ID: sid,
+		ID:         sid,
+		SectorType: st,
 	}
 
 	key := makeSectorKey(sid)

@@ -205,7 +205,7 @@ func (c CommitProcessor) EnableBatch(mid abi.ActorID) bool {
 func (c CommitProcessor) cleanSector(ctx context.Context, sector []api.SectorState) {
 	for i := range sector {
 		sector[i].MessageInfo.NeedSend = false
-		err := c.smgr.Update(ctx, sector[i].ID, &sector[i].MessageInfo)
+		err := c.smgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
 		if err != nil {
 			log.Errorf("Update sector %s MessageInfo failed: ", err)
 		}
