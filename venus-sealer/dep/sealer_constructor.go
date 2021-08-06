@@ -206,7 +206,7 @@ func BuildCommitmentManager(
 
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			mgr.Run()
+			mgr.Run(gctx)
 			return nil
 		},
 

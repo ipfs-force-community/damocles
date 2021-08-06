@@ -162,9 +162,11 @@ func NewMIdFromBytes(seed []byte) (cid.Cid, error) {
 	return c, nil
 }
 
-func (c *CommitmentMgrImpl) Run() {
+func (c *CommitmentMgrImpl) Run(ctx context.Context) {
 	go c.startPreLoop()
 	go c.startProLoop()
+
+	go c.restartSector(ctx)
 }
 
 func (c *CommitmentMgrImpl) Stop() {
@@ -247,6 +249,24 @@ func (c *CommitmentMgrImpl) startProLoop() {
 		}
 
 		c.commitBatcher[miner].Add(s)
+	}
+}
+
+func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
+	sector, err := c.smgr.All(ctx)
+	if err != nil {
+		log.Errorf("load all sector from db failed: %s", err)
+		return
+	}
+
+	for i := range sector {
+		if sector[i].MessageInfo.NeedSend {
+			if sector[i].MessageInfo.PreCommitCid == nil {
+				c.prePendingChan <- *sector[i]
+			} else {
+				c.proPendingChan <- *sector[i]
+			}
+		}
 	}
 }
 

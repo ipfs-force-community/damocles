@@ -146,10 +146,9 @@ impl<'c> Sealer<'c> {
         let mut event = None;
         loop {
             let span = info_span!(
-                "sealer",
+                "seal",
                 miner = debug_field(self.sector.base.as_ref().map(|b| b.allocated.id.miner)),
                 sector = debug_field(self.sector.base.as_ref().map(|b| b.allocated.id.number)),
-                prev = debug_field(self.sector.state),
                 event = debug_field(&event),
             );
 
@@ -229,6 +228,8 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle(&mut self, event: Option<Event>) -> Result<Option<Event>, Failure> {
+        let prev = self.sector.state;
+
         if let Some(evt) = event {
             match evt {
                 Event::Retry => {
@@ -247,7 +248,15 @@ impl<'c> Sealer<'c> {
             };
         };
 
-        debug!(state = debug_field(self.sector.state), "handling");
+        let span = info_span!(
+            "handle",
+            prev = debug_field(prev),
+            current = debug_field(self.sector.state),
+        );
+
+        let _enter = span.enter();
+
+        debug!("handling");
 
         match self.sector.state {
             State::Empty => self.handle_empty(),
