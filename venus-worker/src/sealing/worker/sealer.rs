@@ -543,8 +543,16 @@ impl<'c> Sealer<'c> {
                 OnChainState::Pending | OnChainState::Packed => {}
             }
 
+            debug!(
+                state = debug_field(state.state),
+                interval = debug_field(self.store.config.rpc_polling_interval),
+                "waiting for next round of polling pre commit state",
+            );
+
             sleep(self.store.config.rpc_polling_interval);
         }
+
+        debug!("pre commit landed");
 
         let seed = loop {
             let wait = call_rpc! {
@@ -561,7 +569,14 @@ impl<'c> Sealer<'c> {
                 return Err(anyhow!("invalid empty wait_seed response").temp());
             }
 
-            sleep(Duration::from_secs(wait.delay));
+            let delay = Duration::from_secs(wait.delay);
+
+            debug!(
+                delay = debug_field(delay),
+                "waiting for next round of polling seed"
+            );
+
+            sleep(delay);
         };
 
         Ok(Event::AssignSeed(seed))
