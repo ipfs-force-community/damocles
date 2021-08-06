@@ -53,7 +53,7 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 	prePendingChan := make(chan api.SectorState, 1024)
 	proPendingChan := make(chan api.SectorState, 1024)
 
-	mgr := CommitmentMgrImpl{
+	mgr := &CommitmentMgrImpl{
 		ctx:       ctx,
 		msgClient: commitApi,
 		stateMgr:  stateMgr,
@@ -74,7 +74,27 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 		stop:   make(chan struct{}),
 	}
 
-	return &mgr, nil
+	go mgr.restartSector(ctx)
+
+	return mgr, nil
+}
+
+func (mgr *CommitmentMgrImpl) restartSector(ctx context.Context) {
+	sector, err := mgr.smgr.All(ctx)
+	if err != nil {
+		log.Errorf("load all sector from db failed: %s", err)
+		return
+	}
+
+	for i := range sector {
+		if sector[i].MessageInfo.NeedSend {
+			if sector[i].MessageInfo.PreCommitCid == nil {
+				mgr.prePendingChan <- *sector[i]
+			} else {
+				mgr.proPendingChan <- *sector[i]
+			}
+		}
+	}
 }
 
 func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, value abi.TokenAmount, method abi.MethodNum,
@@ -238,6 +258,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 	}
 
 	if hardReset {
+		log.Infof("sector %d is hard reset will skip all check in precommit", id)
 		sector.MessageInfo.NeedSend = true
 		sector.MessageInfo.PreCommitCid = nil
 		sector.Pre = &info
@@ -287,7 +308,7 @@ Commit:
 	if err != nil {
 		return api.SubmitPreCommitResp{}, err
 	}
-
+	log.Infof("submit sector %d precommit success", id)
 	return api.SubmitPreCommitResp{
 		Res: api.SubmitAccepted,
 	}, nil
@@ -354,6 +375,7 @@ func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, in
 	}
 
 	if hardReset {
+		log.Infof("sector %d is hard reset will skip all check in prove commit", id)
 		sector.MessageInfo.NeedSend = true
 		sector.MessageInfo.CommitCid = nil
 
@@ -400,7 +422,7 @@ Commit:
 	if err != nil {
 		return api.SubmitProofResp{}, err
 	}
-
+	log.Infof("submit sector %d prove commit success", id)
 	return api.SubmitProofResp{
 		Res: api.SubmitAccepted,
 	}, nil

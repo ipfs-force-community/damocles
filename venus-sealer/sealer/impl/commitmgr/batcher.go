@@ -67,6 +67,7 @@ func (b *Batcher) run() {
 
 			var processList []api.SectorState
 			if full || manual || !b.processor.EnableBatch(b.mid) {
+				mlog.Info("try to send all sector")
 				processList = make([]api.SectorState, len(pending))
 				copy(processList, pending)
 
@@ -74,6 +75,7 @@ func (b *Batcher) run() {
 
 				cleanAll = true
 			} else if tick {
+				mlog.Info("tick tick! will send sectors which close to deadline")
 				expired, err := b.processor.Expire(b.ctx, pending, b.mid)
 				if err != nil {
 					mlog.Warnf("check expired sectors: %s", err)

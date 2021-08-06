@@ -86,10 +86,12 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	defer c.cleanSector(ctx, sectors)
 
 	if !c.EnableBatch(mid) || len(sectors) < miner.MinAggregatedSectors {
+		log.Info("process commit single")
 		c.processIndividually(ctx, sectors, ctrlAddr, mid)
 		return nil
 	}
 
+	log.Infof("start pocess batch commit of %d, sector length %d", mid, len(sectors))
 	tok, _, err := c.api.ChainHead(ctx)
 	if err != nil {
 		return fmt.Errorf("get chain head failed: %w", err)
@@ -164,6 +166,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	if err != nil {
 		return fmt.Errorf("push aggregate prove message failed: %w", err)
 	}
+	log.Infof("push batch prove commit of %d, cid: %s", mid, ccid)
 
 	for i := range sectors {
 		if _, ok := failed[sectors[i].ID]; !ok {

@@ -69,6 +69,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	defer p.cleanSector(ctx, sectors)
 
 	if !p.EnableBatch(mid) {
+		log.Info("process pre commit single")
 		p.processIndividually(ctx, sectors, ctrlAddr, mid)
 		return nil
 	}
@@ -108,6 +109,8 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	if err != nil {
 		return fmt.Errorf("push batch precommit message failed: %w", err)
 	}
+	log.Infof("push batch pre commit of %d, cid: %s", mid, ccid)
+
 	for i := range sectors {
 		if _, ok := failed[sectors[i].ID]; !ok {
 			sectors[i].MessageInfo.PreCommitCid = &ccid
