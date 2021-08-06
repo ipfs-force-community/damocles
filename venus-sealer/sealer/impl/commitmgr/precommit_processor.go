@@ -54,7 +54,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 				return
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, deposit, specactors.Methods.ProveCommitSector, p.msgClient, spec, enc.Bytes(), slog)
+			mcid, err := pushMessage(ctx, from, mid, deposit, specactors.Methods.PreCommitSector, p.msgClient, spec, enc.Bytes(), slog)
 			if err != nil {
 				slog.Error("push pre-commit single failed: ", err)
 				return

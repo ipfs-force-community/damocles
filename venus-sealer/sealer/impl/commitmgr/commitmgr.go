@@ -338,10 +338,16 @@ Commit:
 }
 
 func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) (api.PollPreCommitStateResp, error) {
+	maddr, err := address.NewIDAddress(uint64(id.Miner))
+	if err != nil {
+		return api.PollPreCommitStateResp{}, err
+	}
+
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.PollPreCommitStateResp{}, err
 	}
+
 	// pending
 	if sector.MessageInfo.PreCommitCid == nil && sector.MessageInfo.NeedSend {
 		return api.PollPreCommitStateResp{State: api.OnChainStatePending}, nil
@@ -355,10 +361,8 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 	if err != nil {
 		return api.PollPreCommitStateResp{}, err
 	}
-	maddr, err := address.NewIDAddress(uint64(id.Miner))
-	if err != nil {
-		return api.PollPreCommitStateResp{}, err
-	}
+
+	log.Debugw("get message receipt", "mcid", sector.MessageInfo.PreCommitCid.String(), "msg-state", messager.MsgStateToString(msg.State))
 
 	switch msg.State {
 	case messager.MessageState.OnChainMsg:
@@ -451,6 +455,11 @@ Commit:
 }
 
 func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (api.PollProofStateResp, error) {
+	maddr, err := address.NewIDAddress(uint64(id.Miner))
+	if err != nil {
+		return api.PollProofStateResp{}, err
+	}
+
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.PollProofStateResp{}, err
@@ -467,10 +476,8 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (ap
 	if err != nil {
 		return api.PollProofStateResp{}, err
 	}
-	maddr, err := address.NewIDAddress(uint64(id.Miner))
-	if err != nil {
-		return api.PollProofStateResp{}, err
-	}
+
+	log.Debugw("get message receipt", "mcid", sector.MessageInfo.CommitCid.String(), "msg-state", messager.MsgStateToString(msg.State))
 
 	switch msg.State {
 	case messager.MessageState.OnChainMsg:
