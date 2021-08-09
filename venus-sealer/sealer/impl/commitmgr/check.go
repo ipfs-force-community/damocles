@@ -7,8 +7,8 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/crypto"
 	proof2 "github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
+	"github.com/filecoin-project/venus/pkg/types"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/policy"
@@ -143,12 +143,12 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 		return &ErrMarshalAddr{err}
 	}
 
-	seed, err := api.ChainGetRandomnessFromBeacon(ctx, tok, crypto.DomainSeparationTag_InteractiveSealChallengeSeed, si.Seed.Epoch, buf.Bytes())
+	seed, err := api.GetSeed(ctx, types.EmptyTSK, seedEpoch, si.ID.Miner)
 	if err != nil {
 		return &ErrApi{fmt.Errorf("failed to get randomness for computing seal proof: %w", err)}
 	}
 
-	if string(seed) != string(si.Seed.Seed) {
+	if !bytes.Equal(seed.Seed, si.Seed.Seed) {
 		return &ErrBadSeed{fmt.Errorf("seed has changed")}
 	}
 

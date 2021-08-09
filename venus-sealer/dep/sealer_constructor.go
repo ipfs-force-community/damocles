@@ -183,6 +183,7 @@ func BuildCommitmentManager(
 	lc fx.Lifecycle,
 	capi chain.API,
 	mapi messager.API,
+	rapi api.RandomnessAPI,
 	stmgr api.SectorStateManager,
 	scfg *sealer.Config,
 	rlock confmgr.RLocker,
@@ -192,7 +193,7 @@ func BuildCommitmentManager(
 	mgr, err := commitmgr.NewCommitmentMgr(
 		gctx,
 		mapi,
-		commitmgr.NewSealingAPIImpl(capi),
+		commitmgr.NewSealingAPIImpl(capi, rapi),
 		stmgr,
 		scfg,
 		rlock,

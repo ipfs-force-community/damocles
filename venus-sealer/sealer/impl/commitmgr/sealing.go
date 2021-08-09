@@ -8,7 +8,6 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/go-state-types/network"
 	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
 	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
@@ -28,11 +27,13 @@ import (
 
 type SealingAPIImpl struct {
 	api chainAPI.API
+	api.RandomnessAPI
 }
 
-func NewSealingAPIImpl(api chainAPI.API) SealingAPIImpl {
+func NewSealingAPIImpl(api chainAPI.API, rand api.RandomnessAPI) SealingAPIImpl {
 	return SealingAPIImpl{
-		api: api,
+		api:           api,
+		RandomnessAPI: rand,
 	}
 }
 
@@ -237,15 +238,6 @@ func (s SealingAPIImpl) ChainBaseFee(ctx context.Context, tok api.TipSetToken) (
 	}
 
 	return ts.Blocks()[0].ParentBaseFee, nil
-}
-
-func (s SealingAPIImpl) ChainGetRandomnessFromBeacon(ctx context.Context, tok api.TipSetToken, personalization crypto.DomainSeparationTag, randEpoch abi.ChainEpoch, entropy []byte) (abi.Randomness, error) {
-	tsk, err := types.TipSetKeyFromBytes(tok)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.api.ChainGetRandomnessFromBeacon(ctx, tsk, personalization, randEpoch, entropy)
 }
 
 var _ SealingAPI = (*SealingAPIImpl)(nil)
