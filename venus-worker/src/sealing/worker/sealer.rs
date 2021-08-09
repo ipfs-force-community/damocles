@@ -765,8 +765,44 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle_proof_submitted(&mut self) -> HandleResult {
-        // TODO: check proof landed on chain
-        warn!("proof submitted");
+        if self.store.config.ignore_proof_check {
+            warn!("proof submitted, ignoring the check");
+            return Ok(Event::Finish);
+        }
+
+        let sector_id = fetch_field! {
+            self.sector.base,
+            allocated.id,
+        }?;
+
+        'POLL: loop {
+            let state = call_rpc! {
+                self.ctx.global.rpc,
+                poll_proof_state,
+                sector_id.clone(),
+            }?;
+
+            match state.state {
+                OnChainState::Landed => break 'POLL,
+                OnChainState::NotFound => {
+                    return Err(anyhow!("proof on-chain info not found").abort())
+                }
+
+                // TODO: handle retry for this
+                OnChainState::Failed => return Err(anyhow!("proof on-chain info failed").abort()),
+
+                OnChainState::Pending | OnChainState::Packed => {}
+            }
+
+            debug!(
+                state = debug_field(state.state),
+                interval = debug_field(self.store.config.rpc_polling_interval),
+                "waiting for next round of polling proof state",
+            );
+
+            sleep(self.store.config.rpc_polling_interval);
+        }
+
         Ok(Event::Finish)
     }
 }

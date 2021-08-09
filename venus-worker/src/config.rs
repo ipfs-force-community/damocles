@@ -35,6 +35,9 @@ pub struct Sealing {
 
     /// interval between polling requests
     pub rpc_polling_interval: Duration,
+
+    /// ignore proof state check
+    pub ignore_proof_check: bool,
 }
 
 impl Default for Sealing {
@@ -47,6 +50,7 @@ impl Default for Sealing {
             seal_interval: Duration::from_secs(30),
             recover_interval: Duration::from_secs(30),
             rpc_polling_interval: Duration::from_secs(30),
+            ignore_proof_check: false,
         }
     }
 }
@@ -80,6 +84,9 @@ pub struct SealingOptional {
     #[serde(default)]
     #[serde(with = "humantime_serde")]
     pub rpc_polling_interval: Option<Duration>,
+
+    /// ignore proof state check
+    pub ignore_proof_check: Option<bool>,
 }
 
 /// configuration for remote store

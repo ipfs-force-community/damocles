@@ -198,6 +198,7 @@ fn customized_sealing_config(
             seal_interval,
             recover_interval,
             rpc_polling_interval,
+            ignore_proof_check,
         },
     }
 }
@@ -231,9 +232,9 @@ impl StoreManager {
     /// build workers
     pub fn into_workers(self) -> Vec<(Sender<()>, Worker)> {
         let mut workers = Vec::with_capacity(self.stores.len());
-        for (_, store) in self.stores {
+        for (idx, (_, store)) in self.stores.into_iter().enumerate() {
             let (resume_tx, resume_rx) = bounded(0);
-            let worker = Worker::new(store, resume_rx);
+            let worker = Worker::new(idx, store, resume_rx);
             workers.push((resume_tx, worker));
         }
 

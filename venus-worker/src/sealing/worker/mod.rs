@@ -14,13 +14,15 @@ use sealer::Sealer;
 type HandleResult = Result<Event, Failure>;
 
 pub struct Worker {
+    idx: usize,
     store: Store,
     resume_rx: Receiver<()>,
 }
 
 impl Worker {
-    pub fn new(s: Store, resume_rx: Receiver<()>) -> Self {
+    pub fn new(idx: usize, s: Store, resume_rx: Receiver<()>) -> Self {
         Worker {
+            idx,
             store: s,
             resume_rx,
         }
@@ -34,7 +36,7 @@ impl Worker {
 
 impl Module for Worker {
     fn id(&self) -> String {
-        "worker".to_owned()
+        format!("worker-{}", self.idx)
     }
 
     fn run(&mut self, ctx: Ctx) -> Result<()> {
