@@ -25,6 +25,11 @@ var HomeFlag = &cli.StringFlag{
 	Value: "~/.venus-sealer",
 }
 
+var NetFlag = &cli.StringFlag{
+	Name:  "net",
+	Value: "mainnet",
+}
+
 type stopper = func()
 
 func NewSigContext(parent context.Context) (context.Context, context.CancelFunc) {

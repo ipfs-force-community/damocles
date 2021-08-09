@@ -9,9 +9,9 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/crypto"
 	proof2 "github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
-	"github.com/filecoin-project/venus/pkg/specactors/policy"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/policy"
 )
 
 type ErrApi struct{ error }
@@ -132,8 +132,10 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 		return &ErrNoPrecommit{fmt.Errorf("precommit info not found on-chain")}
 	}
 
-	if pci.PreCommitEpoch+policy.GetPreCommitChallengeDelay() != si.Seed.Epoch {
-		return &ErrBadSeed{fmt.Errorf("seed epoch doesn't match on chain info: %d != %d", pci.PreCommitEpoch+policy.GetPreCommitChallengeDelay(), si.Seed.Epoch)}
+	seedEpoch := pci.PreCommitEpoch + policy.NetParams.Network.PreCommitChallengeDelay
+
+	if seedEpoch != si.Seed.Epoch {
+		return &ErrBadSeed{fmt.Errorf("seed epoch doesn't match on chain info: %d != %d", seedEpoch, si.Seed.Epoch)}
 	}
 
 	buf := new(bytes.Buffer)

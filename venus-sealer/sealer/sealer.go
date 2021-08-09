@@ -177,12 +177,12 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedRe
 	}
 
 	curEpoch := ts.Height()
-	seedEpoch := pci.PreCommitEpoch + policy.GetPreCommitChallengeDelay()
+	seedEpoch := pci.PreCommitEpoch + policy.NetParams.Network.PreCommitChallengeDelay
 	confEpoch := seedEpoch + policy.InteractivePoRepConfidence
 	if curEpoch < confEpoch {
 		return api.WaitSeedResp{
 			ShouldWait: true,
-			Delay:      int((confEpoch - curEpoch) * policy.EpochDurationSeconds),
+			Delay:      int(confEpoch-curEpoch) * int(policy.NetParams.Network.BlockDelay),
 			Seed:       nil,
 		}, nil
 	}

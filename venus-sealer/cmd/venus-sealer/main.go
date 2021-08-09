@@ -7,6 +7,7 @@ import (
 
 	"github.com/dtynn/venus-cluster/venus-sealer/cmd/venus-sealer/internal"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/policy"
 )
 
 var log = internal.Log
@@ -23,6 +24,10 @@ func main() {
 		},
 		Flags: []cli.Flag{
 			internal.HomeFlag,
+			internal.NetFlag,
+		},
+		Before: func(cctx *cli.Context) error {
+			return policy.SetupNetwork(cctx.String(internal.NetFlag.Name))
 		},
 	}
 
