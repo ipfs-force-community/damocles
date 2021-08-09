@@ -54,7 +54,7 @@ pub(crate) fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
 
             for loc in locs {
                 match FileStore::init(&loc) {
-                    Ok(l) => info!(loc = logging::debug_field(&l), "store initialized"),
+                    Ok(_) => info!(loc = logging::debug_field(&loc), "store initialized"),
                     Err(e) => error!(
                         loc = loc.as_str(),
                         err = logging::debug_field(&e),

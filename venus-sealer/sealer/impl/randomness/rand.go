@@ -1,8 +1,10 @@
 package randomness
 
 import (
+	"bytes"
 	"context"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/venus/pkg/types"
@@ -23,7 +25,26 @@ type Randomness struct {
 	api chain.API
 }
 
-func (r *Randomness) GetTicket(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, entropy []byte) (api.Ticket, error) {
+func (r *Randomness) getRandomnessEntropy(mid abi.ActorID) ([]byte, error) {
+	maddr, err := address.NewIDAddress(uint64(mid))
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	if err := maddr.MarshalCBOR(&buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (r *Randomness) GetTicket(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (api.Ticket, error) {
+	entropy, err := r.getRandomnessEntropy(mid)
+	if err != nil {
+		return api.Ticket{}, err
+	}
+
 	if tsk == types.EmptyTSK {
 		ts, err := r.api.ChainHead(ctx)
 		if err != nil {
@@ -44,7 +65,12 @@ func (r *Randomness) GetTicket(ctx context.Context, tsk types.TipSetKey, epoch a
 	}, nil
 }
 
-func (r *Randomness) GetSeed(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, entropy []byte) (api.Seed, error) {
+func (r *Randomness) GetSeed(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (api.Seed, error) {
+	entropy, err := r.getRandomnessEntropy(mid)
+	if err != nil {
+		return api.Seed{}, err
+	}
+
 	if tsk == types.EmptyTSK {
 		ts, err := r.api.ChainHead(ctx)
 		if err != nil {

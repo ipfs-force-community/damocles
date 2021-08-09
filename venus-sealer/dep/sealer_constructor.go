@@ -2,6 +2,7 @@ package dep
 
 import (
 	"context"
+	"sync"
 
 	"go.uber.org/fx"
 
@@ -123,19 +124,58 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, 
 	api, token := scfg.Chain.Api, scfg.Chain.Token
 	locker.Unlock()
 
-	mcli, mcloser, err := chain.New(gctx, api, token)
+	ccli, ccloser, err := chain.New(gctx, api, token)
 	if err != nil {
 		return chain.API{}, err
 	}
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
-			mcloser()
+			ccloser()
 			return nil
 		},
 	})
 
-	return mcli, nil
+	return ccli, nil
+}
+
+func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *sealer.Config, locker confmgr.RLocker) (api.MinerInfoAPI, error) {
+	mapi := chain.NewMinerInfoAPI(capi)
+
+	locker.Lock()
+	prefetch := scfg.SectorManager.PreFetch
+	miners := scfg.SectorManager.Miners
+	locker.Unlock()
+
+	if prefetch && len(miners) > 0 {
+		lc.Append(fx.Hook{
+			OnStart: func(ctx context.Context) error {
+				var wg sync.WaitGroup
+				wg.Add(len(miners))
+
+				for i := range miners {
+					go func(mi int) {
+						defer wg.Done()
+						mid := miners[mi]
+
+						mlog := log.With("miner", mid)
+						_, err := mapi.Get(gctx, mid)
+						if err == nil {
+							mlog.Info("miner info pre-fetched")
+						} else {
+							mlog.Warnf("miner info pre-fetch failed: %v", err)
+						}
+					}(i)
+				}
+
+				wg.Wait()
+
+				return nil
+			},
+		})
+	}
+
+	return mapi, nil
 }
 
 func BuildCommitmentManager(
@@ -143,6 +183,7 @@ func BuildCommitmentManager(
 	lc fx.Lifecycle,
 	capi chain.API,
 	mapi messager.API,
+	rapi api.RandomnessAPI,
 	stmgr api.SectorStateManager,
 	scfg *sealer.Config,
 	rlock confmgr.RLocker,
@@ -152,7 +193,7 @@ func BuildCommitmentManager(
 	mgr, err := commitmgr.NewCommitmentMgr(
 		gctx,
 		mapi,
-		commitmgr.NewSealingAPIImpl(capi),
+		commitmgr.NewSealingAPIImpl(capi, rapi),
 		stmgr,
 		scfg,
 		rlock,
@@ -166,7 +207,7 @@ func BuildCommitmentManager(
 
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			mgr.Run()
+			mgr.Run(gctx)
 			return nil
 		},
 

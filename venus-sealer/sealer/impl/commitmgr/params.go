@@ -97,7 +97,7 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 		return nil, big.Zero(), nil, fmt.Errorf("failed to get network version: %w", err)
 	}
 
-	msd := policy.GetMaxProveCommitDuration(specactors.Version(nv), sector.SectorType)
+	msd := policy.GetMaxProveCommitDuration(specactors.VersionForNetwork(nv), sector.SectorType)
 	// TODO: get costumer config
 	if minExpiration := sector.Ticket.Epoch + policy.MaxPreCommitRandomnessLookback + msd + miner.MinSectorExpiration; expiration < minExpiration {
 		expiration = minExpiration

@@ -77,8 +77,18 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 	return &mgr, nil
 }
 
+func updateSector(ctx context.Context, stmgr api.SectorStateManager, sector []api.SectorState, plog *logging.ZapLogger) {
+	for i := range sector {
+		sector[i].MessageInfo.NeedSend = false
+		err := stmgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
+		if err != nil {
+			plog.With("sector", sector[i].ID.Number).Errorf("Update sector MessageInfo failed: %s", err)
+		}
+	}
+}
+
 func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, value abi.TokenAmount, method abi.MethodNum,
-	msgClient messager.API, spec messager.MsgMeta, params []byte) (cid.Cid, error) {
+	msgClient messager.API, spec messager.MsgMeta, params []byte, mlog *logging.ZapLogger) (cid.Cid, error) {
 
 	to, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
@@ -92,12 +102,17 @@ func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, val
 		Method: method,
 		Params: params,
 	}
+
 	bk, err := msg.ToStorageBlock()
 	if err != nil {
 		return cid.Undef, err
 	}
 	mb := bk.RawData()
+
+	mlog = mlog.With("from", from.String(), "to", to.String(), "method", method, "raw-mcid", bk.Cid())
+
 	mcid := cid.Cid{}
+
 	for i := 0; ; i++ {
 		r := []byte{byte(i)}
 		r = append(r, mb...)
@@ -110,6 +125,8 @@ func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, val
 		if err != nil {
 			return cid.Undef, err
 		}
+
+		mlog.Debugw("check if message exists", "tried", i, "has", has, "msgid", mid.String())
 		if !has {
 			mcid = mid
 			break
@@ -125,7 +142,8 @@ func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, val
 		return cid.Undef, errors.New("mcid not equal to uid, its out of control")
 	}
 
-	return mcid, err
+	mlog.Infow("message sent", "mcid", uid)
+	return mcid, nil
 }
 
 func NewMIdFromBytes(seed []byte) (cid.Cid, error) {
@@ -144,9 +162,11 @@ func NewMIdFromBytes(seed []byte) (cid.Cid, error) {
 	return c, nil
 }
 
-func (c *CommitmentMgrImpl) Run() {
+func (c *CommitmentMgrImpl) Run(ctx context.Context) {
 	go c.startPreLoop()
 	go c.startProLoop()
+
+	go c.restartSector(ctx)
 }
 
 func (c *CommitmentMgrImpl) Stop() {
@@ -166,21 +186,23 @@ func (c *CommitmentMgrImpl) Stop() {
 }
 
 func (c *CommitmentMgrImpl) startPreLoop() {
-	log.Info("pre commit pending loop start")
-	defer log.Info("pre commit pending loop stop")
+	llog := log.With("loop", "pre")
+
+	llog.Info("pending loop start")
+	defer llog.Info("pending loop stop")
 
 	for s := range c.prePendingChan {
 		miner := s.ID.Miner
-		if _, ok := c.commitBatcher[miner]; !ok {
+		if _, ok := c.preCommitBatcher[miner]; !ok {
 			_, err := address.NewIDAddress(uint64(miner))
 			if err != nil {
-				log.Error("trans miner from actor to address failed: ", err)
+				llog.Errorf("trans miner from actor %d to address failed: %s", miner, err)
 				continue
 			}
 
 			ctrl, ok := c.cfg.ctrl(miner)
 			if !ok {
-				log.Error("no available prove commit control address for %d", miner)
+				llog.Errorf("no available prove commit control address for %d", miner)
 				continue
 			}
 
@@ -189,7 +211,7 @@ func (c *CommitmentMgrImpl) startPreLoop() {
 				msgClient: c.msgClient,
 				smgr:      c.smgr,
 				config:    c.cfg,
-			})
+			}, llog)
 		}
 
 		c.preCommitBatcher[miner].Add(s)
@@ -197,21 +219,23 @@ func (c *CommitmentMgrImpl) startPreLoop() {
 }
 
 func (c *CommitmentMgrImpl) startProLoop() {
-	log.Info("prove commit pending loop start")
-	defer log.Info("prove commit pending loop stop")
+	llog := log.With("loop", "pro")
+
+	llog.Info("pending loop start")
+	defer llog.Info("pending loop stop")
 
 	for s := range c.proPendingChan {
 		miner := s.ID.Miner
 		if _, ok := c.commitBatcher[miner]; !ok {
 			_, err := address.NewIDAddress(uint64(miner))
 			if err != nil {
-				log.Error("trans miner from actor %d to address failed: ", miner, err)
+				llog.Errorf("trans miner from actor %d to address failed: %s", miner, err)
 				continue
 			}
 
 			ctrl, ok := c.cfg.ctrl(miner)
 			if !ok {
-				log.Error("no available prove commit control address for %d", miner)
+				llog.Errorf("no available prove commit control address for %d", miner)
 				continue
 			}
 
@@ -221,9 +245,30 @@ func (c *CommitmentMgrImpl) startProLoop() {
 				smgr:      c.smgr,
 				config:    c.cfg,
 				prover:    c.prover,
-			})
+			}, llog)
 		}
+
 		c.commitBatcher[miner].Add(s)
+	}
+}
+
+func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
+	sectors, err := c.smgr.All(ctx)
+	if err != nil {
+		log.Errorf("load all sector from db failed: %s", err)
+		return
+	}
+
+	log.Debugw("previous sectors loaded", "count", len(sectors))
+
+	for i := range sectors {
+		if sectors[i].MessageInfo.NeedSend {
+			if sectors[i].MessageInfo.PreCommitCid == nil {
+				c.prePendingChan <- *sectors[i]
+			} else {
+				c.proPendingChan <- *sectors[i]
+			}
+		}
 	}
 }
 
@@ -232,6 +277,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 	if err != nil {
 		return api.SubmitPreCommitResp{}, err
 	}
+
 	maddr, err := address.NewIDAddress(uint64(id.Miner))
 	if err != nil {
 		return api.SubmitPreCommitResp{Res: api.SubmitInvalidInfo}, err
@@ -283,7 +329,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 		}()
 	}
 Commit:
-	err = c.smgr.Update(ctx, sector.ID, sector.Pre, &sector.MessageInfo)
+	err = c.smgr.Update(ctx, sector.ID, sector.Pre, sector.MessageInfo)
 	if err != nil {
 		return api.SubmitPreCommitResp{}, err
 	}
@@ -294,10 +340,16 @@ Commit:
 }
 
 func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID) (api.PollPreCommitStateResp, error) {
+	maddr, err := address.NewIDAddress(uint64(id.Miner))
+	if err != nil {
+		return api.PollPreCommitStateResp{}, err
+	}
+
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.PollPreCommitStateResp{}, err
 	}
+
 	// pending
 	if sector.MessageInfo.PreCommitCid == nil && sector.MessageInfo.NeedSend {
 		return api.PollPreCommitStateResp{State: api.OnChainStatePending}, nil
@@ -311,13 +363,11 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 	if err != nil {
 		return api.PollPreCommitStateResp{}, err
 	}
-	maddr, err := address.NewIDAddress(uint64(id.Miner))
-	if err != nil {
-		return api.PollPreCommitStateResp{}, err
-	}
+
+	log.Debugw("get message receipt", "mcid", sector.MessageInfo.PreCommitCid.String(), "msg-state", messager.MsgStateToString(msg.State))
 
 	switch msg.State {
-	case messager.OnChainMsg:
+	case messager.MessageState.OnChainMsg:
 		confidence := c.cfg.policy(id.Miner).MsgConfidence
 		if msg.Confidence < confidence {
 			return api.PollPreCommitStateResp{State: api.OnChainStatePacked}, nil
@@ -336,7 +386,7 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 		}
 
 		return api.PollPreCommitStateResp{State: api.OnChainStateLanded}, nil
-	case messager.FailedMsg:
+	case messager.MessageState.FailedMsg:
 		return api.PollPreCommitStateResp{State: api.OnChainStateFailed}, nil
 	default:
 		return api.PollPreCommitStateResp{State: api.OnChainStatePending}, nil
@@ -396,7 +446,7 @@ func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, in
 	}
 
 Commit:
-	err = c.smgr.Update(ctx, id, sector.Proof, &sector.MessageInfo)
+	err = c.smgr.Update(ctx, id, sector.Proof, sector.MessageInfo)
 	if err != nil {
 		return api.SubmitProofResp{}, err
 	}
@@ -407,6 +457,11 @@ Commit:
 }
 
 func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (api.PollProofStateResp, error) {
+	maddr, err := address.NewIDAddress(uint64(id.Miner))
+	if err != nil {
+		return api.PollProofStateResp{}, err
+	}
+
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.PollProofStateResp{}, err
@@ -423,13 +478,11 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (ap
 	if err != nil {
 		return api.PollProofStateResp{}, err
 	}
-	maddr, err := address.NewIDAddress(uint64(id.Miner))
-	if err != nil {
-		return api.PollProofStateResp{}, err
-	}
+
+	log.Debugw("get message receipt", "mcid", sector.MessageInfo.CommitCid.String(), "msg-state", messager.MsgStateToString(msg.State))
 
 	switch msg.State {
-	case messager.OnChainMsg:
+	case messager.MessageState.OnChainMsg:
 		confidence := c.cfg.policy(id.Miner).MsgConfidence
 		if msg.Confidence < confidence {
 			return api.PollProofStateResp{State: api.OnChainStatePacked}, nil
@@ -449,7 +502,7 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (ap
 		}
 
 		return api.PollProofStateResp{State: api.OnChainStateFailed}, nil
-	case messager.FailedMsg:
+	case messager.MessageState.FailedMsg:
 		return api.PollProofStateResp{State: api.OnChainStateFailed}, err
 	default:
 		return api.PollProofStateResp{State: api.OnChainStatePending}, err

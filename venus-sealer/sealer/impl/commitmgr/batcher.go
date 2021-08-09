@@ -7,6 +7,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 )
 
@@ -20,6 +21,8 @@ type Batcher struct {
 	force, stop chan struct{}
 
 	processor Processor
+
+	log *logging.ZapLogger
 }
 
 func (b *Batcher) waitStop() {
@@ -63,8 +66,6 @@ func (b *Batcher) run() {
 		full := len(pending) >= b.processor.Threshold(b.mid)
 		cleanAll := false
 		if len(pending) > 0 {
-			mlog := log.With("miner", b.mid)
-
 			var processList []api.SectorState
 			if full || manual || !b.processor.EnableBatch(b.mid) {
 				processList = make([]api.SectorState, len(pending))
@@ -76,7 +77,7 @@ func (b *Batcher) run() {
 			} else if tick {
 				expired, err := b.processor.Expire(b.ctx, pending, b.mid)
 				if err != nil {
-					mlog.Warnf("check expired sectors: %s", err)
+					b.log.Warnf("check expired sectors: %s", err)
 				}
 
 				if len(expired) > 0 {
@@ -95,11 +96,12 @@ func (b *Batcher) run() {
 			}
 
 			if len(processList) > 0 {
+				b.log.Debugw("will process sectors", "len", len(processList), "full", full, "manual", manual, "all", cleanAll, "tick", tick)
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
 					if err := b.processor.Process(b.ctx, processList, b.mid, b.ctrlAddr); err != nil {
-						mlog.Errorf("process failed: %s", err)
+						b.log.Errorf("process failed: %s", err)
 					}
 				}()
 			}
@@ -112,7 +114,7 @@ func (b *Batcher) run() {
 	}
 }
 
-func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, processer Processor) *Batcher {
+func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, processer Processor, l *logging.ZapLogger) *Batcher {
 	b := &Batcher{
 		ctx:       ctx,
 		mid:       mid,
@@ -121,7 +123,10 @@ func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, 
 		force:     make(chan struct{}),
 		stop:      make(chan struct{}),
 		processor: processer,
+		log:       log.With("miner", mid),
 	}
 	go b.run()
+
+	b.log.Debug("batcher init")
 	return b
 }

@@ -146,16 +146,13 @@ impl<'c> Sealer<'c> {
         let mut event = None;
         loop {
             let span = info_span!(
-                "sealer",
+                "seal",
                 miner = debug_field(self.sector.base.as_ref().map(|b| b.allocated.id.miner)),
                 sector = debug_field(self.sector.base.as_ref().map(|b| b.allocated.id.number)),
-                state = debug_field(self.sector.state),
                 event = debug_field(&event),
             );
 
             let enter = span.enter();
-
-            debug!("handling");
 
             match self.handle(event.take()) {
                 Ok(Some(evt)) => {
@@ -231,6 +228,8 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle(&mut self, event: Option<Event>) -> Result<Option<Event>, Failure> {
+        let prev = self.sector.state;
+
         if let Some(evt) = event {
             match evt {
                 Event::Retry => {
@@ -248,6 +247,16 @@ impl<'c> Sealer<'c> {
                 }
             };
         };
+
+        let span = info_span!(
+            "handle",
+            prev = debug_field(prev),
+            current = debug_field(self.sector.state),
+        );
+
+        let _enter = span.enter();
+
+        debug!("handling");
 
         match self.sector.state {
             State::Empty => self.handle_empty(),
@@ -473,7 +482,7 @@ impl<'c> Sealer<'c> {
             .map(|d| d.iter().map(|i| i.id).collect())
             .unwrap_or(vec![]);
 
-        let info = PreCommitOnChainInfo {
+        let pinfo = PreCommitOnChainInfo {
             comm_r: fetch_cloned_field! {
                 self.sector.phases.pc2out,
                 comm_r,
@@ -493,7 +502,7 @@ impl<'c> Sealer<'c> {
             self.ctx.global.rpc,
             submit_pre_commit,
             sector,
-            info,
+            pinfo,
             false,
         }?;
 
@@ -534,8 +543,16 @@ impl<'c> Sealer<'c> {
                 OnChainState::Pending | OnChainState::Packed => {}
             }
 
+            debug!(
+                state = debug_field(state.state),
+                interval = debug_field(self.store.config.rpc_polling_interval),
+                "waiting for next round of polling pre commit state",
+            );
+
             sleep(self.store.config.rpc_polling_interval);
         }
+
+        debug!("pre commit landed");
 
         let seed = loop {
             let wait = call_rpc! {
@@ -552,7 +569,14 @@ impl<'c> Sealer<'c> {
                 return Err(anyhow!("invalid empty wait_seed response").temp());
             }
 
-            sleep(Duration::from_secs(wait.delay));
+            let delay = Duration::from_secs(wait.delay);
+
+            debug!(
+                delay = debug_field(delay),
+                "waiting for next round of polling seed"
+            );
+
+            sleep(delay);
         };
 
         Ok(Event::AssignSeed(seed))

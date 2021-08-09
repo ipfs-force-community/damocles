@@ -1,7 +1,6 @@
 package sealer
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
@@ -85,7 +84,7 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec api.AllocateSectorSpec
 		return nil, fmt.Errorf("%w: m-%d-s-%d", ErrSectorAllocated, sector.ID.Miner, sector.ID.Number)
 	}
 
-	if err := s.state.Init(ctx, sector.ID); err != nil {
+	if err := s.state.Init(ctx, sector.ID, sector.ProofType); err != nil {
 		return nil, err
 	}
 
@@ -109,33 +108,14 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.Ac
 	return deals, nil
 }
 
-func (s *Sealer) getRandomnessEntropy(mid abi.ActorID) ([]byte, error) {
-	maddr, err := address.NewIDAddress(uint64(mid))
-	if err != nil {
-		return nil, err
-	}
-
-	var buf bytes.Buffer
-	if err := maddr.MarshalCBOR(&buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket, error) {
 	ts, err := s.capi.ChainHead(ctx)
 	if err != nil {
 		return api.Ticket{}, err
 	}
 
-	entropy, err := s.getRandomnessEntropy(sid.Miner)
-	if err != nil {
-		return api.Ticket{}, err
-	}
-
 	ticketEpoch := ts.Height() - policy.SealRandomnessLookback
-	ticket, err := s.rand.GetTicket(ctx, ts.Key(), ticketEpoch, entropy)
+	ticket, err := s.rand.GetTicket(ctx, ts.Key(), ticketEpoch, sid.Miner)
 	if err != nil {
 		return api.Ticket{}, err
 	}
@@ -177,22 +157,17 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedRe
 	}
 
 	curEpoch := ts.Height()
-	seedEpoch := pci.PreCommitEpoch + policy.GetPreCommitChallengeDelay()
+	seedEpoch := pci.PreCommitEpoch + policy.NetParams.Network.PreCommitChallengeDelay
 	confEpoch := seedEpoch + policy.InteractivePoRepConfidence
 	if curEpoch < confEpoch {
 		return api.WaitSeedResp{
 			ShouldWait: true,
-			Delay:      int((confEpoch - curEpoch) * policy.EpochDurationSeconds),
+			Delay:      int(confEpoch-curEpoch) * int(policy.NetParams.Network.BlockDelay),
 			Seed:       nil,
 		}, nil
 	}
 
-	entropy, err := s.getRandomnessEntropy(sid.Miner)
-	if err != nil {
-		return api.WaitSeedResp{}, err
-	}
-
-	seed, err := s.rand.GetSeed(ctx, tsk, seedEpoch, entropy)
+	seed, err := s.rand.GetSeed(ctx, tsk, seedEpoch, sid.Miner)
 	if err != nil {
 		return api.WaitSeedResp{}, err
 	}

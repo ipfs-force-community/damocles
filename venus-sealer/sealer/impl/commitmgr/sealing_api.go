@@ -7,10 +7,10 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/venus/pkg/specactors/builtin/market"
 	"github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
+	"github.com/filecoin-project/venus/pkg/types"
 
 	"github.com/ipfs/go-cid"
 
@@ -35,6 +35,5 @@ type SealingAPI interface {
 	ChainHead(ctx context.Context) (api.TipSetToken, abi.ChainEpoch, error)
 	ChainBaseFee(ctx context.Context, tok api.TipSetToken) (abi.TokenAmount, error)
 
-	// validate random, may need to consider the place here
-	ChainGetRandomnessFromBeacon(ctx context.Context, tok api.TipSetToken, personalization crypto.DomainSeparationTag, randEpoch abi.ChainEpoch, entropy []byte) (abi.Randomness, error)
+	GetSeed(context.Context, types.TipSetKey, abi.ChainEpoch, abi.ActorID) (api.Seed, error)
 }

@@ -51,7 +51,7 @@ func Product() dix.Option {
 		dix.Override(new(api.RandomnessAPI), randomness.New),
 		dix.Override(new(api.Prover), prover.Prover),
 		dix.Override(new(api.Verifier), prover.Verifier),
-		dix.Override(new(api.MinerInfoAPI), chain.NewMinerInfoAPI),
+		dix.Override(new(api.MinerInfoAPI), BuildMinerInfoAPI),
 
 		dix.Override(new(api.CommitmentManager), BuildCommitmentManager),
 		dix.Override(new(messager.API), BuildMessagerClient),
@@ -69,5 +69,29 @@ func Sealer(s *api.SealerAPI) dix.Option {
 			*s = instance
 			return nil
 		}),
+	)
+}
+
+func API(c *chain.API, m *messager.API) dix.Option {
+	cfgmu := &sync.RWMutex{}
+	return dix.Options(
+		dix.Override(new(confmgr.WLocker), cfgmu),
+		dix.Override(new(confmgr.RLocker), cfgmu.RLocker()),
+		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
+		dix.Override(new(*sealer.Config), ProvideSealerConfig),
+		dix.Override(new(chain.API), BuildChainClient),
+		dix.Override(new(messager.API), BuildMessagerClient),
+		dix.If(c != nil,
+			dix.Override(InjectChainAPI, func(instance chain.API) error {
+				*c = instance
+				return nil
+			}),
+		),
+		dix.If(m != nil,
+			dix.Override(InjectMessagerAPI, func(instance messager.API) error {
+				*m = instance
+				return nil
+			}),
+		),
 	)
 }

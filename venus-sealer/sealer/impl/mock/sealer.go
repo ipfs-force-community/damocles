@@ -1,10 +1,8 @@
 package mock
 
 import (
-	"bytes"
 	"context"
 
-	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/venus/pkg/types"
 
@@ -37,27 +35,8 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.Ac
 	return s.deal.Acquire(ctx, sid, spec.MaxDeals)
 }
 
-func (s *Sealer) getRandomnessEntropy(mid abi.ActorID) ([]byte, error) {
-	maddr, err := address.NewIDAddress(uint64(mid))
-	if err != nil {
-		return nil, err
-	}
-
-	var buf bytes.Buffer
-	if err := maddr.MarshalCBOR(&buf); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket, error) {
-	entropy, err := s.getRandomnessEntropy(sid.Miner)
-	if err != nil {
-		return api.Ticket{}, nil
-	}
-
-	return s.rand.GetTicket(ctx, types.EmptyTSK, 0, entropy)
+	return s.rand.GetTicket(ctx, types.EmptyTSK, 0, sid.Miner)
 }
 
 func (s *Sealer) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, info api.PreCommitOnChainInfo, reset bool) (api.SubmitPreCommitResp, error) {
@@ -74,12 +53,7 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (api.
 }
 
 func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedResp, error) {
-	entropy, err := s.getRandomnessEntropy(sid.Miner)
-	if err != nil {
-		return api.WaitSeedResp{}, err
-	}
-
-	seed, err := s.rand.GetSeed(ctx, types.EmptyTSK, 0, entropy)
+	seed, err := s.rand.GetSeed(ctx, types.EmptyTSK, 0, sid.Miner)
 	if err != nil {
 		return api.WaitSeedResp{}, err
 	}

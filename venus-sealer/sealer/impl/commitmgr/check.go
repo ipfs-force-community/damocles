@@ -7,11 +7,11 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/crypto"
 	proof2 "github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
-	"github.com/filecoin-project/venus/pkg/specactors/policy"
+	"github.com/filecoin-project/venus/pkg/types"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/policy"
 )
 
 type ErrApi struct{ error }
@@ -48,8 +48,12 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorSta
 		return &ErrApi{fmt.Errorf("calling StateComputeDataCommitment: %w", err)}
 	}
 
-	if si.Pre == nil || !commD.Equals(si.Pre.CommD) {
-		return &ErrBadCommD{fmt.Errorf("on chain CommD differs from sector: %s ", commD)}
+	if si.Pre == nil {
+		return &ErrBadCommD{fmt.Errorf("no pre commit on chain info available")}
+	}
+
+	if !commD.Equals(si.Pre.CommD) {
+		return &ErrBadCommD{fmt.Errorf("on chain CommD differs: %s != %s ", si.Pre.CommD, commD)}
 	}
 
 	ticketEarliest := height - policy.MaxPreCommitRandomnessLookback
@@ -128,8 +132,10 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 		return &ErrNoPrecommit{fmt.Errorf("precommit info not found on-chain")}
 	}
 
-	if pci.PreCommitEpoch+policy.GetPreCommitChallengeDelay() != si.Seed.Epoch {
-		return &ErrBadSeed{fmt.Errorf("seed epoch doesn't match on chain info: %d != %d", pci.PreCommitEpoch+policy.GetPreCommitChallengeDelay(), si.Seed.Epoch)}
+	seedEpoch := pci.PreCommitEpoch + policy.NetParams.Network.PreCommitChallengeDelay
+
+	if seedEpoch != si.Seed.Epoch {
+		return &ErrBadSeed{fmt.Errorf("seed epoch doesn't match on chain info: %d != %d", seedEpoch, si.Seed.Epoch)}
 	}
 
 	buf := new(bytes.Buffer)
@@ -137,12 +143,12 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 		return &ErrMarshalAddr{err}
 	}
 
-	seed, err := api.ChainGetRandomnessFromBeacon(ctx, tok, crypto.DomainSeparationTag_InteractiveSealChallengeSeed, si.Seed.Epoch, buf.Bytes())
+	seed, err := api.GetSeed(ctx, types.EmptyTSK, seedEpoch, si.ID.Miner)
 	if err != nil {
 		return &ErrApi{fmt.Errorf("failed to get randomness for computing seal proof: %w", err)}
 	}
 
-	if string(seed) != string(si.Seed.Seed) {
+	if !bytes.Equal(seed.Seed, si.Seed.Seed) {
 		return &ErrBadSeed{fmt.Errorf("seed has changed")}
 	}
 

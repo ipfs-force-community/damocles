@@ -6,15 +6,36 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/venus-messager/api/client"
 	"github.com/filecoin-project/venus-messager/types"
+	vtypes "github.com/filecoin-project/venus/pkg/types"
 	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
 )
 
-type MsgMeta = types.MsgMeta
-
-var (
-	OnChainMsg = types.OnChainMsg
-	FailedMsg  = types.FailedMsg
+type (
+	UnsignedMessage = vtypes.UnsignedMessage
+	MsgMeta         = types.MsgMeta
+	Message         = types.Message
+	MessageReceipt  = vtypes.MessageReceipt
 )
+
+var MsgStateToString = types.MsgStateToString
+
+var MessageState = struct {
+	UnKnown,
+	UnFillMsg,
+	FillMsg,
+	OnChainMsg,
+	FailedMsg,
+	ReplacedMsg,
+	NoWalletMsg types.MessageState
+}{
+	types.UnKnown,
+	types.UnFillMsg,
+	types.FillMsg,
+	types.OnChainMsg,
+	types.FailedMsg,
+	types.ReplacedMsg,
+	types.NoWalletMsg,
+}
 
 type API interface {
 	client.IMessager

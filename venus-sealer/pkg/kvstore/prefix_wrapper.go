@@ -23,6 +23,8 @@ func NewWrappedKVStore(prefix []byte, inner KVStore) (*WrappedKVStore, error) {
 		prefix = p
 	}
 
+	log.Debugw("kv wrapped", "prefix", string(prefix), "prefix-len", prefixLen)
+
 	return &WrappedKVStore{
 		prefix:    prefix,
 		prefixLen: prefixLen,

@@ -27,8 +27,8 @@ type SealerAPI interface {
 }
 
 type RandomnessAPI interface {
-	GetTicket(context.Context, types.TipSetKey, abi.ChainEpoch, []byte) (Ticket, error)
-	GetSeed(context.Context, types.TipSetKey, abi.ChainEpoch, []byte) (Seed, error)
+	GetTicket(context.Context, types.TipSetKey, abi.ChainEpoch, abi.ActorID) (Ticket, error)
+	GetSeed(context.Context, types.TipSetKey, abi.ChainEpoch, abi.ActorID) (Seed, error)
 }
 
 type MinerInfoAPI interface {
@@ -57,7 +57,7 @@ type SectorNumberAllocator interface {
 }
 
 type SectorStateManager interface {
-	Init(context.Context, abi.SectorID) error
+	Init(context.Context, abi.SectorID, abi.RegisteredSealProof) error
 	Load(context.Context, abi.SectorID) (*SectorState, error)
 	Update(context.Context, abi.SectorID, ...interface{}) error
 	All(ctx context.Context) ([]*SectorState, error)

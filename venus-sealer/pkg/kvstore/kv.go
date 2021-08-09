@@ -3,7 +3,11 @@ package kvstore
 import (
 	"context"
 	"fmt"
+
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 )
+
+var log = logging.New("kv")
 
 var (
 	ErrKeyNotFound      = fmt.Errorf("key not found")

@@ -5,12 +5,27 @@ import (
 	"fmt"
 
 	"github.com/dgraph-io/badger/v2"
+
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
 )
 
 var _ KVStore = (*BadgerKVStore)(nil)
 
+var blog = logging.New("badger")
+
+type blogger struct {
+	*logging.ZapLogger
+}
+
+func (bl *blogger) Warningf(format string, args ...interface{}) {
+	bl.ZapLogger.Warnf(format, args...)
+}
+
 func DefaultBadgerOption(path string) badger.Options {
-	return badger.DefaultOptions(path)
+	opt := badger.DefaultOptions(path)
+
+	opt = opt.WithLogger(&blogger{blog.With("path", path)})
+	return opt
 }
 
 func OpenBadger(opt badger.Options) (*BadgerKVStore, error) {
@@ -128,13 +143,14 @@ type BadgerIter struct {
 
 func (bi *BadgerIter) Next() bool {
 	if bi.seeked {
-		bi.Next()
+		bi.iter.Next()
 	} else {
 		if len(bi.prefix) == 0 {
 			bi.iter.Rewind()
 		} else {
 			bi.iter.Seek(bi.prefix)
 		}
+		bi.seeked = true
 	}
 
 	if len(bi.prefix) == 0 {

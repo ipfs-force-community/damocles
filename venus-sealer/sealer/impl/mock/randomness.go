@@ -27,14 +27,14 @@ type random struct {
 	seed   [32]byte
 }
 
-func (r *random) GetTicket(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, entropy []byte) (api.Ticket, error) {
+func (r *random) GetTicket(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (api.Ticket, error) {
 	return api.Ticket{
 		Ticket: r.ticket[:],
 		Epoch:  epoch,
 	}, nil
 }
 
-func (r *random) GetSeed(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, entropy []byte) (api.Seed, error) {
+func (r *random) GetSeed(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (api.Seed, error) {
 	return api.Seed{
 		Seed:  r.seed[:],
 		Epoch: epoch,

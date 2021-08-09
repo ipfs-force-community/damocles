@@ -2,14 +2,15 @@ package main
 
 import (
 	_ "net/http/pprof"
-	"os"
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/dtynn/venus-cluster/venus-sealer/cmd/venus-sealer/internal"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/policy"
 )
 
-var log = logging.New("sealer")
+var log = internal.Log
 
 func main() {
 	logging.Setup()
@@ -19,11 +20,16 @@ func main() {
 		Commands: []*cli.Command{
 			mockCmd,
 			daemonCmd,
+			internal.UtilCmd,
+		},
+		Flags: []cli.Flag{
+			internal.HomeFlag,
+			internal.NetFlag,
+		},
+		Before: func(cctx *cli.Context) error {
+			return policy.SetupNetwork(cctx.String(internal.NetFlag.Name))
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
-		log.Errorf("run app: %s", err)
-		os.Exit(1)
-	}
+	internal.RunApp(app)
 }

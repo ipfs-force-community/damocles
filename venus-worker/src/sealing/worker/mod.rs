@@ -34,7 +34,7 @@ impl Worker {
 
 impl Module for Worker {
     fn id(&self) -> String {
-        format!("worker-{:?}", self.store.location.as_ref())
+        "worker".to_owned()
     }
 
     fn run(&mut self, ctx: Ctx) -> Result<()> {

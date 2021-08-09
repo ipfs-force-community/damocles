@@ -14,6 +14,27 @@ var New = logging.Logger
 
 func Setup() {
 	if _, set := os.LookupEnv("GOLOG_LOG_LEVEL"); !set {
-		_ = logging.SetLogLevel("*", "INFO")
+		_ = logging.SetLogLevel("*", "DEBUG")
+		_ = logging.SetLogLevel("dix", "INFO")
+		_ = logging.SetLogLevel("badger", "INFO")
+		_ = logging.SetLogLevel("rpc", "INFO")
+
+		// copy from lotus
+		_ = logging.SetLogLevel("dht", "ERROR")
+		_ = logging.SetLogLevel("swarm2", "WARN")
+		_ = logging.SetLogLevel("bitswap", "WARN")
+		_ = logging.SetLogLevel("connmgr", "WARN")
+		_ = logging.SetLogLevel("advmgr", "DEBUG")
+		_ = logging.SetLogLevel("stores", "DEBUG")
+		_ = logging.SetLogLevel("nat", "INFO")
+	}
+}
+
+func SetupForSub(system ...string) {
+	if _, set := os.LookupEnv("GOLOG_LOG_LEVEL"); !set {
+		_ = logging.SetLogLevel("*", "ERROR")
+		for _, one := range system {
+			_ = logging.SetLogLevel(one, "INFO")
+		}
 	}
 }

@@ -117,7 +117,7 @@ impl Event {
 
             Allocate(sector) => {
                 let mut prover_id: ProverId = Default::default();
-                let actor_addr_payload = Address::new_id(sector.id.miner).to_bytes();
+                let actor_addr_payload = Address::new_id(sector.id.miner).payload_bytes();
                 prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
 
                 let sector_id = SectorId::from(sector.id.number);
