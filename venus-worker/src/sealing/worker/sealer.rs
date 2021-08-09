@@ -497,7 +497,6 @@ impl<'c> Sealer<'c> {
             deals,
         };
 
-        // TODO: handle submit reset
         let res = call_rpc! {
             self.ctx.global.rpc,
             submit_pre_commit,
@@ -506,6 +505,7 @@ impl<'c> Sealer<'c> {
             false,
         }?;
 
+        // TODO: handle submit reset correctly
         match res.res {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitPC),
 
@@ -744,7 +744,6 @@ impl<'c> Sealer<'c> {
             .into(),
         };
 
-        // TODO: submit reset
         let res = call_rpc! {
             self.ctx.global.rpc,
             submit_proof,
@@ -753,6 +752,7 @@ impl<'c> Sealer<'c> {
             false,
         }?;
 
+        // TODO: submit reset correctly
         match res.res {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitProof),
 

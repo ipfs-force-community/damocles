@@ -2,8 +2,19 @@
 - [x] check c2 commit state
 - [x] worker number
 - [] worker control apis
+  - [] pause
+  - [] resume
+  - [] abort
+  - [] set / reset
 - [] more robust sealing procedure
 - [] documents for sealing failures
 - [] deal manager
 - [] object(piece) storage service (proxy)
 - [x] enable fil-logger
+- [] worker state reporting
+- [] tracing log for sealing
+- [] turn `sleeps` into `selects`
+- [] speed up cc sectors
+- [] link to dynamic lib if required
+- [] handle submit states gracefully
+- [] handle ErrOutOfGas and other retry-able failed messages gracefully

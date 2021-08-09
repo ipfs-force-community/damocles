@@ -54,6 +54,8 @@ impl Module for Worker {
                         return Ok(())
                     },
                 }
+
+                wait_for_resume = false;
             }
 
             if ctx.done.try_recv() != Err(TryRecvError::Empty) {
