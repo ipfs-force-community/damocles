@@ -1,3 +1,5 @@
+all: build-sealer build-worker
+
 build-sealer:
 	rm -rf ./dist/bin/venus-sealer
 	mkdir -p ./dist/bin/
