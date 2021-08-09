@@ -1130,9 +1130,9 @@ dependencies = [
 
 [[package]]
 name = "fil_logger"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c17f555ec2b25672bd6906ca04cedda3a3caa211c420c9279bb1e71e6a192c5"
+checksum = "5b13cb584f73da360e279d33d8751931541a922602b7a09ce043548aebf08d10"
 dependencies = [
  "atty",
  "flexi_logger",
@@ -3600,6 +3600,7 @@ dependencies = [
  "crossbeam-channel 0.5.1",
  "crossterm",
  "fil_clock",
+ "fil_logger",
  "fil_types",
  "filecoin-proofs-api",
  "forest_address",

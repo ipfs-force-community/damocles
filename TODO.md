@@ -6,4 +6,4 @@
 - [] documents for sealing failures
 - [] deal manager
 - [] object(piece) storage service (proxy)
-- [] enable fil-logger
+- [x] enable fil-logger
