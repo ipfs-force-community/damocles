@@ -193,7 +193,7 @@ func (c *CommitmentMgrImpl) startPreLoop() {
 
 	for s := range c.prePendingChan {
 		miner := s.ID.Miner
-		if _, ok := c.commitBatcher[miner]; !ok {
+		if _, ok := c.preCommitBatcher[miner]; !ok {
 			_, err := address.NewIDAddress(uint64(miner))
 			if err != nil {
 				llog.Errorf("trans miner from actor %d to address failed: %s", miner, err)
@@ -253,18 +253,20 @@ func (c *CommitmentMgrImpl) startProLoop() {
 }
 
 func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
-	sector, err := c.smgr.All(ctx)
+	sectors, err := c.smgr.All(ctx)
 	if err != nil {
 		log.Errorf("load all sector from db failed: %s", err)
 		return
 	}
 
-	for i := range sector {
-		if sector[i].MessageInfo.NeedSend {
-			if sector[i].MessageInfo.PreCommitCid == nil {
-				c.prePendingChan <- *sector[i]
+	log.Debugw("previous sectors loaded", "count", len(sectors))
+
+	for i := range sectors {
+		if sectors[i].MessageInfo.NeedSend {
+			if sectors[i].MessageInfo.PreCommitCid == nil {
+				c.prePendingChan <- *sectors[i]
 			} else {
-				c.proPendingChan <- *sector[i]
+				c.proPendingChan <- *sectors[i]
 			}
 		}
 	}

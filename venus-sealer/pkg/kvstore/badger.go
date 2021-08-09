@@ -143,13 +143,14 @@ type BadgerIter struct {
 
 func (bi *BadgerIter) Next() bool {
 	if bi.seeked {
-		bi.Next()
+		bi.iter.Next()
 	} else {
 		if len(bi.prefix) == 0 {
 			bi.iter.Rewind()
 		} else {
 			bi.iter.Seek(bi.prefix)
 		}
+		bi.seeked = true
 	}
 
 	if len(bi.prefix) == 0 {
