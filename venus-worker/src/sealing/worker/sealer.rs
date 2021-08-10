@@ -105,6 +105,7 @@ pub struct Sealer<'c> {
     _trace: Vec<Trace>,
 
     ctx: &'c Ctx,
+    ctrl_ctx: &'c CtrlCtx,
     store: &'c Store,
 
     sector_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
@@ -112,7 +113,7 @@ pub struct Sealer<'c> {
 }
 
 impl<'c> Sealer<'c> {
-    pub fn build(ctx: &'c Ctx, s: &'c Store) -> Result<Self, Failure> {
+    pub fn build(ctx: &'c Ctx, ctrl_ctx: &'c CtrlCtx, s: &'c Store) -> Result<Self, Failure> {
         let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta));
 
         let sector: Sector = sector_meta
@@ -135,6 +136,7 @@ impl<'c> Sealer<'c> {
             _trace: Vec::with_capacity(16),
 
             ctx,
+            ctrl_ctx,
             store: s,
 
             sector_meta,
@@ -142,8 +144,41 @@ impl<'c> Sealer<'c> {
         })
     }
 
-    pub fn seal(mut self) -> Result<(), Failure> {
-        let mut event = None;
+    fn interruptted(&self) -> Result<(), Failure> {
+        select! {
+            recv(self.ctx.done) -> _done_res => {
+                Err(Interrupt.into_failure())
+            }
+
+            recv(self.ctrl_ctx.pause_rx) -> pause_res => {
+                pause_res.context("pause signal channel closed unexpectedly").crit()?;
+                Err(Interrupt.into_failure())
+            }
+
+            default => {
+                Ok(())
+            }
+        }
+    }
+
+    fn wait_or_interruptted(&self, duration: Duration) -> Result<(), Failure> {
+        select! {
+            recv(self.ctx.done) -> _done_res => {
+                Err(Interrupt.into_failure())
+            }
+
+            recv(self.ctrl_ctx.pause_rx) -> pause_res => {
+                pause_res.context("pause signal channel closed unexpectedly").crit()?;
+                Err(Interrupt.into_failure())
+            }
+
+            default(duration) => {
+                Ok(())
+            }
+        }
+    }
+
+    pub fn seal(mut self, mut event: Option<Event>) -> Result<(), Failure> {
         loop {
             let span = info_span!(
                 "seal",
@@ -228,6 +263,8 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle(&mut self, event: Option<Event>) -> Result<Option<Event>, Failure> {
+        self.interruptted()?;
+
         let prev = self.sector.state;
 
         if let Some(evt) = event {
@@ -549,7 +586,7 @@ impl<'c> Sealer<'c> {
                 "waiting for next round of polling pre commit state",
             );
 
-            sleep(self.store.config.rpc_polling_interval);
+            self.wait_or_interruptted(self.store.config.rpc_polling_interval)?;
         }
 
         debug!("pre commit landed");
@@ -576,7 +613,7 @@ impl<'c> Sealer<'c> {
                 "waiting for next round of polling seed"
             );
 
-            sleep(delay);
+            self.wait_or_interruptted(delay)?;
         };
 
         Ok(Event::AssignSeed(seed))
@@ -800,7 +837,7 @@ impl<'c> Sealer<'c> {
                 "waiting for next round of polling proof state",
             );
 
-            sleep(self.store.config.rpc_polling_interval);
+            self.wait_or_interruptted(self.store.config.rpc_polling_interval)?;
         }
 
         Ok(Event::Finish)

@@ -5,12 +5,11 @@ use std::fs::{create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
-use crossbeam_channel::{bounded, Sender};
 
 use crate::infra::util::PlaceHolder;
 use crate::logging::{debug_field, warn};
 use crate::metadb::rocks::RocksMeta;
-use crate::sealing::worker::Worker;
+use crate::sealing::worker::{new_ctrl_ctx, CtrlCtxTx, Worker};
 
 use crate::config::{Sealing, SealingOptional, Store as StoreConfig};
 
@@ -230,12 +229,12 @@ impl StoreManager {
     }
 
     /// build workers
-    pub fn into_workers(self) -> Vec<(Sender<()>, Worker)> {
+    pub fn into_workers(self) -> Vec<(CtrlCtxTx, Worker)> {
         let mut workers = Vec::with_capacity(self.stores.len());
         for (idx, (_, store)) in self.stores.into_iter().enumerate() {
-            let (resume_tx, resume_rx) = bounded(0);
-            let worker = Worker::new(idx, store, resume_rx);
-            workers.push((resume_tx, worker));
+            let (ctrl_ctx_tx, ctrl_ctx) = new_ctrl_ctx();
+            let worker = Worker::new(idx, store, ctrl_ctx);
+            workers.push((ctrl_ctx_tx, worker));
         }
 
         workers

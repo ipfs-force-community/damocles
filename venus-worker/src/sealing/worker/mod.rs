@@ -1,7 +1,9 @@
+use std::error::Error as StdError;
 use std::thread::sleep;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
-use crossbeam_channel::{select, Receiver, TryRecvError};
+use crossbeam_channel::{bounded, select, Receiver, Sender, TryRecvError};
 
 use crate::logging::{debug_field, error, info, warn};
 use crate::watchdog::{Ctx, Module};
@@ -22,24 +24,67 @@ use sector::*;
 
 type HandleResult = Result<Event, Failure>;
 
+#[derive(Debug, Clone, Copy)]
+pub struct Interrupt;
+
+impl std::fmt::Display for Interrupt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("interrupt")
+    }
+}
+
+impl StdError for Interrupt {}
+
+impl Interrupt {
+    fn into_failure(self) -> Failure {
+        Failure(Level::Permanent, self.into())
+    }
+}
+
+pub fn new_ctrl_ctx() -> (CtrlCtxTx, CtrlCtx) {
+    let (pause_tx, pause_rx) = bounded(1);
+    let (resume_tx, resume_rx) = bounded(0);
+
+    (
+        CtrlCtxTx {
+            pause_tx,
+            resume_tx,
+        },
+        CtrlCtx {
+            pause_rx,
+            resume_rx,
+        },
+    )
+}
+
+pub struct CtrlCtxTx {
+    pub pause_tx: Sender<()>,
+    pub resume_tx: Sender<Option<State>>,
+}
+
+pub struct CtrlCtx {
+    pause_rx: Receiver<()>,
+    resume_rx: Receiver<Option<State>>,
+}
+
 pub struct Worker {
     idx: usize,
     store: Store,
-    resume_rx: Receiver<()>,
+    ctrl_ctx: CtrlCtx,
 }
 
 impl Worker {
-    pub fn new(idx: usize, s: Store, resume_rx: Receiver<()>) -> Self {
+    pub fn new(idx: usize, s: Store, ctrl_ctx: CtrlCtx) -> Self {
         Worker {
             idx,
             store: s,
-            resume_rx,
+            ctrl_ctx,
         }
     }
 
-    fn seal_one(&mut self, ctx: &Ctx) -> Result<(), Failure> {
-        let s = Sealer::build(ctx, &self.store)?;
-        s.seal()
+    fn seal_one(&mut self, ctx: &Ctx, event: Option<Event>) -> Result<(), Failure> {
+        let s = Sealer::build(ctx, &self.ctrl_ctx, &self.store)?;
+        s.seal(event)
     }
 }
 
@@ -50,29 +95,43 @@ impl Module for Worker {
 
     fn run(&mut self, ctx: Ctx) -> Result<()> {
         let mut wait_for_resume = false;
+        let mut resume_event = None;
+        let resume_loop_tick = Duration::from_secs(1800);
+
         'SEAL_LOOP: loop {
             if wait_for_resume {
                 warn!("waiting for resume signal");
 
                 select! {
-                    recv(self.resume_rx) -> resume_res => {
-                        resume_res.context("resume signal channel closed unexpectedly")?;
+                    recv(self.ctrl_ctx.resume_rx) -> resume_res => {
+                        // resume sealing procedure with given SetState target
+                        resume_event = resume_res.map(|s_opt| s_opt.map(|s| Event::SetState(s))).context("resume signal channel closed unexpectedly")?;
+
+                        wait_for_resume = false;
                     },
 
                     recv(ctx.done) -> _done_res => {
                         return Ok(())
                     },
-                }
 
-                wait_for_resume = false;
+                    default(resume_loop_tick) => {
+                        warn!("worker has been waiting for resume signal during the last {:?}", resume_loop_tick);
+                        continue 'SEAL_LOOP
+                    }
+                }
             }
 
             if ctx.done.try_recv() != Err(TryRecvError::Empty) {
                 return Ok(());
             }
 
-            if let Err(failure) = self.seal_one(&ctx) {
-                error!(failure = debug_field(&failure), "sealing failed");
+            if let Err(failure) = self.seal_one(&ctx, resume_event.take()) {
+                if !(failure.1).is::<Interrupt>() {
+                    error!(failure = debug_field(&failure), "sealing failed");
+                } else {
+                    warn!("sealing interruptted");
+                }
+
                 match failure.0 {
                     Level::Temporary | Level::Permanent | Level::Critical => {
                         if failure.0 == Level::Temporary {

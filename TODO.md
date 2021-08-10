@@ -2,10 +2,9 @@
 - [x] check c2 commit state
 - [x] worker number
 - [] worker control apis
-  - [] pause
-  - [] resume
-  - [] abort
-  - [] set / reset
+  - [x] pause
+  - [x] resume
+  - [x] set / reset
 - [] more robust sealing procedure
 - [x] documents for sealing failures
 - [] deal manager
@@ -14,7 +13,7 @@
 - [] worker state reporting
 - [] tracing log for sealing
   - [x] trace for applying event changes
-- [] turn `sleeps` into `selects`
+- [x] turn `sleeps` into `selects`
 - [] speed up cc sectors
 - [] link to dynamic lib if required
 - [] handle submit states gracefully
