@@ -107,6 +107,13 @@ pub struct Sector {
     pub phases: Phases,
 }
 
+impl Sector {
+    pub fn update_state(&mut self, next: State) {
+        let prev = std::mem::replace(&mut self.state, next);
+        self.prev_state.replace(prev);
+    }
+}
+
 impl Default for Sector {
     fn default() -> Self {
         Sector {

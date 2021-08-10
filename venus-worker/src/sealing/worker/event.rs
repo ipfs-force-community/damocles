@@ -31,6 +31,8 @@ macro_rules! plan {
 }
 
 pub enum Event {
+    SetState(State),
+
     Retry,
 
     Allocate(AllocatedSector),
@@ -64,6 +66,8 @@ impl Debug for Event {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Event::*;
         let name = match self {
+            SetState(_) => "SetState",
+
             Retry => "Retry",
 
             Allocate(_) => "Allocate",
@@ -115,14 +119,18 @@ macro_rules! mem_replace {
 
 impl Event {
     pub fn apply(self, s: &mut Sector) -> Result<()> {
-        let next = self.plan(&s.state)?;
+        let next = if let Event::SetState(s) = self {
+            s
+        } else {
+            self.plan(&s.state)?
+        };
+
         if next == s.state {
             return Err(anyhow!("state unchanged, may enter an infinite loop"));
         }
 
         self.apply_changes(s);
-        let prev = std::mem::replace(&mut s.state, next);
-        s.prev_state.replace(prev);
+        s.update_state(next);
 
         Ok(())
     }
@@ -130,6 +138,8 @@ impl Event {
     fn apply_changes(self, s: &mut Sector) {
         use Event::*;
         match self {
+            SetState(_) => {}
+
             Retry => {}
 
             Allocate(sector) => {
