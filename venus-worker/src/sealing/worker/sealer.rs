@@ -16,12 +16,12 @@ use crate::rpc::{
 use crate::sealing::seal::{add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1};
 use crate::watchdog::Ctx;
 
-use super::super::{
-    event::Event,
-    failure::*,
-    seal::{PaddedBytesAmount, Stage, UnpaddedBytesAmount},
-    sector::{Sector, State, Trace},
-    store::Store,
+use super::{
+    super::{
+        seal::{PaddedBytesAmount, Stage, UnpaddedBytesAmount},
+        store::Store,
+    },
+    *,
 };
 
 use super::HandleResult;

@@ -6,10 +6,19 @@ use crossbeam_channel::{select, Receiver, TryRecvError};
 use crate::logging::{debug_field, error, info, warn};
 use crate::watchdog::{Ctx, Module};
 
-use super::{event::Event, failure::*, store::Store};
+use super::store::Store;
 
 mod sealer;
 use sealer::Sealer;
+
+mod event;
+use event::Event;
+
+mod failure;
+use failure::*;
+
+mod sector;
+use sector::*;
 
 type HandleResult = Result<Event, Failure>;
 

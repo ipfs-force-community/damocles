@@ -1,9 +1,5 @@
 //! sealing mod
 
-mod event;
-mod sector;
-
-mod failure;
 mod worker;
 
 pub mod resource;
