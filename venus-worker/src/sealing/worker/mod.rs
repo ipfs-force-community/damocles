@@ -1,9 +1,11 @@
 use std::error::Error as StdError;
+use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
 use crossbeam_channel::{bounded, select, Receiver, Sender, TryRecvError};
+use crossbeam_utils::atomic::AtomicCell;
 
 use crate::logging::{debug_field, error, info, warn};
 use crate::watchdog::{Ctx, Module};
@@ -44,15 +46,21 @@ impl Interrupt {
 pub fn new_ctrl_ctx() -> (CtrlCtxTx, CtrlCtx) {
     let (pause_tx, pause_rx) = bounded(1);
     let (resume_tx, resume_rx) = bounded(0);
+    let paused = Arc::new(AtomicCell::new(false));
+    let sealing_state = Arc::new(AtomicCell::new(State::Empty));
 
     (
         CtrlCtxTx {
             pause_tx,
             resume_tx,
+            paused: paused.clone(),
+            sealing_state: sealing_state.clone(),
         },
         CtrlCtx {
             pause_rx,
             resume_rx,
+            paused,
+            sealing_state,
         },
     )
 }
@@ -60,11 +68,15 @@ pub fn new_ctrl_ctx() -> (CtrlCtxTx, CtrlCtx) {
 pub struct CtrlCtxTx {
     pub pause_tx: Sender<()>,
     pub resume_tx: Sender<Option<State>>,
+    pub paused: Arc<AtomicCell<bool>>,
+    pub sealing_state: Arc<AtomicCell<State>>,
 }
 
 pub struct CtrlCtx {
     pause_rx: Receiver<()>,
     resume_rx: Receiver<Option<State>>,
+    paused: Arc<AtomicCell<bool>>,
+    sealing_state: Arc<AtomicCell<State>>,
 }
 
 pub struct Worker {
@@ -108,6 +120,7 @@ impl Module for Worker {
                         resume_event = resume_res.map(|s_opt| s_opt.map(|s| Event::SetState(s))).context("resume signal channel closed unexpectedly")?;
 
                         wait_for_resume = false;
+                        self.ctrl_ctx.paused.store(false);
                     },
 
                     recv(ctx.done) -> _done_res => {
@@ -139,6 +152,7 @@ impl Module for Worker {
                         };
 
                         wait_for_resume = true;
+                        self.ctrl_ctx.paused.store(true);
                         continue 'SEAL_LOOP;
                     }
 

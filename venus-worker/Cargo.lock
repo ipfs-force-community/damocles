@@ -3598,6 +3598,7 @@ dependencies = [
  "cgroups-rs",
  "clap",
  "crossbeam-channel 0.5.1",
+ "crossbeam-utils 0.8.5",
  "crossterm",
  "fil_clock",
  "fil_logger",

@@ -293,6 +293,8 @@ impl<'c> Sealer<'c> {
 
         let _enter = span.enter();
 
+        self.ctrl_ctx.sealing_state.store(self.sector.state);
+
         debug!("handling");
 
         match self.sector.state {
