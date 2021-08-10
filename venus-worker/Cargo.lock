@@ -3604,6 +3604,7 @@ dependencies = [
  "fil_types",
  "filecoin-proofs-api",
  "forest_address",
+ "forest_cid",
  "forest_json_utils",
  "glob",
  "humantime-serde",

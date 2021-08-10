@@ -85,7 +85,7 @@ pub struct Phases {
     pub c2out: Option<SealCommitPhase2Output>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Base {
     pub allocated: AllocatedSector,
     pub prove_input: (ProverId, SectorId),

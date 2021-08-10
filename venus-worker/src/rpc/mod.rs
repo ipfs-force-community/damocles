@@ -7,7 +7,8 @@ use anyhow::{anyhow, Error};
 use base64::STANDARD;
 use base64_serde::base64_serde_type;
 use fil_clock::ChainEpoch;
-use fil_types::{ActorID, PieceInfo, SectorNumber};
+use fil_types::{ActorID, PaddedPieceSize, SectorNumber};
+use forest_cid::Cid;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
@@ -97,7 +98,7 @@ pub struct AllocateSectorSpec {
 }
 
 /// basic infos for a allocated sector
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct AllocatedSector {
     /// allocated sector id
@@ -109,7 +110,7 @@ pub struct AllocatedSector {
 }
 
 /// deal piece info
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct DealInfo {
     /// on-chain deal id
@@ -118,6 +119,16 @@ pub struct DealInfo {
 
     /// piece data info
     pub piece: PieceInfo,
+}
+
+/// Piece information for part or a whole file.
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct PieceInfo {
+    /// Size in nodes. For BLS12-381 (capacity 254 bits), must be >= 16. (16 * 8 = 128).
+    pub size: PaddedPieceSize,
+    /// Content identifier for piece.
+    pub cid: Cid,
 }
 
 /// types alias for deal piece info list
@@ -227,7 +238,7 @@ pub struct PollPreCommitStateResp {
 }
 
 /// assigned seed
-#[derive(Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Seed {
     /// raw seed data

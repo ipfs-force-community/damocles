@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use forest_address::Address;
 
 use super::sector::{Base, Sector, State};
+use crate::logging::trace;
 use crate::rpc::{AllocatedSector, Deals, Seed, Ticket};
 use crate::sealing::seal::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
@@ -96,6 +97,22 @@ impl Debug for Event {
     }
 }
 
+macro_rules! replace {
+    ($target:expr, $val:expr) => {
+        let prev = $target.replace($val);
+        if let Some(st) = $target.as_ref() {
+            trace!("{:?} => {:?}", prev, st);
+        }
+    };
+}
+
+macro_rules! mem_replace {
+    ($target:expr, $val:expr) => {
+        let prev = std::mem::replace(&mut $target, $val);
+        trace!("{:?} => {:?}", prev, $target);
+    };
+}
+
 impl Event {
     pub fn apply(self, s: &mut Sector) -> Result<()> {
         let next = self.plan(&s.state)?;
@@ -127,39 +144,39 @@ impl Event {
                     prove_input: (prover_id, sector_id),
                 };
 
-                s.base.replace(base);
+                replace!(s.base, base);
             }
 
             AcquireDeals(deals) => {
-                std::mem::replace(&mut s.deals, deals).map(drop);
+                mem_replace!(s.deals, deals);
             }
 
             AddPiece(pieces) => {
-                s.phases.pieces.replace(pieces);
+                replace!(s.phases.pieces, pieces);
             }
 
             AssignTicket(ticket) => {
-                s.phases.ticket.replace(ticket);
+                replace!(s.phases.ticket, ticket);
             }
 
             PC1(out) => {
-                s.phases.pc1out.replace(out);
+                replace!(s.phases.pc1out, out);
             }
 
             PC2(out) => {
-                s.phases.pc2out.replace(out);
+                replace!(s.phases.pc2out, out);
             }
 
             AssignSeed(seed) => {
-                s.phases.seed.replace(seed);
+                replace!(s.phases.seed, seed);
             }
 
             C1(out) => {
-                s.phases.c1out.replace(out);
+                replace!(s.phases.c1out, out);
             }
 
             C2(out) => {
-                s.phases.c2out.replace(out);
+                replace!(s.phases.c2out, out);
             }
 
             SubmitPC | Persist | SubmitProof => {}

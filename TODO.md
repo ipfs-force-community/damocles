@@ -7,14 +7,16 @@
   - [] abort
   - [] set / reset
 - [] more robust sealing procedure
-- [] documents for sealing failures
+- [x] documents for sealing failures
 - [] deal manager
 - [] object(piece) storage service (proxy)
 - [x] enable fil-logger
 - [] worker state reporting
 - [] tracing log for sealing
+  - [x] trace for applying event changes
 - [] turn `sleeps` into `selects`
 - [] speed up cc sectors
 - [] link to dynamic lib if required
 - [] handle submit states gracefully
 - [] handle ErrOutOfGas and other retry-able failed messages gracefully
+- [] sector state finalize
