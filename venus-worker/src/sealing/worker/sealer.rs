@@ -10,8 +10,9 @@ use glob::glob;
 
 use crate::logging::{debug, debug_field, debug_span, info, info_span, warn};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
-use crate::rpc::{
-    self, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SectorID, SubmitResult,
+use crate::rpc::sealer::{
+    AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo,
+    SectorID, SubmitResult,
 };
 use crate::sealing::seal::{add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1};
 use crate::watchdog::Ctx;
@@ -333,7 +334,7 @@ impl<'c> Sealer<'c> {
         let maybe_allocated = call_rpc! {
             self.ctx.global.rpc,
             allocate_sector,
-            rpc::AllocateSectorSpec {
+            AllocateSectorSpec {
                 allowed_miners: None,
                 allowed_proof_types: None,
             },
@@ -378,7 +379,7 @@ impl<'c> Sealer<'c> {
             self.ctx.global.rpc,
             acquire_deals,
             sector_id,
-            rpc::AcquireDealsSpec {
+            AcquireDealsSpec {
                 max_deals: None,
             },
         }?;

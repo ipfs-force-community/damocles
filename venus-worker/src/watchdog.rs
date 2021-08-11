@@ -9,7 +9,7 @@ use crate::{
     config::Config,
     infra::objstore::ObjectStore,
     logging::{error, error_span, info, warn},
-    rpc::SealerRpcClient,
+    rpc::sealer::SealerClient,
     sealing::{
         resource::Pool,
         seal::{BoxedC2Processor, BoxedPC2Processor},
@@ -27,7 +27,7 @@ pub struct Ctx {
 
 #[derive(Clone)]
 pub struct GlobalModules {
-    pub rpc: Arc<SealerRpcClient>,
+    pub rpc: Arc<SealerClient>,
     pub remote_store: Arc<Box<dyn ObjectStore>>,
     pub pc2: Arc<BoxedPC2Processor>,
     pub c2: Arc<BoxedC2Processor>,

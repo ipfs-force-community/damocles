@@ -72,7 +72,7 @@ impl SimpleMockSealerRpc {
     }
 }
 
-impl SealerRpc for SimpleMockSealerRpc {
+impl Sealer for SimpleMockSealerRpc {
     fn allocate_sector(&self, spec: AllocateSectorSpec) -> Result<Option<AllocatedSector>> {
         if let Some(false) = spec
             .allowed_miners

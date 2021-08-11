@@ -11,7 +11,10 @@ use crate::{
     config,
     infra::objstore::filestore::FileStore,
     logging::{debug_field, info},
-    rpc::{self, mock::Mock, ws, SealerRpc, SealerRpcClient},
+    rpc::{
+        sealer::{mock, Sealer, SealerClient},
+        ws,
+    },
     sealing::{resource, seal, store::StoreManager},
     signal::Signal,
     types::SealProof,
@@ -42,7 +45,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         .ok_or(anyhow!("remote path is required for mock"))?;
     let remote_store = Box::new(FileStore::open(remote)?);
 
-    let mock_impl = rpc::mock::SimpleMockSealerRpc::new(miner, proof_type);
+    let mock_impl = mock::SimpleMockSealerRpc::new(miner, proof_type);
     let mut io = IoHandler::new();
     io.extend_with(mock_impl.to_delegate());
 
@@ -70,8 +73,8 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         (Box::new(seal::internal::C2), None)
     };
 
-    let (mock_client, mock_server) = local::connect::<SealerRpcClient, _, _>(io);
-    let mock_mod = Mock::new(mock_server);
+    let (mock_client, mock_server) = local::connect::<SealerClient, _, _>(io);
+    let mock_mod = mock::Mock::new(mock_server);
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
     let workers = store_mgr.into_workers();
