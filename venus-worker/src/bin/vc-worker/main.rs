@@ -8,7 +8,6 @@ mod processor;
 mod store;
 
 pub fn main() -> Result<()> {
-    fil_logger::init();
     logging::init()?;
 
     let mock_cmd = SubCommand::with_name("mock")
