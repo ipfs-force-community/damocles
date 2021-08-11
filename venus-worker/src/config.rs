@@ -108,9 +108,16 @@ pub struct Store {
 
 /// configurations for rpc
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct RPC {
+pub struct RPCClient {
     /// jsonrpc endpoint
     pub endpoint: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct RPCServer {
+    /// jsonrpc endpoint
+    pub host: Option<String>,
+    pub port: Option<u16>,
 }
 
 /// configurations for processors
@@ -126,8 +133,10 @@ pub struct Processors {
 /// global configuration
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
+    pub worker_server: Option<RPCServer>,
+
     /// section for rpc
-    pub rpc: RPC,
+    pub sealer_rpc: RPCClient,
 
     /// section for common sealing
     pub sealing: SealingOptional,

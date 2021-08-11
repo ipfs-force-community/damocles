@@ -19,3 +19,4 @@
 - [] handle submit states gracefully
 - [] handle ErrOutOfGas and other retry-able failed messages gracefully
 - [] sector state finalize
+- [] websocket reconnect

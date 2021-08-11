@@ -15,7 +15,7 @@ use crate::{
         sealer::{mock, Sealer, SealerClient},
         ws,
     },
-    sealing::{resource, seal, store::StoreManager},
+    sealing::{resource, seal, service, store::StoreManager},
     signal::Signal,
     types::SealProof,
     watchdog::{GlobalModules, WatchDog},
@@ -91,11 +91,14 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
 
     dog.start_module(mock_mod);
 
-    let mut resumes = Vec::new();
-    for (tx, worker) in workers {
-        resumes.push(tx);
+    let mut ctrls = Vec::new();
+    for (worker, ctrl) in workers {
+        ctrls.push(ctrl);
         dog.start_module(worker);
     }
+
+    let worker_server = service::Service::new(ctrls);
+    dog.start_module(worker_server);
 
     if let Some(sub) = pc2sub {
         dog.start_module(sub);
@@ -128,7 +131,9 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
 
-    let rpc_connect_req = ws::Request::builder().uri(&cfg.rpc.endpoint).body(())?;
+    let rpc_connect_req = ws::Request::builder()
+        .uri(&cfg.sealer_rpc.endpoint)
+        .body(())?;
     let rpc_client = block_on(ws::connect(rpc_connect_req))?;
 
     let (pc2, pc2sub): (seal::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
@@ -167,11 +172,14 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let mut dog = WatchDog::build(cfg, globl);
 
-    let mut resumes = Vec::new();
-    for (tx, worker) in workers {
-        resumes.push(tx);
+    let mut ctrls = Vec::new();
+    for (worker, ctrl) in workers {
+        ctrls.push(ctrl);
         dog.start_module(worker);
     }
+
+    let worker_server = service::Service::new(ctrls);
+    dog.start_module(worker_server);
 
     if let Some(sub) = pc2sub {
         dog.start_module(sub);

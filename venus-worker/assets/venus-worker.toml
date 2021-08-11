@@ -1,4 +1,4 @@
-[rpc]
+[sealer_rpc]
 endpoint = "ws://127.0.0.1:1789/rpc/v0"
 
 [sealing]

@@ -10,7 +10,7 @@ use crossbeam_utils::atomic::AtomicCell;
 use crate::logging::{debug_field, error, info, warn};
 use crate::watchdog::{Ctx, Module};
 
-use super::store::Store;
+use super::store::{Location, Store};
 
 mod sealer;
 use sealer::Sealer;
@@ -43,14 +43,15 @@ impl Interrupt {
     }
 }
 
-pub fn new_ctrl_ctx() -> (CtrlCtxTx, CtrlCtx) {
+fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
     let (pause_tx, pause_rx) = bounded(1);
     let (resume_tx, resume_rx) = bounded(0);
     let paused = Arc::new(AtomicCell::new(false));
     let sealing_state = Arc::new(AtomicCell::new(State::Empty));
 
     (
-        CtrlCtxTx {
+        Ctrl {
+            location: loc,
             pause_tx,
             resume_tx,
             paused: paused.clone(),
@@ -65,7 +66,8 @@ pub fn new_ctrl_ctx() -> (CtrlCtxTx, CtrlCtx) {
     )
 }
 
-pub struct CtrlCtxTx {
+pub struct Ctrl {
+    pub location: Location,
     pub pause_tx: Sender<()>,
     pub resume_tx: Sender<Option<State>>,
     pub paused: Arc<AtomicCell<bool>>,
@@ -86,12 +88,16 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(idx: usize, s: Store, ctrl_ctx: CtrlCtx) -> Self {
-        Worker {
-            idx,
-            store: s,
-            ctrl_ctx,
-        }
+    pub fn new(idx: usize, s: Store) -> (Self, Ctrl) {
+        let (ctrl, ctrl_ctx) = new_ctrl(s.location.clone());
+        (
+            Worker {
+                idx,
+                store: s,
+                ctrl_ctx,
+            },
+            ctrl,
+        )
     }
 
     fn seal_one(&mut self, ctx: &Ctx, event: Option<Event>) -> Result<(), Failure> {

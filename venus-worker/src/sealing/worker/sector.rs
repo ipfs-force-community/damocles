@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Error};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -12,9 +13,42 @@ use crate::sealing::seal::{
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
 
-#[derive(Clone, Copy, Deserialize_repr, Serialize_repr, PartialEq)]
-#[repr(u64)]
-pub enum State {
+macro_rules! def_state {
+    ($($name:ident,)+) => {
+        #[derive(Clone, Copy, Deserialize_repr, Serialize_repr, PartialEq)]
+        #[repr(u64)]
+        pub enum State {
+            $(
+                $name,
+            )+
+        }
+
+        impl Into<&str> for State {
+            fn into(self) -> &'static str {
+                match self {
+                    $(
+                        Self::$name => stringify!($name),
+                    )+
+                }
+            }
+        }
+
+        impl std::str::FromStr for State {
+            type Err = Error;
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s {
+                    $(
+                        stringify!($name) => Ok(Self::$name),
+                    )+
+
+                    other => Err(anyhow!("invalid state {}", other)),
+                }
+            }
+        }
+    };
+}
+
+def_state! {
     Empty,
     Allocated,
     DealsAcquired,
@@ -33,24 +67,7 @@ pub enum State {
 
 impl std::fmt::Debug for State {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let name = match self {
-            State::Empty => "Empty",
-            State::Allocated => "Allocated",
-            State::DealsAcquired => "DealsAcquired",
-            State::PieceAdded => "PieceAdded",
-            State::TicketAssigned => "TicketAssigned",
-            State::PC1Done => "PC1Done",
-            State::PC2Done => "PC2Done",
-            State::PCSubmitted => "PCSubmitted",
-            State::SeedAssigned => "SeedAssigned",
-            State::C1Done => "C1Done",
-            State::C2Done => "C2Done",
-            State::Persisted => "Persisted",
-            State::ProofSubmitted => "ProofSubmitted",
-            State::Finished => "Finished",
-        };
-
-        f.write_str(name)
+        f.write_str((*self).into())
     }
 }
 
