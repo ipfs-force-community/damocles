@@ -196,6 +196,13 @@ impl Event {
     }
 
     fn plan(&self, st: &State) -> Result<State> {
+        // syntax:
+        // prev_state => {
+        //      event0 => next_state0,
+        //      event1 => next_state1,
+        //      ...
+        // },
+        //
         let next = plan! {
             self,
             st,

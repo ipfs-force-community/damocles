@@ -1,10 +1,10 @@
-use std::fs::{create_dir_all, OpenOptions};
+use std::fs::{create_dir_all, remove_dir_all, remove_file, OpenOptions};
 use std::io::{self, prelude::*};
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use async_std::task::block_on;
 use glob::glob;
 
@@ -346,21 +346,21 @@ impl<'c> Sealer<'c> {
         };
 
         // init required dirs & files
-        let cache_dir = self.cache_dir(&sector.id);
-        create_dir_all(&cache_dir).crit()?;
+        // let cache_dir = self.cache_dir(&sector.id);
+        // create_dir_all(&cache_dir).crit()?;
 
-        let mut opt = OpenOptions::new();
-        opt.create(true).read(true).write(true).truncate(true);
+        // let mut opt = OpenOptions::new();
+        // opt.create(true).read(true).write(true).truncate(true);
 
-        {
-            let staged_file = opt.open(self.staged_file(&sector.id)).crit()?;
-            drop(staged_file);
-        }
+        // {
+        //     let staged_file = opt.open(self.staged_file(&sector.id)).crit()?;
+        //     drop(staged_file);
+        // }
 
-        {
-            let sealed_file = opt.open(self.sealed_file(&sector.id)).crit()?;
-            drop(sealed_file);
-        }
+        // {
+        //     let sealed_file = opt.open(self.sealed_file(&sector.id)).crit()?;
+        //     drop(sealed_file);
+        // }
 
         Ok(Event::Allocate(sector))
     }
@@ -394,8 +394,11 @@ impl<'c> Sealer<'c> {
         }?;
 
         let mut staged_file = OpenOptions::new()
+            .create(true)
             .read(true)
             .write(true)
+            // to make sure that we won't write into the staged file with any data exists
+            .truncate(true)
             .open(self.staged_file(sector_id))
             .abort()?;
 
@@ -436,6 +439,23 @@ impl<'c> Sealer<'c> {
         Ok(Event::AssignTicket(ticket))
     }
 
+    fn cleanup_before_pc1(&self, cache_dir: &PathBuf, sealed_file: &PathBuf) -> Result<()> {
+        // TODO: see if we have more graceful ways to handle restarting pc1
+        remove_dir_all(&cache_dir).and_then(|_| create_dir_all(&cache_dir))?;
+        debug!("init cache dir {:?} before pc1", cache_dir);
+
+        let empty_sealed_file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(true)
+            .open(&sealed_file)?;
+        debug!("truncate sealed file {:?} before pc1", sealed_file);
+        drop(empty_sealed_file);
+
+        Ok(())
+    }
+
     fn handle_ticket_assigned(&mut self) -> HandleResult {
         let token = self.ctx.global.limit.acquire(Stage::PC1).crit()?;
 
@@ -458,9 +478,11 @@ impl<'c> Sealer<'c> {
             self.sector.phases.pieces
         }?;
 
-        let cache_path = self.cache_dir(sector_id);
+        let cache_dir = self.cache_dir(sector_id);
         let staged_file = self.staged_file(sector_id);
         let sealed_file = self.sealed_file(sector_id);
+
+        self.cleanup_before_pc1(&cache_dir, &sealed_file).crit()?;
 
         let (seal_prover_id, seal_sector_id) = fetch_cloned_field! {
             self.sector.base,
@@ -469,7 +491,7 @@ impl<'c> Sealer<'c> {
 
         let out = seal_pre_commit_phase1(
             proof_type.into(),
-            cache_path,
+            cache_dir,
             staged_file,
             sealed_file,
             seal_prover_id,
@@ -481,6 +503,29 @@ impl<'c> Sealer<'c> {
 
         drop(token);
         Ok(Event::PC1(out))
+    }
+
+    fn cleanup_before_pc2(&self, cache_dir: &PathBuf) -> Result<()> {
+        for entry_res in cache_dir.read_dir()? {
+            let entry = entry_res?;
+            let fname = entry.file_name();
+            if let Some(fname_str) = fname.to_str() {
+                let should = fname_str == "p_aux"
+                    || fname_str == "t_aux"
+                    || fname_str.contains("tree-c")
+                    || fname_str.contains("tree-r-last");
+
+                if !should {
+                    continue;
+                }
+
+                let p = entry.path();
+                remove_file(&p).with_context(|| format!("remove cached file {:?}", p))?;
+                debug!("remove cached file {:?} before pc2", p);
+            }
+        }
+
+        Ok(())
     }
 
     fn handle_pc1_done(&mut self) -> HandleResult {
@@ -497,6 +542,8 @@ impl<'c> Sealer<'c> {
 
         let cache_dir = self.cache_dir(sector_id);
         let sealed_file = self.sealed_file(sector_id);
+
+        self.cleanup_before_pc2(&cache_dir).crit()?;
 
         let out = self
             .ctx
