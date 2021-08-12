@@ -132,7 +132,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
 
     let rpc_connect_req = ws::Request::builder()
-        .uri(&cfg.sealer_rpc.endpoint)
+        .uri(format!("{}{}", cfg.sealer_rpc.endpoint, "/rpc/v0"))
         .body(())?;
     let rpc_client = block_on(ws::connect(rpc_connect_req))?;
 

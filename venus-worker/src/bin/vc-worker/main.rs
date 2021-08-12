@@ -6,6 +6,7 @@ use venus_worker::{logging, start_deamon, start_mock};
 
 mod processor;
 mod store;
+mod worker;
 
 pub fn main() -> Result<()> {
     logging::init()?;

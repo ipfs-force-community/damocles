@@ -8,9 +8,6 @@ use crate::logging::{error, info};
 use crate::rpc::worker::{Worker, WorkerInfo};
 use crate::watchdog::{Ctx, Module};
 
-const DEFAULT_PORT: u16 = 17890;
-const DEFAULT_HOST: &str = "0.0.0.0";
-
 struct ServiceImpl {
     ctrls: Vec<(usize, Ctrl)>,
 }
@@ -105,21 +102,7 @@ impl Module for Service {
     }
 
     fn run(&mut self, ctx: Ctx) -> anyhow::Result<()> {
-        let host = ctx
-            .cfg
-            .worker_server
-            .as_ref()
-            .and_then(|c| c.host.as_ref())
-            .map(|s| s.as_str())
-            .unwrap_or(DEFAULT_HOST);
-
-        let port = ctx
-            .cfg
-            .worker_server
-            .as_ref()
-            .and_then(|c| c.port.as_ref())
-            .cloned()
-            .unwrap_or(DEFAULT_PORT);
+        let addr = ctx.cfg.worker_server_listen_addr()?;
 
         let srv_impl = ServiceImpl {
             ctrls: std::mem::take(&mut self.ctrls),
@@ -128,7 +111,6 @@ impl Module for Service {
         let mut io = IoHandler::new();
         io.extend_with(srv_impl.to_delegate());
 
-        let addr = format!("{}:{}", host, port).parse()?;
         info!("listen on {:?}", addr);
 
         let server = ServerBuilder::new(io).start(&addr)?;
