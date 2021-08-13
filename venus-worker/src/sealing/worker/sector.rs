@@ -1,10 +1,11 @@
+use anyhow::{anyhow, Error};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 pub use fil_clock::ChainEpoch;
 pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness};
 
-use crate::rpc::{AllocatedSector, Deals, Seed, Ticket};
+use crate::rpc::sealer::{AllocatedSector, Deals, Seed, Ticket};
 use crate::sealing::seal::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
     SealPreCommitPhase2Output, SectorId,
@@ -12,9 +13,42 @@ use crate::sealing::seal::{
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
 
-#[derive(Clone, Copy, Deserialize_repr, Serialize_repr, PartialEq)]
-#[repr(u64)]
-pub enum State {
+macro_rules! def_state {
+    ($($name:ident,)+) => {
+        #[derive(Clone, Copy, Deserialize_repr, Serialize_repr, PartialEq)]
+        #[repr(u64)]
+        pub enum State {
+            $(
+                $name,
+            )+
+        }
+
+        impl Into<&str> for State {
+            fn into(self) -> &'static str {
+                match self {
+                    $(
+                        Self::$name => stringify!($name),
+                    )+
+                }
+            }
+        }
+
+        impl std::str::FromStr for State {
+            type Err = Error;
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s {
+                    $(
+                        stringify!($name) => Ok(Self::$name),
+                    )+
+
+                    other => Err(anyhow!("invalid state {}", other)),
+                }
+            }
+        }
+    };
+}
+
+def_state! {
     Empty,
     Allocated,
     DealsAcquired,
@@ -33,24 +67,7 @@ pub enum State {
 
 impl std::fmt::Debug for State {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let name = match self {
-            State::Empty => "Empty",
-            State::Allocated => "Allocated",
-            State::DealsAcquired => "DealsAcquired",
-            State::PieceAdded => "PieceAdded",
-            State::TicketAssigned => "TicketAssigned",
-            State::PC1Done => "PC1Done",
-            State::PC2Done => "PC2Done",
-            State::PCSubmitted => "PCSubmitted",
-            State::SeedAssigned => "SeedAssigned",
-            State::C1Done => "C1Done",
-            State::C2Done => "C2Done",
-            State::Persisted => "Persisted",
-            State::ProofSubmitted => "ProofSubmitted",
-            State::Finished => "Finished",
-        };
-
-        f.write_str(name)
+        f.write_str((*self).into())
     }
 }
 
@@ -85,7 +102,7 @@ pub struct Phases {
     pub c2out: Option<SealCommitPhase2Output>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Base {
     pub allocated: AllocatedSector,
     pub prove_input: (ProverId, SectorId),
@@ -105,6 +122,13 @@ pub struct Sector {
     pub deals: Option<Deals>,
 
     pub phases: Phases,
+}
+
+impl Sector {
+    pub fn update_state(&mut self, next: State) {
+        let prev = std::mem::replace(&mut self.state, next);
+        self.prev_state.replace(prev);
+    }
 }
 
 impl Default for Sector {

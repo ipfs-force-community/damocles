@@ -4,7 +4,8 @@ use anyhow::{anyhow, Result};
 use forest_address::Address;
 
 use super::sector::{Base, Sector, State};
-use crate::rpc::{AllocatedSector, Deals, Seed, Ticket};
+use crate::logging::trace;
+use crate::rpc::sealer::{AllocatedSector, Deals, Seed, Ticket};
 use crate::sealing::seal::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
     SealPreCommitPhase2Output, SectorId,
@@ -30,6 +31,8 @@ macro_rules! plan {
 }
 
 pub enum Event {
+    SetState(State),
+
     Retry,
 
     Allocate(AllocatedSector),
@@ -63,6 +66,8 @@ impl Debug for Event {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Event::*;
         let name = match self {
+            SetState(_) => "SetState",
+
             Retry => "Retry",
 
             Allocate(_) => "Allocate",
@@ -96,16 +101,36 @@ impl Debug for Event {
     }
 }
 
+macro_rules! replace {
+    ($target:expr, $val:expr) => {
+        let prev = $target.replace($val);
+        if let Some(st) = $target.as_ref() {
+            trace!("{:?} => {:?}", prev, st);
+        }
+    };
+}
+
+macro_rules! mem_replace {
+    ($target:expr, $val:expr) => {
+        let prev = std::mem::replace(&mut $target, $val);
+        trace!("{:?} => {:?}", prev, $target);
+    };
+}
+
 impl Event {
     pub fn apply(self, s: &mut Sector) -> Result<()> {
-        let next = self.plan(&s.state)?;
+        let next = if let Event::SetState(s) = self {
+            s
+        } else {
+            self.plan(&s.state)?
+        };
+
         if next == s.state {
             return Err(anyhow!("state unchanged, may enter an infinite loop"));
         }
 
         self.apply_changes(s);
-        let prev = std::mem::replace(&mut s.state, next);
-        s.prev_state.replace(prev);
+        s.update_state(next);
 
         Ok(())
     }
@@ -113,6 +138,8 @@ impl Event {
     fn apply_changes(self, s: &mut Sector) {
         use Event::*;
         match self {
+            SetState(_) => {}
+
             Retry => {}
 
             Allocate(sector) => {
@@ -127,39 +154,39 @@ impl Event {
                     prove_input: (prover_id, sector_id),
                 };
 
-                s.base.replace(base);
+                replace!(s.base, base);
             }
 
             AcquireDeals(deals) => {
-                std::mem::replace(&mut s.deals, deals).map(drop);
+                mem_replace!(s.deals, deals);
             }
 
             AddPiece(pieces) => {
-                s.phases.pieces.replace(pieces);
+                replace!(s.phases.pieces, pieces);
             }
 
             AssignTicket(ticket) => {
-                s.phases.ticket.replace(ticket);
+                replace!(s.phases.ticket, ticket);
             }
 
             PC1(out) => {
-                s.phases.pc1out.replace(out);
+                replace!(s.phases.pc1out, out);
             }
 
             PC2(out) => {
-                s.phases.pc2out.replace(out);
+                replace!(s.phases.pc2out, out);
             }
 
             AssignSeed(seed) => {
-                s.phases.seed.replace(seed);
+                replace!(s.phases.seed, seed);
             }
 
             C1(out) => {
-                s.phases.c1out.replace(out);
+                replace!(s.phases.c1out, out);
             }
 
             C2(out) => {
-                s.phases.c2out.replace(out);
+                replace!(s.phases.c2out, out);
             }
 
             SubmitPC | Persist | SubmitProof => {}
@@ -169,6 +196,13 @@ impl Event {
     }
 
     fn plan(&self, st: &State) -> Result<State> {
+        // syntax:
+        // prev_state => {
+        //      event0 => next_state0,
+        //      event1 => next_state1,
+        //      ...
+        // },
+        //
         let next = plan! {
             self,
             st,

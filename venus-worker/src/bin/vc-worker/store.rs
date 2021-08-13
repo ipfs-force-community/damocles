@@ -66,9 +66,6 @@ pub(crate) fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
             Ok(())
         }
 
-        (other, _) => Err(anyhow!(
-            "unexpected subcommand `{}` inside processor",
-            other
-        )),
+        (other, _) => Err(anyhow!("unexpected subcommand `{}` of store", other)),
     }
 }

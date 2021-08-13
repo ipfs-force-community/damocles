@@ -1,0 +1,22 @@
+## TODOs
+- [x] check c2 commit state
+- [x] worker number
+- [] worker control apis
+  - [x] pause
+  - [x] resume
+  - [x] set / reset
+- [x] more robust sealing procedure
+- [x] documents for sealing failures
+- [] deal manager
+- [] object(piece) storage service (proxy)
+- [x] enable fil-logger
+- [] worker state reporting
+- [x] tracing log for sealing
+  - [x] trace for applying event changes
+- [x] turn `sleeps` into `selects`
+- [] speed up cc sectors
+- [] link to dynamic lib if required
+- [] handle submit states gracefully
+- [] handle ErrOutOfGas and other retry-able failed messages gracefully
+- [] sector state finalize
+- [] websocket reconnect

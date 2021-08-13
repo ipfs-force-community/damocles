@@ -1,27 +1,28 @@
-use std::fs::{create_dir_all, OpenOptions};
+use std::fs::{create_dir_all, remove_dir_all, remove_file, OpenOptions};
 use std::io::{self, prelude::*};
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use async_std::task::block_on;
 use glob::glob;
 
 use crate::logging::{debug, debug_field, debug_span, info, info_span, warn};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
-use crate::rpc::{
-    self, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SectorID, SubmitResult,
+use crate::rpc::sealer::{
+    AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo,
+    SectorID, SubmitResult,
 };
 use crate::sealing::seal::{add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1};
 use crate::watchdog::Ctx;
 
-use super::super::{
-    event::Event,
-    failure::*,
-    seal::{PaddedBytesAmount, Stage, UnpaddedBytesAmount},
-    sector::{Sector, State, Trace},
-    store::Store,
+use super::{
+    super::{
+        seal::{PaddedBytesAmount, Stage, UnpaddedBytesAmount},
+        store::Store,
+    },
+    *,
 };
 
 use super::HandleResult;
@@ -105,6 +106,7 @@ pub struct Sealer<'c> {
     _trace: Vec<Trace>,
 
     ctx: &'c Ctx,
+    ctrl_ctx: &'c CtrlCtx,
     store: &'c Store,
 
     sector_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
@@ -112,7 +114,7 @@ pub struct Sealer<'c> {
 }
 
 impl<'c> Sealer<'c> {
-    pub fn build(ctx: &'c Ctx, s: &'c Store) -> Result<Self, Failure> {
+    pub fn build(ctx: &'c Ctx, ctrl_ctx: &'c CtrlCtx, s: &'c Store) -> Result<Self, Failure> {
         let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta));
 
         let sector: Sector = sector_meta
@@ -135,6 +137,7 @@ impl<'c> Sealer<'c> {
             _trace: Vec::with_capacity(16),
 
             ctx,
+            ctrl_ctx,
             store: s,
 
             sector_meta,
@@ -142,8 +145,41 @@ impl<'c> Sealer<'c> {
         })
     }
 
-    pub fn seal(mut self) -> Result<(), Failure> {
-        let mut event = None;
+    fn interruptted(&self) -> Result<(), Failure> {
+        select! {
+            recv(self.ctx.done) -> _done_res => {
+                Err(Interrupt.into_failure())
+            }
+
+            recv(self.ctrl_ctx.pause_rx) -> pause_res => {
+                pause_res.context("pause signal channel closed unexpectedly").crit()?;
+                Err(Interrupt.into_failure())
+            }
+
+            default => {
+                Ok(())
+            }
+        }
+    }
+
+    fn wait_or_interruptted(&self, duration: Duration) -> Result<(), Failure> {
+        select! {
+            recv(self.ctx.done) -> _done_res => {
+                Err(Interrupt.into_failure())
+            }
+
+            recv(self.ctrl_ctx.pause_rx) -> pause_res => {
+                pause_res.context("pause signal channel closed unexpectedly").crit()?;
+                Err(Interrupt.into_failure())
+            }
+
+            default(duration) => {
+                Ok(())
+            }
+        }
+    }
+
+    pub fn seal(mut self, mut event: Option<Event>) -> Result<(), Failure> {
         loop {
             let span = info_span!(
                 "seal",
@@ -228,6 +264,8 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle(&mut self, event: Option<Event>) -> Result<Option<Event>, Failure> {
+        self.interruptted()?;
+
         let prev = self.sector.state;
 
         if let Some(evt) = event {
@@ -255,6 +293,8 @@ impl<'c> Sealer<'c> {
         );
 
         let _enter = span.enter();
+
+        self.ctrl_ctx.sealing_state.store(self.sector.state);
 
         debug!("handling");
 
@@ -294,7 +334,7 @@ impl<'c> Sealer<'c> {
         let maybe_allocated = call_rpc! {
             self.ctx.global.rpc,
             allocate_sector,
-            rpc::AllocateSectorSpec {
+            AllocateSectorSpec {
                 allowed_miners: None,
                 allowed_proof_types: None,
             },
@@ -306,21 +346,21 @@ impl<'c> Sealer<'c> {
         };
 
         // init required dirs & files
-        let cache_dir = self.cache_dir(&sector.id);
-        create_dir_all(&cache_dir).crit()?;
+        // let cache_dir = self.cache_dir(&sector.id);
+        // create_dir_all(&cache_dir).crit()?;
 
-        let mut opt = OpenOptions::new();
-        opt.create(true).read(true).write(true).truncate(true);
+        // let mut opt = OpenOptions::new();
+        // opt.create(true).read(true).write(true).truncate(true);
 
-        {
-            let staged_file = opt.open(self.staged_file(&sector.id)).crit()?;
-            drop(staged_file);
-        }
+        // {
+        //     let staged_file = opt.open(self.staged_file(&sector.id)).crit()?;
+        //     drop(staged_file);
+        // }
 
-        {
-            let sealed_file = opt.open(self.sealed_file(&sector.id)).crit()?;
-            drop(sealed_file);
-        }
+        // {
+        //     let sealed_file = opt.open(self.sealed_file(&sector.id)).crit()?;
+        //     drop(sealed_file);
+        // }
 
         Ok(Event::Allocate(sector))
     }
@@ -339,7 +379,7 @@ impl<'c> Sealer<'c> {
             self.ctx.global.rpc,
             acquire_deals,
             sector_id,
-            rpc::AcquireDealsSpec {
+            AcquireDealsSpec {
                 max_deals: None,
             },
         }?;
@@ -354,8 +394,11 @@ impl<'c> Sealer<'c> {
         }?;
 
         let mut staged_file = OpenOptions::new()
+            .create(true)
             .read(true)
             .write(true)
+            // to make sure that we won't write into the staged file with any data exists
+            .truncate(true)
             .open(self.staged_file(sector_id))
             .abort()?;
 
@@ -396,6 +439,23 @@ impl<'c> Sealer<'c> {
         Ok(Event::AssignTicket(ticket))
     }
 
+    fn cleanup_before_pc1(&self, cache_dir: &PathBuf, sealed_file: &PathBuf) -> Result<()> {
+        // TODO: see if we have more graceful ways to handle restarting pc1
+        remove_dir_all(&cache_dir).and_then(|_| create_dir_all(&cache_dir))?;
+        debug!("init cache dir {:?} before pc1", cache_dir);
+
+        let empty_sealed_file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(true)
+            .open(&sealed_file)?;
+        debug!("truncate sealed file {:?} before pc1", sealed_file);
+        drop(empty_sealed_file);
+
+        Ok(())
+    }
+
     fn handle_ticket_assigned(&mut self) -> HandleResult {
         let token = self.ctx.global.limit.acquire(Stage::PC1).crit()?;
 
@@ -418,9 +478,11 @@ impl<'c> Sealer<'c> {
             self.sector.phases.pieces
         }?;
 
-        let cache_path = self.cache_dir(sector_id);
+        let cache_dir = self.cache_dir(sector_id);
         let staged_file = self.staged_file(sector_id);
         let sealed_file = self.sealed_file(sector_id);
+
+        self.cleanup_before_pc1(&cache_dir, &sealed_file).crit()?;
 
         let (seal_prover_id, seal_sector_id) = fetch_cloned_field! {
             self.sector.base,
@@ -429,7 +491,7 @@ impl<'c> Sealer<'c> {
 
         let out = seal_pre_commit_phase1(
             proof_type.into(),
-            cache_path,
+            cache_dir,
             staged_file,
             sealed_file,
             seal_prover_id,
@@ -441,6 +503,29 @@ impl<'c> Sealer<'c> {
 
         drop(token);
         Ok(Event::PC1(out))
+    }
+
+    fn cleanup_before_pc2(&self, cache_dir: &PathBuf) -> Result<()> {
+        for entry_res in cache_dir.read_dir()? {
+            let entry = entry_res?;
+            let fname = entry.file_name();
+            if let Some(fname_str) = fname.to_str() {
+                let should = fname_str == "p_aux"
+                    || fname_str == "t_aux"
+                    || fname_str.contains("tree-c")
+                    || fname_str.contains("tree-r-last");
+
+                if !should {
+                    continue;
+                }
+
+                let p = entry.path();
+                remove_file(&p).with_context(|| format!("remove cached file {:?}", p))?;
+                debug!("remove cached file {:?} before pc2", p);
+            }
+        }
+
+        Ok(())
     }
 
     fn handle_pc1_done(&mut self) -> HandleResult {
@@ -457,6 +542,8 @@ impl<'c> Sealer<'c> {
 
         let cache_dir = self.cache_dir(sector_id);
         let sealed_file = self.sealed_file(sector_id);
+
+        self.cleanup_before_pc2(&cache_dir).crit()?;
 
         let out = self
             .ctx
@@ -497,7 +584,6 @@ impl<'c> Sealer<'c> {
             deals,
         };
 
-        // TODO: handle submit reset
         let res = call_rpc! {
             self.ctx.global.rpc,
             submit_pre_commit,
@@ -506,6 +592,7 @@ impl<'c> Sealer<'c> {
             false,
         }?;
 
+        // TODO: handle submit reset correctly
         match res.res {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitPC),
 
@@ -549,7 +636,7 @@ impl<'c> Sealer<'c> {
                 "waiting for next round of polling pre commit state",
             );
 
-            sleep(self.store.config.rpc_polling_interval);
+            self.wait_or_interruptted(self.store.config.rpc_polling_interval)?;
         }
 
         debug!("pre commit landed");
@@ -576,7 +663,7 @@ impl<'c> Sealer<'c> {
                 "waiting for next round of polling seed"
             );
 
-            sleep(delay);
+            self.wait_or_interruptted(delay)?;
         };
 
         Ok(Event::AssignSeed(seed))
@@ -744,7 +831,6 @@ impl<'c> Sealer<'c> {
             .into(),
         };
 
-        // TODO: submit reset
         let res = call_rpc! {
             self.ctx.global.rpc,
             submit_proof,
@@ -753,6 +839,7 @@ impl<'c> Sealer<'c> {
             false,
         }?;
 
+        // TODO: submit reset correctly
         match res.res {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitProof),
 
@@ -765,8 +852,44 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle_proof_submitted(&mut self) -> HandleResult {
-        // TODO: check proof landed on chain
-        warn!("proof submitted");
+        if self.store.config.ignore_proof_check {
+            warn!("proof submitted, ignoring the check");
+            return Ok(Event::Finish);
+        }
+
+        let sector_id = fetch_field! {
+            self.sector.base,
+            allocated.id,
+        }?;
+
+        'POLL: loop {
+            let state = call_rpc! {
+                self.ctx.global.rpc,
+                poll_proof_state,
+                sector_id.clone(),
+            }?;
+
+            match state.state {
+                OnChainState::Landed => break 'POLL,
+                OnChainState::NotFound => {
+                    return Err(anyhow!("proof on-chain info not found").abort())
+                }
+
+                // TODO: handle retry for this
+                OnChainState::Failed => return Err(anyhow!("proof on-chain info failed").abort()),
+
+                OnChainState::Pending | OnChainState::Packed => {}
+            }
+
+            debug!(
+                state = debug_field(state.state),
+                interval = debug_field(self.store.config.rpc_polling_interval),
+                "waiting for next round of polling proof state",
+            );
+
+            self.wait_or_interruptted(self.store.config.rpc_polling_interval)?;
+        }
+
         Ok(Event::Finish)
     }
 }

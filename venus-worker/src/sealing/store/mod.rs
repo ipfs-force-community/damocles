@@ -5,12 +5,11 @@ use std::fs::{create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
-use crossbeam_channel::{bounded, Sender};
 
 use crate::infra::util::PlaceHolder;
 use crate::logging::{debug_field, warn};
 use crate::metadb::rocks::RocksMeta;
-use crate::sealing::worker::Worker;
+use crate::sealing::worker::{Ctrl, Worker};
 
 use crate::config::{Sealing, SealingOptional, Store as StoreConfig};
 
@@ -20,7 +19,7 @@ const SUB_PATH_DATA: &str = "data";
 const SUB_PATH_META: &str = "meta";
 
 /// storage location
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Location(PathBuf);
 
 impl AsRef<Path> for Location {
@@ -30,6 +29,11 @@ impl AsRef<Path> for Location {
 }
 
 impl Location {
+    /// clone inner PathBuf
+    pub fn to_pathbuf(&self) -> PathBuf {
+        self.0.clone()
+    }
+
     fn meta_path(&self) -> PathBuf {
         self.0.join(SUB_PATH_META)
     }
@@ -198,6 +202,7 @@ fn customized_sealing_config(
             seal_interval,
             recover_interval,
             rpc_polling_interval,
+            ignore_proof_check,
         },
     }
 }
@@ -229,12 +234,11 @@ impl StoreManager {
     }
 
     /// build workers
-    pub fn into_workers(self) -> Vec<(Sender<()>, Worker)> {
+    pub fn into_workers(self) -> Vec<(Worker, (usize, Ctrl))> {
         let mut workers = Vec::with_capacity(self.stores.len());
-        for (_, store) in self.stores {
-            let (resume_tx, resume_rx) = bounded(0);
-            let worker = Worker::new(store, resume_rx);
-            workers.push((resume_tx, worker));
+        for (idx, (_, store)) in self.stores.into_iter().enumerate() {
+            let (w, c) = Worker::new(idx, store);
+            workers.push((w, (idx, c)));
         }
 
         workers
