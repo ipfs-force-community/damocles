@@ -35,7 +35,9 @@ fn init_flexi_logger() -> Result<()> {
     let mut builder = LogSpecBuilder::new();
     builder.default(LevelFilter::Info);
     builder.module("jsonrpc_client_transports", LevelFilter::Warn);
-    builder.module("jsonrpc_ws_server", LevelFilter::Info);
+    builder.module("jsonrpc_core", LevelFilter::Warn);
+    builder.module("jsonrpc_ws_server", LevelFilter::Warn);
+    builder.module("parity_ws", LevelFilter::Warn);
 
     let from_env = LogSpecification::env()?;
     builder.insert_modules_from(from_env);

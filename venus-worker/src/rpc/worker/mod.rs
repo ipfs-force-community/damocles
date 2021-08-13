@@ -24,14 +24,14 @@ pub struct WorkerInfo {
 /// api defs
 pub trait Worker {
     /// show all workers
-    #[rpc(name = "VenusWorker.ListWorkers")]
-    fn list_workers(&self) -> Result<Vec<WorkerInfo>>;
+    #[rpc(name = "VenusWorker.WorkerList")]
+    fn worker_list(&self) -> Result<Vec<WorkerInfo>>;
 
     /// pause specific worker
     #[rpc(name = "VenusWorker.WorkerPause")]
-    fn pause_worker(&self, index: usize) -> Result<bool>;
+    fn worker_pause(&self, index: usize) -> Result<bool>;
 
     /// resume specific worker, with given state, if any
     #[rpc(name = "VenusWorker.WorkerResume")]
-    fn resume_worker(&self, index: usize, set_to: Option<String>) -> Result<bool>;
+    fn worker_resume(&self, index: usize, set_to: Option<String>) -> Result<bool>;
 }

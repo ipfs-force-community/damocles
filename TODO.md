@@ -5,13 +5,13 @@
   - [x] pause
   - [x] resume
   - [x] set / reset
-- [] more robust sealing procedure
+- [x] more robust sealing procedure
 - [x] documents for sealing failures
 - [] deal manager
 - [] object(piece) storage service (proxy)
 - [x] enable fil-logger
 - [] worker state reporting
-- [] tracing log for sealing
+- [x] tracing log for sealing
   - [x] trace for applying event changes
 - [x] turn `sleeps` into `selects`
 - [] speed up cc sectors

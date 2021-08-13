@@ -25,7 +25,7 @@ impl ServiceImpl {
 }
 
 impl Worker for ServiceImpl {
-    fn list_workers(&self) -> Result<Vec<WorkerInfo>> {
+    fn worker_list(&self) -> Result<Vec<WorkerInfo>> {
         Ok(self
             .ctrls
             .iter()
@@ -41,7 +41,7 @@ impl Worker for ServiceImpl {
             .collect())
     }
 
-    fn pause_worker(&self, index: usize) -> Result<bool> {
+    fn worker_pause(&self, index: usize) -> Result<bool> {
         let ctrl = self.get_ctrl(index)?;
 
         select! {
@@ -60,7 +60,7 @@ impl Worker for ServiceImpl {
         }
     }
 
-    fn resume_worker(&self, index: usize, set_to: Option<String>) -> Result<bool> {
+    fn worker_resume(&self, index: usize, set_to: Option<String>) -> Result<bool> {
         let ctrl = self.get_ctrl(index)?;
 
         let state = set_to
