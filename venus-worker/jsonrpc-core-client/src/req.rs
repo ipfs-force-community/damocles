@@ -1,8 +1,7 @@
-use async_std::channel::Sender;
 use jsonrpc_core::Params;
 use serde_json::Value;
 
-use crate::channel::oneshot;
+use crate::channel::{oneshot, Sender};
 use crate::RpcResult;
 
 pub(crate) struct CallMessage {

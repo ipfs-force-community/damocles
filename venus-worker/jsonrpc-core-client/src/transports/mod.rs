@@ -1,3 +1,9 @@
+use std::collections::VecDeque;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::Context;
+use std::time::Duration;
+
 use jsonrpc_core::{Call, Id, MethodCall, Notification, Params, Request, Version};
 use jsonrpc_pubsub::SubscriptionId;
 use serde_json::Value;
@@ -5,7 +11,31 @@ use serde_json::Value;
 use crate::channel::{oneshot, Sender};
 use crate::{CallMessage, NotifyMessage, RpcResult};
 
+// pub mod local;
+pub mod duplex;
 pub mod ws;
+
+pub trait Client: Sized + Unpin {
+    type ConnectInfo: Unpin;
+    type ConnectError: std::error::Error;
+
+    fn connect(
+        info: &Self::ConnectInfo,
+        dealy: Option<Duration>,
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Self::ConnectError>>>>;
+
+    fn handle_stream(
+        &mut self,
+        cx: &mut Context<'_>,
+        incoming: &mut VecDeque<String>,
+    ) -> Result<(), String>;
+
+    fn handle_sink(
+        &mut self,
+        cx: &mut Context<'_>,
+        outgoing: &mut VecDeque<String>,
+    ) -> Result<bool, String>;
+}
 
 struct Subscription {
     /// Subscription id received when subscribing.
