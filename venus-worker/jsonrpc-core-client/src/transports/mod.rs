@@ -11,8 +11,8 @@ use serde_json::Value;
 use crate::channel::{oneshot, Sender};
 use crate::{CallMessage, NotifyMessage, RpcResult};
 
-// pub mod local;
 pub mod duplex;
+pub mod local;
 pub mod ws;
 
 pub trait Client: Sized + Unpin {
