@@ -18,7 +18,7 @@ use crate::{
     sealing::{resource, seal, service, store::StoreManager},
     signal::Signal,
     types::SealProof,
-    watchdog::{GlobalModules, WatchDog},
+    watchdog::{dones, GlobalModules, WatchDog},
 };
 
 /// start a worker process with mock modules
@@ -73,7 +73,11 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         (Box::new(seal::internal::C2), None)
     };
 
-    let (mock_client, mock_server) = local::connect::<SealerClient, _, _>(io);
+    let done = dones();
+
+    let (mock_client, mock_server) =
+        block_on(local::connect::<SealerClient, _, _>(done.1.clone(), io))
+            .map_err(|e| anyhow!("build local client: {:?}", e))?;
     let mock_mod = mock::Mock::new(mock_server);
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
@@ -87,7 +91,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
     };
 
-    let mut dog = WatchDog::build(cfg, globl);
+    let mut dog = WatchDog::build_with_done(cfg, globl, done);
 
     dog.start_module(mock_mod);
 

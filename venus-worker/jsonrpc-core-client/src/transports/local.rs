@@ -8,46 +8,42 @@ use std::time::Duration;
 
 use async_std::{future::ready, prelude::FutureExt};
 use jsonrpc_core::{
-    futures::channel::mpsc::{unbounded, UnboundedReceiver},
-    BoxFuture, MetaIoHandler, Middleware,
+    futures::channel::mpsc::UnboundedReceiver, BoxFuture, MetaIoHandler, Metadata, Middleware,
 };
-use jsonrpc_pubsub::Session;
 
 use super::{duplex::Duplex, Client};
 use crate::{RpcChannel, RpcError, RpcResult};
 
 /// Implements a rpc client for `MetaIoHandler`.
-pub struct LocalRpc<THandler> {
+pub struct LocalRpc<THandler, TMetadata> {
     handler: Arc<THandler>,
-    meta: Arc<Session>,
-    session_rx: UnboundedReceiver<String>,
+    meta: TMetadata,
+    session_rx: Option<UnboundedReceiver<String>>,
     pending: VecDeque<BoxFuture<Option<String>>>,
 }
 
-impl<THandler, TMiddleware> LocalRpc<THandler>
+impl<THandler, TMetadata, TMiddleware> LocalRpc<THandler, TMetadata>
 where
-    TMiddleware: Middleware<Arc<Session>>,
-    THandler: Deref<Target = MetaIoHandler<Arc<Session>, TMiddleware>>,
+    TMetadata: Metadata,
+    TMiddleware: Middleware<TMetadata>,
+    THandler: Deref<Target = MetaIoHandler<TMetadata, TMiddleware>>,
 {
     /// Creates a new `LocalRpc` with given handler and metadata.
-    pub fn with_metadata(
-        handler: Arc<THandler>,
-        meta: Arc<Session>,
-        rx: UnboundedReceiver<String>,
-    ) -> Self {
+    pub fn new(handler: Arc<THandler>, meta: TMetadata) -> Self {
         Self {
             handler,
             meta,
-            session_rx: rx,
+            session_rx: None,
             pending: VecDeque::new(),
         }
     }
 }
 
-impl<THandler, TMiddleware> Client for LocalRpc<THandler>
+impl<THandler, TMetadata, TMiddleware> Client for LocalRpc<THandler, TMetadata>
 where
-    TMiddleware: Middleware<Arc<Session>>,
-    THandler: Deref<Target = MetaIoHandler<Arc<Session>, TMiddleware>> + Unpin + 'static,
+    TMetadata: Metadata + Default + Unpin,
+    TMiddleware: Middleware<TMetadata>,
+    THandler: Deref<Target = MetaIoHandler<TMetadata, TMiddleware>> + Unpin + 'static,
 {
     type ConnectInfo = Arc<THandler>;
     type ConnectError = RpcError;
@@ -56,11 +52,7 @@ where
         info: &Self::ConnectInfo,
         dealy: Option<Duration>,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Self::ConnectError>>>> {
-        let (tx, rx) = unbounded();
-
-        let meta = Arc::new(Session::new(tx));
-
-        let fut = ready(Ok(Self::with_metadata(info.clone(), meta, rx)));
+        let fut = ready(Ok(Self::new(info.clone(), Default::default())));
 
         match dealy {
             Some(d) => Box::pin(fut.delay(d)),
@@ -73,8 +65,10 @@ where
         _cx: &mut Context<'_>,
         incoming: &mut VecDeque<String>,
     ) -> Result<(), String> {
-        while let Ok(Some(s)) = self.session_rx.try_next() {
-            incoming.push_back(s);
+        if let Some(rx) = self.session_rx.as_mut() {
+            while let Ok(Some(s)) = rx.try_next() {
+                incoming.push_back(s);
+            }
         }
 
         let drained = self.pending.drain(..).collect::<Vec<_>>();
@@ -108,15 +102,16 @@ where
     }
 }
 
-pub async fn connect<TClient, THandler>(
+pub async fn connect<TClient, TMetadata, THandler>(
     done: crossbeam_channel::Receiver<()>,
     handler: THandler,
 ) -> RpcResult<(TClient, impl Future<Output = RpcResult<()>>)>
 where
     TClient: From<RpcChannel>,
-    THandler: Deref<Target = MetaIoHandler<Arc<Session>>> + Unpin + 'static,
+    THandler: Deref<Target = MetaIoHandler<TMetadata>> + Unpin + Send + Sync + 'static,
+    TMetadata: Metadata + Default + Unpin,
 {
     let hdl = Arc::new(handler);
-    let (fut, tx) = Duplex::<LocalRpc<THandler>>::new(done, hdl).await?;
+    let (fut, tx) = Duplex::<LocalRpc<THandler, TMetadata>>::new(done, hdl).await?;
     Ok((TClient::from(tx), fut))
 }

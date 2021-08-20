@@ -23,6 +23,8 @@ pub use client::*;
 mod channel;
 pub use channel::*;
 
+pub use jsonrpc_core::futures;
+
 pub mod transports;
 // pub mod duplex;
 // pub mod local;

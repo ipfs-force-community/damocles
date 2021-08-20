@@ -1,6 +1,6 @@
 [package]
 name = "jsonrpc-core-client"
-version = "0.1.0"
+version = "17.0.0"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2018"
 
