@@ -21,3 +21,4 @@
 - [] object(piece) storage service (proxy)
 - [] speed up cc sectors
 - [] link to dynamic lib if required
+- [] websocket client logging
