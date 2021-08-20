@@ -28,7 +28,7 @@ pub struct Duplex<C: Client> {
 
     connect_info: C::ConnectInfo,
     client: Option<C>,
-    reconnect: Option<Pin<Box<dyn Future<Output = Result<C, C::ConnectError>>>>>,
+    reconnect: Option<Pin<Box<dyn Future<Output = Result<C, C::ConnectError>> + Send>>>,
 }
 
 impl<C: Client> Duplex<C> {

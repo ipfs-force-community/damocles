@@ -11,10 +11,7 @@ use crate::{
     config,
     infra::objstore::filestore::FileStore,
     logging::{debug_field, info},
-    rpc::{
-        sealer::{mock, Sealer, SealerClient},
-        ws,
-    },
+    rpc::sealer::{mock, Sealer, SealerClient},
     sealing::{resource, seal, service, store::StoreManager},
     signal::Signal,
     types::SealProof,

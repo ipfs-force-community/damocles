@@ -6,7 +6,11 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use async_std::{future::ready, prelude::FutureExt};
+use async_std::{
+    future::ready,
+    prelude::FutureExt,
+    task::{block_on, spawn},
+};
 use jsonrpc_core::{
     futures::channel::mpsc::UnboundedReceiver, BoxFuture, MetaIoHandler, Metadata, Middleware,
 };
@@ -43,7 +47,7 @@ impl<THandler, TMetadata, TMiddleware> Client for LocalRpc<THandler, TMetadata>
 where
     TMetadata: Metadata + Default + Unpin,
     TMiddleware: Middleware<TMetadata>,
-    THandler: Deref<Target = MetaIoHandler<TMetadata, TMiddleware>> + Unpin + 'static,
+    THandler: Deref<Target = MetaIoHandler<TMetadata, TMiddleware>> + Send + Sync + Unpin + 'static,
 {
     type ConnectInfo = Arc<THandler>;
     type ConnectError = RpcError;
@@ -51,7 +55,7 @@ where
     fn connect(
         info: &Self::ConnectInfo,
         dealy: Option<Duration>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Self::ConnectError>>>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Self::ConnectError>> + Send>> {
         let fut = ready(Ok(Self::new(info.clone(), Default::default())));
 
         match dealy {
@@ -102,16 +106,17 @@ where
     }
 }
 
-pub async fn connect<TClient, TMetadata, THandler>(
+pub fn connect<TClient, TMetadata, THandler>(
     done: crossbeam_channel::Receiver<()>,
     handler: THandler,
-) -> RpcResult<(TClient, impl Future<Output = RpcResult<()>>)>
+) -> RpcResult<TClient>
 where
     TClient: From<RpcChannel>,
     THandler: Deref<Target = MetaIoHandler<TMetadata>> + Unpin + Send + Sync + 'static,
     TMetadata: Metadata + Default + Unpin,
 {
     let hdl = Arc::new(handler);
-    let (fut, tx) = Duplex::<LocalRpc<THandler, TMetadata>>::new(done, hdl).await?;
-    Ok((TClient::from(tx), fut))
+    let (duplex, tx) = block_on(Duplex::<LocalRpc<THandler, TMetadata>>::new(done, hdl))?;
+    spawn(duplex);
+    Ok(TClient::from(tx))
 }

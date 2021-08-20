@@ -4,7 +4,10 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use async_std::prelude::FutureExt;
+use async_std::{
+    prelude::FutureExt,
+    task::{block_on, spawn},
+};
 use async_tungstenite::{
     async_std::{connect_async, ConnectStream},
     tungstenite::{error::Error as wsError, http::Request, Message},
@@ -13,7 +16,17 @@ use async_tungstenite::{
 use jsonrpc_core::futures::{SinkExt, StreamExt};
 use tracing::warn;
 
-use super::Client;
+use super::{duplex::Duplex, Client};
+use crate::{RpcChannel, RpcResult};
+
+pub fn connect<TClient: From<RpcChannel>>(
+    done: crossbeam_channel::Receiver<()>,
+    info: ConnectInfo,
+) -> RpcResult<TClient> {
+    let (duplex, tx) = block_on(Duplex::<WS>::new(done, info))?;
+    spawn(duplex);
+    Ok(TClient::from(tx))
+}
 
 pub struct ConnectInfo {
     pub url: String,
@@ -29,7 +42,7 @@ impl Client for WS {
     fn connect(
         info: &Self::ConnectInfo,
         dealy: Option<Duration>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Self::ConnectError>>>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Self::ConnectError>> + Send>> {
         let mut builder = Request::builder().uri(info.url.to_owned());
         for (k, v) in info.headers.iter() {
             builder = builder.header(k, v);

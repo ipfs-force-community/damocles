@@ -22,7 +22,7 @@ pub trait Client: Sized + Unpin {
     fn connect(
         info: &Self::ConnectInfo,
         dealy: Option<Duration>,
-    ) -> Pin<Box<dyn Future<Output = Result<Self, Self::ConnectError>>>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Self, Self::ConnectError>> + Send>>;
 
     fn handle_stream(
         &mut self,
