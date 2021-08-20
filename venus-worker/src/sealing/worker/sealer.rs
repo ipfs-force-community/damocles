@@ -245,22 +245,22 @@ impl<'c> Sealer<'c> {
     fn cache_dir(&self, sector_id: &SectorID) -> PathBuf {
         self.store
             .data_path
-            .join(self.sector_path(sector_id))
             .join("cache")
+            .join(self.sector_path(sector_id))
     }
 
     fn sealed_file(&self, sector_id: &SectorID) -> PathBuf {
         self.store
             .data_path
-            .join(self.sector_path(sector_id))
             .join("sealed")
+            .join(self.sector_path(sector_id))
     }
 
     fn staged_file(&self, sector_id: &SectorID) -> PathBuf {
         self.store
             .data_path
+            .join("unsealed")
             .join(self.sector_path(sector_id))
-            .join("staged")
     }
 
     fn handle(&mut self, event: Option<Event>) -> Result<Option<Event>, Failure> {
