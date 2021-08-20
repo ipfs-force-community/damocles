@@ -346,8 +346,22 @@ impl<'c> Sealer<'c> {
         };
 
         // init required dirs & files
-        // let cache_dir = self.cache_dir(&sector.id);
-        // create_dir_all(&cache_dir).crit()?;
+        let cache_dir = self.cache_dir(&sector.id);
+        create_dir_all(&cache_dir)
+            .context("init cache dir")
+            .crit()?;
+
+        self.staged_file(&sector.id)
+            .parent()
+            .map(|dir| create_dir_all(dir))
+            .transpose()
+            .crit()?;
+
+        self.sealed_file(&sector.id)
+            .parent()
+            .map(|dir| create_dir_all(dir))
+            .transpose()
+            .crit()?;
 
         // let mut opt = OpenOptions::new();
         // opt.create(true).read(true).write(true).truncate(true);

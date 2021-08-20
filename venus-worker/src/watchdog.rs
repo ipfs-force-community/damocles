@@ -5,6 +5,7 @@ use std::thread;
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver, Select, Sender};
 
+/// return done tx & rx
 pub fn dones() -> (Sender<()>, Receiver<()>) {
     bounded(0)
 }
