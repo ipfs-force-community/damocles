@@ -1,49 +1,19 @@
 //! provides mock impl for the SealerRpc
 
 use std::collections::HashMap;
-use std::future::Future;
 use std::sync::{
     atomic::{AtomicU64, Ordering},
     RwLock,
 };
 
-use anyhow::anyhow;
-use async_std::task::block_on;
 use fil_types::ActorID;
 use jsonrpc_core::Error;
-use jsonrpc_core_client::RpcResult;
 
 use super::*;
 use crate::{
     logging::{debug_field, error},
     types::SealProof,
-    watchdog::{Ctx, Module},
 };
-
-pub struct Mock {
-    fut: Option<Box<dyn Future<Output = RpcResult<()>> + Send + Unpin>>,
-}
-
-impl Mock {
-    pub fn new(fut: impl 'static + Future<Output = RpcResult<()>> + Send + Unpin) -> Self {
-        Mock {
-            fut: Some(Box::new(fut)),
-        }
-    }
-}
-
-impl Module for Mock {
-    fn id(&self) -> String {
-        "mock".to_owned()
-    }
-
-    fn run(&mut self, _ctx: Ctx) -> anyhow::Result<()> {
-        match block_on(self.fut.take().unwrap()) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(anyhow!("future err: {:?}", e)),
-        }
-    }
-}
 
 /// simplest mock server implementation
 pub struct SimpleMockSealerRpc {

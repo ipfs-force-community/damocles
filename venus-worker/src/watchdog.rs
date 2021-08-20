@@ -5,6 +5,11 @@ use std::thread;
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver, Select, Sender};
 
+/// return done tx & rx
+pub fn dones() -> (Sender<()>, Receiver<()>) {
+    bounded(0)
+}
+
 use crate::{
     config::Config,
     infra::objstore::ObjectStore,
@@ -40,21 +45,28 @@ pub trait Module: Send {
 }
 
 pub struct WatchDog {
-    ctx: Ctx,
+    pub ctx: Ctx,
     done_ctrl: Option<Sender<()>>,
     modules: Vec<(String, thread::JoinHandle<()>, Receiver<Result<()>>)>,
 }
 
 impl WatchDog {
     pub fn build(cfg: Config, global: GlobalModules) -> Self {
-        let (done_tx, done_rx) = bounded(0);
+        Self::build_with_done(cfg, global, dones())
+    }
+
+    pub fn build_with_done(
+        cfg: Config,
+        global: GlobalModules,
+        done: (Sender<()>, Receiver<()>),
+    ) -> Self {
         Self {
             ctx: Ctx {
-                done: done_rx,
+                done: done.1,
                 cfg: Arc::new(cfg),
                 global,
             },
-            done_ctrl: Some(done_tx),
+            done_ctrl: Some(done.0),
             modules: Vec::new(),
         }
     }

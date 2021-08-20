@@ -19,6 +19,7 @@ pub use run::{start_deamon, start_mock};
 pub use sealing::seal::external::sub::{run_c2, run_pc2};
 pub use sealing::store;
 pub use sealing::util as seal_util;
+pub use watchdog::dones;
 
 pub mod client;
 pub mod logging;

@@ -2,19 +2,15 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use async_std::task::block_on;
 use fil_types::ActorID;
 use jsonrpc_core::IoHandler;
-use jsonrpc_core_client::transports::local;
+use jsonrpc_core_client::transports::{local, ws};
 
 use crate::{
     config,
     infra::objstore::filestore::FileStore,
     logging::{debug_field, info},
-    rpc::{
-        sealer::{mock, Sealer, SealerClient},
-        ws,
-    },
+    rpc::sealer::{mock, Sealer, SealerClient},
     sealing::{resource, seal, service, store::StoreManager},
     signal::Signal,
     types::SealProof,
@@ -73,8 +69,8 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         (Box::new(seal::internal::C2), None)
     };
 
-    let (mock_client, mock_server) = local::connect::<SealerClient, _, _>(io);
-    let mock_mod = mock::Mock::new(mock_server);
+    let mock_client = local::connect::<SealerClient, _, _>(io)
+        .map_err(|e| anyhow!("build local client: {:?}", e))?;
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
     let workers = store_mgr.into_workers();
@@ -88,8 +84,6 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     };
 
     let mut dog = WatchDog::build(cfg, globl);
-
-    dog.start_module(mock_mod);
 
     let mut ctrls = Vec::new();
     for (worker, ctrl) in workers {
@@ -131,10 +125,12 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
 
-    let rpc_connect_req = ws::Request::builder()
-        .uri(format!("{}{}", cfg.sealer_rpc.endpoint, "/rpc/v0"))
-        .body(())?;
-    let rpc_client = block_on(ws::connect(rpc_connect_req))?;
+    let rpc_connect_req = ws::ConnectInfo {
+        url: format!("{}{}", cfg.sealer_rpc.endpoint, "/rpc/v0"),
+        headers: Default::default(),
+    };
+
+    let rpc_client = ws::connect(rpc_connect_req).map_err(|e| anyhow!("ws connect: {:?}", e))?;
 
     let (pc2, pc2sub): (seal::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors

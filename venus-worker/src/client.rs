@@ -1,11 +1,10 @@
 //! module for worker rpc client
 
-use anyhow::Result;
-use async_std::task::block_on;
+use anyhow::{anyhow, Result};
+use jsonrpc_core_client::transports::ws::{self, ConnectInfo};
 
 use crate::config::Config;
 use crate::rpc::worker;
-use crate::rpc::ws;
 
 pub use worker::WorkerClient;
 
@@ -14,8 +13,12 @@ pub fn connect(cfg: &Config) -> Result<WorkerClient> {
     let addr = cfg.worker_server_listen_addr()?;
     let endpoint = format!("ws://{}", addr);
 
-    let connect_req = ws::Request::builder().uri(endpoint).body(())?;
-    let client = block_on(ws::connect(connect_req))?;
+    let connect_req = ConnectInfo {
+        url: endpoint,
+        headers: Default::default(),
+    };
+
+    let client = ws::connect(connect_req).map_err(|e| anyhow!("ws connect: {:?}", e))?;
 
     Ok(client)
 }

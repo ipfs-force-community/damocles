@@ -245,22 +245,22 @@ impl<'c> Sealer<'c> {
     fn cache_dir(&self, sector_id: &SectorID) -> PathBuf {
         self.store
             .data_path
-            .join(self.sector_path(sector_id))
             .join("cache")
+            .join(self.sector_path(sector_id))
     }
 
     fn sealed_file(&self, sector_id: &SectorID) -> PathBuf {
         self.store
             .data_path
-            .join(self.sector_path(sector_id))
             .join("sealed")
+            .join(self.sector_path(sector_id))
     }
 
     fn staged_file(&self, sector_id: &SectorID) -> PathBuf {
         self.store
             .data_path
+            .join("unsealed")
             .join(self.sector_path(sector_id))
-            .join("staged")
     }
 
     fn handle(&mut self, event: Option<Event>) -> Result<Option<Event>, Failure> {
@@ -346,8 +346,22 @@ impl<'c> Sealer<'c> {
         };
 
         // init required dirs & files
-        // let cache_dir = self.cache_dir(&sector.id);
-        // create_dir_all(&cache_dir).crit()?;
+        let cache_dir = self.cache_dir(&sector.id);
+        create_dir_all(&cache_dir)
+            .context("init cache dir")
+            .crit()?;
+
+        self.staged_file(&sector.id)
+            .parent()
+            .map(|dir| create_dir_all(dir))
+            .transpose()
+            .crit()?;
+
+        self.sealed_file(&sector.id)
+            .parent()
+            .map(|dir| create_dir_all(dir))
+            .transpose()
+            .crit()?;
 
         // let mut opt = OpenOptions::new();
         // opt.create(true).read(true).write(true).truncate(true);
