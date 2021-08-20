@@ -6,7 +6,7 @@ use std::time::Duration;
 use async_std::{channel::TryRecvError, prelude::Future};
 use jsonrpc_core::Id;
 use jsonrpc_pubsub::SubscriptionId;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 use super::{Client, PendingRequest, RequestBuilder, Subscription};
 use crate::{
@@ -15,8 +15,6 @@ use crate::{
 };
 
 pub struct Duplex<C: Client> {
-    done: crossbeam_channel::Receiver<()>,
-
     req_rx: Receiver<RpcMessage>,
     req_builder: RequestBuilder,
 
@@ -32,10 +30,7 @@ pub struct Duplex<C: Client> {
 }
 
 impl<C: Client> Duplex<C> {
-    pub async fn new(
-        done: crossbeam_channel::Receiver<()>,
-        info: C::ConnectInfo,
-    ) -> RpcResult<(Self, RpcChannel)> {
+    pub async fn new(info: C::ConnectInfo) -> RpcResult<(Self, RpcChannel)> {
         let client = C::connect(&info, None)
             .await
             .map_err(|e| RpcError::Client(format!("connect failed: {:?}", e)))?;
@@ -44,7 +39,6 @@ impl<C: Client> Duplex<C> {
 
         Ok((
             Duplex {
-                done,
                 req_rx,
                 req_builder: RequestBuilder::new(),
                 pending_reqs: HashMap::new(),
@@ -66,43 +60,50 @@ impl<C: Client> Future for Duplex<C> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = Pin::into_inner(self);
 
-        // handle client reconnecting
-        if let Some(fut) = this.reconnect.as_mut() {
-            match Pin::new(fut).poll(cx) {
-                Poll::Ready(Ok(cli)) => {
-                    this.client.replace(cli);
-                    this.reconnect.take().map(drop);
-                }
+        // handle client reconnection
+        loop {
+            if let Some(fut) = this.reconnect.as_mut() {
+                match Pin::new(fut).poll(cx) {
+                    Poll::Ready(Ok(cli)) => {
+                        this.client.replace(cli);
+                        this.reconnect.take().map(drop);
+                        debug!("reconnection done");
+                    }
 
-                Poll::Ready(Err(e)) => {
-                    error!("reconnect failed: {:?}", e);
-                    this.try_reconnect();
-                }
+                    Poll::Ready(Err(e)) => {
+                        error!("reconnect failed: {:?}", e);
+                        this.try_reconnect();
+                        continue;
+                    }
 
-                Poll::Pending => {
-                    return Poll::Pending;
+                    Poll::Pending => {
+                        debug!("reconnection is still pending");
+                        return Poll::Pending;
+                    }
                 }
             }
-        };
 
-        // receive from requset rx
-        // this will fill in self.outgoing
-        if let Err(e) = this.handle_reqs() {
-            return Poll::Ready(Err(e));
-        }
+            // receive from requset rx
+            // this will fill in self.outgoing
+            if let Err(e) = this.handle_reqs() {
+                return Poll::Ready(Err(e));
+            }
 
-        match this.handle_client(cx) {
-            Ok(_) => {}
-            Err(reason) => {
-                error!("client：{}", reason);
-                this.cleanup(true);
-                this.try_reconnect();
+            match this.handle_client(cx) {
+                Ok(_) => {}
+                Err(reason) => {
+                    error!("client：{}, will reconnect soon", reason);
+                    this.cleanup(true);
+                    this.try_reconnect();
+                    continue;
+                }
+            };
+
+            if !this.closed() {
                 return Poll::Pending;
             }
-        };
 
-        if !this.closed() {
-            return Poll::Pending;
+            break;
         }
 
         this.cleanup(false);
@@ -118,8 +119,7 @@ impl<C: Client> Drop for Duplex<C> {
 
 impl<C: Client> Duplex<C> {
     fn closed(&self) -> bool {
-        self.done.try_recv() != Err(crossbeam_channel::TryRecvError::Empty)
-            || self.req_rx.is_closed()
+        self.req_rx.is_closed()
     }
 
     fn cleanup(&mut self, is_temp: bool) {

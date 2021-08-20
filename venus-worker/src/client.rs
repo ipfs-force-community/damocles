@@ -5,12 +5,11 @@ use jsonrpc_core_client::transports::ws::{self, ConnectInfo};
 
 use crate::config::Config;
 use crate::rpc::worker;
-use crate::watchdog::Done;
 
 pub use worker::WorkerClient;
 
 /// returns a worker client based on the given config
-pub fn connect(done: Done, cfg: &Config) -> Result<WorkerClient> {
+pub fn connect(cfg: &Config) -> Result<WorkerClient> {
     let addr = cfg.worker_server_listen_addr()?;
     let endpoint = format!("ws://{}", addr);
 
@@ -19,7 +18,7 @@ pub fn connect(done: Done, cfg: &Config) -> Result<WorkerClient> {
         headers: Default::default(),
     };
 
-    let client = ws::connect(done, connect_req).map_err(|e| anyhow!("ws connect: {:?}", e))?;
+    let client = ws::connect(connect_req).map_err(|e| anyhow!("ws connect: {:?}", e))?;
 
     Ok(client)
 }

@@ -14,17 +14,20 @@ use async_tungstenite::{
     WebSocketStream,
 };
 use jsonrpc_core::futures::{SinkExt, StreamExt};
-use tracing::warn;
+use tracing::{error, info, warn};
 
 use super::{duplex::Duplex, Client};
 use crate::{RpcChannel, RpcResult};
 
-pub fn connect<TClient: From<RpcChannel>>(
-    done: crossbeam_channel::Receiver<()>,
-    info: ConnectInfo,
-) -> RpcResult<TClient> {
-    let (duplex, tx) = block_on(Duplex::<WS>::new(done, info))?;
-    spawn(duplex);
+pub fn connect<TClient: From<RpcChannel>>(info: ConnectInfo) -> RpcResult<TClient> {
+    let (duplex, tx) = block_on(Duplex::<WS>::new(info))?;
+    spawn(async move {
+        if let Err(e) = duplex.await {
+            error!("duplex shutdown unexpectedlly: {:?}", e);
+        } else {
+            info!("duplex shutdown")
+        }
+    });
     Ok(TClient::from(tx))
 }
 

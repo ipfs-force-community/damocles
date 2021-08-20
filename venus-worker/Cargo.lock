@@ -1897,7 +1897,6 @@ version = "17.0.0"
 dependencies = [
  "async-std",
  "async-tungstenite",
- "crossbeam-channel 0.5.1",
  "derive_more",
  "jsonrpc-core",
  "jsonrpc-pubsub",

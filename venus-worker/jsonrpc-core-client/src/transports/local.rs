@@ -14,6 +14,7 @@ use async_std::{
 use jsonrpc_core::{
     futures::channel::mpsc::UnboundedReceiver, BoxFuture, MetaIoHandler, Metadata, Middleware,
 };
+use tracing::{error, info};
 
 use super::{duplex::Duplex, Client};
 use crate::{RpcChannel, RpcError, RpcResult};
@@ -106,17 +107,20 @@ where
     }
 }
 
-pub fn connect<TClient, TMetadata, THandler>(
-    done: crossbeam_channel::Receiver<()>,
-    handler: THandler,
-) -> RpcResult<TClient>
+pub fn connect<TClient, TMetadata, THandler>(handler: THandler) -> RpcResult<TClient>
 where
     TClient: From<RpcChannel>,
     THandler: Deref<Target = MetaIoHandler<TMetadata>> + Unpin + Send + Sync + 'static,
     TMetadata: Metadata + Default + Unpin,
 {
     let hdl = Arc::new(handler);
-    let (duplex, tx) = block_on(Duplex::<LocalRpc<THandler, TMetadata>>::new(done, hdl))?;
-    spawn(duplex);
+    let (duplex, tx) = block_on(Duplex::<LocalRpc<THandler, TMetadata>>::new(hdl))?;
+    spawn(async move {
+        if let Err(e) = duplex.await {
+            error!("duplex shutdown unexpectedlly: {:?}", e);
+        } else {
+            info!("duplex shutdown")
+        }
+    });
     Ok(TClient::from(tx))
 }

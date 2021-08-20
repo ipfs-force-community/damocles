@@ -4,7 +4,6 @@ use clap::{value_t, App, Arg, ArgMatches, SubCommand};
 
 use venus_worker::{
     client::{connect, WorkerClient},
-    dones,
     logging::{debug_field, info},
     Config,
 };
@@ -55,9 +54,8 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
 }
 
 pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
-    let (_tx, done) = dones();
     match subargs.subcommand() {
-        ("list", _) => get_client(subargs, done).and_then(|wcli| {
+        ("list", _) => get_client(subargs).and_then(|wcli| {
             let infos = block_on(wcli.worker_list()).map_err(|e| anyhow!("rpc error: {:?}", e))?;
             for wi in infos {
                 info!(
@@ -74,7 +72,7 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
 
         ("pause", Some(m)) => {
             let index = value_t!(m, "index", usize)?;
-            get_client(subargs, done).and_then(|wcli| {
+            get_client(subargs).and_then(|wcli| {
                 let done = block_on(wcli.worker_pause(index))
                     .map_err(|e| anyhow!("rpc error: {:?}", e))?;
 
@@ -86,7 +84,7 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
         ("resume", Some(m)) => {
             let index = value_t!(m, "index", usize)?;
             let state = m.value_of("state").map(|s| s.to_owned());
-            get_client(subargs, done).and_then(|wcli| {
+            get_client(subargs).and_then(|wcli| {
                 let done = block_on(wcli.worker_resume(index, state.clone()))
                     .map_err(|e| anyhow!("rpc error: {:?}", e))?;
 
@@ -99,11 +97,8 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
     }
 }
 
-fn get_client<'a>(
-    m: &ArgMatches<'a>,
-    done: crossbeam_channel::Receiver<()>,
-) -> Result<WorkerClient> {
+fn get_client<'a>(m: &ArgMatches<'a>) -> Result<WorkerClient> {
     let cfg_path = value_t!(m, "config", String).context("get config path")?;
     let cfg = Config::load(&cfg_path)?;
-    connect(done, &cfg)
+    connect(&cfg)
 }

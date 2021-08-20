@@ -14,7 +14,7 @@ use crate::{
     sealing::{resource, seal, service, store::StoreManager},
     signal::Signal,
     types::SealProof,
-    watchdog::{dones, GlobalModules, WatchDog},
+    watchdog::{GlobalModules, WatchDog},
 };
 
 /// start a worker process with mock modules
@@ -69,9 +69,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         (Box::new(seal::internal::C2), None)
     };
 
-    let done = dones();
-
-    let mock_client = local::connect::<SealerClient, _, _>(done.1.clone(), io)
+    let mock_client = local::connect::<SealerClient, _, _>(io)
         .map_err(|e| anyhow!("build local client: {:?}", e))?;
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
@@ -85,7 +83,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
     };
 
-    let mut dog = WatchDog::build_with_done(cfg, globl, done);
+    let mut dog = WatchDog::build(cfg, globl);
 
     let mut ctrls = Vec::new();
     for (worker, ctrl) in workers {
@@ -127,15 +125,12 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
 
-    let done = dones();
-
     let rpc_connect_req = ws::ConnectInfo {
         url: format!("{}{}", cfg.sealer_rpc.endpoint, "/rpc/v0"),
         headers: Default::default(),
     };
 
-    let rpc_client =
-        ws::connect(done.1.clone(), rpc_connect_req).map_err(|e| anyhow!("ws connect: {:?}", e))?;
+    let rpc_client = ws::connect(rpc_connect_req).map_err(|e| anyhow!("ws connect: {:?}", e))?;
 
     let (pc2, pc2sub): (seal::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
