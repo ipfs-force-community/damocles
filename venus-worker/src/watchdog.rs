@@ -27,6 +27,7 @@ pub type Done = Receiver<()>;
 pub struct Ctx {
     pub done: Done,
     pub cfg: Arc<Config>,
+    pub instance: String,
     pub global: GlobalModules,
 }
 
@@ -51,18 +52,20 @@ pub struct WatchDog {
 }
 
 impl WatchDog {
-    pub fn build(cfg: Config, global: GlobalModules) -> Self {
-        Self::build_with_done(cfg, global, dones())
+    pub fn build(cfg: Config, instance: String, global: GlobalModules) -> Self {
+        Self::build_with_done(cfg, instance, global, dones())
     }
 
     pub fn build_with_done(
         cfg: Config,
+        instance: String,
         global: GlobalModules,
         done: (Sender<()>, Receiver<()>),
     ) -> Self {
         Self {
             ctx: Ctx {
                 done: done.1,
+                instance,
                 cfg: Arc::new(cfg),
                 global,
             },

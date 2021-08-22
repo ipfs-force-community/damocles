@@ -5,13 +5,13 @@ pub(crate) mod config;
 pub(crate) mod infra;
 pub(crate) mod metadb;
 pub(crate) mod rpc;
+pub(crate) mod sealing;
 pub(crate) mod signal;
 pub(crate) mod types;
 pub(crate) mod watchdog;
 
-pub(crate) mod sealing;
-
 mod run;
+mod util;
 
 pub use config::Config;
 pub use infra::objstore;

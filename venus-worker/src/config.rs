@@ -146,7 +146,7 @@ pub struct Processors {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct HostConfig {
+pub struct InstanceConfig {
     pub name: Option<String>,
 }
 
@@ -154,7 +154,7 @@ pub struct HostConfig {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     /// section for local config
-    pub host: Option<HostConfig>,
+    pub instance: Option<InstanceConfig>,
 
     /// section for worker server
     pub worker_server: Option<RPCServer>,
