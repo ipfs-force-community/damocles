@@ -125,10 +125,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
 
-    let rpc_connect_req = ws::ConnectInfo {
-        url: format!("{}{}", cfg.sealer_rpc.endpoint, "/rpc/v0"),
-        headers: Default::default(),
-    };
+    let rpc_connect_req = cfg.sealer_rpc.to_connect_info();
 
     let rpc_client = ws::connect(rpc_connect_req).map_err(|e| anyhow!("ws connect: {:?}", e))?;
 

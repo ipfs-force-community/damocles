@@ -8,6 +8,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::Result;
+use jsonrpc_core_client::transports::ws::ConnectInfo;
 use serde::{Deserialize, Serialize};
 use toml::from_slice;
 
@@ -114,7 +115,17 @@ pub struct Store {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct RPCClient {
     /// jsonrpc endpoint
-    pub endpoint: String,
+    pub url: String,
+    pub headers: Option<HashMap<String, String>>,
+}
+
+impl RPCClient {
+    pub fn to_connect_info(&self) -> ConnectInfo {
+        ConnectInfo {
+            url: self.url.clone(),
+            headers: self.headers.as_ref().cloned().unwrap_or_default(),
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -134,9 +145,17 @@ pub struct Processors {
     pub c2: Option<Ext>,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct HostConfig {
+    pub name: Option<String>,
+}
+
 /// global configuration
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
+    /// section for local config
+    pub host: Option<HostConfig>,
+
     /// section for worker server
     pub worker_server: Option<RPCServer>,
 
