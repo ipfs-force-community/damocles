@@ -40,7 +40,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         .as_ref()
         .cloned()
         .ok_or(anyhow!("remote path is required for mock"))?;
-    let remote_store = Box::new(FileStore::open(remote)?);
+    let remote_store = Box::new(FileStore::open(remote, cfg.remote.instance.clone())?);
 
     let mock_impl = mock::SimpleMockSealerRpc::new(miner, proof_type);
     let mut io = IoHandler::new();
@@ -129,7 +129,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .as_ref()
         .cloned()
         .ok_or(anyhow!("remote path is required for mock"))?;
-    let remote = Box::new(FileStore::open(remote_store)?);
+    let remote = Box::new(FileStore::open(remote_store, cfg.remote.instance.clone())?);
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
 

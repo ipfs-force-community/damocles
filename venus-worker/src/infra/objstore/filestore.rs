@@ -17,7 +17,8 @@ const LOG_TARGET: &str = "filestore";
 /// FileStore
 pub struct FileStore {
     sep: String,
-    path: PathBuf,
+    local_path: PathBuf,
+    instance: String,
     _holder: PlaceHolder,
 }
 
@@ -31,7 +32,7 @@ impl FileStore {
     }
 
     /// open the file store at given path
-    pub fn open<P: AsRef<Path>>(p: P) -> Result<Self> {
+    pub fn open<P: AsRef<Path>>(p: P, ins: Option<String>) -> Result<Self> {
         let dir_path = p.as_ref().canonicalize()?;
         if !dir_path.metadata().map(|meta| meta.is_dir())? {
             return Err(anyhow!("base path of the file store should a dir"));
@@ -39,9 +40,20 @@ impl FileStore {
 
         let _holder = PlaceHolder::open(&dir_path)?;
 
+        let instance = match ins.or(dir_path.to_str().map(|s| s.to_owned())) {
+            Some(i) => i,
+            None => {
+                return Err(anyhow!(
+                    "dir path {:?} may contain invalid utf8 chars",
+                    dir_path
+                ))
+            }
+        };
+
         Ok(FileStore {
             sep: MAIN_SEPARATOR.to_string(),
-            path: dir_path,
+            local_path: dir_path,
+            instance,
             _holder,
         })
     }
@@ -61,7 +73,7 @@ impl FileStore {
             return Err(anyhow!("sub path starts with separator").into());
         }
 
-        let res = self.path.join(sub);
+        let res = self.local_path.join(sub);
         trace!(target: LOG_TARGET, res = debug_field(&res), "get full path");
         Ok(res)
     }
@@ -103,6 +115,10 @@ impl ObjectStore for FileStore {
             .open(dst)?;
 
         copy(&mut r, &mut f).map_err(From::from)
+    }
+
+    fn instance(&self) -> String {
+        self.instance.clone()
     }
 
     /// get specified pieces

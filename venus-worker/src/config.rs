@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::net::SocketAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::Result;
@@ -99,6 +99,7 @@ pub struct SealingOptional {
 pub struct Remote {
     /// store path, if we are using fs based store
     pub path: Option<String>,
+    pub instance: Option<String>,
 }
 
 /// configurations for sector store
