@@ -274,7 +274,7 @@ pub struct PollProofStateResp {
     pub desc: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct WorkerIdentifier {
     pub instance: String,
@@ -286,7 +286,7 @@ pub struct WorkerIdentifier {
 pub struct ReportStateReq {
     pub worker: WorkerIdentifier,
     pub state_change: SectorStateChange,
-    pub failure: Option<Failure>,
+    pub failure: Option<SectorFailure>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -299,7 +299,7 @@ pub struct SectorStateChange {
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
-pub struct Failure {
+pub struct SectorFailure {
     pub level: String,
     pub desc: String,
 }
@@ -351,7 +351,7 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.ReportState")]
-    fn report_state(&self, id: SectorID, req: ReportStateReq) -> Result<()>;
+    fn report_state(&self, id: SectorID, state: ReportStateReq) -> Result<()>;
 
     /// api definition
     #[rpc(name = "Venus.ReportFinalized")]

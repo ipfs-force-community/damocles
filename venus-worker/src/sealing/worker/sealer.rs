@@ -12,7 +12,7 @@ use crate::logging::{debug, debug_field, debug_span, info, info_span, warn};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
 use crate::rpc::sealer::{
     AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo,
-    SectorID, SubmitResult,
+    ReportStateReq, SectorFailure, SectorID, SectorStateChange, SubmitResult, WorkerIdentifier,
 };
 use crate::sealing::seal::{add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1};
 use crate::watchdog::Ctx;
@@ -108,6 +108,7 @@ pub struct Sealer<'c> {
     ctx: &'c Ctx,
     ctrl_ctx: &'c CtrlCtx,
     store: &'c Store,
+    ident: WorkerIdentifier,
 
     sector_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
     _trace_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
@@ -139,10 +140,53 @@ impl<'c> Sealer<'c> {
             ctx,
             ctrl_ctx,
             store: s,
+            ident: WorkerIdentifier {
+                instance: ctx.instance.clone(),
+                location: s.location.to_pathbuf(),
+            },
 
             sector_meta,
             _trace_meta: trace_meta,
         })
+    }
+
+    fn report_state(
+        &self,
+        state_change: SectorStateChange,
+        fail: Option<SectorFailure>,
+    ) -> Result<(), Failure> {
+        let sector_id = fetch_cloned_field! {
+            self.sector.base,
+            allocated.id,
+        }?;
+
+        let _ = call_rpc! {
+            self.ctx.global.rpc,
+            report_state,
+            sector_id,
+            ReportStateReq {
+                worker: self.ident.clone(),
+                state_change,
+                failure: fail,
+            },
+        }?;
+
+        Ok(())
+    }
+
+    fn report_finalized(&self) -> Result<(), Failure> {
+        let sector_id = fetch_cloned_field! {
+            self.sector.base,
+            allocated.id,
+        }?;
+
+        let _ = call_rpc! {
+            self.ctx.global.rpc,
+            report_finalized,
+            sector_id,
+        }?;
+
+        Ok(())
     }
 
     fn interruptted(&self) -> Result<(), Failure> {
@@ -181,27 +225,63 @@ impl<'c> Sealer<'c> {
 
     pub fn seal(mut self, mut event: Option<Event>) -> Result<(), Failure> {
         loop {
+            let event_desc = format!("{:?}", &event);
+
             let span = info_span!(
                 "seal",
                 miner = debug_field(self.sector.base.as_ref().map(|b| b.allocated.id.miner)),
                 sector = debug_field(self.sector.base.as_ref().map(|b| b.allocated.id.number)),
-                event = debug_field(&event),
+                event = event_desc.as_str(),
             );
 
             let enter = span.enter();
 
-            match self.handle(event.take()) {
+            let prev = self.sector.state;
+
+            let handle_res = self.handle(event.take());
+
+            let fail = if let Err(eref) = handle_res.as_ref() {
+                Some(SectorFailure {
+                    level: format!("{:?}", eref.0),
+                    desc: format!("{:?}", eref.1),
+                })
+            } else {
+                None
+            };
+
+            if let Err(rerr) = self.report_state(
+                SectorStateChange {
+                    prev: prev.as_str().to_owned(),
+                    next: self.sector.state.as_str().to_owned(),
+                    event: event_desc,
+                },
+                fail,
+            ) {
+                error!("report state failed: {:?}", rerr);
+            };
+
+            match handle_res {
                 Ok(Some(evt)) => {
                     event.replace(evt);
                 }
 
                 Ok(None) => {
+                    if let Err(rerr) = self.report_finalized() {
+                        error!("report finalized failed: {:?}", rerr);
+                    }
+
                     self.finalize()?;
                     return Ok(());
                 }
 
                 Err(Failure(Level::Temporary, terr)) => {
                     if self.sector.retry >= self.store.config.max_retries {
+                        // reset retry times;
+                        self.sync(|s| {
+                            s.retry = 0;
+                            Ok(())
+                        })?;
+
                         return Err(terr.perm());
                     }
 
@@ -331,14 +411,22 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle_empty(&mut self) -> HandleResult {
-        let maybe_allocated = call_rpc! {
+        let maybe_allocated_res = call_rpc! {
             self.ctx.global.rpc,
             allocate_sector,
             AllocateSectorSpec {
                 allowed_miners: None,
                 allowed_proof_types: None,
             },
-        }?;
+        };
+
+        let maybe_allocated = match maybe_allocated_res {
+            Ok(a) => a,
+            Err(e) => {
+                warn!("sectors are not allocated yet, so we can retry even though we got the err {:?}", e);
+                return Ok(Event::Retry);
+            }
+        };
 
         let sector = match maybe_allocated {
             Some(a) => a,
