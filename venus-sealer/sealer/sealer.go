@@ -190,3 +190,19 @@ func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info api.Pro
 func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (api.PollProofStateResp, error) {
 	return s.commit.ProofState(ctx, sid)
 }
+
+func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) error {
+	if err := s.state.Update(ctx, sid, &req); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) error {
+	if err := s.state.Finalize(ctx, sid); err != nil {
+		return err
+	}
+
+	return nil
+}

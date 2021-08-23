@@ -18,7 +18,8 @@ import (
 )
 
 type (
-	MetaStore kvstore.KVStore
+	OnlineMetaStore  kvstore.KVStore
+	OfflineMetaStore kvstore.KVStore
 )
 
 func BuildLocalSectorManager(cfg *sealer.Config, locker confmgr.RLocker, mapi api.MinerInfoAPI, numAlloc api.SectorNumberAllocator) (api.SectorManager, error) {
@@ -61,7 +62,7 @@ func ProvideSealerConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.Con
 	return &cfg, nil
 }
 
-func BuildMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (MetaStore, error) {
+func BuildOnlineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (OnlineMetaStore, error) {
 	dir := home.Sub("meta")
 	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
 	if err != nil {
@@ -81,7 +82,27 @@ func BuildMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (Me
 	return store, nil
 }
 
-func BuildSectorNumberAllocator(meta MetaStore) (api.SectorNumberAllocator, error) {
+func BuildOfflineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (OfflineMetaStore, error) {
+	dir := home.Sub("offline_meta")
+	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return store.Run(gctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return store.Close(ctx)
+		},
+	})
+
+	return store, nil
+}
+
+func BuildSectorNumberAllocator(meta OnlineMetaStore) (api.SectorNumberAllocator, error) {
 	store, err := kvstore.NewWrappedKVStore([]byte("sector-number"), meta)
 	if err != nil {
 		return nil, err
@@ -90,13 +111,18 @@ func BuildSectorNumberAllocator(meta MetaStore) (api.SectorNumberAllocator, erro
 	return sectors.NewNumerAllocator(store)
 }
 
-func BuildLocalSectorStateManager(meta MetaStore) (api.SectorStateManager, error) {
-	store, err := kvstore.NewWrappedKVStore([]byte("sector-states"), meta)
+func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaStore) (api.SectorStateManager, error) {
+	onlineStore, err := kvstore.NewWrappedKVStore([]byte("sector-states"), online)
 	if err != nil {
 		return nil, err
 	}
 
-	return sectors.NewStateManager(store)
+	offlineStore, err := kvstore.NewWrappedKVStore([]byte("sector-states-offline"), offline)
+	if err != nil {
+		return nil, err
+	}
+
+	return sectors.NewStateManager(onlineStore, offlineStore)
 }
 
 func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, locker confmgr.RLocker) (messager.API, error) {

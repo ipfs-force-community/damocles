@@ -1,14 +1,14 @@
 use std::convert::TryFrom;
-use std::net::{SocketAddr, TcpStream};
+use std::net::{IpAddr, SocketAddr, TcpStream};
 
 use async_tungstenite::tungstenite::http::Uri;
 
 use anyhow::{anyhow, Result};
 
-pub fn local_interface_addr(dest: SocketAddr) -> Result<SocketAddr> {
+pub fn local_interface_ip(dest: SocketAddr) -> Result<IpAddr> {
     let stream = TcpStream::connect(dest)?;
     let addr = stream.local_addr()?;
-    Ok(addr)
+    Ok(addr.ip())
 }
 
 pub fn socket_addr_from_url(u: &str) -> Result<SocketAddr> {

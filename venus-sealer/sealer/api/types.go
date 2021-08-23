@@ -163,3 +163,25 @@ type MessageInfo struct {
 	CommitCid    *cid.Cid
 	NeedSend     bool
 }
+
+type ReportStateReq struct {
+	Worker      WorkerIdentifier
+	StateChange SectorStateChange
+	Failure     *SectorFailure
+}
+
+type WorkerIdentifier struct {
+	Instance string
+	Location string
+}
+
+type SectorStateChange struct {
+	Prev  string
+	Next  string
+	Event string
+}
+
+type SectorFailure struct {
+	Level string
+	Desc  string
+}

@@ -14,7 +14,7 @@ use crate::{
     sealing::{resource, seal, service, store::StoreManager},
     signal::Signal,
     types::SealProof,
-    util::net::{local_interface_addr, socket_addr_from_url},
+    util::net::{local_interface_ip, socket_addr_from_url},
     watchdog::{GlobalModules, WatchDog},
 };
 
@@ -141,9 +141,8 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     {
         name
     } else {
-        let local_addr =
-            socket_addr_from_url(&cfg.sealer_rpc.url).and_then(local_interface_addr)?;
-        format!("{}", local_addr)
+        let local_ip = socket_addr_from_url(&cfg.sealer_rpc.url).and_then(local_interface_ip)?;
+        format!("{}", local_ip)
     };
 
     let (pc2, pc2sub): (seal::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg

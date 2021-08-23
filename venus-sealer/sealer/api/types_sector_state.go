@@ -4,6 +4,8 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 )
 
+type Finalized bool
+
 type SectorState struct {
 	ID         abi.SectorID
 	SectorType abi.RegisteredSealProof
@@ -16,6 +18,9 @@ type SectorState struct {
 	Proof  *ProofInfo
 
 	MessageInfo MessageInfo
+
+	LatestState *ReportStateReq
+	Finalized   Finalized
 }
 
 func (s SectorState) DealIDs() []abi.DealID {

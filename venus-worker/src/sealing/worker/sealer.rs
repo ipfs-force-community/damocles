@@ -155,10 +155,15 @@ impl<'c> Sealer<'c> {
         state_change: SectorStateChange,
         fail: Option<SectorFailure>,
     ) -> Result<(), Failure> {
-        let sector_id = fetch_cloned_field! {
-            self.sector.base,
-            allocated.id,
-        }?;
+        let sector_id = match self
+            .sector
+            .base
+            .as_ref()
+            .map(|base| base.allocated.id.clone())
+        {
+            Some(sid) => sid,
+            None => return Ok(()),
+        };
 
         let _ = call_rpc! {
             self.ctx.global.rpc,
