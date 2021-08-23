@@ -62,6 +62,15 @@ impl<C: Client> Future for Duplex<C> {
 
         // handle client reconnection
         loop {
+            // receive from requset rx
+            // this will fill in self.outgoing.
+
+            // We put this in the first place so that every request will be responsed immediately
+            // when the reconnection is falied
+            if let Err(e) = this.handle_reqs() {
+                return Poll::Ready(Err(e));
+            }
+
             if let Some(fut) = this.reconnect.as_mut() {
                 match Pin::new(fut).poll(cx) {
                     Poll::Ready(Ok(cli)) => {
@@ -83,17 +92,10 @@ impl<C: Client> Future for Duplex<C> {
                 }
             }
 
-            // receive from requset rx
-            // this will fill in self.outgoing
-            if let Err(e) = this.handle_reqs() {
-                return Poll::Ready(Err(e));
-            }
-
             match this.handle_client(cx) {
                 Ok(_) => {}
                 Err(reason) => {
                     error!("client：{}, will reconnect soon", reason);
-                    this.cleanup(true);
                     this.try_reconnect();
                     continue;
                 }
@@ -143,6 +145,7 @@ impl<C: Client> Duplex<C> {
     }
 
     fn try_reconnect(&mut self) {
+        self.cleanup(true);
         self.reconnect
             // TODO: configurable
             .replace(C::connect(
