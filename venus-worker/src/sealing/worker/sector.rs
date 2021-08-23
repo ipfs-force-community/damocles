@@ -23,13 +23,19 @@ macro_rules! def_state {
             )+
         }
 
-        impl Into<&str> for State {
-            fn into(self) -> &'static str {
+        impl  State {
+            pub fn as_str(&self) -> &'static str {
                 match self {
                     $(
                         Self::$name => stringify!($name),
                     )+
                 }
+            }
+        }
+
+        impl Into<&str> for State {
+            fn into(self) -> &'static str {
+                self.as_str()
             }
         }
 

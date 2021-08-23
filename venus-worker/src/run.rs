@@ -14,6 +14,7 @@ use crate::{
     sealing::{resource, seal, service, store::StoreManager},
     signal::Signal,
     types::SealProof,
+    util::net::{local_interface_ip, socket_addr_from_url},
     watchdog::{GlobalModules, WatchDog},
 };
 
@@ -83,7 +84,14 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
     };
 
-    let mut dog = WatchDog::build(cfg, globl);
+    let instance = cfg
+        .instance
+        .as_ref()
+        .and_then(|s| s.name.as_ref())
+        .cloned()
+        .unwrap_or("mock".to_owned());
+
+    let mut dog = WatchDog::build(cfg, instance, globl);
 
     let mut ctrls = Vec::new();
     for (worker, ctrl) in workers {
@@ -125,12 +133,17 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
 
-    let rpc_connect_req = ws::ConnectInfo {
-        url: format!("{}{}", cfg.sealer_rpc.endpoint, "/rpc/v0"),
-        headers: Default::default(),
-    };
+    let rpc_connect_req = cfg.sealer_rpc.to_connect_info();
 
     let rpc_client = ws::connect(rpc_connect_req).map_err(|e| anyhow!("ws connect: {:?}", e))?;
+
+    let instance = if let Some(name) = cfg.instance.as_ref().and_then(|s| s.name.as_ref()).cloned()
+    {
+        name
+    } else {
+        let local_ip = socket_addr_from_url(&cfg.sealer_rpc.url).and_then(local_interface_ip)?;
+        format!("{}", local_ip)
+    };
 
     let (pc2, pc2sub): (seal::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
@@ -166,7 +179,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
     };
 
-    let mut dog = WatchDog::build(cfg, globl);
+    let mut dog = WatchDog::build(cfg, instance, globl);
 
     let mut ctrls = Vec::new();
     for (worker, ctrl) in workers {

@@ -72,3 +72,13 @@ func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info api.Pro
 func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (api.PollProofStateResp, error) {
 	return s.commit.ProofState(ctx, sid)
 }
+
+func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) error {
+	log.Warnf("report state change for m-%d-s-%d: %#v", sid.Miner, sid.Number, req)
+	return nil
+}
+
+func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) error {
+	log.Warnf("report finalized for m-%d-s-%d", sid.Miner, sid.Number)
+	return nil
+}

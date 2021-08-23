@@ -12,8 +12,8 @@
   - [x] trace for applying event changes
 - [x] turn `sleeps` into `selects`
 - [x] websocket reconnect
-- [] worker state reporting
-  - [] sector state finalize
+- [x] worker state reporting
+  - [x] sector state finalize
   - [] report remote path
 - [] handle submit states gracefully
   - [] handle ErrOutOfGas and other retry-able failed messages gracefully
@@ -21,3 +21,4 @@
 - [] object(piece) storage service (proxy)
 - [] speed up cc sectors
 - [] link to dynamic lib if required
+- [] websocket client logging

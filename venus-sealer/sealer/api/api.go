@@ -24,6 +24,10 @@ type SealerAPI interface {
 	SubmitProof(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error)
 
 	PollProofState(context.Context, abi.SectorID) (PollProofStateResp, error)
+
+	ReportState(context.Context, abi.SectorID, ReportStateReq) error
+
+	ReportFinalized(context.Context, abi.SectorID) error
 }
 
 type RandomnessAPI interface {
@@ -60,5 +64,6 @@ type SectorStateManager interface {
 	Init(context.Context, abi.SectorID, abi.RegisteredSealProof) error
 	Load(context.Context, abi.SectorID) (*SectorState, error)
 	Update(context.Context, abi.SectorID, ...interface{}) error
+	Finalize(context.Context, abi.SectorID) error
 	All(ctx context.Context) ([]*SectorState, error)
 }

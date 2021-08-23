@@ -11,7 +11,7 @@ use jsonrpc_core::Error;
 
 use super::*;
 use crate::{
-    logging::{debug_field, error},
+    logging::{debug_field, error, warn},
     types::SealProof,
 };
 
@@ -177,5 +177,15 @@ impl Sealer for SimpleMockSealerRpc {
                 desc: None,
             }),
         }
+    }
+
+    fn report_state(&self, id: SectorID, req: ReportStateReq) -> Result<()> {
+        warn!(miner = id.miner, num = id.number, "report state: {:?}", req);
+        Ok(())
+    }
+
+    fn report_finalized(&self, id: SectorID) -> Result<()> {
+        warn!(miner = id.miner, num = id.number, "report finalized");
+        Ok(())
     }
 }
