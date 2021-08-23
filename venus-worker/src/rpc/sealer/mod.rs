@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use std::path::PathBuf;
 use std::result::Result as StdResult;
 
 use anyhow::{anyhow, Error};
@@ -273,6 +274,36 @@ pub struct PollProofStateResp {
     pub desc: Option<String>,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorkerIdentifier {
+    pub instance: String,
+    pub location: PathBuf,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct ReportStateReq {
+    pub worker: WorkerIdentifier,
+    pub state_change: SectorStateChange,
+    pub failure: Option<Failure>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct SectorStateChange {
+    pub prev: String,
+    pub next: String,
+    pub event: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct Failure {
+    pub level: String,
+    pub desc: String,
+}
+
 /// defines the SealerRpc service
 #[rpc]
 pub trait Sealer {
@@ -317,4 +348,12 @@ pub trait Sealer {
     /// api definition
     #[rpc(name = "Venus.PollProofState")]
     fn poll_proof_state(&self, id: SectorID) -> Result<PollProofStateResp>;
+
+    /// api definition
+    #[rpc(name = "Venus.ReportState")]
+    fn report_state(&self, id: SectorID, req: ReportStateReq) -> Result<()>;
+
+    /// api definition
+    #[rpc(name = "Venus.ReportFinalized")]
+    fn report_finalized(&self, id: SectorID) -> Result<()>;
 }
