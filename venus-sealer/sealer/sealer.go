@@ -139,6 +139,11 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (api.
 	return s.commit.PreCommitState(ctx, sid)
 }
 
+// TODO
+func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) error {
+	panic("not implemented")
+}
+
 func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedResp, error) {
 	maddr, err := address.NewIDAddress(uint64(sid.Miner))
 	if err != nil {

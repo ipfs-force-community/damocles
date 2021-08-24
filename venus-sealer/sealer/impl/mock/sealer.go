@@ -65,6 +65,11 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedRe
 	}, nil
 }
 
+func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) error {
+	log.Warnf("sector m-%d-s-%d is in the instance %s", sid.Miner, sid.Number, instance)
+	return nil
+}
+
 func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofInfo, reset bool) (api.SubmitProofResp, error) {
 	return s.commit.SubmitProof(ctx, sid, info, reset)
 }
