@@ -62,6 +62,9 @@ pub struct Range {
 
 /// definition of object store
 pub trait ObjectStore: Send + Sync {
+    /// instance name of the store
+    fn instance(&self) -> String;
+
     /// get should return a reader for the given path
     fn get(&self, path: &Path) -> ObjResult<Box<dyn Read>>;
 

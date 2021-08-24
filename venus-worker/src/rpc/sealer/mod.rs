@@ -333,6 +333,10 @@ pub trait Sealer {
     fn poll_pre_commit_state(&self, id: SectorID) -> Result<PollPreCommitStateResp>;
 
     /// api definition
+    #[rpc(name = "Venus.SubmitPersisted")]
+    fn submit_persisted(&self, id: SectorID, instance: String) -> Result<bool>;
+
+    /// api definition
     #[rpc(name = "Venus.WaitSeed")]
     fn wait_seed(&self, id: SectorID) -> Result<WaitSeedResp>;
 

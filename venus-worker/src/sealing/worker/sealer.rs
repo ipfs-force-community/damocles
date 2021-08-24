@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use async_std::task::block_on;
-use glob::glob;
 
 use crate::logging::{debug, debug_field, debug_span, info, info_span, warn};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
@@ -400,13 +399,17 @@ impl<'c> Sealer<'c> {
 
             State::PCSubmitted => self.handle_pc_submitted(),
 
+            State::PCLanded => self.handle_pc_landed(),
+
+            State::Persisted => self.handle_persisted(),
+
+            State::PersistanceSubmitted => self.handle_persistance_submitted(),
+
             State::SeedAssigned => self.handle_seed_assigned(),
 
             State::C1Done => self.handle_c1_done(),
 
             State::C2Done => self.handle_c2_done(),
-
-            State::Persisted => self.handle_persisted(),
 
             State::ProofSubmitted => self.handle_proof_submitted(),
 
@@ -748,6 +751,110 @@ impl<'c> Sealer<'c> {
 
         debug!("pre commit landed");
 
+        Ok(Event::CheckPC)
+    }
+
+    fn handle_pc_landed(&mut self) -> HandleResult {
+        let allocated = fetch_field! {
+            self.sector.base,
+            allocated,
+        }?;
+
+        let sector_id = &allocated.id;
+
+        let cache_dir = self.cache_dir(sector_id);
+        let sealed_file = self.sealed_file(sector_id);
+
+        let mut wanted = vec![sealed_file];
+
+        // here we treat fs err as temp
+        for entry_res in cache_dir.read_dir().temp()? {
+            let entry = entry_res.temp()?;
+            let fname = entry.file_name();
+            if let Some(fname_str) = fname.to_str() {
+                let should = fname_str == "p_aux"
+                    || fname_str == "t_aux"
+                    || fname_str.contains("tree-r-last");
+
+                if !should {
+                    continue;
+                }
+
+                wanted.push(entry.path());
+            }
+        }
+
+        let mut opt = OpenOptions::new();
+        opt.read(true);
+
+        for one in wanted {
+            let target_path = match one.strip_prefix(&self.store.data_path) {
+                Ok(p) => p,
+                Err(e) => {
+                    return Err(e.crit()).context(format!(
+                        "strip prefix {:?} for {:?}",
+                        self.store.data_path, one
+                    ));
+                }
+            };
+
+            let copy_span = debug_span!(
+                "persist",
+                src = debug_field(&one),
+                dst = debug_field(&target_path),
+            );
+
+            let copy_enter = copy_span.enter();
+
+            let source = opt.open(&one).crit()?;
+            let size = self
+                .ctx
+                .global
+                .remote_store
+                .put(target_path, Box::new(source))
+                .crit()?;
+
+            debug!(size, "persist done");
+
+            drop(copy_enter);
+        }
+
+        Ok(Event::Persist(self.ctx.global.remote_store.instance()))
+    }
+
+    fn handle_persisted(&mut self) -> HandleResult {
+        let sector_id = fetch_cloned_field! {
+            self.sector.base,
+            allocated.id,
+        }?;
+
+        let instance = fetch_cloned_field! {
+            self.sector.phases.persist_instance
+        }?;
+
+        let checked = call_rpc! {
+            self.ctx.global.rpc,
+            submit_persisted,
+            sector_id,
+            instance,
+        }?;
+
+        if checked {
+            Ok(Event::SubmitPersistance)
+        } else {
+            Err(anyhow!(
+                "sector files are persisted but unavailable for sealer"
+            ))
+            .perm()
+        }
+    }
+
+    fn handle_persistance_submitted(&mut self) -> HandleResult {
+        let sector_id = fetch_field! {
+            self.sector.base,
+            allocated.id,
+        }?;
+
         let seed = loop {
             let wait = call_rpc! {
                 self.ctx.global.rpc,
@@ -850,81 +957,6 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle_c2_done(&mut self) -> HandleResult {
-        let allocated = fetch_field! {
-            self.sector.base,
-            allocated,
-        }?;
-
-        let sector_id = &allocated.id;
-
-        let cache_dir = self.cache_dir(sector_id);
-        let sealed_file = self.sealed_file(sector_id);
-
-        let mut wanted = vec![sealed_file];
-
-        let sector_size = allocated.proof_type.sector_size();
-
-        // we should be careful here, use failure as temporary
-        clear_cache(sector_size, &cache_dir).temp()?;
-        debug!(
-            dir = debug_field(&cache_dir),
-            "clean up unnecessary cached files"
-        );
-
-        let matches = match cache_dir.join("*").as_os_str().to_str() {
-            Some(s) => glob(s).temp()?,
-            None => return Err(anyhow!("invalid glob pattern under {:?}", cache_dir).crit()),
-        };
-
-        for res in matches {
-            match res {
-                Ok(p) => wanted.push(p),
-                Err(e) => {
-                    let ctx = format!("glob error for {:?}", e.path());
-                    return Err(e.into_error().crit()).context(ctx);
-                }
-            }
-        }
-
-        let mut opt = OpenOptions::new();
-        opt.read(true);
-
-        for one in wanted {
-            let target_path = match one.strip_prefix(&self.store.data_path) {
-                Ok(p) => p,
-                Err(e) => {
-                    return Err(e.crit()).context(format!(
-                        "strip prefix {:?} for {:?}",
-                        self.store.data_path, one
-                    ));
-                }
-            };
-
-            let copy_span = debug_span!(
-                "persist",
-                src = debug_field(&one),
-                dst = debug_field(&target_path),
-            );
-
-            let copy_enter = copy_span.enter();
-
-            let source = opt.open(&one).crit()?;
-            let size = self
-                .ctx
-                .global
-                .remote_store
-                .put(target_path, Box::new(source))
-                .crit()?;
-
-            debug!(size, "persist done");
-
-            drop(copy_enter);
-        }
-
-        Ok(Event::Persist)
-    }
-
-    fn handle_persisted(&mut self) -> HandleResult {
         let sector_id = fetch_cloned_field! {
             self.sector.base,
             allocated.id,
@@ -959,43 +991,54 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle_proof_submitted(&mut self) -> HandleResult {
-        if self.store.config.ignore_proof_check {
-            warn!("proof submitted, ignoring the check");
-            return Ok(Event::Finish);
-        }
-
-        let sector_id = fetch_field! {
+        let allocated = fetch_field! {
             self.sector.base,
-            allocated.id,
+            allocated,
         }?;
 
-        'POLL: loop {
-            let state = call_rpc! {
-                self.ctx.global.rpc,
-                poll_proof_state,
-                sector_id.clone(),
-            }?;
+        let sector_id = &allocated.id;
 
-            match state.state {
-                OnChainState::Landed => break 'POLL,
-                OnChainState::NotFound => {
-                    return Err(anyhow!("proof on-chain info not found").abort())
+        if !self.store.config.ignore_proof_check {
+            'POLL: loop {
+                let state = call_rpc! {
+                    self.ctx.global.rpc,
+                    poll_proof_state,
+                    sector_id.clone(),
+                }?;
+
+                match state.state {
+                    OnChainState::Landed => break 'POLL,
+                    OnChainState::NotFound => {
+                        return Err(anyhow!("proof on-chain info not found").abort())
+                    }
+
+                    // TODO: handle retry for this
+                    OnChainState::Failed => {
+                        return Err(anyhow!("proof on-chain info failed").abort())
+                    }
+
+                    OnChainState::Pending | OnChainState::Packed => {}
                 }
 
-                // TODO: handle retry for this
-                OnChainState::Failed => return Err(anyhow!("proof on-chain info failed").abort()),
+                debug!(
+                    state = debug_field(state.state),
+                    interval = debug_field(self.store.config.rpc_polling_interval),
+                    "waiting for next round of polling proof state",
+                );
 
-                OnChainState::Pending | OnChainState::Packed => {}
+                self.wait_or_interruptted(self.store.config.rpc_polling_interval)?;
             }
-
-            debug!(
-                state = debug_field(state.state),
-                interval = debug_field(self.store.config.rpc_polling_interval),
-                "waiting for next round of polling proof state",
-            );
-
-            self.wait_or_interruptted(self.store.config.rpc_polling_interval)?;
         }
+
+        let cache_dir = self.cache_dir(sector_id);
+        let sector_size = allocated.proof_type.sector_size();
+
+        // we should be careful here, use failure as temporary
+        clear_cache(sector_size, &cache_dir).temp()?;
+        debug!(
+            dir = debug_field(&cache_dir),
+            "clean up unnecessary cached files"
+        );
 
         Ok(Event::Finish)
     }

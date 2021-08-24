@@ -57,6 +57,9 @@ func Product() dix.Option {
 		dix.Override(new(api.CommitmentManager), BuildCommitmentManager),
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.Override(new(chain.API), BuildChainClient),
+		dix.Override(new(PersistedObjectStoreManager), BuildPersistedFileStoreMgr),
+		dix.Override(new(SectorIndexMetaStore), BuildSectorIndexMetaStore),
+		dix.Override(new(api.SectorIndexer), BuildSectorIndexer),
 
 		// TODO: use functional deal manager
 		dix.Override(new(api.DealManager), mock.NewDealManager),

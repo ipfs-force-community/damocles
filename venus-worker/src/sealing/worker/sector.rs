@@ -63,10 +63,12 @@ def_state! {
     PC1Done,
     PC2Done,
     PCSubmitted,
+    PCLanded,
+    Persisted,
+    PersistanceSubmitted,
     SeedAssigned,
     C1Done,
     C2Done,
-    Persisted,
     ProofSubmitted,
     Finished,
 }
@@ -99,6 +101,8 @@ pub struct Phases {
 
     // pc2
     pub pc2out: Option<SealPreCommitPhase2Output>,
+
+    pub persist_instance: Option<String>,
 
     // c1
     pub seed: Option<Seed>,

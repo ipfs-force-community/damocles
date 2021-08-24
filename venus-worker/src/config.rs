@@ -99,6 +99,7 @@ pub struct SealingOptional {
 pub struct Remote {
     /// store path, if we are using fs based store
     pub path: Option<String>,
+    pub instance: Option<String>,
 }
 
 /// configurations for sector store
