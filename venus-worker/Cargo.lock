@@ -3826,7 +3826,6 @@ dependencies = [
  "forest_address",
  "forest_cid",
  "forest_json_utils",
- "glob",
  "humantime-serde",
  "jsonrpc-core",
  "jsonrpc-core-client",
