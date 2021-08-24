@@ -273,9 +273,13 @@ func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedi
 	return store, nil
 }
 
-func BuildPersistedFileStoreMgr(scfg *sealer.Config) (PersistedObjectStoreManager, error) {
+func BuildPersistedFileStoreMgr(scfg *sealer.Config, locker confmgr.RLocker) (PersistedObjectStoreManager, error) {
+	locker.Lock()
+	persistCfg := scfg.PersistedStore
+	locker.Unlock()
+
 	cfgs := make([]filestore.Config, 0)
-	for _, include := range scfg.PersistedStore.Includes {
+	for _, include := range persistCfg.Includes {
 		abs, err := filepath.Abs(include)
 		if err != nil {
 			return nil, fmt.Errorf("invalid include path %s: %w", include, err)
@@ -296,7 +300,7 @@ func BuildPersistedFileStoreMgr(scfg *sealer.Config) (PersistedObjectStoreManage
 		}
 	}
 
-	cfgs = append(cfgs, scfg.PersistedStore.Stores...)
+	cfgs = append(cfgs, persistCfg.Stores...)
 
 	return filestore.NewManager(cfgs)
 }
