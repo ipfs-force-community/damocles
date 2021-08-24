@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/objstore"
 	"github.com/filecoin-project/venus/pkg/types"
 
 	"github.com/filecoin-project/go-state-types/abi"
@@ -68,4 +69,10 @@ type SectorStateManager interface {
 	Update(context.Context, abi.SectorID, ...interface{}) error
 	Finalize(context.Context, abi.SectorID) error
 	All(ctx context.Context) ([]*SectorState, error)
+}
+
+type SectorIndexer interface {
+	Find(context.Context, abi.SectorID) (string, bool, error)
+	Update(context.Context, abi.SectorID, string) error
+	StoreMgr() objstore.Manager
 }

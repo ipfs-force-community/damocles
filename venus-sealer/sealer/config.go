@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/BurntSushi/toml"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/objstore/filestore"
 	"github.com/filecoin-project/go-state-types/abi"
 )
 
@@ -20,14 +21,19 @@ func DefaultConfig() Config {
 		Commitment:    DefaultCommitment(),
 		Chain:         RPCClientConfig{},
 		Messager:      RPCClientConfig{},
+		PersistedStore: FileStoreConfig{
+			Includes: make([]string, 0),
+			Stores:   make([]filestore.Config, 0),
+		},
 	}
 }
 
 type Config struct {
-	SectorManager SectorManagerConfig
-	Commitment    CommitmentManagerConfig
-	Chain         RPCClientConfig
-	Messager      RPCClientConfig
+	SectorManager  SectorManagerConfig
+	Commitment     CommitmentManagerConfig
+	Chain          RPCClientConfig
+	Messager       RPCClientConfig
+	PersistedStore FileStoreConfig
 }
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
@@ -158,4 +164,9 @@ type CommitmentMinerConfig struct {
 type RPCClientConfig struct {
 	Api   string
 	Token string
+}
+
+type FileStoreConfig struct {
+	Includes []string
+	Stores   []filestore.Config
 }

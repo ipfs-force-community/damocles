@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/filecoin-project/go-state-types/abi"
 )
@@ -36,4 +37,16 @@ func SectorSize2SealProofType(size uint64) (abi.RegisteredSealProof, error) {
 	default:
 		return 0, fmt.Errorf("%w: %d", ErrInvalidSectorSize, size)
 	}
+}
+
+type pathType string
+
+const (
+	SectorPathTypeCache    = "cache"
+	SectorPathTypeSealed   = "sealed"
+	SectorPathTypeUnsealed = "unsealed"
+)
+
+func SectorPath(typ pathType, sid abi.SectorID) string {
+	return filepath.Join(string(typ), fmt.Sprintf("s-%d-%d", sid.Miner, sid.Number))
 }

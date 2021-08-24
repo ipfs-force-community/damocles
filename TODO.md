@@ -14,9 +14,9 @@
 - [x] websocket reconnect
 - [x] worker state reporting
   - [x] sector state finalize
-  - [] report remote path
-  - [] check file existance before submit proof
-  - [] small instance of windost post
+  - [x] submit remote path
+  - [x] check file existance for submitted persisted files
+- [] small instance of windost post
 - [] handle submit states gracefully
   - [] handle ErrOutOfGas and other retry-able failed messages gracefully
 - [] deal manager

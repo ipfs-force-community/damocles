@@ -2,6 +2,9 @@ package dep
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"go.uber.org/fx"
@@ -11,6 +14,8 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/homedir"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/kvstore"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/messager"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/objstore"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/objstore/filestore"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/impl/commitmgr"
@@ -18,8 +23,10 @@ import (
 )
 
 type (
-	OnlineMetaStore  kvstore.KVStore
-	OfflineMetaStore kvstore.KVStore
+	OnlineMetaStore             kvstore.KVStore
+	OfflineMetaStore            kvstore.KVStore
+	PersistedObjectStoreManager objstore.Manager
+	SectorIndexMetaStore        kvstore.KVStore
 )
 
 func BuildLocalSectorManager(cfg *sealer.Config, locker confmgr.RLocker, mapi api.MinerInfoAPI, numAlloc api.SectorNumberAllocator) (api.SectorManager, error) {
@@ -244,4 +251,56 @@ func BuildCommitmentManager(
 	})
 
 	return mgr, nil
+}
+
+func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (SectorIndexMetaStore, error) {
+	dir := home.Sub("sector-index")
+	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return store.Run(gctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return store.Close(ctx)
+		},
+	})
+
+	return store, nil
+}
+
+func BuildPersistedFileStoreMgr(scfg *sealer.Config) (PersistedObjectStoreManager, error) {
+	cfgs := make([]filestore.Config, 0)
+	for _, include := range scfg.PersistedStore.Includes {
+		abs, err := filepath.Abs(include)
+		if err != nil {
+			return nil, fmt.Errorf("invalid include path %s: %w", include, err)
+		}
+
+		entries, err := os.ReadDir(abs)
+		if err != nil {
+			return nil, fmt.Errorf("read dir entries inside %s: %w", abs, err)
+		}
+
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				log.Warnw("skipped non-dir entry", "include", abs, "sub", entry.Name())
+				continue
+			}
+
+			cfgs = append(cfgs, filestore.DefaultConfig(filepath.Join(abs, entry.Name()), true))
+		}
+	}
+
+	cfgs = append(cfgs, scfg.PersistedStore.Stores...)
+
+	return filestore.NewManager(cfgs)
+}
+
+func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (api.SectorIndexer, error) {
+	return sectors.NewIndexer(storeMgr, kv)
 }

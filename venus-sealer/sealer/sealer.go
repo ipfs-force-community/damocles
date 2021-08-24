@@ -2,6 +2,7 @@ package sealer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/filecoin-project/go-address"
@@ -9,7 +10,9 @@ import (
 
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sealer/pkg/logging"
+	"github.com/dtynn/venus-cluster/venus-sealer/pkg/objstore"
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sealer/sealer/util"
 
 	"github.com/dtynn/venus-cluster/venus-sealer/sealer/policy"
 )
@@ -26,24 +29,26 @@ func sectorLogger(sid abi.SectorID) *logging.ZapLogger {
 	return log.With("miner", sid.Miner, "num", sid.Number)
 }
 
-func New(capi chain.API, rand api.RandomnessAPI, sector api.SectorManager, state api.SectorStateManager, deal api.DealManager, commit api.CommitmentManager) (*Sealer, error) {
+func New(capi chain.API, rand api.RandomnessAPI, sector api.SectorManager, state api.SectorStateManager, deal api.DealManager, commit api.CommitmentManager, sectorIdxer api.SectorIndexer) (*Sealer, error) {
 	return &Sealer{
-		capi:   capi,
-		rand:   rand,
-		sector: sector,
-		state:  state,
-		deal:   deal,
-		commit: commit,
+		capi:        capi,
+		rand:        rand,
+		sector:      sector,
+		state:       state,
+		deal:        deal,
+		commit:      commit,
+		sectorIdxer: sectorIdxer,
 	}, nil
 }
 
 type Sealer struct {
-	capi   chain.API
-	rand   api.RandomnessAPI
-	sector api.SectorManager
-	state  api.SectorStateManager
-	deal   api.DealManager
-	commit api.CommitmentManager
+	capi        chain.API
+	rand        api.RandomnessAPI
+	sector      api.SectorManager
+	state       api.SectorStateManager
+	deal        api.DealManager
+	commit      api.CommitmentManager
+	sectorIdxer api.SectorIndexer
 }
 
 func (s *Sealer) checkSectorNumber(ctx context.Context, sid abi.SectorID) (bool, error) {
@@ -139,9 +144,34 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (api.
 	return s.commit.PreCommitState(ctx, sid)
 }
 
-// TODO
 func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) (bool, error) {
-	panic("not implemented")
+	ins, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, instance)
+	if err != nil {
+		if errors.Is(err, objstore.ErrObjectStoreInstanceNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	// check for sealed file existance
+	reader, err := ins.Get(ctx, util.SectorPath(util.SectorPathTypeSealed, sid))
+	if err != nil {
+		if errors.Is(err, objstore.ErrObjectNotFound) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	reader.Close()
+
+	err = s.sectorIdxer.Update(ctx, sid, instance)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedResp, error) {
