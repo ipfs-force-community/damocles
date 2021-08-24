@@ -334,7 +334,7 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.SubmitPersisted")]
-    fn submit_persisted(&self, id: SectorID, instance: String) -> Result<()>;
+    fn submit_persisted(&self, id: SectorID, instance: String) -> Result<bool>;
 
     /// api definition
     #[rpc(name = "Venus.WaitSeed")]

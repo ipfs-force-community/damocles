@@ -19,8 +19,8 @@ macro_rules! plan {
                     match $e {
                         $(
                             $evt => $next,
-                            _ => return Err(anyhow!("unexpected event {:?} for state {:?}", $e, $st)),
                         )+
+                        _ => return Err(anyhow!("unexpected event {:?} for state {:?}", $e, $st)),
                     }
                 }
             )*
@@ -144,13 +144,12 @@ impl Event {
     }
 
     fn apply_changes(self, s: &mut Sector) {
-        use Event::*;
         match self {
-            SetState(_) => {}
+            Self::SetState(_) => {}
 
-            Retry => {}
+            Self::Retry => {}
 
-            Allocate(sector) => {
+            Self::Allocate(sector) => {
                 let mut prover_id: ProverId = Default::default();
                 let actor_addr_payload = Address::new_id(sector.id.miner).payload_bytes();
                 prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
@@ -165,45 +164,45 @@ impl Event {
                 replace!(s.base, base);
             }
 
-            AcquireDeals(deals) => {
+            Self::AcquireDeals(deals) => {
                 mem_replace!(s.deals, deals);
             }
 
-            AddPiece(pieces) => {
+            Self::AddPiece(pieces) => {
                 replace!(s.phases.pieces, pieces);
             }
 
-            AssignTicket(ticket) => {
+            Self::AssignTicket(ticket) => {
                 replace!(s.phases.ticket, ticket);
             }
 
-            PC1(out) => {
+            Self::PC1(out) => {
                 replace!(s.phases.pc1out, out);
             }
 
-            PC2(out) => {
+            Self::PC2(out) => {
                 replace!(s.phases.pc2out, out);
             }
 
-            Persist(instance) => {
+            Self::Persist(instance) => {
                 replace!(s.phases.persist_instance, instance);
             }
 
-            AssignSeed(seed) => {
+            Self::AssignSeed(seed) => {
                 replace!(s.phases.seed, seed);
             }
 
-            C1(out) => {
+            Self::C1(out) => {
                 replace!(s.phases.c1out, out);
             }
 
-            C2(out) => {
+            Self::C2(out) => {
                 replace!(s.phases.c2out, out);
             }
 
-            SubmitPC | CheckPC | SubmitPersistance | SubmitProof => {}
+            Self::SubmitPC | Self::CheckPC | Self::SubmitPersistance | Self::SubmitProof => {}
 
-            Finish => {}
+            Self::Finish => {}
         };
     }
 
@@ -274,7 +273,6 @@ impl Event {
             State::C2Done => {
                 Event::SubmitProof => State::ProofSubmitted,
             },
-
 
             State::ProofSubmitted => {
                 Event::Finish => State::Finished,

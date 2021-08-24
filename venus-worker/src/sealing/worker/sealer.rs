@@ -832,14 +832,21 @@ impl<'c> Sealer<'c> {
             self.sector.phases.persist_instance
         }?;
 
-        let _ = call_rpc! {
+        let checked = call_rpc! {
             self.ctx.global.rpc,
             submit_persisted,
             sector_id,
             instance,
         }?;
 
-        Ok(Event::SubmitPersistance)
+        if checked {
+            Ok(Event::SubmitPersistance)
+        } else {
+            Err(anyhow!(
+                "sector files are persisted but unavailable for sealer"
+            ))
+            .perm()
+        }
     }
 
     fn handle_persistance_submitted(&mut self) -> HandleResult {

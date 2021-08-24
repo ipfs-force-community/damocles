@@ -125,12 +125,12 @@ impl Sealer for SimpleMockSealerRpc {
         }
     }
 
-    fn submit_persisted(&self, id: SectorID, instance: String) -> Result<()> {
+    fn submit_persisted(&self, id: SectorID, instance: String) -> Result<bool> {
         warn!(
             "sector m-{}-s-{} has been persisted into instance {}",
             id.miner, id.number, instance
         );
-        return Ok(());
+        return Ok(true);
     }
 
     fn wait_seed(&self, _id: SectorID) -> Result<WaitSeedResp> {

@@ -140,7 +140,7 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (api.
 }
 
 // TODO
-func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) error {
+func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) (bool, error) {
 	panic("not implemented")
 }
 

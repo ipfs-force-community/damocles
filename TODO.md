@@ -15,6 +15,8 @@
 - [x] worker state reporting
   - [x] sector state finalize
   - [] report remote path
+  - [] check file existance before submit proof
+  - [] small instance of windost post
 - [] handle submit states gracefully
   - [] handle ErrOutOfGas and other retry-able failed messages gracefully
 - [] deal manager
