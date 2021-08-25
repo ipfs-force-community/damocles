@@ -1,4 +1,4 @@
-package sealer
+package modules
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 )
 
-const ConfigKey = "sealer"
+const ConfigKey = "sector-manager"
 
 func init() {
 	checkOptionalConfig(reflect.TypeOf(CommitmentPolicyConfig{}), reflect.TypeOf(CommitmentPolicyConfigOptional{}))

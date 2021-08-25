@@ -5,16 +5,16 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer"
 )
 
 type Cfg struct {
-	*sealer.Config
+	*modules.Config
 	confmgr.RLocker
 }
 
-func (c *Cfg) policy(mid abi.ActorID) sealer.CommitmentPolicyConfig {
+func (c *Cfg) policy(mid abi.ActorID) modules.CommitmentPolicyConfig {
 	c.Lock()
 	defer c.Unlock()
 
@@ -22,13 +22,13 @@ func (c *Cfg) policy(mid abi.ActorID) sealer.CommitmentPolicyConfig {
 	return c.Config.Commitment.MustPolicy(key)
 }
 
-func (c *Cfg) ctrl(mid abi.ActorID) (sealer.CommitmentControlAddress, bool) {
+func (c *Cfg) ctrl(mid abi.ActorID) (modules.CommitmentControlAddress, bool) {
 	c.Lock()
 	defer c.Unlock()
 
 	cmcfg, ok := c.Commitment.Miners[strconv.FormatUint(uint64(mid), 10)]
 	if !ok {
-		return sealer.CommitmentControlAddress{}, false
+		return modules.CommitmentControlAddress{}, false
 	}
 
 	return cmcfg.Controls, true

@@ -1,4 +1,4 @@
-package sealer
+package modules
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/big"
-	// "github.com/filecoin-project/go-state-types/big"
 )
 
 func checkOptionalConfig(original, optional reflect.Type) {

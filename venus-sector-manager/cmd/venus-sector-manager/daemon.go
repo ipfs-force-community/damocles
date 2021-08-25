@@ -7,11 +7,11 @@ import (
 	"github.com/dtynn/dix"
 	"github.com/urfave/cli/v2"
 
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/dep"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 var daemonCmd = &cli.Command{
@@ -36,8 +36,8 @@ var daemonInitCmd = &cli.Command{
 			return fmt.Errorf("construct config manager: %w", err)
 		}
 
-		cfg := sealer.DefaultConfig()
-		if err := cfgmgr.SetDefault(cctx.Context, sealer.ConfigKey, cfg); err != nil {
+		cfg := modules.DefaultConfig()
+		if err := cfgmgr.SetDefault(cctx.Context, modules.ConfigKey, cfg); err != nil {
 			return fmt.Errorf("init sealer config: %w", err)
 		}
 

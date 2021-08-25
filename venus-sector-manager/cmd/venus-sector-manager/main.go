@@ -7,7 +7,7 @@ import (
 
 	"github.com/dtynn/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/policy"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/policy"
 )
 
 var log = internal.Log

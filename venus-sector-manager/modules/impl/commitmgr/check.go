@@ -11,7 +11,7 @@ import (
 	"github.com/filecoin-project/venus/pkg/types"
 
 	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/policy"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/policy"
 )
 
 type ErrApi struct{ error }

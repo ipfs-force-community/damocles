@@ -6,14 +6,15 @@ import (
 
 	"github.com/dtynn/dix"
 
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/sealer"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/mock"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/prover"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/randomness"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
 	messager "github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/impl/mock"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/impl/prover"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/impl/randomness"
 )
 
 type GlobalContext context.Context
@@ -43,7 +44,7 @@ func Product() dix.Option {
 		dix.Override(new(confmgr.WLocker), cfgmu),
 		dix.Override(new(confmgr.RLocker), cfgmu.RLocker()),
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
-		dix.Override(new(*sealer.Config), ProvideSealerConfig),
+		dix.Override(new(*modules.Config), ProvideSealerConfig),
 		dix.Override(new(api.SectorManager), BuildLocalSectorManager),
 		dix.Override(new(api.SectorStateManager), BuildLocalSectorStateManager),
 		dix.Override(new(OnlineMetaStore), BuildOnlineMetaStore),
@@ -82,7 +83,7 @@ func API(c *chain.API, m *messager.API) dix.Option {
 		dix.Override(new(confmgr.WLocker), cfgmu),
 		dix.Override(new(confmgr.RLocker), cfgmu.RLocker()),
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
-		dix.Override(new(*sealer.Config), ProvideSealerConfig),
+		dix.Override(new(*modules.Config), ProvideSealerConfig),
 		dix.Override(new(chain.API), BuildChainClient),
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.If(c != nil,

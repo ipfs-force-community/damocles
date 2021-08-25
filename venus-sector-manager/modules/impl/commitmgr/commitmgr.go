@@ -14,11 +14,11 @@ import (
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 var log = logging.New("commitmgr")
@@ -48,7 +48,7 @@ type CommitmentMgrImpl struct {
 }
 
 func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr SealingAPI, smgr api.SectorStateManager,
-	cfg *sealer.Config, locker confmgr.RLocker, verif api.Verifier, prover api.Prover,
+	cfg *modules.Config, locker confmgr.RLocker, verif api.Verifier, prover api.Prover,
 ) (*CommitmentMgrImpl, error) {
 	prePendingChan := make(chan api.SectorState, 1024)
 	proPendingChan := make(chan api.SectorState, 1024)
@@ -58,10 +58,7 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 		msgClient: commitApi,
 		stateMgr:  stateMgr,
 		smgr:      smgr,
-		cfg: struct {
-			*sealer.Config
-			confmgr.RLocker
-		}{cfg, locker},
+		cfg:       Cfg{cfg, locker},
 
 		commitBatcher:    map[abi.ActorID]*Batcher{},
 		preCommitBatcher: map[abi.ActorID]*Batcher{},

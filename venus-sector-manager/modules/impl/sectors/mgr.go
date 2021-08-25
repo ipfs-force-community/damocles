@@ -7,15 +7,15 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
 )
 
 var _ api.SectorManager = (*Manager)(nil)
 
 func NewManager(
-	cfg *sealer.Config,
+	cfg *modules.Config,
 	locker confmgr.RLocker,
 	mapi api.MinerInfoAPI,
 	numAlloc api.SectorNumberAllocator,
@@ -32,7 +32,7 @@ func NewManager(
 
 type Manager struct {
 	cfg struct {
-		*sealer.Config
+		*modules.Config
 		confmgr.RLocker
 	}
 

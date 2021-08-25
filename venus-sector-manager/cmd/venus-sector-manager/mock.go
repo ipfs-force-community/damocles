@@ -11,7 +11,7 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/dep"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/util"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/util"
 )
 
 var mockCmd = &cli.Command{

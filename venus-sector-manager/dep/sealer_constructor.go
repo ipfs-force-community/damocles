@@ -9,6 +9,10 @@ import (
 
 	"go.uber.org/fx"
 
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/commitmgr"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/sectors"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/homedir"
@@ -16,10 +20,6 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/impl/commitmgr"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/impl/sectors"
 )
 
 type (
@@ -29,7 +29,7 @@ type (
 	SectorIndexMetaStore        kvstore.KVStore
 )
 
-func BuildLocalSectorManager(cfg *sealer.Config, locker confmgr.RLocker, mapi api.MinerInfoAPI, numAlloc api.SectorNumberAllocator) (api.SectorManager, error) {
+func BuildLocalSectorManager(cfg *modules.Config, locker confmgr.RLocker, mapi api.MinerInfoAPI, numAlloc api.SectorNumberAllocator) (api.SectorManager, error) {
 	return sectors.NewManager(cfg, locker, mapi, numAlloc)
 }
 
@@ -51,16 +51,16 @@ func BuildLocalConfigManager(gctx GlobalContext, lc fx.Lifecycle, home *homedir.
 	return cfgmgr, nil
 }
 
-func ProvideSealerConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigManager, locker confmgr.WLocker) (*sealer.Config, error) {
-	cfg := sealer.DefaultConfig()
-	if err := cfgmgr.Load(gctx, sealer.ConfigKey, &cfg); err != nil {
+func ProvideSealerConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigManager, locker confmgr.WLocker) (*modules.Config, error) {
+	cfg := modules.DefaultConfig()
+	if err := cfgmgr.Load(gctx, modules.ConfigKey, &cfg); err != nil {
 		return nil, err
 	}
 
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			return cfgmgr.Watch(gctx, sealer.ConfigKey, &cfg, locker, func() interface{} {
-				c := sealer.DefaultConfig()
+			return cfgmgr.Watch(gctx, modules.ConfigKey, &cfg, locker, func() interface{} {
+				c := modules.DefaultConfig()
 				return &c
 			})
 		},
@@ -132,7 +132,7 @@ func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaSto
 	return sectors.NewStateManager(onlineStore, offlineStore)
 }
 
-func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, locker confmgr.RLocker) (messager.API, error) {
+func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (messager.API, error) {
 	locker.Lock()
 	api, token := scfg.Messager.Api, scfg.Messager.Token
 	locker.Unlock()
@@ -152,7 +152,7 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Confi
 	return mcli, nil
 }
 
-func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, locker confmgr.RLocker) (chain.API, error) {
+func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (chain.API, error) {
 	locker.Lock()
 	api, token := scfg.Chain.Api, scfg.Chain.Token
 	locker.Unlock()
@@ -172,7 +172,7 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *sealer.Config, 
 	return ccli, nil
 }
 
-func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *sealer.Config, locker confmgr.RLocker) (api.MinerInfoAPI, error) {
+func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.Config, locker confmgr.RLocker) (api.MinerInfoAPI, error) {
 	mapi := chain.NewMinerInfoAPI(capi)
 
 	locker.Lock()
@@ -218,7 +218,7 @@ func BuildCommitmentManager(
 	mapi messager.API,
 	rapi api.RandomnessAPI,
 	stmgr api.SectorStateManager,
-	scfg *sealer.Config,
+	scfg *modules.Config,
 	rlock confmgr.RLocker,
 	verif api.Verifier,
 	prover api.Prover,
@@ -273,7 +273,7 @@ func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedi
 	return store, nil
 }
 
-func BuildPersistedFileStoreMgr(scfg *sealer.Config, locker confmgr.RLocker) (PersistedObjectStoreManager, error) {
+func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker) (PersistedObjectStoreManager, error) {
 	locker.Lock()
 	persistCfg := scfg.PersistedStore
 	locker.Unlock()
