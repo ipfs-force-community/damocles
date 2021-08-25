@@ -9,7 +9,7 @@ import (
 
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 var _ api.SectorManager = (*Manager)(nil)

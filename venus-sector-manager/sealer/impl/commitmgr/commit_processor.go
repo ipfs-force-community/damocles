@@ -20,7 +20,7 @@ import (
 
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 type CommitProcessor struct {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 var _ api.CommitmentManager = (*commitMgr)(nil)

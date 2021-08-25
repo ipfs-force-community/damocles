@@ -11,7 +11,7 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/util"
 
 	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/policy"

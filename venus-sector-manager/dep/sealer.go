@@ -10,7 +10,7 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
 	messager "github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/impl/mock"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/impl/prover"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/impl/randomness"

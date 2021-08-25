@@ -18,7 +18,7 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 var log = logging.New("commitmgr")

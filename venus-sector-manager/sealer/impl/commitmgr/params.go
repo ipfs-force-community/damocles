@@ -11,7 +11,7 @@ import (
 	"github.com/filecoin-project/venus/pkg/specactors"
 	"github.com/filecoin-project/venus/pkg/specactors/policy"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 func Expiration(ctx context.Context, api SealingAPI, ps api.Deals) (abi.ChainEpoch, error) {

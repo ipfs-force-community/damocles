@@ -8,7 +8,7 @@ import (
 
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 var _ api.SectorIndexer = (*Indexer)(nil)

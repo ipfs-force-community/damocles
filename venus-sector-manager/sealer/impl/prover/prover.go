@@ -1,6 +1,6 @@
 package prover
 
-import "github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+import "github.com/dtynn/venus-cluster/venus-sector-manager/api"
 
 var _ api.Prover = Prover
 var _ api.Verifier = Verifier

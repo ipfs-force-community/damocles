@@ -22,7 +22,7 @@ import (
 	cbg "github.com/whyrusleeping/cbor-gen"
 
 	chainAPI "github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 type SealingAPIImpl struct {

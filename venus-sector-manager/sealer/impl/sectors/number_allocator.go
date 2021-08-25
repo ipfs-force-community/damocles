@@ -8,7 +8,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/kvstore"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/sealer/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 var _ api.SectorNumberAllocator = (*NumberAllocator)(nil)
