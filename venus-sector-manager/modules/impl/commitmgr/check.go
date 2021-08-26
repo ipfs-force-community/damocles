@@ -152,7 +152,7 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 		return &ErrBadSeed{fmt.Errorf("seed has changed")}
 	}
 
-	ok, err := verif.VerifySeal(proof2.SealVerifyInfo{
+	ok, err := verif.VerifySeal(ctx, proof2.SealVerifyInfo{
 		SectorID:              si.ID,
 		SealedCID:             pci.Info.SealedCID,
 		SealProof:             pci.Info.SealProof,

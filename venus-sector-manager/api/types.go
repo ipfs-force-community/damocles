@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
@@ -184,4 +185,14 @@ type SectorStateChange struct {
 type SectorFailure struct {
 	Level string
 	Desc  string
+}
+
+type WindowPoStRandomness struct {
+	Epoch abi.ChainEpoch
+	Rand  abi.Randomness
+}
+
+type ActorIdent struct {
+	ID   abi.ActorID
+	Addr address.Address
 }

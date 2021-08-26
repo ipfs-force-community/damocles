@@ -3,6 +3,7 @@ package modules
 import (
 	"bytes"
 	"reflect"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
@@ -13,6 +14,11 @@ const ConfigKey = "sector-manager"
 
 func init() {
 	checkOptionalConfig(reflect.TypeOf(CommitmentPolicyConfig{}), reflect.TypeOf(CommitmentPolicyConfigOptional{}))
+}
+
+type SafeConfig struct {
+	*Config
+	sync.Locker
 }
 
 func DefaultConfig() Config {

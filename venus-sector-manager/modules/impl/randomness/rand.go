@@ -9,8 +9,8 @@ import (
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/venus/pkg/types"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
 )
 
 var _ api.RandomnessAPI = (*Randomness)(nil)
@@ -87,6 +87,53 @@ func (r *Randomness) GetSeed(ctx context.Context, tsk types.TipSetKey, epoch abi
 
 	return api.Seed{
 		Seed:  rand,
+		Epoch: epoch,
+	}, nil
+}
+
+func (r *Randomness) GetWindowPoStChanlleengeRand(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (api.WindowPoStRandomness, error) {
+	entropy, err := r.getRandomnessEntropy(mid)
+	if err != nil {
+		return api.WindowPoStRandomness{}, err
+	}
+
+	if tsk == types.EmptyTSK {
+		ts, err := r.api.ChainHead(ctx)
+		if err != nil {
+			return api.WindowPoStRandomness{}, err
+		}
+
+		tsk = ts.Key()
+	}
+
+	rand, err := r.api.ChainGetRandomnessFromBeacon(ctx, tsk, crypto.DomainSeparationTag_WindowedPoStChallengeSeed, epoch, entropy)
+	if err != nil {
+		return api.WindowPoStRandomness{}, err
+	}
+
+	return api.WindowPoStRandomness{
+		Rand:  rand,
+		Epoch: epoch,
+	}, nil
+}
+
+func (r *Randomness) GetWindowPoStCommitRand(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch) (api.WindowPoStRandomness, error) {
+	if tsk == types.EmptyTSK {
+		ts, err := r.api.ChainHead(ctx)
+		if err != nil {
+			return api.WindowPoStRandomness{}, err
+		}
+
+		tsk = ts.Key()
+	}
+
+	rand, err := r.api.ChainGetRandomnessFromTickets(ctx, tsk, crypto.DomainSeparationTag_PoStChainCommit, epoch, nil)
+	if err != nil {
+		return api.WindowPoStRandomness{}, err
+	}
+
+	return api.WindowPoStRandomness{
+		Rand:  rand,
 		Epoch: epoch,
 	}, nil
 }

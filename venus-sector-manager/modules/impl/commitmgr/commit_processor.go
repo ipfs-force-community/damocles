@@ -18,9 +18,9 @@ import (
 	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
 	specactors "github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
 
+	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 )
 
 type CommitProcessor struct {
@@ -139,7 +139,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 		proofs = append(proofs, sectorsMap[infos[i].Number].Proof.Proof)
 	}
 
-	params.AggregateProof, err = c.prover.AggregateSealProofs(proof5.AggregateSealVerifyProofAndInfos{
+	params.AggregateProof, err = c.prover.AggregateSealProofs(ctx, proof5.AggregateSealVerifyProofAndInfos{
 		Miner:          mid,
 		SealProof:      sectorsMap[infos[0].Number].SectorType,
 		AggregateProof: abi.RegisteredAggregationProof_SnarkPackV1,

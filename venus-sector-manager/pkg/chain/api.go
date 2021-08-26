@@ -5,8 +5,20 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/venus/app/client"
-	// apifacev0 "github.com/filecoin-project/venus/app/submodule/apiface/v0api"
+	"github.com/filecoin-project/venus/app/submodule/apitypes"
+	"github.com/filecoin-project/venus/pkg/chain"
 	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
+)
+
+const (
+	HCRevert  = chain.HCRevert
+	HCApply   = chain.HCApply
+	HCCurrent = chain.HCCurrent
+)
+
+type (
+	HeadChange = chain.HeadChange
+	Partition  = apitypes.Partition
 )
 
 type API struct {

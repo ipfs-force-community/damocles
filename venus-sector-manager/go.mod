@@ -17,6 +17,7 @@ require (
 	github.com/filecoin-project/specs-actors v0.9.14
 	github.com/filecoin-project/specs-actors/v2 v2.3.5
 	github.com/filecoin-project/specs-actors/v5 v5.0.1
+	github.com/filecoin-project/specs-storage v0.1.1-0.20201105051918-5188d9774506 // indirect
 	github.com/filecoin-project/venus v1.0.2
 	github.com/filecoin-project/venus-messager v1.1.0
 	github.com/fsnotify/fsnotify v1.4.9
