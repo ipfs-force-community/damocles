@@ -249,6 +249,8 @@ func (s *Store) GetChunks(ctx context.Context, p string, ranges []objstore.Range
 		}(i)
 	}
 
+	wg.Wait()
+
 	return results, nil
 }
 

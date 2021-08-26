@@ -48,5 +48,9 @@ const (
 )
 
 func SectorPath(typ pathType, sid abi.SectorID) string {
-	return filepath.Join(string(typ), fmt.Sprintf("s-%d-%d", sid.Miner, sid.Number))
+	return filepath.Join(string(typ), FormatSectorID(sid))
+}
+
+func FormatSectorID(sid abi.SectorID) string {
+	return fmt.Sprintf("s-%d-%d", sid.Miner, sid.Number)
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/filecoin-project/go-bitfield"
@@ -24,6 +25,7 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
 type scheduler struct {
@@ -318,27 +320,18 @@ func (s *scheduler) sectorsPubToPrivate(ctx context.Context, sectorInfo []builti
 			return api.SortedPrivateSectorInfo{}, fmt.Errorf("acquiring registered PoSt proof from sector info %+v: %w", s, err)
 		}
 
-		insname, has, err := s.indexer.Find(ctx, sid.ID)
+		objins, err := s.getObjInstanceForSector(ctx, sid.ID)
 		if err != nil {
-			return api.SortedPrivateSectorInfo{}, fmt.Errorf("find objstore instance for m-%d-s-%d: %w", sid.ID.Miner, sid.ID.Number, err)
-		}
-
-		if !has {
-			return api.SortedPrivateSectorInfo{}, fmt.Errorf("objstore not found for m-%d-s-%d", sid.ID.Miner, sid.ID.Number)
-		}
-
-		instance, err := s.indexer.StoreMgr().GetInstance(ctx, insname)
-		if err != nil {
-			return api.SortedPrivateSectorInfo{}, fmt.Errorf("get objstore instance %s: %w", insname, err)
+			return api.SortedPrivateSectorInfo{}, fmt.Errorf("get objstore instance for %s: %w", util.FormatSectorID(sid.ID), err)
 		}
 
 		subCache := util.SectorPath(util.SectorPathTypeCache, sid.ID)
 		subSealed := util.SectorPath(util.SectorPathTypeSealed, sid.ID)
 
 		out = append(out, api.PrivateSectorInfo{
-			CacheDirPath:     instance.FullPath(ctx, subCache),
+			CacheDirPath:     objins.FullPath(ctx, subCache),
 			PoStProofType:    postProofType,
-			SealedSectorPath: instance.FullPath(ctx, subSealed),
+			SealedSectorPath: objins.FullPath(ctx, subSealed),
 			SectorInfo:       sector,
 		})
 	}
@@ -497,10 +490,11 @@ func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, t
 		})
 	}
 
-	bad, err := s.checkProveable(ctx, tocheck)
+	bad, err := s.checkProvable(ctx, tocheck)
 	if err != nil {
 		return bitfield.BitField{}, fmt.Errorf("checking provable sectors: %w", err)
 	}
+
 	for id := range bad {
 		delete(sectors, id.Number)
 	}
@@ -515,8 +509,79 @@ func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, t
 	return sbf, nil
 }
 
-func (s *scheduler) checkProveable(ctx context.Context, targets []storage.SectorRef) (map[abi.SectorID]string, error) {
-	panic("not impl")
+func (s *scheduler) checkProvable(ctx context.Context, targets []storage.SectorRef) (map[abi.SectorID]string, error) {
+	s.cfg.Lock()
+	strict := s.cfg.PoSt.StrictCheck
+	s.cfg.Unlock()
+
+	results := make([]string, len(targets))
+	var wg sync.WaitGroup
+	wg.Add(len(targets))
+
+	for ti := range targets {
+		go func(i int) {
+			var reason string
+			defer func() {
+				if reason != "" {
+					results[i] = reason
+				}
+
+				wg.Done()
+			}()
+
+			sid := targets[i].ID
+			objins, err := s.getObjInstanceForSector(ctx, sid)
+			if err != nil {
+				reason = fmt.Sprintf("get objstore instance for %s: %s", util.FormatSectorID(sid), err)
+				return
+			}
+
+			subSealed := util.SectorPath(util.SectorPathTypeSealed, sid)
+			_, err = objins.Stat(ctx, subSealed)
+			if err != nil {
+				reason = fmt.Sprintf("get stat info for %s: %s", util.FormatSectorID(sid), err)
+				return
+			}
+
+			if !strict {
+				return
+			}
+
+			// TODO more strictly checks
+
+			return
+
+		}(ti)
+	}
+
+	wg.Wait()
+
+	bad := map[abi.SectorID]string{}
+	for ri := range results {
+		if results[ri] != "" {
+			bad[targets[ri].ID] = results[ri]
+		}
+	}
+
+	return bad, nil
+}
+
+func (s *scheduler) getObjInstanceForSector(ctx context.Context, sid abi.SectorID) (objstore.Store, error) {
+	insname, has, err := s.indexer.Find(ctx, sid)
+	if err != nil {
+		return nil, fmt.Errorf("find objstore instance: %w", err)
+	}
+
+	if !has {
+		return nil, fmt.Errorf("objstore instance not found")
+	}
+
+	instance, err := s.indexer.StoreMgr().GetInstance(ctx, insname)
+	if err != nil {
+		return nil, fmt.Errorf("get objstore instance %s: %w", insname, err)
+	}
+
+	return instance, nil
 }
 
 func (s *scheduler) sectorsForProof(ctx context.Context, goodSectors, allSectors bitfield.BitField, ts *types.TipSet) ([]builtin.SectorInfo, error) {
