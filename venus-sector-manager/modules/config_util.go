@@ -17,6 +17,15 @@ func ActorID2ConfigKey(aid abi.ActorID) string {
 	return strconv.FormatUint(uint64(aid), 10)
 }
 
+func ActorIDFromConfigKey(key string) (abi.ActorID, error) {
+	num, err := strconv.ParseUint(key, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return abi.ActorID(num), nil
+}
+
 func cloneConfig(dest, src, optional interface{}) error {
 	var buf bytes.Buffer
 	err := toml.NewEncoder(&buf).Encode(src)

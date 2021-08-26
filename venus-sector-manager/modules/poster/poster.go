@@ -2,20 +2,64 @@ package poster
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/venus/pkg/clock"
 	"github.com/filecoin-project/venus/pkg/types"
 
 	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
 var log = logging.New("poster")
+
+func NewPoSter(
+	ctx context.Context,
+	cfg *modules.SafeConfig,
+	verifier api.Verifier,
+	prover api.Prover,
+	indexer api.SectorIndexer,
+	capi chain.API,
+	rand api.RandomnessAPI,
+	mapi messager.API,
+) (*PoSter, error) {
+	p := &PoSter{
+		cfg:      cfg,
+		verifier: verifier,
+		prover:   prover,
+		indexer:  indexer,
+		chain:    capi,
+		rand:     rand,
+		msg:      mapi,
+	}
+
+	p.actors.handlers = map[address.Address]*changeHandler{}
+
+	cfg.Lock()
+	actors := cfg.PoSt.Actors
+	cfg.Unlock()
+
+	for key := range actors {
+		mid, err := modules.ActorIDFromConfigKey(key)
+		if err != nil {
+			return nil, fmt.Errorf("parse actor id from %s: %w", key, err)
+		}
+
+		sched, err := newScheduler(ctx, mid, p.cfg, p.verifier, p.prover, p.indexer, p.chain, p.rand, p.msg)
+		if err != nil {
+			return nil, fmt.Errorf("construct scheduler for actor %d: %w", mid, err)
+		}
+
+		p.actors.handlers[sched.actor.Addr] = newChangeHandler(sched, sched.actor.Addr)
+	}
+
+	return p, nil
+}
 
 type PoSter struct {
 	cfg      *modules.SafeConfig
@@ -24,13 +68,12 @@ type PoSter struct {
 	indexer  api.SectorIndexer
 	chain    chain.API
 	rand     api.RandomnessAPI
+	msg      messager.API
 
 	actors struct {
 		sync.RWMutex
 		handlers map[address.Address]*changeHandler
 	}
-
-	clock clock.Clock
 }
 
 func (p *PoSter) Run(ctx context.Context) {

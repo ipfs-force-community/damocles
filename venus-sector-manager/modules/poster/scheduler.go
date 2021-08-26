@@ -77,6 +77,22 @@ type scheduler struct {
 	log   *logging.ZapLogger
 }
 
+func (s *scheduler) StateMinerProvingDeadline(
+	ctx context.Context,
+	addr address.Address,
+	tsk types.TipSetKey,
+) (*dline.Info, error) {
+	return s.chain.StateMinerProvingDeadline(ctx, addr, tsk)
+}
+
+func (s *scheduler) failPost(err error, ts *types.TipSet, deadline *dline.Info) {
+	s.log.Errorf("Got post err %+v - TODO handle errors", err)
+}
+
+func (s *scheduler) onAbort(ts *types.TipSet, deadline *dline.Info) {
+	s.log.Warnf("deadline %d has been aborted", deadline.Open)
+}
+
 func (s *scheduler) startGeneratePoST(
 	ctx context.Context,
 	ts *types.TipSet,
