@@ -26,11 +26,17 @@ type Range struct {
 	Size   int64
 }
 
+type Stat struct {
+	Size int64
+}
+
 type Store interface {
 	Instance(context.Context) string
 	Get(context.Context, string) (io.ReadCloser, error)
+	Stat(context.Context, string) (Stat, error)
 	Put(context.Context, string, io.Reader) (int64, error)
 	GetChunks(context.Context, string, []Range) ([]ReaderResult, error)
+	FullPath(context.Context, string) string
 }
 
 type Manager interface {

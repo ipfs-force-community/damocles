@@ -40,6 +40,7 @@ type Config struct {
 	Chain          RPCClientConfig
 	Messager       RPCClientConfig
 	PersistedStore FileStoreConfig
+	PoSt           PoStConfig
 }
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
@@ -175,4 +176,8 @@ type RPCClientConfig struct {
 type FileStoreConfig struct {
 	Includes []string
 	Stores   []filestore.Config
+}
+
+type PoStConfig struct {
+	StrictCheck bool
 }

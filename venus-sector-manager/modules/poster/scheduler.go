@@ -21,6 +21,7 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/policy"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
 )
@@ -305,7 +306,44 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 }
 
 func (s *scheduler) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.SectorInfo) (api.SortedPrivateSectorInfo, error) {
-	panic("not impl")
+	out := make([]api.PrivateSectorInfo, 0, len(sectorInfo))
+	for _, sector := range sectorInfo {
+		sid := storage.SectorRef{
+			ID:        abi.SectorID{Miner: s.actor.ID, Number: sector.SectorNumber},
+			ProofType: sector.SealProof,
+		}
+
+		postProofType, err := sid.ProofType.RegisteredWindowPoStProof()
+		if err != nil {
+			return api.SortedPrivateSectorInfo{}, fmt.Errorf("acquiring registered PoSt proof from sector info %+v: %w", s, err)
+		}
+
+		insname, has, err := s.indexer.Find(ctx, sid.ID)
+		if err != nil {
+			return api.SortedPrivateSectorInfo{}, fmt.Errorf("find objstore instance for m-%d-s-%d: %w", sid.ID.Miner, sid.ID.Number, err)
+		}
+
+		if !has {
+			return api.SortedPrivateSectorInfo{}, fmt.Errorf("objstore not found for m-%d-s-%d", sid.ID.Miner, sid.ID.Number)
+		}
+
+		instance, err := s.indexer.StoreMgr().GetInstance(ctx, insname)
+		if err != nil {
+			return api.SortedPrivateSectorInfo{}, fmt.Errorf("get objstore instance %s: %w", insname, err)
+		}
+
+		subCache := util.SectorPath(util.SectorPathTypeCache, sid.ID)
+		subSealed := util.SectorPath(util.SectorPathTypeSealed, sid.ID)
+
+		out = append(out, api.PrivateSectorInfo{
+			CacheDirPath:     instance.FullPath(ctx, subCache),
+			PoStProofType:    postProofType,
+			SealedSectorPath: instance.FullPath(ctx, subSealed),
+			SectorInfo:       sector,
+		})
+	}
+
+	return api.NewSortedPrivateSectorInfo(out...), nil
 }
 
 func (s *scheduler) checkNextFaults(ctx context.Context, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.FaultDeclaration, *types.SignedMessage, error) {
@@ -609,7 +647,7 @@ func (s *scheduler) runSubmitPoST(
 		return err
 	}
 
-	var submitErr error
+	// var submitErr error
 	for i := range posts {
 		// Add randomness to PoST
 		post := &posts[i]
@@ -625,11 +663,11 @@ func (s *scheduler) runSubmitPoST(
 		// TODO: deal with msgs
 	}
 
-	return submitErr
+	panic("not impl")
 }
 
 func (s *scheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedPoStParams) (*types.SignedMessage, error) {
-	var sm *types.SignedMessage
+	// var sm *types.SignedMessage
 
 	enc, aerr := specactors.SerializeParams(proof)
 	if aerr != nil {
@@ -644,6 +682,6 @@ func (s *scheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedP
 	}
 
 	// TODO: construct & send message
+	panic("not impl")
 
-	return sm, nil
 }

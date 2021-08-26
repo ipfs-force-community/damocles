@@ -9,8 +9,13 @@ import (
 )
 
 type (
+	PrivateSectorInfo       = ffi.PrivateSectorInfo
 	SortedPrivateSectorInfo = ffi.SortedPrivateSectorInfo
 	WindowPoStVerifyInfo    = proof5.WindowPoStVerifyInfo
+)
+
+var (
+	NewSortedPrivateSectorInfo = ffi.NewSortedPrivateSectorInfo
 )
 
 type Verifier interface {

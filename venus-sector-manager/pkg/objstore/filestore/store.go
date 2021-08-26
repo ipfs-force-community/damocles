@@ -20,6 +20,11 @@ var log = logging.New("objstore-fs")
 
 var _ objstore.Store = (*Store)(nil)
 
+type statOrErr struct {
+	objstore.Stat
+	Err error
+}
+
 func DefaultConfig(path string, readonly bool) Config {
 	return Config{
 		Path:     path,
@@ -173,6 +178,32 @@ func (s *Store) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 	return res.ReadCloser, res.Err
 }
 
+func (s *Store) Stat(ctx context.Context, p string) (objstore.Stat, error) {
+	resCh := make(chan statOrErr, 1)
+	go func() {
+		defer close(resCh)
+
+		var res statOrErr
+
+		finfo, err := os.Stat(s.FullPath(ctx, p))
+		if err == nil {
+			res.Stat.Size = finfo.Size()
+		} else {
+			res.Err = err
+		}
+
+		resCh <- res
+	}()
+
+	select {
+	case <-ctx.Done():
+		return objstore.Stat{}, ctx.Err()
+
+	case res := <-resCh:
+		return res.Stat, res.Err
+	}
+}
+
 func (s *Store) Put(ctx context.Context, p string, r io.Reader) (int64, error) {
 	if s.cfg.Strict {
 		return 0, objstore.ErrReadOnlyStore
@@ -219,4 +250,8 @@ func (s *Store) GetChunks(ctx context.Context, p string, ranges []objstore.Range
 	}
 
 	return results, nil
+}
+
+func (s *Store) FullPath(ctx context.Context, sub string) string {
+	return filepath.Join(s.cfg.Path, sub)
 }
