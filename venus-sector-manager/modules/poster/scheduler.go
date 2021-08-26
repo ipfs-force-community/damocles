@@ -7,17 +7,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/specs-storage/storage"
 	"github.com/filecoin-project/venus/pkg/clock"
-	"github.com/filecoin-project/venus/pkg/specactors"
 	"github.com/filecoin-project/venus/pkg/specactors/builtin"
 	"github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
 	specpolicy "github.com/filecoin-project/venus/pkg/specactors/policy"
 	"github.com/filecoin-project/venus/pkg/types"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
@@ -25,8 +26,40 @@ import (
 	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore"
 )
+
+func newScheduler(ctx context.Context, mid abi.ActorID, cfg *modules.SafeConfig, verifier api.Verifier, prover api.Prover, indexer api.SectorIndexer, capi chain.API, rand api.RandomnessAPI, mapi messager.API) (*scheduler, error) {
+	maddr, err := address.NewIDAddress(uint64(mid))
+	if err != nil {
+		return nil, err
+	}
+
+	actor := api.ActorIdent{
+		Addr: maddr,
+		ID:   mid,
+	}
+
+	minfo, err := capi.StateMinerInfo(ctx, actor.Addr, types.EmptyTSK)
+	if err != nil {
+		return nil, fmt.Errorf("get miner info: %w", err)
+	}
+
+	return &scheduler{
+		actor:     actor,
+		proofType: minfo.WindowPoStProofType,
+		cfg:       cfg,
+		verifier:  verifier,
+		prover:    prover,
+		indexer:   indexer,
+		chain:     capi,
+		rand:      rand,
+		msg:       mapi,
+		clock:     clock.NewSystemClock(),
+		log:       log.With("miner", actor.ID),
+	}, nil
+}
 
 type scheduler struct {
 	actor     api.ActorIdent
@@ -38,6 +71,7 @@ type scheduler struct {
 	indexer  api.SectorIndexer
 	chain    chain.API
 	rand     api.RandomnessAPI
+	msg      messager.API
 
 	clock clock.Clock
 	log   *logging.ZapLogger
@@ -88,18 +122,18 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 			return
 		}
 
-		if _, _, err = s.checkNextRecoveries(context.TODO(), declDeadline, partitions, ts.Key()); err != nil {
+		if _, err = s.checkNextRecoveries(context.TODO(), declDeadline, partitions, ts.Key()); err != nil {
 			// TODO: This is potentially quite bad, but not even trying to post when this fails is objectively worse
-			log.Errorf("checking sector recoveries: %v", err)
+			s.log.Errorf("checking sector recoveries: %v", err)
 		}
 
 		if ts.Height() > policy.NetParams.Network.ForkUpgradeParam.UpgradeIgnitionHeight {
 			return // FORK: declaring faults after ignition upgrade makes no sense
 		}
 
-		if _, _, err = s.checkNextFaults(context.TODO(), declDeadline, partitions, ts.Key()); err != nil {
+		if _, err = s.checkNextFaults(context.TODO(), declDeadline, partitions, ts.Key()); err != nil {
 			// TODO: This is also potentially really bad, but we try to post anyways
-			log.Errorf("checking sector faults: %v", err)
+			s.log.Errorf("checking sector faults: %v", err)
 		}
 
 	}()
@@ -209,7 +243,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 			}
 
 			// Generate proof
-			log.Infow("running window post",
+			s.log.Infow("running window post",
 				"chain-random", rand,
 				"deadline", di,
 				"height", ts.Height(),
@@ -225,7 +259,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 			postOut, ps, err := s.prover.GenerateWindowPoSt(ctx, s.actor.ID, privSectors, append(abi.PoStRandomness{}, rand.Rand...))
 			elapsed := time.Since(tsStart)
 
-			log.Infow("computing window post", "batch", batchIdx, "elapsed", elapsed)
+			s.log.Infow("computing window post", "batch", batchIdx, "elapsed", elapsed)
 
 			if err == nil {
 				// If we proved nothing, something is very wrong.
@@ -244,7 +278,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 				}
 
 				if !bytes.Equal(checkRand.Rand, rand.Rand) {
-					log.Warnw("windowpost randomness changed", "old", rand, "new", checkRand, "ts-height", ts.Height(), "challenge-height", di.Challenge, "tsk", ts.Key())
+					s.log.Warnw("windowpost randomness changed", "old", rand, "new", checkRand, "ts-height", ts.Height(), "challenge-height", di.Challenge, "tsk", ts.Key())
 					continue
 				}
 
@@ -255,11 +289,11 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 					ChallengedSectors: sinfos,
 					Prover:            s.actor.ID,
 				}); err != nil {
-					log.Errorw("window post verification failed", "post", postOut, "error", err)
+					s.log.Errorw("window post verification failed", "post", postOut, "error", err)
 					time.Sleep(5 * time.Second)
 					continue
 				} else if !correct {
-					log.Errorw("generated incorrect window post proof", "post", postOut, "error", err)
+					s.log.Errorw("generated incorrect window post proof", "post", postOut, "error", err)
 					continue
 				}
 
@@ -279,14 +313,14 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 			}
 			// TODO: maybe mark these as faulty somewhere?
 
-			log.Warnw("generate window post skipped sectors", "sectors", ps, "error", err, "try", retries)
+			s.log.Warnw("generate window post skipped sectors", "sectors", ps, "error", err, "try", retries)
 
 			// Explicitly make sure we haven't aborted this PoSt
 			// (GenerateWindowPoSt may or may not check this).
 			// Otherwise, we could try to continue proving a
 			// deadline after the deadline has ended.
 			if ctx.Err() != nil {
-				log.Warnw("aborting PoSt due to context cancellation", "error", ctx.Err(), "deadline", di.Index)
+				s.log.Warnw("aborting PoSt due to context cancellation", "error", ctx.Err(), "deadline", di.Index)
 				return nil, ctx.Err()
 			}
 
@@ -339,7 +373,7 @@ func (s *scheduler) sectorsPubToPrivate(ctx context.Context, sectorInfo []builti
 	return api.NewSortedPrivateSectorInfo(out...), nil
 }
 
-func (s *scheduler) checkNextFaults(ctx context.Context, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.FaultDeclaration, *types.SignedMessage, error) {
+func (s *scheduler) checkNextFaults(ctx context.Context, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.FaultDeclaration, error) {
 	bad := uint64(0)
 	params := &miner.DeclareFaultsParams{
 		Faults: []miner.FaultDeclaration{},
@@ -348,22 +382,22 @@ func (s *scheduler) checkNextFaults(ctx context.Context, dlIdx uint64, partition
 	for partIdx, partition := range partitions {
 		nonFaulty, err := bitfield.SubtractBitField(partition.LiveSectors, partition.FaultySectors)
 		if err != nil {
-			return nil, nil, fmt.Errorf("determining non faulty sectors: %w", err)
+			return nil, fmt.Errorf("determining non faulty sectors: %w", err)
 		}
 
 		good, err := s.checkSectors(ctx, nonFaulty, tsk)
 		if err != nil {
-			return nil, nil, fmt.Errorf("checking sectors: %w", err)
+			return nil, fmt.Errorf("checking sectors: %w", err)
 		}
 
 		newFaulty, err := bitfield.SubtractBitField(nonFaulty, good)
 		if err != nil {
-			return nil, nil, fmt.Errorf("calculating faulty sector set: %w", err)
+			return nil, fmt.Errorf("calculating faulty sector set: %w", err)
 		}
 
 		c, err := newFaulty.Count()
 		if err != nil {
-			return nil, nil, fmt.Errorf("counting faulty sectors: %w", err)
+			return nil, fmt.Errorf("counting faulty sectors: %w", err)
 		}
 
 		if c == 0 {
@@ -381,28 +415,32 @@ func (s *scheduler) checkNextFaults(ctx context.Context, dlIdx uint64, partition
 
 	faults := params.Faults
 	if len(faults) == 0 {
-		return faults, nil, nil
+		return faults, nil
 	}
 
-	log.Errorw("DETECTED FAULTY SECTORS, declaring faults", "count", bad)
+	s.log.Errorw("DETECTED FAULTY SECTORS, declaring faults", "count", bad)
 
-	enc, aerr := specactors.SerializeParams(params)
-	if aerr != nil {
-		return faults, nil, fmt.Errorf("could not serialize declare faults parameters: %w", aerr)
+	uid, waitCh, err := s.publishMessage(ctx, miner.Methods.DeclareFaults, params, true)
+	if err != nil {
+		return faults, err
 	}
 
-	// TODO: handle msgs
-	_ = &types.Message{
-		To:     s.actor.Addr,
-		Method: miner.Methods.DeclareFaults,
-		Params: enc,
-		Value:  types.NewInt(0), // TODO: Is there a fee?
+	s.log.Warnw("declare faults message published", "uid", uid)
+
+	res := <-waitCh
+
+	if res.err != nil {
+		return faults, fmt.Errorf("declare faults wait error: %w", res.err)
 	}
 
-	panic("not impl")
+	if res.Message.Receipt.ExitCode != 0 {
+		return faults, fmt.Errorf("declare faults msg %s got non-0 exit code: %d", res.Message.SignedCid, res.Message.Receipt.ExitCode)
+	}
+
+	return faults, nil
 }
 
-func (s *scheduler) checkNextRecoveries(ctx context.Context, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.RecoveryDeclaration, *types.SignedMessage, error) {
+func (s *scheduler) checkNextRecoveries(ctx context.Context, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.RecoveryDeclaration, error) {
 	faulty := uint64(0)
 	params := &miner.DeclareFaultsRecoveredParams{
 		Recoveries: []miner.RecoveryDeclaration{},
@@ -411,12 +449,12 @@ func (s *scheduler) checkNextRecoveries(ctx context.Context, dlIdx uint64, parti
 	for partIdx, partition := range partitions {
 		unrecovered, err := bitfield.SubtractBitField(partition.FaultySectors, partition.RecoveringSectors)
 		if err != nil {
-			return nil, nil, fmt.Errorf("subtracting recovered set from fault set: %w", err)
+			return nil, fmt.Errorf("subtracting recovered set from fault set: %w", err)
 		}
 
 		uc, err := unrecovered.Count()
 		if err != nil {
-			return nil, nil, fmt.Errorf("counting unrecovered sectors: %w", err)
+			return nil, fmt.Errorf("counting unrecovered sectors: %w", err)
 		}
 
 		if uc == 0 {
@@ -427,13 +465,13 @@ func (s *scheduler) checkNextRecoveries(ctx context.Context, dlIdx uint64, parti
 
 		recovered, err := s.checkSectors(ctx, unrecovered, tsk)
 		if err != nil {
-			return nil, nil, fmt.Errorf("checking unrecovered sectors: %w", err)
+			return nil, fmt.Errorf("checking unrecovered sectors: %w", err)
 		}
 
 		// if all sectors failed to recover, don't declare recoveries
 		recoveredCount, err := recovered.Count()
 		if err != nil {
-			return nil, nil, fmt.Errorf("counting recovered sectors: %w", err)
+			return nil, fmt.Errorf("counting recovered sectors: %w", err)
 		}
 
 		if recoveredCount == 0 {
@@ -450,25 +488,28 @@ func (s *scheduler) checkNextRecoveries(ctx context.Context, dlIdx uint64, parti
 	recoveries := params.Recoveries
 	if len(recoveries) == 0 {
 		if faulty != 0 {
-			log.Warnw("No recoveries to declare", "deadline", dlIdx, "faulty", faulty)
+			s.log.Warnw("No recoveries to declare", "deadline", dlIdx, "faulty", faulty)
 		}
 
-		return recoveries, nil, nil
+		return recoveries, nil
 	}
 
-	enc, aerr := specactors.SerializeParams(params)
-	if aerr != nil {
-		return recoveries, nil, fmt.Errorf("could not serialize declare recoveries parameters: %w", aerr)
+	_, resCh, err := s.publishMessage(ctx, miner.Methods.DeclareFaultsRecovered, params, true)
+	if err != nil {
+		return recoveries, err
 	}
 
-	_ = &types.Message{
-		To:     s.actor.Addr,
-		Method: miner.Methods.DeclareFaultsRecovered,
-		Params: enc,
-		Value:  types.NewInt(0),
+	res := <-resCh
+
+	if res.err != nil {
+		return recoveries, fmt.Errorf("declare faults recovered wait error: %w", res.err)
 	}
 
-	panic("not impl")
+	if res.Message.Receipt.ExitCode != 0 {
+		return recoveries, fmt.Errorf("declare faults recovered %s got non-0 exit code: %d", res.Message.SignedCid, res.Message.Receipt.ExitCode)
+	}
+
+	return recoveries, nil
 }
 
 func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, tsk types.TipSetKey) (bitfield.BitField, error) {
@@ -499,7 +540,7 @@ func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, t
 		delete(sectors, id.Number)
 	}
 
-	log.Warnw("Checked sectors", "checked", len(tocheck), "good", len(sectors))
+	s.log.Warnw("Checked sectors", "checked", len(tocheck), "good", len(sectors))
 
 	sbf := bitfield.New()
 	for s := range sectors {
@@ -510,9 +551,7 @@ func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, t
 }
 
 func (s *scheduler) checkProvable(ctx context.Context, targets []storage.SectorRef) (map[abi.SectorID]string, error) {
-	s.cfg.Lock()
-	strict := s.cfg.PoSt.StrictCheck
-	s.cfg.Unlock()
+	strict := postPolicyFromConfig(s.actor.ID, s.cfg).StrictCheck
 
 	results := make([]string, len(targets))
 	var wg sync.WaitGroup
@@ -699,7 +738,7 @@ func (s *scheduler) runSubmitPoST(
 	// (actors version 2). We want to go back as far as possible to be safe.
 	commEpoch := deadline.Open
 	if ver, err := s.chain.StateNetworkVersion(ctx, types.EmptyTSK); err != nil {
-		log.Errorw("failed to get network version to determine PoSt epoch randomness lookback", "error", err)
+		s.log.Errorw("failed to get network version to determine PoSt epoch randomness lookback", "error", err)
 	} else if ver >= network.Version4 {
 		commEpoch = deadline.Challenge
 	}
@@ -707,12 +746,12 @@ func (s *scheduler) runSubmitPoST(
 	commRand, err := s.rand.GetWindowPoStCommitRand(ctx, ts.Key(), commEpoch)
 	if err != nil {
 		err = fmt.Errorf("failed to get chain randomness from tickets for windowPost (ts=%d; deadline=%d): %w", ts.Height(), commEpoch, err)
-		log.Errorf("submitPost failed: %+v", err)
+		s.log.Errorf("submitPost failed: %+v", err)
 
 		return err
 	}
 
-	// var submitErr error
+	var submitErrs error
 	for i := range posts {
 		// Add randomness to PoST
 		post := &posts[i]
@@ -720,33 +759,37 @@ func (s *scheduler) runSubmitPoST(
 		post.ChainCommitRand = commRand.Rand
 
 		// Submit PoST
-		_, submitErr := s.submitPost(ctx, post)
-		if submitErr != nil {
-			log.Errorf("submit window post failed: %+v", submitErr)
+		err := s.submitPost(ctx, post)
+		if err != nil {
+			s.log.Errorf("submit window post failed: %+v", err)
+			submitErrs = multierror.Append(submitErrs, err)
 		}
-
-		// TODO: deal with msgs
 	}
 
-	panic("not impl")
+	return submitErrs
 }
 
-func (s *scheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedPoStParams) (*types.SignedMessage, error) {
-	// var sm *types.SignedMessage
-
-	enc, aerr := specactors.SerializeParams(proof)
-	if aerr != nil {
-		return nil, fmt.Errorf("could not serialize submit window post parameters: %w", aerr)
+func (s *scheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedPoStParams) error {
+	uid, resCh, err := s.publishMessage(ctx, miner.Methods.SubmitWindowedPoSt, proof, true)
+	if err != nil {
+		return fmt.Errorf("publish window post message: %w", err)
 	}
 
-	_ = &types.Message{
-		To:     s.actor.Addr,
-		Method: miner.Methods.SubmitWindowedPoSt,
-		Params: enc,
-		Value:  types.NewInt(0),
-	}
+	s.log.Infof("Submitted window post: %s", uid)
 
-	// TODO: construct & send message
-	panic("not impl")
+	go func() {
+		res := <-resCh
+		if res.err != nil {
+			s.log.Errorf("wait for message result falied: %s", err)
+			return
+		}
 
+		if res.Message.Receipt.ExitCode != 0 {
+			s.log.Errorf("Submitting window post %s failed: exit %d", res.SignedCid, res.Message.Receipt.ExitCode)
+			return
+		}
+
+	}()
+
+	return nil
 }

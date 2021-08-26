@@ -21,6 +21,7 @@ require (
 	github.com/filecoin-project/venus v1.0.2
 	github.com/filecoin-project/venus-messager v1.1.0
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/ipfs-force-community/venus-common-utils v0.0.0-20210714054928-2042a9040759
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.0.7

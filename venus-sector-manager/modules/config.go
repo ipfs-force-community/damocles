@@ -1,11 +1,10 @@
 package modules
 
 import (
-	"bytes"
 	"reflect"
 	"sync"
+	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 	"github.com/filecoin-project/go-state-types/abi"
 )
@@ -14,6 +13,7 @@ const ConfigKey = "sector-manager"
 
 func init() {
 	checkOptionalConfig(reflect.TypeOf(CommitmentPolicyConfig{}), reflect.TypeOf(CommitmentPolicyConfigOptional{}))
+	checkOptionalConfig(reflect.TypeOf(PoStPolicyConfig{}), reflect.TypeOf(PoStPolicyConfigOptional{}))
 }
 
 type SafeConfig struct {
@@ -31,6 +31,7 @@ func DefaultConfig() Config {
 			Includes: make([]string, 0),
 			Stores:   make([]filestore.Config, 0),
 		},
+		PoSt: DefaultPoStConfig(),
 	}
 }
 
@@ -40,7 +41,8 @@ type Config struct {
 	Chain          RPCClientConfig
 	Messager       RPCClientConfig
 	PersistedStore FileStoreConfig
-	PoSt           PoStConfig
+	// TODO: use separate config for each actor
+	PoSt PoStConfig
 }
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
@@ -69,8 +71,8 @@ type CommitmentManagerConfig struct {
 	Miners        map[string]CommitmentMinerConfig
 }
 
-func (c *CommitmentManagerConfig) MustPolicy(key string) CommitmentPolicyConfig {
-	cfg, err := c.Policy(key)
+func (c *CommitmentManagerConfig) MustPolicy(mid abi.ActorID) CommitmentPolicyConfig {
+	cfg, err := c.Policy(mid)
 	if err != nil {
 		panic(err)
 	}
@@ -78,33 +80,20 @@ func (c *CommitmentManagerConfig) MustPolicy(key string) CommitmentPolicyConfig 
 	return cfg
 }
 
-func (c *CommitmentManagerConfig) Policy(key string) (CommitmentPolicyConfig, error) {
-	var buf bytes.Buffer
-	err := toml.NewEncoder(&buf).Encode(c.DefaultPolicy)
+func (c *CommitmentManagerConfig) Policy(mid abi.ActorID) (CommitmentPolicyConfig, error) {
+	var dest CommitmentPolicyConfig
+	var optional interface{}
+
+	if opt, ok := c.Miners[ActorID2ConfigKey(mid)]; ok {
+		optional = opt.CommitmentPolicyConfigOptional
+	}
+
+	err := cloneConfig(&dest, c.DefaultPolicy, optional)
 	if err != nil {
 		return CommitmentPolicyConfig{}, err
 	}
 
-	var cloned CommitmentPolicyConfig
-	_, err = toml.Decode(string(buf.Bytes()), &cloned)
-	if err != nil {
-		return CommitmentPolicyConfig{}, err
-	}
-
-	if opt, ok := c.Miners[key]; ok {
-		buf.Reset()
-		err = toml.NewEncoder(&buf).Encode(opt.CommitmentPolicyConfigOptional)
-		if err != nil {
-			return CommitmentPolicyConfig{}, err
-		}
-
-		_, err = toml.Decode(string(buf.Bytes()), &cloned)
-		if err != nil {
-			return CommitmentPolicyConfig{}, err
-		}
-	}
-
-	return cloned, nil
+	return dest, nil
 }
 
 type CommitmentPolicyConfig struct {
@@ -178,6 +167,65 @@ type FileStoreConfig struct {
 	Stores   []filestore.Config
 }
 
+func DefaultPoStConfig() PoStConfig {
+	return PoStConfig{
+		Default: PoStPolicyConfig{
+			MsgCheckInteval: Duration(time.Minute),
+			MsgConfidence:   5,
+		},
+		Actors: map[string]PoStActorConfig{},
+	}
+}
+
 type PoStConfig struct {
-	StrictCheck bool
+	Default PoStPolicyConfig
+	Actors  map[string]PoStActorConfig
+}
+
+func (c *PoStConfig) MustPolicy(mid abi.ActorID) PoStPolicyConfig {
+	cfg, err := c.Policy(mid)
+	if err != nil {
+		panic(err)
+	}
+
+	return cfg
+}
+
+func (c *PoStConfig) Policy(mid abi.ActorID) (PoStPolicyConfig, error) {
+	var dest PoStPolicyConfig
+	var optional interface{}
+
+	if opt, ok := c.Actors[ActorID2ConfigKey(mid)]; ok {
+		optional = opt.PoStPolicyConfigOptional
+	}
+
+	err := cloneConfig(&dest, c.Default, optional)
+	if err != nil {
+		return PoStPolicyConfig{}, err
+	}
+
+	return dest, nil
+}
+
+type PoStPolicyConfig struct {
+	StrictCheck       bool
+	GasOverEstimation float64
+	MaxFeeCap         BigInt
+
+	MsgCheckInteval Duration
+	MsgConfidence   uint64
+}
+
+type PoStPolicyConfigOptional struct {
+	StrictCheck       *bool
+	GasOverEstimation *float64
+	MaxFeeCap         *BigInt
+
+	MsgCheckInteval *Duration
+	MsgConfidence   *uint64
+}
+
+type PoStActorConfig struct {
+	Sender MustAddress
+	PoStPolicyConfigOptional
 }

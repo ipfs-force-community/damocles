@@ -1,14 +1,49 @@
 package modules
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 )
+
+func ActorID2ConfigKey(aid abi.ActorID) string {
+	return strconv.FormatUint(uint64(aid), 10)
+}
+
+func cloneConfig(dest, src, optional interface{}) error {
+	var buf bytes.Buffer
+	err := toml.NewEncoder(&buf).Encode(src)
+	if err != nil {
+		return fmt.Errorf("encode src: %w", err)
+	}
+
+	_, err = toml.Decode(string(buf.Bytes()), dest)
+	if err != nil {
+		return fmt.Errorf("decode src onto dest: %w", err)
+	}
+
+	if optional != nil {
+		buf.Reset()
+		err = toml.NewEncoder(&buf).Encode(optional)
+		if err != nil {
+			return fmt.Errorf("encode optional: %w", err)
+		}
+
+		_, err = toml.Decode(string(buf.Bytes()), dest)
+		if err != nil {
+			return fmt.Errorf("decode optional onto dest: %w", err)
+		}
+	}
+
+	return nil
+}
 
 func checkOptionalConfig(original, optional reflect.Type) {
 	fieldNum := original.NumField()
