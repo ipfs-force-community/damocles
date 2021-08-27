@@ -20,14 +20,14 @@ import (
 	"github.com/filecoin-project/venus/pkg/types"
 	"github.com/hashicorp/go-multierror"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/policy"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/util"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
 func newScheduler(ctx context.Context, mid abi.ActorID, cfg *modules.SafeConfig, verifier api.Verifier, prover api.Prover, indexer api.SectorIndexer, capi chain.API, rand api.RandomnessAPI, mapi messager.API) (*scheduler, error) {

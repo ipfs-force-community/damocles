@@ -9,17 +9,17 @@ import (
 
 	"go.uber.org/fx"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/commitmgr"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/sectors"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/homedir"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/kvstore"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/commitmgr"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/sectors"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 )
 
 type (

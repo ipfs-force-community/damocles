@@ -6,15 +6,15 @@ import (
 
 	"github.com/dtynn/dix"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/mock"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/prover"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/randomness"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/sealer"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
-	messager "github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/mock"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/randomness"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/sealer"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
+	messager "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
 type GlobalContext context.Context

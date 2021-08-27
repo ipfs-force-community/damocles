@@ -5,7 +5,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 )
 
 var _ api.DealManager = (*nullDeal)(nil)

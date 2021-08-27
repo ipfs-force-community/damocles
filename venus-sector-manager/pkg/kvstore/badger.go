@@ -6,7 +6,7 @@ import (
 
 	"github.com/dgraph-io/badger/v2"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
 var _ KVStore = (*BadgerKVStore)(nil)

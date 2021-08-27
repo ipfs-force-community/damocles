@@ -15,9 +15,9 @@ import (
 	"github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
 	specactors "github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 )
 
 type PreCommitProcessor struct {

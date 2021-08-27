@@ -7,11 +7,11 @@ import (
 	"github.com/dtynn/dix"
 	"github.com/urfave/cli/v2"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/dep"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 )
 
 var daemonCmd = &cli.Command{

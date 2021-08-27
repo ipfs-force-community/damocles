@@ -11,11 +11,11 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/urfave/cli/v2"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/dep"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/homedir"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
 var Log = logging.New("sealer")

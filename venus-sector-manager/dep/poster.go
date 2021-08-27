@@ -6,11 +6,11 @@ import (
 	"github.com/dtynn/dix"
 	"go.uber.org/fx"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/poster"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/poster"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
 func PoSter() dix.Option {

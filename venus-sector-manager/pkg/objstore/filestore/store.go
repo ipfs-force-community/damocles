@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
 var log = logging.New("objstore-fs")

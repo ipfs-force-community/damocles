@@ -7,7 +7,7 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 )
 
 func Open(path string) (*Home, error) {

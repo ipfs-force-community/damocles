@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
 var _ objstore.Manager = (*Manager)(nil)

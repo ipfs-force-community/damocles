@@ -18,9 +18,9 @@ import (
 	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
 	specactors "github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
 type CommitProcessor struct {

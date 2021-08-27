@@ -14,7 +14,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 )
 
 var ErrSectorAllocated = errors.New("sectorNumber is allocated, but PreCommit info wasn't found on chain")

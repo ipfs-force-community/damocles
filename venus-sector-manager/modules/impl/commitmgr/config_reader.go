@@ -3,8 +3,8 @@ package commitmgr
 import (
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 )
 
 type Cfg struct {

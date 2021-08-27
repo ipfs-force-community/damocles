@@ -8,10 +8,10 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/dep"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/util"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 )
 
 var mockCmd = &cli.Command{

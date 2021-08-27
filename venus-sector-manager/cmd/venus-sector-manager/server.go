@@ -9,7 +9,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"github.com/dtynn/dix"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 )
 
 func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node api.SealerAPI, addr string) error {

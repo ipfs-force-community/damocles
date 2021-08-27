@@ -1,4 +1,4 @@
-module github.com/dtynn/venus-cluster/venus-sector-manager
+module github.com/ipfs-force-community/venus-cluster/venus-sector-manager
 
 go 1.16
 

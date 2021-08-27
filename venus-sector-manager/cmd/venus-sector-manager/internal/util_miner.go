@@ -19,7 +19,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli/v2"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
 var utilMinerCmd = &cli.Command{

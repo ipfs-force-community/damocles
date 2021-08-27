@@ -1,7 +1,7 @@
 package prover
 
 import (
-	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 )
 
 var _ api.Prover = Prover

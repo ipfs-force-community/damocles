@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 
-	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/objstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/filecoin-project/venus/pkg/types"
 
 	"github.com/filecoin-project/go-state-types/abi"
