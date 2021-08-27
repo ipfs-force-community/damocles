@@ -16,7 +16,7 @@
   - [x] sector state finalize
   - [x] submit remote path
   - [x] check file existance for submitted persisted files
-- [] small instance of windost post
+- [x] small instance of windost post
 - [] handle submit states gracefully
   - [] handle ErrOutOfGas and other retry-able failed messages gracefully
 - [] deal manager
