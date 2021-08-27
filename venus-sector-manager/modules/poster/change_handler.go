@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/dline"
@@ -26,6 +27,7 @@ type changeHandlerAPI interface {
 	startSubmitPoST(ctx context.Context, ts *types.TipSet, deadline *dline.Info, posts []miner.SubmitWindowedPoStParams, onComplete CompleteSubmitPoSTCb) context.CancelFunc
 	onAbort(ts *types.TipSet, deadline *dline.Info)
 	failPost(err error, ts *types.TipSet, deadline *dline.Info)
+	logger() *logging.ZapLogger
 }
 
 type changeHandler struct {
@@ -43,6 +45,7 @@ func newChangeHandler(api changeHandlerAPI, actor address.Address) *changeHandle
 }
 
 func (ch *changeHandler) start() {
+	ch.api.logger().Info("change handler loop start")
 	go ch.proveHdlr.run()
 	go ch.submitHdlr.run()
 }

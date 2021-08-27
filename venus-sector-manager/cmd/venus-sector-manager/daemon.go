@@ -53,6 +53,11 @@ var daemonRunCmd = &cli.Command{
 			Name:  "listen",
 			Value: ":1789",
 		},
+		&cli.BoolFlag{
+			Name:  "poster",
+			Value: false,
+			Usage: "enable poster module",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		gctx, gcancel := internal.NewSigContext(context.Background())
@@ -64,6 +69,10 @@ var daemonRunCmd = &cli.Command{
 			internal.DepsFromCLICtx(cctx),
 			dix.Override(new(dep.GlobalContext), gctx),
 			dep.Product(),
+			dix.If(
+				cctx.Bool("poster"),
+				dep.PoSter(),
+			),
 			dep.Sealer(&node),
 		)
 		if err != nil {

@@ -8,10 +8,10 @@ import (
 
 	"github.com/dtynn/venus-cluster/venus-sector-manager/api"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/modules"
-	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/sealer"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/mock"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/prover"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/impl/randomness"
+	"github.com/dtynn/venus-cluster/venus-sector-manager/modules/sealer"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/dtynn/venus-cluster/venus-sector-manager/pkg/confmgr"
 	messager "github.com/dtynn/venus-cluster/venus-sector-manager/pkg/messager"
@@ -44,7 +44,8 @@ func Product() dix.Option {
 		dix.Override(new(confmgr.WLocker), cfgmu),
 		dix.Override(new(confmgr.RLocker), cfgmu.RLocker()),
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
-		dix.Override(new(*modules.Config), ProvideSealerConfig),
+		dix.Override(new(*modules.Config), ProvideConfig),
+		dix.Override(new(*modules.SafeConfig), ProvideSafeConfig),
 		dix.Override(new(api.SectorManager), BuildLocalSectorManager),
 		dix.Override(new(api.SectorStateManager), BuildLocalSectorStateManager),
 		dix.Override(new(OnlineMetaStore), BuildOnlineMetaStore),
@@ -83,7 +84,7 @@ func API(c *chain.API, m *messager.API) dix.Option {
 		dix.Override(new(confmgr.WLocker), cfgmu),
 		dix.Override(new(confmgr.RLocker), cfgmu.RLocker()),
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
-		dix.Override(new(*modules.Config), ProvideSealerConfig),
+		dix.Override(new(*modules.Config), ProvideConfig),
 		dix.Override(new(chain.API), BuildChainClient),
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.If(c != nil,

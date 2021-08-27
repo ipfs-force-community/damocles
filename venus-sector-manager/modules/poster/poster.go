@@ -77,24 +77,37 @@ type PoSter struct {
 }
 
 func (p *PoSter) Run(ctx context.Context) {
+	log.Info("poster loop start")
+	defer log.Info("poster loop stop")
+
 	p.actors.RLock()
-	for _, hdl := range p.actors.handlers {
+	handlers := p.actors.handlers
+	p.actors.RUnlock()
+
+	if len(handlers) == 0 {
+		log.Warn("no actor setup")
+		return
+	}
+
+	for _, hdl := range handlers {
 		hdl.start()
 	}
-	p.actors.RUnlock()
 
 	var notifs <-chan []*chain.HeadChange
 	firstTime := true
+
+	reconnectWait := 10 * time.Second
 
 	// not fine to panic after this point
 	for {
 		if notifs == nil {
 			if !firstTime {
+				log.Warnf("try to reconnect after %s", reconnectWait)
 				select {
 				case <-ctx.Done():
 					return
 
-				case <-time.After(10 * time.Second):
+				case <-time.After(reconnectWait):
 
 				}
 

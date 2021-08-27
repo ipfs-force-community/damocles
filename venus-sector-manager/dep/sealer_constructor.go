@@ -51,7 +51,7 @@ func BuildLocalConfigManager(gctx GlobalContext, lc fx.Lifecycle, home *homedir.
 	return cfgmgr, nil
 }
 
-func ProvideSealerConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigManager, locker confmgr.WLocker) (*modules.Config, error) {
+func ProvideConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigManager, locker confmgr.WLocker) (*modules.Config, error) {
 	cfg := modules.DefaultConfig()
 	if err := cfgmgr.Load(gctx, modules.ConfigKey, &cfg); err != nil {
 		return nil, err
@@ -67,6 +67,13 @@ func ProvideSealerConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.Con
 	})
 
 	return &cfg, nil
+}
+
+func ProvideSafeConfig(cfg *modules.Config, locker confmgr.RLocker) (*modules.SafeConfig, error) {
+	return &modules.SafeConfig{
+		Config: cfg,
+		Locker: locker,
+	}, nil
 }
 
 func BuildOnlineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (OnlineMetaStore, error) {

@@ -93,6 +93,10 @@ func (s *scheduler) onAbort(ts *types.TipSet, deadline *dline.Info) {
 	s.log.Warnf("deadline %d has been aborted", deadline.Open)
 }
 
+func (s *scheduler) logger() *logging.ZapLogger {
+	return s.log
+}
+
 func (s *scheduler) startGeneratePoST(
 	ctx context.Context,
 	ts *types.TipSet,
