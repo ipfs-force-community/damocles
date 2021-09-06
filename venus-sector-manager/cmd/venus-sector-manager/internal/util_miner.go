@@ -88,22 +88,28 @@ var utilMinerCreateCmd = &cli.Command{
 		&cli.StringFlag{
 			Name:     "from",
 			Required: true,
+			Usage:    "Wallet address used for sending the `CreateMiner` message",
 		},
 		&cli.StringFlag{
-			Name: "owner",
+			Name:  "owner",
+			Usage: "Actor address used as the `Owner` field. Will use the AccountActor ID of `from` if not provided",
 		},
 		&cli.StringFlag{
-			Name: "worker",
+			Name:  "worker",
+			Usage: "Actor address used as the `Worker` field. Will use the AccountActor ID of `from` if not provided",
 		},
 		&cli.StringFlag{
 			Name:     "sector-size",
 			Required: true,
+			Usage:    "Sector size of the miner, 512MiB, 32GiB, 64GiB, etc",
 		},
 		&cli.StringFlag{
-			Name: "peer",
+			Name:  "peer",
+			Usage: "P2P peer id of the miner",
 		},
 		&cli.StringSliceFlag{
-			Name: "multiaddr",
+			Name:  "multiaddr",
+			Usage: "P2P peer address of the miner",
 		},
 	},
 	Action: func(cctx *cli.Context) error {
