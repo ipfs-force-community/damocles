@@ -1,11 +1,8 @@
 # This is a basic workflow to help you get started with Actions
-name: compile
+name: compile-on-pr
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -40,9 +37,13 @@ jobs:
       - name: build venus-sector-manager
         run: make build-smgr
 
-      - name: upload venuse-sector-manager
+      - name: build venus-worker
+        run: make build-worker
+
+      - name: upload bins
         uses: actions/upload-artifact@v2
         with:
-          name: venus-sector-manager
-          path: ./dist/bin/venus-sector-manager
-          retention-days: 7
+          name: venus-cluster-bins
+          path: ./dist/bin/
+          if-no-files-found: error
+          retention-days: 3
