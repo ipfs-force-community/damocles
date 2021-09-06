@@ -1,13 +1,16 @@
 all: build-smgr build-worker
 
 build-smgr:
-	rm -rf ./dist/bin/venus-sector-manager
 	mkdir -p ./dist/bin/
+	rm -rf ./dist/bin/venus-sector-manager
 	$(MAKE) -C ./venus-sector-manager/ build-all
 	mv ./venus-sector-manager/venus-sector-manager ./dist/bin/
 
 build-worker:
+	mkdir -p ./dist/bin/
+	rm -rf ./dist/bin/venus-worker
 	cargo build --release --manifest-path=./venus-worker/Cargo.toml
+	cp $(shell cargo metadata --format-version=1 --manifest-path=./venus-worker/Cargo.toml | jq -r ".target_directory")/release/venus-worker ./dist/bin/
 
 claen:
 	$(MAKE) -C ./venus-sector-manager/ clean
