@@ -17,19 +17,19 @@ require (
 	github.com/filecoin-project/specs-actors v0.9.14
 	github.com/filecoin-project/specs-actors/v2 v2.3.5
 	github.com/filecoin-project/specs-actors/v5 v5.0.1
-	github.com/filecoin-project/specs-storage v0.1.1-0.20201105051918-5188d9774506 // indirect
-	github.com/filecoin-project/venus v1.0.2
+	github.com/filecoin-project/specs-storage v0.1.1-0.20201105051918-5188d9774506
+	github.com/filecoin-project/venus v1.0.5-0.20210903071919-7e01268384a0
 	github.com/filecoin-project/venus-messager v1.1.0
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs-force-community/venus-common-utils v0.0.0-20210714054928-2042a9040759
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-blockstore v1.0.3
 	github.com/ipfs/go-log/v2 v2.3.0
-	github.com/libp2p/go-libp2p-core v0.7.0 // indirect
+	github.com/libp2p/go-libp2p-core v0.8.5
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/multiformats/go-multiaddr v0.3.3 // indirect
+	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/multiformats/go-multihash v0.0.14
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/whyrusleeping/cbor-gen v0.0.0-20210219115102-f37d292932f2
