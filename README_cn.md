@@ -256,7 +256,7 @@ path = "path/to/remote/store"
 external = true
 
 # c2 子进程处理器相关配置
-[cessors.c2]
+[processors.c2]
 
 # 启动子进程处理器
 external = true
