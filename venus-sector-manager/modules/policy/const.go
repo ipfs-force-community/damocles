@@ -31,6 +31,8 @@ func SetupNetwork(name string) error {
 		NetParams = networks.Calibration()
 	case "interop":
 		NetParams = networks.InteropNet()
+	case "forcenet":
+		NetParams = networks.ForceNet()
 	default:
 		return fmt.Errorf("invalid network name %s", name)
 	}
