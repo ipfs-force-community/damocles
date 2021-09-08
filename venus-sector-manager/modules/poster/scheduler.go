@@ -314,6 +314,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 					continue
 				} else if !correct {
 					s.log.Errorw("generated incorrect window post proof", "post", postOut, "error", err)
+					time.Sleep(5 * time.Second)
 					continue
 				}
 
