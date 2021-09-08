@@ -22,6 +22,7 @@ func (verifier) VerifyAggregateSeals(ctx context.Context, aggregate proof5.Aggre
 }
 
 func (verifier) VerifyWindowPoSt(ctx context.Context, info proof5.WindowPoStVerifyInfo) (bool, error) {
+	info.Randomness[31] &= 0x3f
 	return ffi.VerifyWindowPoSt(info)
 }
 
