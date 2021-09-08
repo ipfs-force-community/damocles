@@ -801,7 +801,7 @@ func (s *scheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedP
 	go func() {
 		res := <-resCh
 		if res.err != nil {
-			s.log.Errorf("wait for message result falied: %s", err)
+			s.log.Errorf("wait for message result falied: %s", res.err)
 			return
 		}
 
