@@ -34,6 +34,7 @@ func (s *scheduler) publishMessage(ctx context.Context, method abi.MethodNum, pa
 	msg := types.Message{
 		From:   sender,
 		To:     s.actor.Addr,
+		Method: method,
 		Params: encoded,
 		Value:  types.NewInt(0),
 	}
