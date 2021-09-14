@@ -8,6 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 )
 
@@ -34,7 +35,7 @@ func ExampleConfig() Config {
 		MaxNumber:  &maxNumber,
 		Disabled:   false,
 	})
-
+	defaultCfg.Commitment.Miners["example"] = CommitmentMinerConfig{}
 	defaultCfg.PersistedStore.Includes = append(defaultCfg.PersistedStore.Includes, "unavailable")
 	defaultCfg.PersistedStore.Stores = append(defaultCfg.PersistedStore.Stores, filestore.Config{
 		Name:     "storage name,like `100.100.10.1`",
@@ -108,9 +109,7 @@ type SectorManagerMinerConfig struct {
 func DefaultCommitment() CommitmentManagerConfig {
 	return CommitmentManagerConfig{
 		DefaultPolicy: DefaultCommitmentPolicy(),
-		Miners: map[string]CommitmentMinerConfig{
-			"example": CommitmentMinerConfig{},
-		},
+		Miners:        map[string]CommitmentMinerConfig{},
 	}
 }
 

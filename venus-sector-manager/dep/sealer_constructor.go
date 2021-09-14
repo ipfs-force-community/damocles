@@ -1,12 +1,14 @@
 package dep
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/BurntSushi/toml"
 	"go.uber.org/fx"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
@@ -56,6 +58,15 @@ func ProvideConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigMan
 	if err := cfgmgr.Load(gctx, modules.ConfigKey, &cfg); err != nil {
 		return nil, err
 	}
+
+	buf := bytes.Buffer{}
+	encode := toml.NewEncoder(&buf)
+	err := encode.Encode(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("Sector-manager initial cfg: %s\n", buf.String())
 
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {

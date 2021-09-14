@@ -7,8 +7,8 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
 type Batcher struct {
@@ -57,10 +57,13 @@ func (b *Batcher) run() {
 			return
 		case <-b.force:
 			manual = true
+			b.log.Info("receive manual sig, checking processlist")
 		case <-timer.C:
 			tick = true
+			b.log.Info("time run out, checking processlist")
 		case s := <-b.pendingCh:
 			pending = append(pending, s)
+			b.log.Info("new sector reaches, checking processlist")
 		}
 
 		full := len(pending) >= b.processor.Threshold(b.mid)
