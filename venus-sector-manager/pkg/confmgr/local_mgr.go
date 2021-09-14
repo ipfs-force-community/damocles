@@ -1,6 +1,7 @@
 package confmgr
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -64,7 +65,7 @@ func (lm *localMgr) run(ctx context.Context) {
 				return
 			}
 
-			if event.Op&fsnotify.Write != fsnotify.Write {
+			if event.Op&fsnotify.Rename != fsnotify.Rename {
 				continue
 			}
 
@@ -201,6 +202,13 @@ func (lm *localMgr) loadModified(ctx context.Context, fname string, c *cfgItem) 
 	c.wlock.Lock()
 	c.crv.Elem().Set(reflect.ValueOf(obj).Elem())
 	c.wlock.Unlock()
+	buf := bytes.Buffer{}
+	encode := toml.NewEncoder(&buf)
+	err = encode.Encode(obj)
+	if err != nil {
+		l.Errorf("failed to marshal obj: %s", err)
+		return
+	}
 
-	l.Infof("%s loaded & updated", fname)
+	l.Infof("%s loaded & updated, after updated cfg is %#v\n", fname, buf.String())
 }
