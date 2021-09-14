@@ -75,13 +75,17 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 }
 
 func updateSector(ctx context.Context, stmgr api.SectorStateManager, sector []api.SectorState, plog *logging.ZapLogger) {
+	sectorID := make([]abi.SectorID, len(sector), len(sector))
 	for i := range sector {
+		sectorID[i] = sector[i].ID
 		sector[i].MessageInfo.NeedSend = false
 		err := stmgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
 		if err != nil {
 			plog.With("sector", sector[i].ID.Number).Errorf("Update sector MessageInfo failed: %s", err)
 		}
 	}
+
+	plog.Infof("Process sectors %v finished", sectorID)
 }
 
 func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, value abi.TokenAmount, method abi.MethodNum,
