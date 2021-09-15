@@ -48,7 +48,6 @@ const (
 	SubmitDuplicateSubmit
 	SubmitMismatchedSubmission
 	SubmitRejected
-	SubmitInvalidInfo
 )
 
 type OnChainState uint64
