@@ -46,7 +46,9 @@ const (
 	SubmitUnknown SubmitResult = iota
 	SubmitAccepted
 	SubmitDuplicateSubmit
+	// worker should enter perm err
 	SubmitMismatchedSubmission
+	// worker should enter perm err
 	SubmitRejected
 )
 
@@ -58,7 +60,9 @@ const (
 	OnChainStatePacked
 	OnChainStateLanded
 	OnChainStateNotFound
+	// worker whould try re-submit the info
 	OnChainStateFailed
+	// worker should enter perm err
 	OnChainStatePermFailed
 )
 
