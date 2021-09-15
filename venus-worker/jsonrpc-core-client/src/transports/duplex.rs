@@ -3,8 +3,8 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use async_std::{channel::TryRecvError, prelude::Future};
-use jsonrpc_core::Id;
+use async_std::prelude::Future;
+use jsonrpc_core::{futures::StreamExt, Id};
 use jsonrpc_pubsub::SubscriptionId;
 use tracing::{debug, error, warn};
 
@@ -67,7 +67,7 @@ impl<C: Client> Future for Duplex<C> {
 
             // We put this in the first place so that every request will be responsed immediately
             // when the reconnection is falied
-            if let Err(e) = this.handle_reqs() {
+            if let Err(e) = this.handle_reqs(cx) {
                 return Poll::Ready(Err(e));
             }
 
@@ -174,16 +174,11 @@ impl<C: Client> Duplex<C> {
         }
     }
 
-    fn handle_reqs(&mut self) -> RpcResult<()> {
+    fn handle_reqs(&mut self, cx: &mut Context<'_>) -> RpcResult<()> {
         loop {
-            let msg = match self.req_rx.try_recv() {
-                Ok(msg) => msg,
-
-                Err(TryRecvError::Empty) => return Ok(()),
-
-                Err(TryRecvError::Closed) => {
-                    return Err(RpcError::Client("rpc request channel closed".to_owned()))
-                }
+            let msg = match self.req_rx.poll_next_unpin(cx) {
+                Poll::Ready(Some(msg)) => msg,
+                Poll::Ready(None) | Poll::Pending => return Ok(()),
             };
 
             let req_str = match msg {
