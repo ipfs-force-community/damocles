@@ -184,6 +184,9 @@ pub enum OnChainState {
 
     /// on chain msg exec failed
     Failed = 5,
+
+    /// permanent failed
+    PermFailed = 6,
 }
 
 /// required infos for pre commint

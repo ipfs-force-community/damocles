@@ -699,7 +699,7 @@ impl<'c> Sealer<'c> {
             submit_pre_commit,
             sector,
             pinfo,
-            false,
+            self.sector.phases.pc2_re_submit,
         }?;
 
         // TODO: handle submit reset correctly
@@ -707,10 +707,10 @@ impl<'c> Sealer<'c> {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitPC),
 
             SubmitResult::MismatchedSubmission => {
-                Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort())
+                Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm())
             }
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).temp()),
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
         }
     }
 
@@ -730,13 +730,24 @@ impl<'c> Sealer<'c> {
             match state.state {
                 OnChainState::Landed => break 'POLL,
                 OnChainState::NotFound => {
-                    return Err(anyhow!("pre commit on-chain info not found").abort())
+                    return Err(anyhow!("pre commit on-chain info not found").perm())
                 }
 
-                // TODO: handle retry for this
                 OnChainState::Failed => {
-                    return Err(anyhow!("pre commit on-chain info failed").abort())
+                    warn!("pre commit on-chain info failed: {:?}", state.desc);
+                    // TODO: make it configurable
+                    self.wait_or_interruptted(Duration::from_secs(30))?;
+                    return Ok(Event::ReSubmitPC);
                 }
+
+                OnChainState::PermFailed => {
+                    return Err(anyhow!(
+                        "pre commit on-chain info permanent failed: {:?}",
+                        state.desc
+                    )
+                    .perm())
+                }
+
                 OnChainState::Pending | OnChainState::Packed => {}
             }
 
@@ -975,7 +986,7 @@ impl<'c> Sealer<'c> {
             submit_proof,
             sector_id,
             info,
-            false,
+            self.sector.phases.c2_re_submit,
         }?;
 
         // TODO: submit reset correctly
@@ -983,10 +994,10 @@ impl<'c> Sealer<'c> {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitProof),
 
             SubmitResult::MismatchedSubmission => {
-                Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort())
+                Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm())
             }
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).temp()),
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
         }
     }
 
@@ -1009,12 +1020,22 @@ impl<'c> Sealer<'c> {
                 match state.state {
                     OnChainState::Landed => break 'POLL,
                     OnChainState::NotFound => {
-                        return Err(anyhow!("proof on-chain info not found").abort())
+                        return Err(anyhow!("proof on-chain info not found").perm())
                     }
 
-                    // TODO: handle retry for this
                     OnChainState::Failed => {
-                        return Err(anyhow!("proof on-chain info failed").abort())
+                        warn!("proof on-chain info failed: {:?}", state.desc);
+                        // TODO: make it configurable
+                        self.wait_or_interruptted(Duration::from_secs(30))?;
+                        return Ok(Event::ReSubmitProof);
+                    }
+
+                    OnChainState::PermFailed => {
+                        return Err(anyhow!(
+                            "proof on-chain info permanent failed: {:?}",
+                            state.desc
+                        )
+                        .perm())
                     }
 
                     OnChainState::Pending | OnChainState::Packed => {}
