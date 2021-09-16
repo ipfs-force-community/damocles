@@ -414,6 +414,11 @@ impl<'c> Sealer<'c> {
             State::ProofSubmitted => self.handle_proof_submitted(),
 
             State::Finished => return Ok(None),
+
+            State::Aborted => {
+                warn!("sector aborted");
+                return Ok(None);
+            }
         }
         .map(From::from)
     }

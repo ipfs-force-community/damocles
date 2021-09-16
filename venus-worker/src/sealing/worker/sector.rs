@@ -71,6 +71,7 @@ def_state! {
     C2Done,
     ProofSubmitted,
     Finished,
+    Aborted,
 }
 
 impl std::fmt::Debug for State {
