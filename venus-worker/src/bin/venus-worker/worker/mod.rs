@@ -60,7 +60,9 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
             for wi in infos {
                 info!(
                     paused = wi.paused,
+                    paused_elapsed = debug_field(wi.paused_elapsed),
                     state = wi.state.as_str(),
+                    last_err = debug_field(wi.last_error),
                     "#{}: {:?}",
                     wi.index,
                     wi.location,

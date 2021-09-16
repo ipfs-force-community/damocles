@@ -16,8 +16,12 @@ pub struct WorkerInfo {
     /// if the worker is paused
     pub paused: bool,
 
+    pub paused_elapsed: Option<String>,
+
     /// current sealing state of the worker
     pub state: String,
+
+    pub last_error: Option<String>,
 }
 
 #[rpc]
