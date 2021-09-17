@@ -117,6 +117,10 @@ impl Worker {
 }
 
 impl Module for Worker {
+    fn should_wait(&self) -> bool {
+        false
+    }
+
     fn id(&self) -> String {
         format!("worker-{}", self.idx)
     }

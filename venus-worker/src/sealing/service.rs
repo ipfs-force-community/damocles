@@ -105,6 +105,10 @@ impl Service {
 }
 
 impl Module for Service {
+    fn should_wait(&self) -> bool {
+        false
+    }
+
     fn id(&self) -> String {
         "worker-server".to_owned()
     }

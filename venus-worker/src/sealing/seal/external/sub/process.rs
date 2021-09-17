@@ -97,6 +97,10 @@ impl<I: Input> Module for SubProcess<I> {
             }
         }
     }
+
+    fn should_wait(&self) -> bool {
+        true
+    }
 }
 
 impl<I: Input> Drop for SubProcess<I> {
