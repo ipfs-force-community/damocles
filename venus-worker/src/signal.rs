@@ -11,7 +11,7 @@ pub struct Signal;
 
 impl Module for Signal {
     fn should_wait(&self) -> bool {
-        true
+        false
     }
 
     fn id(&self) -> String {
