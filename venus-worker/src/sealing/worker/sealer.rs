@@ -13,18 +13,14 @@ use crate::rpc::sealer::{
     AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo,
     ReportStateReq, SectorFailure, SectorID, SectorStateChange, SubmitResult, WorkerIdentifier,
 };
-use crate::sealing::seal::{add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1};
+use crate::sealing::processor::{
+    add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1, PaddedBytesAmount, Stage,
+    UnpaddedBytesAmount,
+};
+use crate::store::Store;
 use crate::watchdog::Ctx;
 
-use super::{
-    super::{
-        seal::{PaddedBytesAmount, Stage, UnpaddedBytesAmount},
-        store::Store,
-    },
-    *,
-};
-
-use super::HandleResult;
+use super::*;
 
 const SECTOR_INFO_KEY: &str = "info";
 const SECTOR_META_PREFIX: &str = "meta";

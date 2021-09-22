@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 use anyhow::{anyhow, Error};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::sealing::seal::RegisteredSealProof;
+use crate::sealing::processor::RegisteredSealProof;
 
 const SIZE_2K: u64 = 2 << 10;
 const SIZE_8M: u64 = 8 << 20;

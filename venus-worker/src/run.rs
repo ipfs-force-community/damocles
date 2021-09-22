@@ -11,7 +11,7 @@ use crate::{
     infra::objstore::filestore::FileStore,
     logging::{debug_field, info},
     rpc::sealer::{mock, Sealer, SealerClient},
-    sealing::{resource, seal, service, store::StoreManager},
+    sealing::{processor, resource, service, store::StoreManager},
     signal::Signal,
     types::SealProof,
     util::net::{local_interface_ip, socket_addr_from_url},
@@ -46,28 +46,28 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let mut io = IoHandler::new();
     io.extend_with(mock_impl.to_delegate());
 
-    let (pc2, pc2sub): (seal::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
+    let (pc2, pc2sub): (processor::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
         .as_ref()
         .and_then(|p| p.pc2.as_ref())
         .and_then(|ext| if ext.external { Some(ext) } else { None })
     {
-        let (proc, sub) = seal::external::PC2::build(ext)?;
+        let (proc, sub) = processor::external::PC2::build(ext)?;
         (Box::new(proc), Some(sub))
     } else {
-        (Box::new(seal::internal::PC2), None)
+        (Box::new(processor::internal::PC2), None)
     };
 
-    let (c2, c2sub): (seal::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
+    let (c2, c2sub): (processor::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
         .as_ref()
         .and_then(|p| p.c2.as_ref())
         .and_then(|ext| if ext.external { Some(ext) } else { None })
     {
-        let (proc, sub) = seal::external::C2::build(ext)?;
+        let (proc, sub) = processor::external::C2::build(ext)?;
         (Box::new(proc), Some(sub))
     } else {
-        (Box::new(seal::internal::C2), None)
+        (Box::new(processor::internal::C2), None)
     };
 
     let mock_client = local::connect::<SealerClient, _, _>(io)
@@ -145,28 +145,28 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         format!("{}", local_ip)
     };
 
-    let (pc2, pc2sub): (seal::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
+    let (pc2, pc2sub): (processor::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
         .as_ref()
         .and_then(|p| p.pc2.as_ref())
         .and_then(|ext| if ext.external { Some(ext) } else { None })
     {
-        let (proc, sub) = seal::external::PC2::build(ext)?;
+        let (proc, sub) = processor::external::PC2::build(ext)?;
         (Box::new(proc), Some(sub))
     } else {
-        (Box::new(seal::internal::PC2), None)
+        (Box::new(processor::internal::PC2), None)
     };
 
-    let (c2, c2sub): (seal::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
+    let (c2, c2sub): (processor::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
         .as_ref()
         .and_then(|p| p.c2.as_ref())
         .and_then(|ext| if ext.external { Some(ext) } else { None })
     {
-        let (proc, sub) = seal::external::C2::build(ext)?;
+        let (proc, sub) = processor::external::C2::build(ext)?;
         (Box::new(proc), Some(sub))
     } else {
-        (Box::new(seal::internal::C2), None)
+        (Box::new(processor::internal::C2), None)
     };
 
     let workers = store_mgr.into_workers();

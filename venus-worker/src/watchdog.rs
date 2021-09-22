@@ -16,8 +16,8 @@ use crate::{
     logging::{error, error_span, info, warn},
     rpc::sealer::SealerClient,
     sealing::{
+        processor::{BoxedC2Processor, BoxedPC2Processor},
         resource::Pool,
-        seal::{BoxedC2Processor, BoxedPC2Processor},
     },
 };
 

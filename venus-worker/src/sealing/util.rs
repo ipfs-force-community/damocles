@@ -2,7 +2,7 @@
 
 use anyhow::{anyhow, Result};
 
-use crate::sealing::seal::Commitment;
+use crate::sealing::processor::Commitment;
 
 const ALL_ZERO_PIECE_COMMS: [Commitment; 35] = [
     [

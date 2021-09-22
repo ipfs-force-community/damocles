@@ -12,7 +12,7 @@ use jsonrpc_core_client::transports::ws::ConnectInfo;
 use serde::{Deserialize, Serialize};
 use toml::from_slice;
 
-use crate::sealing::seal::external::config::Ext;
+use crate::sealing::processor::external::config::Ext;
 
 pub const DEFAULT_WORKER_SERVER_PORT: u16 = 17890;
 pub const DEFAULT_WORKER_SERVER_HOST: &str = "0.0.0.0";
