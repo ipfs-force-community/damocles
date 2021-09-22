@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 )
 
 const ConfigKey = "sector-manager"
@@ -47,14 +47,21 @@ type Config struct {
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
 	return SectorManagerConfig{
-		Miners:   []abi.ActorID{},
+		Miners:   []SectorManagerMinerConfig{},
 		PreFetch: true,
 	}
 }
 
 type SectorManagerConfig struct {
-	Miners   []abi.ActorID
+	Miners   []SectorManagerMinerConfig
 	PreFetch bool
+}
+
+type SectorManagerMinerConfig struct {
+	ID         abi.ActorID
+	InitNumber uint64
+	MaxNumber  *uint64
+	Disabled   bool
 }
 
 func DefaultCommitment() CommitmentManagerConfig {

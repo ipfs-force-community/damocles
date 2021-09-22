@@ -2,6 +2,7 @@ package sectors
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"sync"
 
@@ -13,6 +14,8 @@ import (
 )
 
 var _ api.SectorManager = (*Manager)(nil)
+
+var errMinerDisabled = fmt.Errorf("miner disblaed")
 
 func NewManager(
 	cfg *modules.Config,
@@ -30,6 +33,11 @@ func NewManager(
 	return mgr, nil
 }
 
+type minerCandidate struct {
+	info *api.MinerInfo
+	cfg  *modules.SectorManagerMinerConfig
+}
+
 type Manager struct {
 	cfg struct {
 		*modules.Config
@@ -42,28 +50,37 @@ type Manager struct {
 
 func (m *Manager) Allocate(ctx context.Context, allowedMiners []abi.ActorID, allowedProofs []abi.RegisteredSealProof) (*api.AllocatedSector, error) {
 	m.cfg.Lock()
-	mids := m.cfg.SectorManager.Miners
+	miners := m.cfg.SectorManager.Miners
 	m.cfg.Unlock()
 
-	if len(mids) == 0 {
+	if len(miners) == 0 {
 		return nil, nil
 	}
 
-	midCnt := len(mids)
+	midCnt := len(miners)
 
 	var wg sync.WaitGroup
-	infos := make([]*api.MinerInfo, midCnt)
+	infos := make([]*minerCandidate, midCnt)
 	errs := make([]error, midCnt)
 
 	wg.Add(midCnt)
-	for i := range mids {
+	for i := range miners {
 		go func(mi int) {
 			defer wg.Done()
-			mid := mids[mi]
+
+			if miners[mi].Disabled {
+				errs[mi] = errMinerDisabled
+				return
+			}
+
+			mid := miners[mi].ID
 
 			minfo, err := m.info.Get(ctx, mid)
 			if err == nil {
-				infos[mi] = minfo
+				infos[mi] = &minerCandidate{
+					info: minfo,
+					cfg:  &miners[mi],
+				}
 			} else {
 				errs[mi] = err
 			}
@@ -73,7 +90,7 @@ func (m *Manager) Allocate(ctx context.Context, allowedMiners []abi.ActorID, all
 	wg.Wait()
 
 	// TODO: trace errors
-	last := len(mids)
+	last := len(miners)
 	i := 0
 	for i < last {
 		minfo := infos[i]
@@ -81,7 +98,7 @@ func (m *Manager) Allocate(ctx context.Context, allowedMiners []abi.ActorID, all
 		if ok && len(allowedMiners) > 0 {
 			should := false
 			for ai := range allowedMiners {
-				if minfo.ID == allowedMiners[ai] {
+				if minfo.info.ID == allowedMiners[ai] {
 					should = true
 					break
 				}
@@ -93,7 +110,7 @@ func (m *Manager) Allocate(ctx context.Context, allowedMiners []abi.ActorID, all
 		if ok && len(allowedProofs) > 0 {
 			should := false
 			for ai := range allowedProofs {
-				if minfo.SealProofType == allowedProofs[ai] {
+				if minfo.info.SealProofType == allowedProofs[ai] {
 					should = true
 					break
 				}
@@ -112,21 +129,41 @@ func (m *Manager) Allocate(ctx context.Context, allowedMiners []abi.ActorID, all
 	}
 
 	candidates := infos[:last]
-	if len(candidates) == 0 {
-		return nil, nil
-	}
+	for {
+		candidateCount := len(candidates)
+		if candidateCount == 0 {
+			return nil, nil
+		}
 
-	selected := candidates[rand.Intn(len(candidates))]
-	next, err := m.numAlloc.Next(ctx, selected.ID)
-	if err != nil {
-		return nil, err
-	}
+		selectIdx := rand.Intn(candidateCount)
+		selected := candidates[selectIdx]
 
-	return &api.AllocatedSector{
-		ID: abi.SectorID{
-			Miner:  selected.ID,
-			Number: abi.SectorNumber(next),
-		},
-		ProofType: selected.SealProofType,
-	}, nil
+		var check func(uint64) bool
+		if selected.cfg.MaxNumber == nil {
+			check = func(uint64) bool { return true }
+		} else {
+			max := *selected.cfg.MaxNumber
+			check = func(next uint64) bool {
+				return next <= max
+			}
+		}
+
+		next, available, err := m.numAlloc.Next(ctx, selected.info.ID, selected.cfg.InitNumber, check)
+		if err != nil {
+			return nil, err
+		}
+
+		if available {
+			return &api.AllocatedSector{
+				ID: abi.SectorID{
+					Miner:  selected.info.ID,
+					Number: abi.SectorNumber(next),
+				},
+				ProofType: selected.info.SealProofType,
+			}, nil
+		}
+
+		candidates[candidateCount-1], candidates[selectIdx] = candidates[selectIdx], candidates[candidateCount-1]
+		candidates = candidates[:candidateCount-1]
+	}
 }

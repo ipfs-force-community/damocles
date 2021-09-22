@@ -196,7 +196,7 @@ func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg
 				for i := range miners {
 					go func(mi int) {
 						defer wg.Done()
-						mid := miners[mi]
+						mid := miners[mi].ID
 
 						mlog := log.With("miner", mid)
 						_, err := mapi.Get(gctx, mid)
