@@ -47,6 +47,7 @@ func newScheduler(ctx context.Context, mid abi.ActorID, cfg *modules.SafeConfig,
 	}
 
 	return &scheduler{
+		gctx:      ctx,
 		actor:     actor,
 		proofType: minfo.WindowPoStProofType,
 		cfg:       cfg,
@@ -62,6 +63,7 @@ func newScheduler(ctx context.Context, mid abi.ActorID, cfg *modules.SafeConfig,
 }
 
 type scheduler struct {
+	gctx      context.Context
 	actor     api.ActorIdent
 	proofType abi.RegisteredPoStProof
 
@@ -791,23 +793,34 @@ func (s *scheduler) runSubmitPoST(
 }
 
 func (s *scheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedPoStParams) error {
-	uid, resCh, err := s.publishMessage(ctx, miner.Methods.SubmitWindowedPoSt, proof, true)
+	// to avoid being cancelled by proving period detection, use context.Background here
+	uid, resCh, err := s.publishMessage(context.Background(), miner.Methods.SubmitWindowedPoSt, proof, true)
 	if err != nil {
 		return fmt.Errorf("publish window post message: %w", err)
 	}
 
-	s.log.Infof("Submitted window post: %s", uid)
-
 	go func() {
-		res := <-resCh
-		if res.err != nil {
-			s.log.Errorf("wait for message result falied: %s", res.err)
-			return
-		}
+		wlog := s.log.With("msg-id", uid)
+		wlog.Infof("Submitted window post: %s", uid)
 
-		if res.Message.Receipt.ExitCode != 0 {
-			s.log.Errorf("Submitting window post %s failed: exit %d", res.SignedCid, res.Message.Receipt.ExitCode)
+		waitCtx, waitCancel := context.WithTimeout(s.gctx, 30*time.Minute)
+		defer waitCancel()
+
+		select {
+		case <-waitCtx.Done():
+			wlog.Warn("waited too long")
 			return
+
+		case res := <-resCh:
+			if res.err != nil {
+				wlog.Errorf("wait for message result falied: %s", res.err)
+				return
+			}
+
+			if res.Message.Receipt.ExitCode != 0 {
+				wlog.Errorf("window post msg %s on chain failed: exit %d", res.SignedCid, res.Message.Receipt.ExitCode)
+				return
+			}
 		}
 
 	}()

@@ -36,7 +36,7 @@ type ErrCommitWaitFailed struct{ error }
 func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorState, api SealingAPI) (err error) {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
-		return ErrApi{fmt.Errorf("get chain head failed %w", err)}
+		return &ErrApi{fmt.Errorf("get chain head failed %w", err)}
 	}
 
 	if err := checkPieces(ctx, maddr, si, api); err != nil {

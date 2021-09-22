@@ -51,6 +51,8 @@ pub enum Event {
 
     CheckPC,
 
+    ReSubmitPC,
+
     Persist(String),
 
     SubmitPersistance,
@@ -63,46 +65,51 @@ pub enum Event {
 
     SubmitProof,
 
+    ReSubmitProof,
+
     Finish,
 }
 
 impl Debug for Event {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use Event::*;
         let name = match self {
-            SetState(_) => "SetState",
+            Self::SetState(_) => "SetState",
 
-            Retry => "Retry",
+            Self::Retry => "Retry",
 
-            Allocate(_) => "Allocate",
+            Self::Allocate(_) => "Allocate",
 
-            AcquireDeals(_) => "AcquireDeals",
+            Self::AcquireDeals(_) => "AcquireDeals",
 
-            AddPiece(_) => "AddPiece",
+            Self::AddPiece(_) => "AddPiece",
 
-            AssignTicket(_) => "AssignTicket",
+            Self::AssignTicket(_) => "AssignTicket",
 
-            PC1(_) => "PC1",
+            Self::PC1(_) => "PC1",
 
-            PC2(_) => "PC2",
+            Self::PC2(_) => "PC2",
 
-            SubmitPC => "SubmitPC",
+            Self::SubmitPC => "SubmitPC",
 
-            CheckPC => "CheckPC",
+            Self::CheckPC => "CheckPC",
 
-            Persist(_) => "Persist",
+            Self::ReSubmitPC => "ReSubmitPC",
 
-            SubmitPersistance => "SubmitPersistance",
+            Self::Persist(_) => "Persist",
 
-            AssignSeed(_) => "AssignSeed",
+            Self::SubmitPersistance => "SubmitPersistance",
 
-            C1(_) => "C1",
+            Self::AssignSeed(_) => "AssignSeed",
 
-            C2(_) => "C2",
+            Self::C1(_) => "C1",
 
-            SubmitProof => "SubmitProof",
+            Self::C2(_) => "C2",
 
-            Finish => "Finish",
+            Self::SubmitProof => "SubmitProof",
+
+            Self::ReSubmitProof => "ReSubmitProof",
+
+            Self::Finish => "Finish",
         };
 
         f.write_str(name)
@@ -200,7 +207,25 @@ impl Event {
                 replace!(s.phases.c2out, out);
             }
 
-            Self::SubmitPC | Self::CheckPC | Self::SubmitPersistance | Self::SubmitProof => {}
+            Self::SubmitPC => {
+                mem_replace!(s.phases.pc2_re_submit, false);
+            }
+
+            Self::CheckPC => {}
+
+            Self::ReSubmitPC => {
+                mem_replace!(s.phases.pc2_re_submit, true);
+            }
+
+            Self::SubmitProof => {
+                mem_replace!(s.phases.c2_re_submit, false);
+            }
+
+            Self::ReSubmitProof => {
+                mem_replace!(s.phases.c2_re_submit, true);
+            }
+
+            Self::SubmitPersistance => {}
 
             Self::Finish => {}
         };
@@ -247,6 +272,7 @@ impl Event {
             },
 
             State::PCSubmitted => {
+                Event::ReSubmitPC => State::PC2Done,
                 Event::CheckPC => State::PCLanded,
             },
 
@@ -275,6 +301,7 @@ impl Event {
             },
 
             State::ProofSubmitted => {
+                Event::ReSubmitProof => State::C2Done,
                 Event::Finish => State::Finished,
             },
         };

@@ -1,7 +1,7 @@
 use std::error::Error as StdError;
 use std::sync::Arc;
 use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use crossbeam_channel::{bounded, select, Receiver, Sender, TryRecvError};
@@ -47,7 +47,9 @@ fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
     let (pause_tx, pause_rx) = bounded(1);
     let (resume_tx, resume_rx) = bounded(0);
     let paused = Arc::new(AtomicCell::new(false));
+    let paused_at = Arc::new(AtomicCell::new(None));
     let sealing_state = Arc::new(AtomicCell::new(State::Empty));
+    let last_sealing_error = Arc::new(AtomicCell::new(None));
 
     (
         Ctrl {
@@ -55,13 +57,17 @@ fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
             pause_tx,
             resume_tx,
             paused: paused.clone(),
+            paused_at: paused_at.clone(),
             sealing_state: sealing_state.clone(),
+            last_sealing_error: last_sealing_error.clone(),
         },
         CtrlCtx {
             pause_rx,
             resume_rx,
             paused,
+            paused_at,
             sealing_state,
+            last_sealing_error,
         },
     )
 }
@@ -71,14 +77,18 @@ pub struct Ctrl {
     pub pause_tx: Sender<()>,
     pub resume_tx: Sender<Option<State>>,
     pub paused: Arc<AtomicCell<bool>>,
+    pub paused_at: Arc<AtomicCell<Option<Instant>>>,
     pub sealing_state: Arc<AtomicCell<State>>,
+    pub last_sealing_error: Arc<AtomicCell<Option<String>>>,
 }
 
 pub struct CtrlCtx {
     pause_rx: Receiver<()>,
     resume_rx: Receiver<Option<State>>,
     paused: Arc<AtomicCell<bool>>,
+    paused_at: Arc<AtomicCell<Option<Instant>>>,
     sealing_state: Arc<AtomicCell<State>>,
+    last_sealing_error: Arc<AtomicCell<Option<String>>>,
 }
 
 pub struct Worker {
@@ -107,6 +117,10 @@ impl Worker {
 }
 
 impl Module for Worker {
+    fn should_wait(&self) -> bool {
+        false
+    }
+
     fn id(&self) -> String {
         format!("worker-{}", self.idx)
     }
@@ -127,6 +141,8 @@ impl Module for Worker {
 
                         wait_for_resume = false;
                         self.ctrl_ctx.paused.store(false);
+                        self.ctrl_ctx.paused_at.store(None);
+                        self.ctrl_ctx.last_sealing_error.store(None);
                     },
 
                     recv(ctx.done) -> _done_res => {
@@ -145,7 +161,8 @@ impl Module for Worker {
             }
 
             if let Err(failure) = self.seal_one(&ctx, resume_event.take()) {
-                if !(failure.1).is::<Interrupt>() {
+                let is_interrupt = (failure.1).is::<Interrupt>();
+                if !is_interrupt {
                     error!(failure = debug_field(&failure), "sealing failed");
                 } else {
                     warn!("sealing interruptted");
@@ -159,6 +176,12 @@ impl Module for Worker {
 
                         wait_for_resume = true;
                         self.ctrl_ctx.paused.store(true);
+                        self.ctrl_ctx.paused_at.store(Some(Instant::now()));
+                        if !is_interrupt {
+                            self.ctrl_ctx
+                                .last_sealing_error
+                                .store(Some(format!("{:?}", failure)));
+                        }
                         continue 'SEAL_LOOP;
                     }
 
@@ -170,6 +193,8 @@ impl Module for Worker {
                 duration = debug_field(self.store.config.seal_interval),
                 "wait before sealing"
             );
+
+            self.ctrl_ctx.sealing_state.store(State::Empty);
 
             sleep(self.store.config.seal_interval);
         }

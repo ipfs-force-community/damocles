@@ -10,6 +10,10 @@ use crate::watchdog::{Ctx, Module};
 pub struct Signal;
 
 impl Module for Signal {
+    fn should_wait(&self) -> bool {
+        false
+    }
+
     fn id(&self) -> String {
         "signal".to_owned()
     }

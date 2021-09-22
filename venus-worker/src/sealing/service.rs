@@ -31,11 +31,19 @@ impl Worker for ServiceImpl {
             .iter()
             .map(|(idx, ctrl)| {
                 let name: &str = ctrl.sealing_state.load().into();
+                let last_error = unsafe { ctrl.last_sealing_error.as_ptr().as_ref() }
+                    .and_then(|inner| inner.as_ref())
+                    .cloned();
                 WorkerInfo {
                     location: ctrl.location.to_pathbuf(),
                     index: *idx,
                     paused: ctrl.paused.load(),
+                    paused_elapsed: ctrl
+                        .paused_at
+                        .load()
+                        .map(|ins| format!("{:?}", ins.elapsed())),
                     state: name.to_owned(),
+                    last_error,
                 }
             })
             .collect())
@@ -97,6 +105,10 @@ impl Service {
 }
 
 impl Module for Service {
+    fn should_wait(&self) -> bool {
+        false
+    }
+
     fn id(&self) -> String {
         "worker-server".to_owned()
     }

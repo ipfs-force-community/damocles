@@ -43,12 +43,13 @@ pub struct GlobalModules {
 pub trait Module: Send {
     fn id(&self) -> String;
     fn run(&mut self, ctx: Ctx) -> Result<()>;
+    fn should_wait(&self) -> bool;
 }
 
 pub struct WatchDog {
     pub ctx: Ctx,
     done_ctrl: Option<Sender<()>>,
-    modules: Vec<(String, thread::JoinHandle<()>, Receiver<Result<()>>)>,
+    modules: Vec<(String, bool, thread::JoinHandle<()>, Receiver<Result<()>>)>,
 }
 
 impl WatchDog {
@@ -77,6 +78,7 @@ impl WatchDog {
     pub fn start_module(&mut self, m: impl 'static + Module) {
         let ctx = self.ctx.clone();
         let id = m.id();
+        let should_wait = m.should_wait();
         let (res_tx, res_rx) = bounded(1);
         let hdl = thread::spawn(move || {
             let mut m = m;
@@ -89,7 +91,7 @@ impl WatchDog {
             let _ = res_tx.send(res);
         });
 
-        self.modules.push((id, hdl, res_rx));
+        self.modules.push((id, should_wait, hdl, res_rx));
     }
 
     pub fn wait(&mut self) -> Result<()> {
@@ -105,7 +107,7 @@ impl WatchDog {
         let mut indexes = HashMap::new();
         let mut selector = Select::new();
         for (i, m) in self.modules.iter().enumerate() {
-            let idx = selector.recv(&m.2);
+            let idx = selector.recv(&m.3);
             indexes.insert(idx, i);
         }
 
@@ -117,7 +119,7 @@ impl WatchDog {
         };
 
         let mname = (self.modules[midx].0).as_str();
-        let res = match op.recv(&self.modules[midx].2) {
+        let res = match op.recv(&self.modules[midx].3) {
             Ok(r) => r,
             Err(e) => {
                 return Err(anyhow!(
@@ -138,7 +140,19 @@ impl WatchDog {
         }
         drop(done_ctrl);
 
-        // TODO: wait for all submodules to stop gracefully
+        for (name, wait, hdl, rx) in self.modules.drain(..) {
+            if !wait {
+                continue;
+            }
+
+            if let Err(e) = hdl.join() {
+                error!(module = name.as_str(), "thread handler join: {:?}", e);
+                continue;
+            }
+
+            // TODO: handle recv result
+            let _ = rx.recv();
+        }
 
         Ok(())
     }

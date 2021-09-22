@@ -71,6 +71,7 @@ def_state! {
     C2Done,
     ProofSubmitted,
     Finished,
+    Aborted,
 }
 
 impl std::fmt::Debug for State {
@@ -102,6 +103,8 @@ pub struct Phases {
     // pc2
     pub pc2out: Option<SealPreCommitPhase2Output>,
 
+    pub pc2_re_submit: bool,
+
     pub persist_instance: Option<String>,
 
     // c1
@@ -110,6 +113,8 @@ pub struct Phases {
 
     // c2
     pub c2out: Option<SealCommitPhase2Output>,
+
+    pub c2_re_submit: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
