@@ -46,26 +46,26 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let mut io = IoHandler::new();
     io.extend_with(mock_impl.to_delegate());
 
-    let (pc2, pc2sub): (processor::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
+    let (pc2, pc2subs): (processor::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
         .as_ref()
         .and_then(|p| p.pc2.as_ref())
         .and_then(|ext| if ext.external { Some(ext) } else { None })
     {
-        let (proc, sub) = processor::external::PC2::build(ext)?;
-        (Box::new(proc), Some(sub))
+        let (proc, subs) = processor::external::PC2::build(ext)?;
+        (Box::new(proc), Some(subs))
     } else {
         (Box::new(processor::internal::PC2), None)
     };
 
-    let (c2, c2sub): (processor::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
+    let (c2, c2subs): (processor::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
         .as_ref()
         .and_then(|p| p.c2.as_ref())
         .and_then(|ext| if ext.external { Some(ext) } else { None })
     {
-        let (proc, sub) = processor::external::C2::build(ext)?;
-        (Box::new(proc), Some(sub))
+        let (proc, subs) = processor::external::C2::build(ext)?;
+        (Box::new(proc), Some(subs))
     } else {
         (Box::new(processor::internal::C2), None)
     };
@@ -102,12 +102,16 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let worker_server = service::Service::new(ctrls);
     dog.start_module(worker_server);
 
-    if let Some(sub) = pc2sub {
-        dog.start_module(sub);
+    if let Some(subs) = pc2subs {
+        for sub in subs {
+            dog.start_module(sub);
+        }
     };
 
-    if let Some(sub) = c2sub {
-        dog.start_module(sub)
+    if let Some(subs) = c2subs {
+        for sub in subs {
+            dog.start_module(sub)
+        }
     }
 
     dog.start_module(Signal);
@@ -145,26 +149,26 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         format!("{}", local_ip)
     };
 
-    let (pc2, pc2sub): (processor::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
+    let (pc2, pc2subs): (processor::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
         .as_ref()
         .and_then(|p| p.pc2.as_ref())
         .and_then(|ext| if ext.external { Some(ext) } else { None })
     {
-        let (proc, sub) = processor::external::PC2::build(ext)?;
-        (Box::new(proc), Some(sub))
+        let (proc, subs) = processor::external::PC2::build(ext)?;
+        (Box::new(proc), Some(subs))
     } else {
         (Box::new(processor::internal::PC2), None)
     };
 
-    let (c2, c2sub): (processor::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
+    let (c2, c2subs): (processor::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
         .processors
         .as_ref()
         .and_then(|p| p.c2.as_ref())
         .and_then(|ext| if ext.external { Some(ext) } else { None })
     {
-        let (proc, sub) = processor::external::C2::build(ext)?;
-        (Box::new(proc), Some(sub))
+        let (proc, subs) = processor::external::C2::build(ext)?;
+        (Box::new(proc), Some(subs))
     } else {
         (Box::new(processor::internal::C2), None)
     };
@@ -190,12 +194,16 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     let worker_server = service::Service::new(ctrls);
     dog.start_module(worker_server);
 
-    if let Some(sub) = pc2sub {
-        dog.start_module(sub);
+    if let Some(subs) = pc2subs {
+        for sub in subs {
+            dog.start_module(sub);
+        }
     };
 
-    if let Some(sub) = c2sub {
-        dog.start_module(sub)
+    if let Some(subs) = c2subs {
+        for sub in subs {
+            dog.start_module(sub)
+        }
     }
 
     dog.start_module(Signal);

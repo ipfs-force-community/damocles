@@ -23,7 +23,13 @@ pub struct Ext {
     /// enable external processor
     pub external: bool,
 
-    /// path for binary of external processor
+    /// options for each sub processor
+    pub subs: Option<Vec<ExtSub>>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ExtSub {
+    /// binary path
     pub bin: Option<String>,
 
     #[serde(default)]
