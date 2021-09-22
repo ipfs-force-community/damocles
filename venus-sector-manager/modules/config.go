@@ -1,10 +1,12 @@
 package modules
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 	"time"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 )
@@ -19,6 +21,45 @@ func init() {
 type SafeConfig struct {
 	*Config
 	sync.Locker
+}
+
+func ExampleConfig() Config {
+	defaultCfg := DefaultConfig()
+
+	// Example for miner section
+	var maxNumber uint64 = 10000
+	defaultCfg.SectorManager.Miners = append(defaultCfg.SectorManager.Miners, SectorManagerMinerConfig{
+		ID:         10000,
+		InitNumber: 0,
+		MaxNumber:  &maxNumber,
+		Disabled:   false,
+	})
+
+	defaultCfg.PersistedStore.Includes = append(defaultCfg.PersistedStore.Includes, "unavailable")
+	defaultCfg.PersistedStore.Stores = append(defaultCfg.PersistedStore.Stores, filestore.Config{
+		Name:     "storage name,like `100.100.10.1`",
+		Path:     "/path/to/storage/",
+		Strict:   false,
+		ReadOnly: true,
+	})
+
+	exampleSender, err := address.NewFromString("f1abjxfbp274xpdqcpuaykwkfb43omjotacm2p3za")
+	if err != nil {
+		panic(fmt.Errorf("parse example address: %w", err))
+	}
+
+	defaultCfg.PoSt.Actors["10000"] = PoStActorConfig{
+		Sender: MustAddress(exampleSender),
+		PoStPolicyConfigOptional: PoStPolicyConfigOptional{
+			StrictCheck:       &defaultCfg.PoSt.Default.StrictCheck,
+			GasOverEstimation: &defaultCfg.PoSt.Default.GasOverEstimation,
+			MaxFeeCap:         &defaultCfg.PoSt.Default.MaxFeeCap,
+			MsgCheckInteval:   &defaultCfg.PoSt.Default.MsgCheckInteval,
+			MsgConfidence:     &defaultCfg.PoSt.Default.MsgConfidence,
+		},
+	}
+
+	return defaultCfg
 }
 
 func DefaultConfig() Config {
