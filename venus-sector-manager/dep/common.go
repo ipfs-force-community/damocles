@@ -14,4 +14,5 @@ const (
 	InjectChainAPI
 	InjectMessagerAPI
 	StartPoSter
+	InjectSealerClient
 )

@@ -49,10 +49,7 @@ var daemonInitCmd = &cli.Command{
 var daemonRunCmd = &cli.Command{
 	Name: "run",
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "listen",
-			Value: ":1789",
-		},
+		internal.SealerListenFlag,
 		&cli.BoolFlag{
 			Name:  "poster",
 			Value: false,

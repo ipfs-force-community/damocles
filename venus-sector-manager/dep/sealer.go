@@ -101,3 +101,13 @@ func API(c *chain.API, m *messager.API) dix.Option {
 		),
 	)
 }
+
+func SealerClient(s *api.SealerClient) dix.Option {
+	return dix.Options(
+		dix.Override(new(api.SealerClient), BuildSealerClient),
+		dix.Override(InjectSealerClient, func(instance api.SealerClient) error {
+			*s = instance
+			return nil
+		}),
+	)
+}

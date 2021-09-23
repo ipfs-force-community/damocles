@@ -30,6 +30,11 @@ var NetFlag = &cli.StringFlag{
 	Value: "mainnet",
 }
 
+var SealerListenFlag = &cli.StringFlag{
+	Name:  "listen",
+	Value: ":1789",
+}
+
 type stopper = func()
 
 func NewSigContext(parent context.Context) (context.Context, context.CancelFunc) {
