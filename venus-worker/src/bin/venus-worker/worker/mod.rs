@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use anyhow::{anyhow, Context, Result};
 use async_std::task::block_on;
 use clap::{value_t, App, Arg, ArgMatches, SubCommand};
@@ -57,16 +59,10 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
     match subargs.subcommand() {
         ("list", _) => get_client(subargs).and_then(|wcli| {
             let infos = block_on(wcli.worker_list()).map_err(|e| anyhow!("rpc error: {:?}", e))?;
+            let out = std::io::stdout();
+            let mut hdl = out.lock();
             for wi in infos {
-                info!(
-                    paused = wi.paused,
-                    paused_elapsed = debug_field(wi.paused_elapsed),
-                    state = wi.state.as_str(),
-                    last_err = debug_field(wi.last_error),
-                    "#{}: {:?}",
-                    wi.index,
-                    wi.location,
-                );
+                let _ = writeln!(&mut hdl, "#{}: {:?}; sector_id={:?}, paused={}, paused_elapsed={:?}, state={}, last_err={:?}", wi.index, wi.location, wi.sector_id, wi.paused, wi.paused_elapsed, wi.state.as_str(), wi.last_error);
             }
 
             Ok(())

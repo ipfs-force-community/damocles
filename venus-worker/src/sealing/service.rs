@@ -31,11 +31,15 @@ impl Worker for ServiceImpl {
             .iter()
             .map(|(idx, ctrl)| {
                 let name: &str = ctrl.sealing_state.load().into();
+                let sector_id = unsafe { ctrl.sector_id.as_ptr().as_ref() }
+                    .and_then(|inner| inner.as_ref())
+                    .cloned();
                 let last_error = unsafe { ctrl.last_sealing_error.as_ptr().as_ref() }
                     .and_then(|inner| inner.as_ref())
                     .cloned();
                 WorkerInfo {
                     location: ctrl.location.to_pathbuf(),
+                    sector_id,
                     index: *idx,
                     paused: ctrl.paused.load(),
                     paused_elapsed: ctrl

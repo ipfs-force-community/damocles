@@ -44,6 +44,7 @@ impl Interrupt {
 }
 
 fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
+    let sector_id = Arc::new(AtomicCell::new(None));
     let (pause_tx, pause_rx) = bounded(1);
     let (resume_tx, resume_rx) = bounded(0);
     let paused = Arc::new(AtomicCell::new(false));
@@ -54,6 +55,7 @@ fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
     (
         Ctrl {
             location: loc,
+            sector_id: sector_id.clone(),
             pause_tx,
             resume_tx,
             paused: paused.clone(),
@@ -62,6 +64,7 @@ fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
             last_sealing_error: last_sealing_error.clone(),
         },
         CtrlCtx {
+            sector_id,
             pause_rx,
             resume_rx,
             paused,
@@ -74,6 +77,7 @@ fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
 
 pub struct Ctrl {
     pub location: Location,
+    pub sector_id: Arc<AtomicCell<Option<String>>>,
     pub pause_tx: Sender<()>,
     pub resume_tx: Sender<Option<State>>,
     pub paused: Arc<AtomicCell<bool>>,
@@ -83,6 +87,7 @@ pub struct Ctrl {
 }
 
 pub struct CtrlCtx {
+    sector_id: Arc<AtomicCell<Option<String>>>,
     pause_rx: Receiver<()>,
     resume_rx: Receiver<Option<State>>,
     paused: Arc<AtomicCell<bool>>,
@@ -194,6 +199,7 @@ impl Module for Worker {
                 "wait before sealing"
             );
 
+            self.ctrl_ctx.sector_id.store(None);
             self.ctrl_ctx.sealing_state.store(State::Empty);
 
             sleep(self.store.config.seal_interval);

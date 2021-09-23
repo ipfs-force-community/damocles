@@ -237,8 +237,40 @@ impl<'c> Sealer<'c> {
             let enter = span.enter();
 
             let prev = self.sector.state;
+            let is_empty = match self.sector.base.as_ref() {
+                None => true,
+                Some(base) => {
+                    if unsafe { self.ctrl_ctx.sector_id.as_ptr().as_ref() }
+                        .and_then(|inner| inner.as_ref())
+                        .is_none()
+                    {
+                        // set sector id for the first time
+                        self.ctrl_ctx.sector_id.store(Some(format!(
+                            "m-{}-s-{}",
+                            base.allocated.id.miner, base.allocated.id.number
+                        )));
+                    }
+                    false
+                }
+            };
 
             let handle_res = self.handle(event.take());
+            if is_empty {
+                match self.sector.base.as_ref() {
+                    Some(base) => {
+                        self.ctrl_ctx.sector_id.store(Some(format!(
+                            "m-{}-s-{}",
+                            base.allocated.id.miner, base.allocated.id.number
+                        )));
+                    }
+
+                    None => {}
+                };
+            } else {
+                if self.sector.base.is_none() {
+                    self.ctrl_ctx.sector_id.store(None);
+                }
+            }
 
             let fail = if let Err(eref) = handle_res.as_ref() {
                 Some(SectorFailure {
