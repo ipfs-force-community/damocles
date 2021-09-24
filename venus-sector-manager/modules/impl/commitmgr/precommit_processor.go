@@ -15,9 +15,9 @@ import (
 	"github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
 	specactors "github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
 
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 )
 
 type PreCommitProcessor struct {
@@ -61,6 +61,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 			}
 
 			sectors[idx].MessageInfo.PreCommitCid = &mcid
+			slog.Info("push pre-commit success, cid: ", mcid)
 		}(i)
 	}
 	wg.Wait()
@@ -70,6 +71,8 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "pre", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
+	start := time.Now()
+	defer plog.Infof("finished process, elasped %s", time.Since(start))
 	defer updateSector(ctx, p.smgr, sectors, plog)
 
 	if !p.EnableBatch(mid) {
