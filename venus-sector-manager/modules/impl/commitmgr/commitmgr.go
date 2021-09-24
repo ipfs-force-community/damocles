@@ -362,7 +362,7 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 		return api.PollPreCommitStateResp{}, err
 	}
 
-	log.Debugw("get message receipt", "mcid", sector.MessageInfo.PreCommitCid.String(), "msg-state", messager.MsgStateToString(msg.State))
+	log.Debugw("get message receipt", "sector-id", id, "stage", "pre-commit", "mcid", sector.MessageInfo.PreCommitCid.String(), "msg-state", messager.MsgStateToString(msg.State))
 
 	switch msg.State {
 	case messager.MessageState.OnChainMsg:
@@ -497,7 +497,7 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (ap
 		return api.PollProofStateResp{}, err
 	}
 
-	log.Debugw("get message receipt", "mcid", sector.MessageInfo.CommitCid.String(), "msg-state", messager.MsgStateToString(msg.State))
+	log.Debugw("get message receipt", "sector-id", id, "stage", "prove-commit", "mcid", sector.MessageInfo.CommitCid.String(), "msg-state", messager.MsgStateToString(msg.State))
 
 	switch msg.State {
 	case messager.MessageState.OnChainMsg:
