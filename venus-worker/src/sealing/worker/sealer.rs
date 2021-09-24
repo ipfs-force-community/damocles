@@ -14,8 +14,8 @@ use crate::rpc::sealer::{
     ReportStateReq, SectorFailure, SectorID, SectorStateChange, SubmitResult, WorkerIdentifier,
 };
 use crate::sealing::processor::{
-    add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1, PaddedBytesAmount, Stage,
-    UnpaddedBytesAmount,
+    add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1, C2Input, PC2Input,
+    PaddedBytesAmount, Stage, UnpaddedBytesAmount,
 };
 use crate::store::Store;
 use crate::watchdog::Ctx;
@@ -701,8 +701,13 @@ impl<'c> Sealer<'c> {
         let out = self
             .ctx
             .global
+            .processors
             .pc2
-            .process(pc1out, cache_dir, sealed_file)
+            .process(PC2Input {
+                pc1out,
+                cache_dir,
+                sealed_file,
+            })
             .abort()?;
 
         drop(token);
@@ -1002,8 +1007,13 @@ impl<'c> Sealer<'c> {
         let out = self
             .ctx
             .global
+            .processors
             .c2
-            .process(c1out, prover_id, sector_id)
+            .process(C2Input {
+                c1out,
+                prover_id,
+                sector_id,
+            })
             .abort()?;
 
         drop(token);

@@ -15,7 +15,7 @@ use crate::{
     signal::Signal,
     types::SealProof,
     util::net::{local_interface_ip, socket_addr_from_url},
-    watchdog::{GlobalModules, WatchDog},
+    watchdog::{GloablProcessors, GlobalModules, Module, WatchDog},
 };
 
 /// start a worker process with mock modules
@@ -46,44 +46,10 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let mut io = IoHandler::new();
     io.extend_with(mock_impl.to_delegate());
 
-    let (tree_d, tree_d_subs): (processor::BoxedTreeDProcessor, Option<_>) = if let Some(ext) = cfg
-        .processors
-        .as_ref()
-        .and_then(|p| p.tree_d.as_ref())
-        .and_then(|ext| if ext.external { Some(ext) } else { None })
-    {
-        let (proc, subs) = processor::external::TreeD::build(ext)?;
-        (Box::new(proc), Some(subs))
-    } else {
-        (Box::new(processor::internal::TreeD), None)
-    };
-
-    let (pc2, pc2subs): (processor::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
-        .processors
-        .as_ref()
-        .and_then(|p| p.pc2.as_ref())
-        .and_then(|ext| if ext.external { Some(ext) } else { None })
-    {
-        let (proc, subs) = processor::external::PC2::build(ext)?;
-        (Box::new(proc), Some(subs))
-    } else {
-        (Box::new(processor::internal::PC2), None)
-    };
-
-    let (c2, c2subs): (processor::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
-        .processors
-        .as_ref()
-        .and_then(|p| p.c2.as_ref())
-        .and_then(|ext| if ext.external { Some(ext) } else { None })
-    {
-        let (proc, subs) = processor::external::C2::build(ext)?;
-        (Box::new(proc), Some(subs))
-    } else {
-        (Box::new(processor::internal::C2), None)
-    };
-
     let mock_client = local::connect::<SealerClient, _, _>(io)
         .map_err(|e| anyhow!("build local client: {:?}", e))?;
+
+    let (processors, modules) = start_processors(&cfg)?;
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
     let workers = store_mgr.into_workers();
@@ -91,9 +57,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let globl = GlobalModules {
         rpc: Arc::new(mock_client),
         remote_store: Arc::new(remote_store),
-        tree_d: Arc::new(tree_d),
-        pc2: Arc::new(pc2),
-        c2: Arc::new(c2),
+        processors,
         limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
     };
 
@@ -115,22 +79,8 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let worker_server = service::Service::new(ctrls);
     dog.start_module(worker_server);
 
-    if let Some(subs) = tree_d_subs {
-        for sub in subs {
-            dog.start_module(sub);
-        }
-    };
-
-    if let Some(subs) = pc2subs {
-        for sub in subs {
-            dog.start_module(sub);
-        }
-    };
-
-    if let Some(subs) = c2subs {
-        for sub in subs {
-            dog.start_module(sub)
-        }
+    for m in modules {
+        dog.start_module(m);
     }
 
     dog.start_module(Signal);
@@ -168,50 +118,14 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         format!("{}", local_ip)
     };
 
-    let (tree_d, tree_d_subs): (processor::BoxedTreeDProcessor, Option<_>) = if let Some(ext) = cfg
-        .processors
-        .as_ref()
-        .and_then(|p| p.tree_d.as_ref())
-        .and_then(|ext| if ext.external { Some(ext) } else { None })
-    {
-        let (proc, subs) = processor::external::TreeD::build(ext)?;
-        (Box::new(proc), Some(subs))
-    } else {
-        (Box::new(processor::internal::TreeD), None)
-    };
-
-    let (pc2, pc2subs): (processor::BoxedPC2Processor, Option<_>) = if let Some(ext) = cfg
-        .processors
-        .as_ref()
-        .and_then(|p| p.pc2.as_ref())
-        .and_then(|ext| if ext.external { Some(ext) } else { None })
-    {
-        let (proc, subs) = processor::external::PC2::build(ext)?;
-        (Box::new(proc), Some(subs))
-    } else {
-        (Box::new(processor::internal::PC2), None)
-    };
-
-    let (c2, c2subs): (processor::BoxedC2Processor, Option<_>) = if let Some(ext) = cfg
-        .processors
-        .as_ref()
-        .and_then(|p| p.c2.as_ref())
-        .and_then(|ext| if ext.external { Some(ext) } else { None })
-    {
-        let (proc, subs) = processor::external::C2::build(ext)?;
-        (Box::new(proc), Some(subs))
-    } else {
-        (Box::new(processor::internal::C2), None)
-    };
+    let (processors, modules) = start_processors(&cfg)?;
 
     let workers = store_mgr.into_workers();
 
     let globl = GlobalModules {
         rpc: Arc::new(rpc_client),
         remote_store: Arc::new(remote),
-        tree_d: Arc::new(tree_d),
-        pc2: Arc::new(pc2),
-        c2: Arc::new(c2),
+        processors,
         limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
     };
 
@@ -226,22 +140,8 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     let worker_server = service::Service::new(ctrls);
     dog.start_module(worker_server);
 
-    if let Some(subs) = tree_d_subs {
-        for sub in subs {
-            dog.start_module(sub);
-        }
-    };
-
-    if let Some(subs) = pc2subs {
-        for sub in subs {
-            dog.start_module(sub);
-        }
-    };
-
-    if let Some(subs) = c2subs {
-        for sub in subs {
-            dog.start_module(sub)
-        }
+    for m in modules {
+        dog.start_module(m);
     }
 
     dog.start_module(Signal);
@@ -250,4 +150,65 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     let _ = dog.wait();
 
     Ok(())
+}
+
+fn start_processors(cfg: &config::Config) -> Result<(GloablProcessors, Vec<Box<dyn Module>>)> {
+    let mut modules: Vec<Box<dyn Module>> = Vec::new();
+
+    let tree_d: processor::BoxedTreeDProcessor = if let Some(ext) = cfg
+        .processors
+        .as_ref()
+        .and_then(|p| p.tree_d.as_ref())
+        .and_then(|ext| if ext.external { Some(ext) } else { None })
+    {
+        let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
+        for sub in subs {
+            modules.push(Box::new(sub));
+        }
+
+        Box::new(proc)
+    } else {
+        Box::new(processor::internal::Proc::new())
+    };
+
+    let pc2: processor::BoxedPC2Processor = if let Some(ext) = cfg
+        .processors
+        .as_ref()
+        .and_then(|p| p.pc2.as_ref())
+        .and_then(|ext| if ext.external { Some(ext) } else { None })
+    {
+        let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
+        for sub in subs {
+            modules.push(Box::new(sub));
+        }
+
+        Box::new(proc)
+    } else {
+        Box::new(processor::internal::Proc::new())
+    };
+
+    let c2: processor::BoxedC2Processor = if let Some(ext) = cfg
+        .processors
+        .as_ref()
+        .and_then(|p| p.c2.as_ref())
+        .and_then(|ext| if ext.external { Some(ext) } else { None })
+    {
+        let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
+        for sub in subs {
+            modules.push(Box::new(sub));
+        }
+
+        Box::new(proc)
+    } else {
+        Box::new(processor::internal::Proc::new())
+    };
+
+    Ok((
+        GloablProcessors {
+            tree_d: Arc::new(tree_d),
+            pc2: Arc::new(pc2),
+            c2: Arc::new(c2),
+        },
+        modules,
+    ))
 }

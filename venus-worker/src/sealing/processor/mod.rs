@@ -48,71 +48,24 @@ impl AsRef<str> for Stage {
     }
 }
 
-/// type alias of boxed TreeDProcessor
-pub type BoxedTreeDProcessor = Box<dyn TreeDProcessor>;
+pub type BoxedProcessor<I> = Box<dyn Processor<I>>;
+pub type BoxedTreeDProcessor = BoxedProcessor<TreeDInput>;
+pub type BoxedPC2Processor = BoxedProcessor<PC2Input>;
+pub type BoxedC2Processor = BoxedProcessor<C2Input>;
 
-/// type alias of boxed PC2Processor
-pub type BoxedPC2Processor = Box<dyn PC2Processor>;
-
-/// type alias of boxed C2Processor
-pub type BoxedC2Processor = Box<dyn C2Processor>;
-
-pub trait TreeDProcessor: Send + Sync {
-    fn process(
-        &self,
-        registered_proof: RegisteredSealProof,
-        staged_file: PathBuf,
-        cache_dir: PathBuf,
-    ) -> Result<()> {
-        TreeDInput {
-            registered_proof,
-            staged_file,
-            cache_dir,
-        }
-        .process()
-    }
-}
-
-/// abstraction for pre commit phase2 processor
-pub trait PC2Processor: Send + Sync {
-    /// execute pc2 task
-    fn process(
-        &self,
-        pc1out: SealPreCommitPhase1Output,
-        cache_dir: PathBuf,
-        sealed_file: PathBuf,
-    ) -> Result<SealPreCommitPhase2Output> {
-        PC2Input {
-            pc1out,
-            cache_dir,
-            sealed_file,
-        }
-        .process()
-    }
-}
-
-/// abstraction for commit phase2 processor
-pub trait C2Processor: Send + Sync {
-    /// execute c2 task
-    fn process(
-        &self,
-        c1out: SealCommitPhase1Output,
-        prover_id: ProverId,
-        sector_id: SectorId,
-    ) -> Result<SealCommitPhase2Output> {
-        C2Input {
-            c1out,
-            prover_id,
-            sector_id,
-        }
-        .process()
+pub trait Processor<I>: Send + Sync
+where
+    I: Input,
+{
+    fn process(&self, input: I) -> Result<I::Out> {
+        input.process()
     }
 }
 
 /// abstraction for inputs of one stage
-pub trait Input: Serialize + DeserializeOwned + Debug + Send
+pub trait Input: Serialize + DeserializeOwned + Debug + Send + Sync
 where
-    Self::Out: Serialize + DeserializeOwned + Debug + Send,
+    Self::Out: Serialize + DeserializeOwned + Debug + Send + Sync,
 {
     /// the stage which this input belongs to
     const STAGE: Stage;
@@ -127,9 +80,9 @@ where
 #[derive(Clone, Debug, Serialize, Deserialize)]
 /// inputs of stage pc2
 pub struct TreeDInput {
-    registered_proof: RegisteredSealProof,
-    staged_file: PathBuf,
-    cache_dir: PathBuf,
+    pub registered_proof: RegisteredSealProof,
+    pub staged_file: PathBuf,
+    pub cache_dir: PathBuf,
 }
 
 impl Input for TreeDInput {
@@ -148,9 +101,9 @@ impl Input for TreeDInput {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 /// inputs of stage pc2
 pub struct PC2Input {
-    pc1out: SealPreCommitPhase1Output,
-    cache_dir: PathBuf,
-    sealed_file: PathBuf,
+    pub pc1out: SealPreCommitPhase1Output,
+    pub cache_dir: PathBuf,
+    pub sealed_file: PathBuf,
 }
 
 impl Input for PC2Input {
@@ -165,9 +118,9 @@ impl Input for PC2Input {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 /// inputs of stage c2
 pub struct C2Input {
-    c1out: SealCommitPhase1Output,
-    prover_id: ProverId,
-    sector_id: SectorId,
+    pub c1out: SealCommitPhase1Output,
+    pub prover_id: ProverId,
+    pub sector_id: SectorId,
 }
 
 impl Input for C2Input {
@@ -182,16 +135,24 @@ impl Input for C2Input {
 pub mod internal {
     //! internal impls
 
-    use super::{C2Processor, PC2Processor, TreeDProcessor};
+    use std::marker::PhantomData;
 
-    pub struct TreeD;
-    impl TreeDProcessor for TreeD {}
+    use super::{Input, Processor};
 
-    /// processor impl for pc2
-    pub struct PC2;
-    impl PC2Processor for PC2 {}
+    pub struct Proc<I: Input> {
+        _data: PhantomData<I>,
+    }
 
-    /// proceesor impl for c2
-    pub struct C2;
-    impl C2Processor for C2 {}
+    impl<I> Proc<I>
+    where
+        I: Input,
+    {
+        pub fn new() -> Self {
+            Proc {
+                _data: Default::default(),
+            }
+        }
+    }
+
+    impl<I> Processor<I> for Proc<I> where I: Input {}
 }
