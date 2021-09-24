@@ -4,10 +4,15 @@ use anyhow::Result;
 use serde_json::{from_str, to_string};
 
 use super::{
-    super::{C2Input, Input, PC2Input},
+    super::{C2Input, Input, PC2Input, TreeDInput},
     ready_msg, Response,
 };
 use crate::logging::{debug, info, info_span, trace};
+
+/// start the main loop of c2 processor
+pub fn run_tree_d() -> Result<()> {
+    run::<TreeDInput>()
+}
 
 /// start the main loop of pc2 processor
 pub fn run_pc2() -> Result<()> {

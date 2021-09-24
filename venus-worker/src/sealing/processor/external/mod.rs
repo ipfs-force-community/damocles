@@ -8,9 +8,50 @@ use super::*;
 pub mod config;
 pub mod sub;
 
+type TreeDInputSender = Sender<(TreeDInput, Sender<Result<()>>)>;
+
 type PC2InputSender = Sender<(PC2Input, Sender<Result<SealPreCommitPhase2Output>>)>;
 
 type C2InputSender = Sender<(C2Input, Sender<Result<SealCommitPhase2Output>>)>;
+
+/// processor impl for pc2
+pub struct TreeD {
+    input_tx: TreeDInputSender,
+}
+
+impl TreeD {
+    /// build a PC2 instance
+    pub fn build(cfg: &config::Ext) -> Result<(Self, Vec<sub::SubProcess<TreeDInput>>)> {
+        let (input_tx, input_rx) = bounded(0);
+        let subproc = sub::start_sub_processes(cfg, input_rx)?;
+
+        let tree_d = TreeD { input_tx };
+
+        Ok((tree_d, subproc))
+    }
+}
+
+impl TreeDProcessor for TreeD {
+    fn process(
+        &self,
+        registered_proof: RegisteredSealProof,
+        staged_file: PathBuf,
+        cache_dir: PathBuf,
+    ) -> Result<()> {
+        let (res_tx, res_rx) = bounded(0);
+        self.input_tx.send((
+            TreeDInput {
+                registered_proof,
+                staged_file,
+                cache_dir,
+            },
+            res_tx,
+        ))?;
+
+        let res = res_rx.recv()?;
+        res
+    }
+}
 
 /// processor impl for pc2
 pub struct PC2 {

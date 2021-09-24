@@ -139,6 +139,8 @@ pub struct RPCServer {
 /// configurations for processors
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Processors {
+    pub tree_d: Option<Ext>,
+
     /// section for pc2 processor
     pub pc2: Option<Ext>,
 

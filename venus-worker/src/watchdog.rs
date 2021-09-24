@@ -16,7 +16,7 @@ use crate::{
     logging::{error, error_span, info, warn},
     rpc::sealer::SealerClient,
     sealing::{
-        processor::{BoxedC2Processor, BoxedPC2Processor},
+        processor::{BoxedC2Processor, BoxedPC2Processor, BoxedTreeDProcessor},
         resource::Pool,
     },
 };
@@ -35,6 +35,7 @@ pub struct Ctx {
 pub struct GlobalModules {
     pub rpc: Arc<SealerClient>,
     pub remote_store: Arc<Box<dyn ObjectStore>>,
+    pub tree_d: Arc<BoxedTreeDProcessor>,
     pub pc2: Arc<BoxedPC2Processor>,
     pub c2: Arc<BoxedC2Processor>,
     pub limit: Arc<Pool>,

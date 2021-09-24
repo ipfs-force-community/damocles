@@ -12,6 +12,8 @@ pub use filecoin_proofs_api::{
     UnpaddedBytesAmount,
 };
 
+use super::proof;
+
 macro_rules! safe_call {
     ($ex:expr) => {
         match catch_unwind(move || $ex.map_err(|e| format!("{:?}", e))) {
@@ -92,5 +94,19 @@ pub fn seal_pre_commit_phase2(
 ) -> Result<SealPreCommitPhase2Output> {
     safe_call! {
         seal::seal_pre_commit_phase2(phase1_output, cache_path, out_path)
+    }
+}
+
+pub fn create_tree_d(
+    registered_proof: RegisteredSealProof,
+    in_path: Option<PathBuf>,
+    cache_path: PathBuf,
+) -> Result<()> {
+    safe_call! {
+        proof::create_tree_d(
+            registered_proof,
+            in_path,
+            cache_path,
+        )
     }
 }

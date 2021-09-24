@@ -9,10 +9,14 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 pub mod external;
 mod safe;
 pub use safe::*;
+mod proof;
 
 /// enum for processor stages
 #[derive(Copy, Clone, Debug)]
 pub enum Stage {
+    /// construct tree d
+    TreeD,
+
     /// pre commit phase1
     PC1,
 
@@ -29,6 +33,7 @@ pub enum Stage {
 impl Stage {
     fn name(&self) -> &'static str {
         match self {
+            Stage::TreeD => "tree_d",
             Stage::PC1 => "pc1",
             Stage::PC2 => "pc2",
             Stage::C1 => "c1",
@@ -43,11 +48,30 @@ impl AsRef<str> for Stage {
     }
 }
 
+/// type alias of boxed TreeDProcessor
+pub type BoxedTreeDProcessor = Box<dyn TreeDProcessor>;
+
 /// type alias of boxed PC2Processor
 pub type BoxedPC2Processor = Box<dyn PC2Processor>;
 
 /// type alias of boxed C2Processor
 pub type BoxedC2Processor = Box<dyn C2Processor>;
+
+pub trait TreeDProcessor: Send + Sync {
+    fn process(
+        &self,
+        registered_proof: RegisteredSealProof,
+        staged_file: PathBuf,
+        cache_dir: PathBuf,
+    ) -> Result<()> {
+        TreeDInput {
+            registered_proof,
+            staged_file,
+            cache_dir,
+        }
+        .process()
+    }
+}
 
 /// abstraction for pre commit phase2 processor
 pub trait PC2Processor: Send + Sync {
@@ -102,6 +126,27 @@ where
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 /// inputs of stage pc2
+pub struct TreeDInput {
+    registered_proof: RegisteredSealProof,
+    staged_file: PathBuf,
+    cache_dir: PathBuf,
+}
+
+impl Input for TreeDInput {
+    const STAGE: Stage = Stage::TreeD;
+    type Out = ();
+
+    fn process(self) -> Result<Self::Out> {
+        create_tree_d(
+            self.registered_proof,
+            Some(self.staged_file),
+            self.cache_dir,
+        )
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// inputs of stage pc2
 pub struct PC2Input {
     pc1out: SealPreCommitPhase1Output,
     cache_dir: PathBuf,
@@ -137,7 +182,10 @@ impl Input for C2Input {
 pub mod internal {
     //! internal impls
 
-    use super::{C2Processor, PC2Processor};
+    use super::{C2Processor, PC2Processor, TreeDProcessor};
+
+    pub struct TreeD;
+    impl TreeDProcessor for TreeD {}
 
     /// processor impl for pc2
     pub struct PC2;
