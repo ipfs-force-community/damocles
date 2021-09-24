@@ -1,7 +1,9 @@
+use std::os::unix::fs::symlink;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use filecoin_proofs::StoreConfig;
 use filecoin_proofs_api::seal;
 pub use filecoin_proofs_api::seal::{
     add_piece, clear_cache, Labels, SealCommitPhase1Output, SealCommitPhase2Output,
@@ -11,6 +13,7 @@ pub use filecoin_proofs_api::{
     Commitment, PaddedBytesAmount, PieceInfo, ProverId, RegisteredSealProof, SectorId, Ticket,
     UnpaddedBytesAmount,
 };
+use storage_proofs_core::cache_key::CacheKey;
 
 use super::proof;
 
@@ -109,4 +112,13 @@ pub fn create_tree_d(
             cache_path,
         )
     }
+}
+
+pub fn make_tree_d_link(build_dir: &PathBuf, cache_dir: &PathBuf) -> Result<()> {
+    symlink(tree_d_path_in_dir(build_dir), tree_d_path_in_dir(cache_dir))?;
+    Ok(())
+}
+
+pub fn tree_d_path_in_dir(dir: &PathBuf) -> PathBuf {
+    StoreConfig::data_path(dir, &CacheKey::CommDTree.to_string())
 }

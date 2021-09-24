@@ -87,7 +87,7 @@ pub struct TreeDInput {
 
 impl Input for TreeDInput {
     const STAGE: Stage = Stage::TreeD;
-    type Out = ();
+    type Out = bool;
 
     fn process(self) -> Result<Self::Out> {
         create_tree_d(
@@ -95,6 +95,7 @@ impl Input for TreeDInput {
             Some(self.staged_file),
             self.cache_dir,
         )
+        .map(|_| true)
     }
 }
 

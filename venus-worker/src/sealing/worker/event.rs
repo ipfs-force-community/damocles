@@ -41,6 +41,8 @@ pub enum Event {
 
     AddPiece(Vec<PieceInfo>),
 
+    BuildTreeD,
+
     AssignTicket(Ticket),
 
     PC1(SealPreCommitPhase1Output),
@@ -82,6 +84,8 @@ impl Debug for Event {
             Self::AcquireDeals(_) => "AcquireDeals",
 
             Self::AddPiece(_) => "AddPiece",
+
+            Self::BuildTreeD => "BuildTreeD",
 
             Self::AssignTicket(_) => "AssignTicket",
 
@@ -179,6 +183,8 @@ impl Event {
                 replace!(s.phases.pieces, pieces);
             }
 
+            Self::BuildTreeD => {}
+
             Self::AssignTicket(ticket) => {
                 replace!(s.phases.ticket, ticket);
             }
@@ -256,6 +262,10 @@ impl Event {
             },
 
             State::PieceAdded => {
+                Event::BuildTreeD => State::TreeDBuilt,
+            },
+
+            State::TreeDBuilt => {
                 Event::AssignTicket(_) => State::TicketAssigned,
             },
 

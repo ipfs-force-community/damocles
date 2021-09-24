@@ -59,6 +59,7 @@ def_state! {
     Allocated,
     DealsAcquired,
     PieceAdded,
+    TreeDBuilt,
     TicketAssigned,
     PC1Done,
     PC2Done,

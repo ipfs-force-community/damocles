@@ -22,6 +22,11 @@ c2 = 1
 [remote]
 path = "./tmp/remote"
 
+[processors.tree_d]
+external = true
+
+[[processors.tree_d.subs]]
+
 [processors.pc2]
 external = true
 
