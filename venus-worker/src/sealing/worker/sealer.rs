@@ -306,6 +306,16 @@ impl<'c> Sealer<'c> {
                     return Ok(());
                 }
 
+                Err(Failure(Level::Abort, aerr)) => {
+                    if let Err(rerr) = self.report_finalized() {
+                        error!("report aborted sector finalized failed: {:?}", rerr);
+                    }
+
+                    warn!("cleanup aborted sector");
+                    self.finalize()?;
+                    return Err(aerr.abort());
+                }
+
                 Err(Failure(Level::Temporary, terr)) => {
                     if self.sector.retry >= self.store.config.max_retries {
                         // reset retry times;
