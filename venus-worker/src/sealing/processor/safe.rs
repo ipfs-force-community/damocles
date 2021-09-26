@@ -1,4 +1,3 @@
-use std::os::unix::fs::symlink;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 
@@ -112,11 +111,6 @@ pub fn create_tree_d(
             cache_path,
         )
     }
-}
-
-pub fn make_tree_d_link(build_dir: &PathBuf, cache_dir: &PathBuf) -> Result<()> {
-    symlink(tree_d_path_in_dir(build_dir), tree_d_path_in_dir(cache_dir))?;
-    Ok(())
 }
 
 pub fn tree_d_path_in_dir(dir: &PathBuf) -> PathBuf {

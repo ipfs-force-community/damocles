@@ -1,5 +1,6 @@
 use std::fs::{create_dir_all, remove_dir_all, remove_file, OpenOptions};
 use std::io::{self, prelude::*};
+use std::os::unix::fs::symlink;
 use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
@@ -14,9 +15,8 @@ use crate::rpc::sealer::{
     ReportStateReq, SectorFailure, SectorID, SectorStateChange, SubmitResult, WorkerIdentifier,
 };
 use crate::sealing::processor::{
-    add_piece, clear_cache, make_tree_d_link, seal_commit_phase1, seal_pre_commit_phase1,
-    tree_d_path_in_dir, C2Input, PC2Input, PaddedBytesAmount, Stage, TreeDInput,
-    UnpaddedBytesAmount,
+    add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1, tree_d_path_in_dir,
+    C2Input, PC2Input, PaddedBytesAmount, Stage, TreeDInput, UnpaddedBytesAmount,
 };
 use crate::store::Store;
 use crate::watchdog::Ctx;
@@ -611,6 +611,12 @@ impl<'c> Sealer<'c> {
                 .crit()?;
         }
 
+        if let Some(static_tree_path) = self.ctx.global.static_tree_d.get(&proof_type.sector_size())
+        {
+            symlink(static_tree_path, tree_d_path_in_dir(&prepared_dir)).crit()?;
+            return Ok(Event::BuildTreeD);
+        }
+
         let staged_file = self.staged_file(sector_id);
 
         self.ctx
@@ -688,7 +694,11 @@ impl<'c> Sealer<'c> {
         let prepared_dir = self.prepared_dir(sector_id);
 
         self.cleanup_before_pc1(&cache_dir, &sealed_file).crit()?;
-        make_tree_d_link(&prepared_dir, &cache_dir).crit()?;
+        symlink(
+            tree_d_path_in_dir(&prepared_dir),
+            tree_d_path_in_dir(&cache_dir),
+        )
+        .crit()?;
 
         let (seal_prover_id, seal_sector_id) = fetch_cloned_field! {
             self.sector.base,

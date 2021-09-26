@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
@@ -36,6 +37,7 @@ pub struct GlobalModules {
     pub rpc: Arc<SealerClient>,
     pub remote_store: Arc<Box<dyn ObjectStore>>,
     pub processors: GloablProcessors,
+    pub static_tree_d: HashMap<u64, PathBuf>,
     pub limit: Arc<Pool>,
 }
 

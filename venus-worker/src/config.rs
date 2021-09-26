@@ -179,6 +179,9 @@ pub struct Config {
 
     /// section for processors
     pub processors: Option<Processors>,
+
+    /// static tree_d paths for cc sectors
+    pub static_tree_d: Option<HashMap<String, String>>,
 }
 
 impl Config {

@@ -1,7 +1,10 @@
+use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
+use byte_unit::Byte;
 use fil_types::ActorID;
 use jsonrpc_core::IoHandler;
 use jsonrpc_core_client::transports::{local, ws};
@@ -54,11 +57,14 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
     let workers = store_mgr.into_workers();
 
+    let static_tree_d = construct_static_tree_d(&cfg)?;
+
     let globl = GlobalModules {
         rpc: Arc::new(mock_client),
         remote_store: Arc::new(remote_store),
         processors,
         limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
+        static_tree_d,
     };
 
     let instance = cfg
@@ -122,11 +128,14 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let workers = store_mgr.into_workers();
 
+    let static_tree_d = construct_static_tree_d(&cfg)?;
+
     let globl = GlobalModules {
         rpc: Arc::new(rpc_client),
         remote_store: Arc::new(remote),
         processors,
         limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
+        static_tree_d,
     };
 
     let mut dog = WatchDog::build(cfg, instance, globl);
@@ -150,6 +159,24 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     let _ = dog.wait();
 
     Ok(())
+}
+
+fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>> {
+    let mut trees = HashMap::new();
+    if let Some(c) = cfg.static_tree_d.as_ref() {
+        for (k, v) in c {
+            let b = Byte::from_str(k).with_context(|| format!("invalid bytes string {}", k))?;
+            let size = b.get_bytes() as u64;
+            SealProof::try_from(size).with_context(|| format!("invalid sector size {}", k))?;
+            let tree_path = PathBuf::from(v.to_owned())
+                .canonicalize()
+                .with_context(|| format!("invalid tree_d path {:?} for sector size", v, k))?;
+
+            trees.insert(size, tree_path);
+        }
+    }
+
+    Ok(trees)
 }
 
 fn start_processors(cfg: &config::Config) -> Result<(GloablProcessors, Vec<Box<dyn Module>>)> {
