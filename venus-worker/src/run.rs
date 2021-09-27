@@ -179,72 +179,36 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
     Ok(trees)
 }
 
+macro_rules! construct_sub_processor {
+    ($field:ident, $cfg:ident, $modules:ident) => {
+        if let Some(ext) = $cfg
+            .processors
+            .as_ref()
+            .and_then(|p| p.$field.as_ref())
+            .and_then(|ext| if ext.external { Some(ext) } else { None })
+        {
+            let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
+            for sub in subs {
+                $modules.push(Box::new(sub));
+            }
+
+            Box::new(proc)
+        } else {
+            Box::new(processor::internal::Proc::new())
+        }
+    };
+}
+
 fn start_processors(cfg: &config::Config) -> Result<(GloablProcessors, Vec<Box<dyn Module>>)> {
     let mut modules: Vec<Box<dyn Module>> = Vec::new();
 
-    let tree_d: processor::BoxedTreeDProcessor = if let Some(ext) = cfg
-        .processors
-        .as_ref()
-        .and_then(|p| p.tree_d.as_ref())
-        .and_then(|ext| if ext.external { Some(ext) } else { None })
-    {
-        let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
-        for sub in subs {
-            modules.push(Box::new(sub));
-        }
+    let tree_d: processor::BoxedTreeDProcessor = construct_sub_processor!(tree_d, cfg, modules);
 
-        Box::new(proc)
-    } else {
-        Box::new(processor::internal::Proc::new())
-    };
+    let pc1: processor::BoxedPC1Processor = construct_sub_processor!(pc1, cfg, modules);
 
-    let pc1: processor::BoxedPC1Processor = if let Some(ext) = cfg
-        .processors
-        .as_ref()
-        .and_then(|p| p.pc1.as_ref())
-        .and_then(|ext| if ext.external { Some(ext) } else { None })
-    {
-        let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
-        for sub in subs {
-            modules.push(Box::new(sub));
-        }
+    let pc2: processor::BoxedPC2Processor = construct_sub_processor!(pc2, cfg, modules);
 
-        Box::new(proc)
-    } else {
-        Box::new(processor::internal::Proc::new())
-    };
-
-    let pc2: processor::BoxedPC2Processor = if let Some(ext) = cfg
-        .processors
-        .as_ref()
-        .and_then(|p| p.pc2.as_ref())
-        .and_then(|ext| if ext.external { Some(ext) } else { None })
-    {
-        let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
-        for sub in subs {
-            modules.push(Box::new(sub));
-        }
-
-        Box::new(proc)
-    } else {
-        Box::new(processor::internal::Proc::new())
-    };
-
-    let c2: processor::BoxedC2Processor = if let Some(ext) = cfg
-        .processors
-        .as_ref()
-        .and_then(|p| p.c2.as_ref())
-        .and_then(|ext| if ext.external { Some(ext) } else { None })
-    {
-        let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
-        for sub in subs {
-            modules.push(Box::new(sub));
-        }
-
-        Box::new(proc)
-    } else {
-        Box::new(processor::internal::Proc::new())
-    };
+    let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, modules);
 
     Ok((
         GloablProcessors {
