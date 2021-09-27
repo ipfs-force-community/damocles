@@ -22,9 +22,10 @@ macro_rules! safe_call {
             Ok(r) => r.map_err(anyhow::Error::msg),
             Err(p) => {
                 let error_msg = match p.downcast_ref::<&'static str>() {
-                    Some(message) => message,
-                    _ => "no unwind information",
+                    Some(message) => message.to_string(),
+                    _ => format!("non-str unwind err: {:?}", p),
                 };
+
                 Err(anyhow::Error::msg(error_msg))
             }
         }
