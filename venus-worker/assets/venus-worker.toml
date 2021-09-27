@@ -25,25 +25,43 @@ c2 = 1
 [remote]
 path = "./tmp/remote"
 
+# fields for tree_d processor
 [processors.tree_d]
 external = true
 
 [[processors.tree_d.subs]]
 
+# fields for pc1 processor
+[processors.pc1]
+external = true
+
+[[processors.pc1.subs]]
+numa_preferred = 0
+cgroup.cpuset = "4-5"
+envs = { RUST_LOG = "info" }
+
+[[processors.pc1.subs]]
+numa_preferred = 0
+cgroup.cpuset = "6-7"
+
+[[processors.pc1.subs]]
+numa_preferred = 1
+cgroup.cpuset = "12-13"
+
+# fields for pc2 processor
 [processors.pc2]
 external = true
 
 [[processors.pc2.subs]]
-# [processors.pc2.subs.cgroup]
-# cpuset = "24-27"
+# cgroup.cpuset = "24-27"
 
 [[processors.pc2.subs]]
-[processors.pc2.subs.cgroup]
-cpuset = "28-31"
+cgroup.cpuset = "28-31"
 
+
+# fields for c2 processor
 [processors.c2]
 external = true
 
 [[processors.c2.subs]]
-[processors.c2.subs.cgroup]
-cpuset = "32-47"
+cgroup.cpuset = "32-47"

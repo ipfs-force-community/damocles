@@ -141,6 +141,8 @@ pub struct RPCServer {
 pub struct Processors {
     pub tree_d: Option<Ext>,
 
+    pub pc1: Option<Ext>,
+
     /// section for pc2 processor
     pub pc2: Option<Ext>,
 

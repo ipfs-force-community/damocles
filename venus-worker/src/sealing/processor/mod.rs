@@ -50,6 +50,7 @@ impl AsRef<str> for Stage {
 
 pub type BoxedProcessor<I> = Box<dyn Processor<I>>;
 pub type BoxedTreeDProcessor = BoxedProcessor<TreeDInput>;
+pub type BoxedPC1Processor = BoxedProcessor<PC1Input>;
 pub type BoxedPC2Processor = BoxedProcessor<PC2Input>;
 pub type BoxedC2Processor = BoxedProcessor<C2Input>;
 
@@ -96,6 +97,36 @@ impl Input for TreeDInput {
             self.cache_dir,
         )
         .map(|_| true)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PC1Input {
+    pub registered_proof: RegisteredSealProof,
+    pub cache_path: PathBuf,
+    pub in_path: PathBuf,
+    pub out_path: PathBuf,
+    pub prover_id: ProverId,
+    pub sector_id: SectorId,
+    pub ticket: Ticket,
+    pub piece_infos: Vec<PieceInfo>,
+}
+
+impl Input for PC1Input {
+    const STAGE: Stage = Stage::PC1;
+    type Out = SealPreCommitPhase1Output;
+
+    fn process(self) -> Result<Self::Out> {
+        seal_pre_commit_phase1(
+            self.registered_proof,
+            self.cache_path,
+            self.in_path,
+            self.out_path,
+            self.prover_id,
+            self.sector_id,
+            self.ticket,
+            &self.piece_infos[..],
+        )
     }
 }
 

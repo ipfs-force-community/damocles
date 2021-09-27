@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde_json::{from_str, to_string};
 
 use super::{
-    super::{C2Input, Input, PC2Input, TreeDInput},
+    super::{C2Input, Input, PC1Input, PC2Input, TreeDInput},
     ready_msg, Response,
 };
 use crate::logging::{debug, info, info_span, trace};
@@ -12,6 +12,11 @@ use crate::logging::{debug, info, info_span, trace};
 /// start the main loop of c2 processor
 pub fn run_tree_d() -> Result<()> {
     run::<TreeDInput>()
+}
+
+/// start the main loop of pc1 processor
+pub fn run_pc1() -> Result<()> {
+    run::<PC1Input>()
 }
 
 /// start the main loop of pc2 processor

@@ -198,6 +198,22 @@ fn start_processors(cfg: &config::Config) -> Result<(GloablProcessors, Vec<Box<d
         Box::new(processor::internal::Proc::new())
     };
 
+    let pc1: processor::BoxedPC1Processor = if let Some(ext) = cfg
+        .processors
+        .as_ref()
+        .and_then(|p| p.pc1.as_ref())
+        .and_then(|ext| if ext.external { Some(ext) } else { None })
+    {
+        let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
+        for sub in subs {
+            modules.push(Box::new(sub));
+        }
+
+        Box::new(proc)
+    } else {
+        Box::new(processor::internal::Proc::new())
+    };
+
     let pc2: processor::BoxedPC2Processor = if let Some(ext) = cfg
         .processors
         .as_ref()
@@ -233,6 +249,7 @@ fn start_processors(cfg: &config::Config) -> Result<(GloablProcessors, Vec<Box<d
     Ok((
         GloablProcessors {
             tree_d: Arc::new(tree_d),
+            pc1: Arc::new(pc1),
             pc2: Arc::new(pc2),
             c2: Arc::new(c2),
         },

@@ -15,8 +15,8 @@ use crate::rpc::sealer::{
     ReportStateReq, SectorFailure, SectorID, SectorStateChange, SubmitResult, WorkerIdentifier,
 };
 use crate::sealing::processor::{
-    add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1, tree_d_path_in_dir,
-    C2Input, PC2Input, PaddedBytesAmount, Stage, TreeDInput, UnpaddedBytesAmount,
+    add_piece, clear_cache, seal_commit_phase1, tree_d_path_in_dir, C2Input, PC1Input, PC2Input,
+    PaddedBytesAmount, Stage, TreeDInput, UnpaddedBytesAmount,
 };
 use crate::store::Store;
 use crate::watchdog::Ctx;
@@ -684,7 +684,7 @@ impl<'c> Sealer<'c> {
             ticket,
         }?;
 
-        let piece_infos = fetch_field! {
+        let piece_infos = fetch_cloned_field! {
             self.sector.phases.pieces
         }?;
 
@@ -700,22 +700,27 @@ impl<'c> Sealer<'c> {
         )
         .crit()?;
 
-        let (seal_prover_id, seal_sector_id) = fetch_cloned_field! {
+        let (prover_id, sector_id) = fetch_cloned_field! {
             self.sector.base,
             prove_input,
         }?;
 
-        let out = seal_pre_commit_phase1(
-            proof_type.into(),
-            cache_dir,
-            staged_file,
-            sealed_file,
-            seal_prover_id,
-            seal_sector_id,
-            ticket.0,
-            piece_infos,
-        )
-        .abort()?;
+        let out = self
+            .ctx
+            .global
+            .processors
+            .pc1
+            .process(PC1Input {
+                registered_proof: proof_type.into(),
+                cache_path: cache_dir,
+                in_path: staged_file,
+                out_path: sealed_file,
+                prover_id,
+                sector_id,
+                ticket: ticket.0,
+                piece_infos,
+            })
+            .abort()?;
 
         drop(token);
         Ok(Event::PC1(out))

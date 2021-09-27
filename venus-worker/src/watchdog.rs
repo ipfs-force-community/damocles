@@ -17,7 +17,7 @@ use crate::{
     logging::{error, error_span, info, warn},
     rpc::sealer::SealerClient,
     sealing::{
-        processor::{BoxedC2Processor, BoxedPC2Processor, BoxedTreeDProcessor},
+        processor::{BoxedC2Processor, BoxedPC1Processor, BoxedPC2Processor, BoxedTreeDProcessor},
         resource::Pool,
     },
 };
@@ -44,6 +44,7 @@ pub struct GlobalModules {
 #[derive(Clone)]
 pub struct GloablProcessors {
     pub tree_d: Arc<BoxedTreeDProcessor>,
+    pub pc1: Arc<BoxedPC1Processor>,
     pub pc2: Arc<BoxedPC2Processor>,
     pub c2: Arc<BoxedC2Processor>,
 }
