@@ -111,6 +111,10 @@ var utilMinerCreateCmd = &cli.Command{
 			Name:  "multiaddr",
 			Usage: "P2P peer address of the miner",
 		},
+		&cli.StringFlag{
+			Name:  "exid",
+			Usage: "extra identifier to avoid duplicate msg id for pushing into venus-messager",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		api, gctx, stop, err := extractAPI(cctx)
@@ -234,6 +238,11 @@ var utilMinerCreateCmd = &cli.Command{
 		}
 
 		mid := mblk.Cid().String()
+		if exid := cctx.String("exid"); exid != "" {
+			mid = fmt.Sprintf("%s-%s", mid, exid)
+			Log.Warnf("use specified exed-id", mid)
+		}
+
 		rmid, err := api.Messager.PushMessageWithId(gctx, mid, msg, &messager.MsgMeta{})
 		if err != nil {
 			return RPCCallError("PushMessageWithId", err)

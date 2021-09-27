@@ -18,7 +18,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
-var Log = logging.New("sealer")
+var Log = logging.New("venus-sector-manager")
 
 var HomeFlag = &cli.StringFlag{
 	Name:  "home",
