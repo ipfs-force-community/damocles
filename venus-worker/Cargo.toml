@@ -53,3 +53,7 @@ version = "0.16"
 [dependencies.jsonrpc-core-client]
 version = "17.0"
 path = "./jsonrpc-core-client"
+
+[features]
+default = ["numa"]
+numa = []

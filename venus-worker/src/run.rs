@@ -170,7 +170,7 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
             SealProof::try_from(size).with_context(|| format!("invalid sector size {}", k))?;
             let tree_path = PathBuf::from(v.to_owned())
                 .canonicalize()
-                .with_context(|| format!("invalid tree_d path {:?} for sector size", v, k))?;
+                .with_context(|| format!("invalid tree_d path {} for sector size {}", v, k))?;
 
             trees.insert(size, tree_path);
         }

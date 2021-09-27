@@ -88,6 +88,14 @@ fn start_child(stage: Stage, cfg: &config::ExtSub) -> Result<(Child, ChildStdin,
         }
     }
 
+    #[cfg(feature = "numa")]
+    if let Some(preferred) = cfg.numa_preferred {
+        envs.insert(
+            crate::sys::numa::ENV_NUMA_PREFERRED.to_owned(),
+            preferred.to_string(),
+        );
+    }
+
     let bin = cfg
         .bin
         .as_ref()

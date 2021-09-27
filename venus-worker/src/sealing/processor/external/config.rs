@@ -1,6 +1,7 @@
 //! config structs for external processors
 
 use std::collections::HashMap;
+use std::os::raw::c_int;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -42,4 +43,7 @@ pub struct ExtSub {
 
     /// env pairs for the sub-process of the external processor
     pub envs: Option<HashMap<String, String>>,
+
+    /// preferred numa node number
+    pub numa_preferred: Option<c_int>,
 }
