@@ -11,7 +11,10 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
+
+var log = logging.New("sectors")
 
 var _ api.SectorManager = (*Manager)(nil)
 
@@ -69,6 +72,7 @@ func (m *Manager) Allocate(ctx context.Context, allowedMiners []abi.ActorID, all
 			defer wg.Done()
 
 			if miners[mi].Disabled {
+				log.Warnw("sector allocator disabled", "miner", miners[mi].ID)
 				errs[mi] = errMinerDisabled
 				return
 			}
@@ -144,7 +148,11 @@ func (m *Manager) Allocate(ctx context.Context, allowedMiners []abi.ActorID, all
 		} else {
 			max := *selected.cfg.MaxNumber
 			check = func(next uint64) bool {
-				return next <= max
+				ok := next <= max
+				if !ok {
+					log.Warnw("max number exceeded", "max", max, "miner", selected.info.ID)
+				}
+				return ok
 			}
 		}
 
