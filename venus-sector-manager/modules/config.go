@@ -12,6 +12,17 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 )
 
+func init() {
+	fake, err := address.NewFromString("f1abjxfbp274xpdqcpuaykwkfb43omjotacm2p3za")
+	if err != nil {
+		panic(fmt.Errorf("parse fake address: %w", err))
+	}
+
+	fakeAddress = MustAddress(fake)
+}
+
+var fakeAddress MustAddress
+
 const ConfigKey = "sector-manager"
 
 func init() {
@@ -35,7 +46,7 @@ func ExampleConfig() Config {
 		MaxNumber:  &maxNumber,
 		Disabled:   false,
 	})
-	defaultCfg.Commitment.Miners["example"] = CommitmentMinerConfig{}
+	defaultCfg.Commitment.Miners["example"] = ExampleCommitmentMinerConfig()
 	defaultCfg.PersistedStore.Includes = append(defaultCfg.PersistedStore.Includes, "unavailable")
 	defaultCfg.PersistedStore.Stores = append(defaultCfg.PersistedStore.Stores, filestore.Config{
 		Name:     "storage name,like `100.100.10.1`",
@@ -44,13 +55,8 @@ func ExampleConfig() Config {
 		ReadOnly: true,
 	})
 
-	exampleSender, err := address.NewFromString("f1abjxfbp274xpdqcpuaykwkfb43omjotacm2p3za")
-	if err != nil {
-		panic(fmt.Errorf("parse example address: %w", err))
-	}
-
 	defaultCfg.PoSt.Actors["10000"] = PoStActorConfig{
-		Sender: MustAddress(exampleSender),
+		Sender: fakeAddress,
 		PoStPolicyConfigOptional: PoStPolicyConfigOptional{
 			StrictCheck:       &defaultCfg.PoSt.Default.StrictCheck,
 			GasOverEstimation: &defaultCfg.PoSt.Default.GasOverEstimation,
@@ -167,7 +173,19 @@ type CommitmentPolicyConfig struct {
 }
 
 func DefaultCommitmentPolicy() CommitmentPolicyConfig {
-	return CommitmentPolicyConfig{}
+	return CommitmentPolicyConfig{
+		CommitBatchThreshold:            16,
+		CommitBatchMaxWait:              Duration(time.Hour),
+		CommitCheckInterval:             Duration(time.Minute),
+		PreCommitBatchThreshold:         16,
+		PreCommitBatchMaxWait:           Duration(time.Hour),
+		PreCommitCheckInterval:          Duration(time.Minute),
+		PreCommitGasOverEstimation:      0,
+		ProCommitGasOverEstimation:      0,
+		BatchPreCommitGasOverEstimation: 0,
+		BatchProCommitGasOverEstimation: 0,
+		MsgConfidence:                   10,
+	}
 
 }
 
@@ -202,6 +220,25 @@ type CommitmentControlAddress struct {
 type CommitmentMinerConfig struct {
 	Controls CommitmentControlAddress
 	CommitmentPolicyConfigOptional
+}
+
+func ExampleCommitmentMinerConfig() CommitmentMinerConfig {
+	defaultCfg := DefaultCommitmentPolicy()
+	return CommitmentMinerConfig{
+		Controls: CommitmentControlAddress{
+			PreCommit:   fakeAddress,
+			ProveCommit: fakeAddress,
+		},
+		CommitmentPolicyConfigOptional: CommitmentPolicyConfigOptional{
+			CommitCheckInterval:             &defaultCfg.CommitCheckInterval,
+			PreCommitCheckInterval:          &defaultCfg.PreCommitCheckInterval,
+			PreCommitGasOverEstimation:      &defaultCfg.PreCommitGasOverEstimation,
+			ProCommitGasOverEstimation:      &defaultCfg.ProCommitGasOverEstimation,
+			BatchPreCommitGasOverEstimation: &defaultCfg.BatchPreCommitGasOverEstimation,
+			BatchProCommitGasOverEstimation: &defaultCfg.BatchProCommitGasOverEstimation,
+			MsgConfidence:                   &defaultCfg.MsgConfidence,
+		},
+	}
 }
 
 type RPCClientConfig struct {
