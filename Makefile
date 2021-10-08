@@ -12,7 +12,7 @@ build-worker:
 	cargo build --release --manifest-path=./venus-worker/Cargo.toml
 	cp $(shell cargo metadata --format-version=1 --manifest-path=./venus-worker/Cargo.toml | jq -r ".target_directory")/release/venus-worker ./dist/bin/
 
-claen:
+clean:
 	$(MAKE) -C ./venus-sector-manager/ clean
 
 dist-clean:
