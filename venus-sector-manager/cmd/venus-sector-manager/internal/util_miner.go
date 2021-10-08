@@ -243,13 +243,20 @@ var utilMinerCreateCmd = &cli.Command{
 			Log.Warnf("use specified exed-id", mid)
 		}
 
-		rmid, err := api.Messager.PushMessageWithId(gctx, mid, msg, &messager.MsgMeta{})
+		has, err := api.Messager.HasMessageByUid(gctx, mid)
 		if err != nil {
-			return RPCCallError("PushMessageWithId", err)
+			return RPCCallError("HasMessageByUid", err)
 		}
 
-		if rmid != mid {
-			Log.Warnf("mcid not equal to recv id: %s != %s", mid, rmid)
+		if !has {
+			rmid, err := api.Messager.PushMessageWithId(gctx, mid, msg, &messager.MsgMeta{})
+			if err != nil {
+				return RPCCallError("PushMessageWithId", err)
+			}
+
+			if rmid != mid {
+				Log.Warnf("mcid not equal to recv id: %s != %s", mid, rmid)
+			}
 		}
 
 		mlog = mlog.With("mid", mid)
@@ -259,7 +266,7 @@ var utilMinerCreateCmd = &cli.Command{
 			mlog.Info("wait for message receipt")
 			time.Sleep(30 * time.Second)
 
-			ret, err := api.Messager.GetMessageByUid(gctx, rmid)
+			ret, err := api.Messager.GetMessageByUid(gctx, mid)
 			if err != nil {
 				mlog.Warnf("GetMessageByUid: %s", err)
 				continue
