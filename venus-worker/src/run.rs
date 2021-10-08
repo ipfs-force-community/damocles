@@ -128,7 +128,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .path
         .as_ref()
         .cloned()
-        .ok_or(anyhow!("remote path is required for mock"))?;
+        .ok_or(anyhow!("remote path is required for deamon"))?;
     let remote = Box::new(FileStore::open(remote_store, cfg.remote.instance.clone())?);
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
