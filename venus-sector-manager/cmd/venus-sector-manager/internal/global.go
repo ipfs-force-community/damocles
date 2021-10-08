@@ -18,7 +18,9 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
-var Log = logging.New("venus-sector-manager")
+const logSubSystem = "cmd"
+
+var Log = logging.New(logSubSystem)
 
 var HomeFlag = &cli.StringFlag{
 	Name:  "home",
@@ -67,8 +69,6 @@ type API struct {
 }
 
 func extractAPI(cctx *cli.Context) (*API, context.Context, stopper, error) {
-	logging.SetupForSub("sealer")
-
 	gctx, gcancel := NewSigContext(cctx.Context)
 
 	var capi chain.API

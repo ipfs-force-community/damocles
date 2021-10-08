@@ -159,6 +159,7 @@ var utilMinerCreateCmd = &cli.Command{
 		}
 
 		mlog := Log.With("size", sizeStr, "from", fromStr, "actor", actor.String())
+		mlog.Info("constructing message")
 
 		owner := actor
 		if s := cctx.String("owner"); s != "" {
@@ -240,7 +241,8 @@ var utilMinerCreateCmd = &cli.Command{
 		mid := mblk.Cid().String()
 		if exid := cctx.String("exid"); exid != "" {
 			mid = fmt.Sprintf("%s-%s", mid, exid)
-			Log.Warnf("use specified exed-id", mid)
+			mlog = mlog.With("exed-id", exid)
+			mlog.Warnf("use exed message id")
 		}
 
 		has, err := api.Messager.HasMessageByUid(gctx, mid)
@@ -255,7 +257,7 @@ var utilMinerCreateCmd = &cli.Command{
 			}
 
 			if rmid != mid {
-				Log.Warnf("mcid not equal to recv id: %s != %s", mid, rmid)
+				mlog.Warnf("mcid not equal to recv id: %s != %s", mid, rmid)
 			}
 		}
 
