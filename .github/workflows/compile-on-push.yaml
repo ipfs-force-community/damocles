@@ -40,9 +40,9 @@ jobs:
       - name: build venus-worker
         run: make build-worker
 
-      - name: upload bins
-        uses: actions/upload-artifact@v2
-        with:
-          name: venus-cluster-bins
-          path: ./dist/bin/
-          if-no-files-found: error
+      # - name: upload bins
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: venus-cluster-bins
+      #     path: ./dist/bin/
+      #     if-no-files-found: error
