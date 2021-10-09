@@ -1,6 +1,6 @@
 //! external implementations of processors
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::{bounded, Sender};
 
 use super::*;
@@ -21,7 +21,8 @@ where
 {
     pub fn build(cfg: &config::Ext) -> Result<(Self, Vec<sub::SubProcess<I>>)> {
         let (input_tx, input_rx) = bounded(0);
-        let subproc = sub::start_sub_processes(cfg, input_rx)?;
+        let subproc = sub::start_sub_processes(cfg, input_rx)
+            .with_context(|| format!("start sub process for stage {}", I::STAGE.name()))?;
 
         let proc = Self { input_tx };
 
@@ -35,11 +36,17 @@ where
 {
     fn process(&self, input: I) -> Result<I::Out> {
         let (res_tx, res_rx) = bounded(0);
-        self.input_tx
-            .send((input, res_tx))
-            .map_err(|e| anyhow!("failed to send input through chan: {:?}", e))?;
+        self.input_tx.send((input, res_tx)).map_err(|e| {
+            anyhow!(
+                "failed to send input through chan for stage {}: {:?}",
+                I::STAGE.name(),
+                e
+            )
+        })?;
 
-        let res = res_rx.recv()?;
+        let res = res_rx
+            .recv()
+            .with_context(|| format!("recv process result for stage {}", I::STAGE.name()))?;
 
         res
     }

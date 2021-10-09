@@ -31,7 +31,8 @@ impl CtrlGroup {
                 match sub {
                     Subsystem::CpuSet(ctrl) => {
                         ctrl.create();
-                        ctrl.set_cpus(cpuset).context("setup cpuset")?;
+                        ctrl.set_cpus(cpuset)
+                            .with_context(|| format!("set cpuset to {}", cpuset))?;
                         wanted.insert(sidx);
                         break;
                     }

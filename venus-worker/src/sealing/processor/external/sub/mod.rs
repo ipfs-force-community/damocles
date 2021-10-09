@@ -53,20 +53,22 @@ pub(super) fn start_sub_processes<I: Input>(
 
     for (i, sub_cfg) in sub_cfgs.iter().enumerate() {
         let name = format!("sub-{}-{}-{}", stage.name(), std::process::id(), i);
-        let (child, stdin, stdout) = start_child(stage, sub_cfg)?;
+        let (child, stdin, stdout) = start_child(stage, sub_cfg)
+            .with_context(|| format!("start child with name {}", name))?;
 
         let mut cg = sub_cfg
             .cgroup
             .as_ref()
             .map(|c| cgroup::CtrlGroup::new(&name, c))
-            .transpose()?;
+            .transpose()
+            .with_context(|| format!("construct cgroup with name {}", name))?;
 
         if let Some(inner) = cg.as_mut() {
             let pid = child.id() as u64;
             info!(child = pid, group = name.as_str(), "add into cgroup");
             inner
                 .add_task(pid.into())
-                .context("add task id into cgroup")?;
+                .with_context(|| format!("add task id {} into cgroup", pid))?;
         }
 
         let proc: SubProcess<_> = SubProcess::new(input_rx.clone(), name, child, stdin, stdout, cg);
@@ -101,7 +103,7 @@ fn start_child(stage: Stage, cfg: &config::ExtSub) -> Result<(Child, ChildStdin,
         .as_ref()
         .cloned()
         .map(|s| Ok(PathBuf::from(s)))
-        .unwrap_or(current_exe())?;
+        .unwrap_or(current_exe().context("get current exe name"))?;
 
     let mut child = Command::new(bin)
         .args(&["processor", stage.name()])
@@ -109,7 +111,8 @@ fn start_child(stage: Stage, cfg: &config::ExtSub) -> Result<(Child, ChildStdin,
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .spawn()?;
+        .spawn()
+        .context("spawn command")?;
 
     let stdin = child.stdin.take().ok_or(anyhow!("child stdin not found"))?;
 

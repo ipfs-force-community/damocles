@@ -33,7 +33,8 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         "start initializing mock impl"
     );
 
-    let cfg = config::Config::load(&cfg_path)?;
+    let cfg = config::Config::load(&cfg_path)
+        .with_context(|| format!("load from config file {}", cfg_path))?;
 
     info!("config loaded:\n {:?}", cfg);
 
@@ -43,7 +44,10 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         .as_ref()
         .cloned()
         .ok_or(anyhow!("remote path is required for mock"))?;
-    let remote_store = Box::new(FileStore::open(remote, cfg.remote.instance.clone())?);
+    let remote_store = Box::new(
+        FileStore::open(&remote, cfg.remote.instance.clone())
+            .with_context(|| format!("open remote filestore {}", remote))?,
+    );
 
     let mock_impl = mock::SimpleMockSealerRpc::new(miner, proof_type);
     let mut io = IoHandler::new();
@@ -52,12 +56,12 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let mock_client = local::connect::<SealerClient, _, _>(io)
         .map_err(|e| anyhow!("build local client: {:?}", e))?;
 
-    let (processors, modules) = start_processors(&cfg)?;
+    let (processors, modules) = start_processors(&cfg).context("start processors")?;
 
-    let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
+    let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing).context("load store manager")?;
     let workers = store_mgr.into_workers();
 
-    let static_tree_d = construct_static_tree_d(&cfg)?;
+    let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
     let globl = GlobalModules {
         rpc: Arc::new(mock_client),
@@ -99,7 +103,8 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
 
 /// start a normal venus-worker daemon
 pub fn start_deamon(cfg_path: String) -> Result<()> {
-    let cfg = config::Config::load(&cfg_path)?;
+    let cfg = config::Config::load(&cfg_path)
+        .with_context(|| format!("load from config file {}", cfg_path))?;
     info!("config loaded\n {:?}", cfg);
 
     let remote_store = cfg
@@ -108,27 +113,40 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .as_ref()
         .cloned()
         .ok_or(anyhow!("remote path is required for deamon"))?;
-    let remote = Box::new(FileStore::open(remote_store, cfg.remote.instance.clone())?);
+    let remote = Box::new(
+        FileStore::open(&remote_store, cfg.remote.instance.clone())
+            .with_context(|| format!("open remote filestore {}", remote_store))?,
+    );
 
-    let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
+    let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing).context("load store manager")?;
 
     let rpc_connect_req = cfg.sealer_rpc.to_connect_info();
 
-    let rpc_client = ws::connect(rpc_connect_req).map_err(|e| anyhow!("ws connect: {:?}", e))?;
+    let rpc_client = ws::connect(rpc_connect_req)
+        .map_err(|e| anyhow!("ws connect: {:?}", e))
+        .with_context(|| format!("rpc url {}", cfg.sealer_rpc.url))?;
 
     let instance = if let Some(name) = cfg.instance.as_ref().and_then(|s| s.name.as_ref()).cloned()
     {
         name
     } else {
-        let local_ip = socket_addr_from_url(&cfg.sealer_rpc.url).and_then(local_interface_ip)?;
+        let local_ip = socket_addr_from_url(&cfg.sealer_rpc.url)
+            .with_context(|| {
+                format!(
+                    "attempt to connect to sealer rpc service {}",
+                    &cfg.sealer_rpc.url
+                )
+            })
+            .and_then(local_interface_ip)
+            .context("get local ip")?;
         format!("{}", local_ip)
     };
 
-    let (processors, modules) = start_processors(&cfg)?;
+    let (processors, modules) = start_processors(&cfg).context("start processors")?;
 
     let workers = store_mgr.into_workers();
 
-    let static_tree_d = construct_static_tree_d(&cfg)?;
+    let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
     let globl = GlobalModules {
         rpc: Arc::new(rpc_client),

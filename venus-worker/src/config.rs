@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use jsonrpc_core_client::transports::ws::ConnectInfo;
 use serde::{Deserialize, Serialize};
 use toml::from_slice;
@@ -190,16 +190,16 @@ impl Config {
     /// load config from the reader
     pub fn from_reader<R: Read>(mut r: R) -> Result<Self> {
         let mut content = Vec::with_capacity(1 << 10);
-        r.read_to_end(&mut content)?;
+        r.read_to_end(&mut content).context("read content")?;
 
-        let cfg = from_slice(&content)?;
+        let cfg = from_slice(&content).context("deserialize config")?;
 
         Ok(cfg)
     }
 
     /// load from config file
     pub fn load<P: AsRef<Path>>(p: P) -> Result<Self> {
-        let f = File::open(p)?;
+        let f = File::open(p).context("open file")?;
         Self::from_reader(f)
     }
 }
@@ -221,7 +221,9 @@ impl Config {
             .cloned()
             .unwrap_or(DEFAULT_WORKER_SERVER_PORT);
 
-        let addr = format!("{}:{}", host, port).parse()?;
+        let addr = format!("{}:{}", host, port)
+            .parse()
+            .with_context(|| format!("parse listen address with host: {}, port: {}", host, port))?;
         Ok(addr)
     }
 }
