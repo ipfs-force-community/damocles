@@ -1054,7 +1054,7 @@ impl<'c> Sealer<'c> {
             p2out,
             piece_infos,
         )
-        .abort()?;
+        .perm()?;
 
         drop(token);
         Ok(Event::C1(out))
@@ -1082,7 +1082,7 @@ impl<'c> Sealer<'c> {
                 prover_id,
                 sector_id,
             })
-            .abort()?;
+            .perm()?;
 
         drop(token);
         Ok(Event::C2(out))
