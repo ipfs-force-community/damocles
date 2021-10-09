@@ -31,6 +31,10 @@ var (
 	errMsgSectorInfoNotFound    = "sector info not found on chain"
 )
 
+var (
+	errNoControlAddrsAvailable = fmt.Errorf("no control address available")
+)
+
 var log = logging.New("commitmgr")
 
 type CommitmentMgrImpl struct {
@@ -284,6 +288,10 @@ func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
 }
 
 func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info api.PreCommitInfo, hardReset bool) (api.SubmitPreCommitResp, error) {
+	if _, has := c.cfg.ctrl(id.Miner); !has {
+		return api.SubmitPreCommitResp{}, fmt.Errorf("%w: %d", errNoControlAddrsAvailable, id.Miner)
+	}
+
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.SubmitPreCommitResp{}, err
@@ -383,6 +391,10 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 }
 
 func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, info api.ProofInfo, hardReset bool) (api.SubmitProofResp, error) {
+	if _, has := c.cfg.ctrl(id.Miner); !has {
+		return api.SubmitProofResp{}, fmt.Errorf("%w: %d", errNoControlAddrsAvailable, id.Miner)
+	}
+
 	sector, err := c.smgr.Load(ctx, id)
 	if err != nil {
 		return api.SubmitProofResp{}, err
