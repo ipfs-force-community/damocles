@@ -10,6 +10,8 @@ pub struct WorkerInfo {
     /// store location
     pub location: PathBuf,
 
+    pub sector_id: Option<String>,
+
     /// index for other control operations
     pub index: usize,
 

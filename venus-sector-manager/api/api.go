@@ -3,8 +3,8 @@ package api
 import (
 	"context"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/filecoin-project/venus/pkg/types"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 
 	"github.com/filecoin-project/go-state-types/abi"
 )
@@ -27,6 +27,8 @@ type SealerAPI interface {
 	SubmitProof(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error)
 
 	PollProofState(context.Context, abi.SectorID) (PollProofStateResp, error)
+
+	ListSectors(context.Context) ([]*SectorState, error)
 
 	ReportState(context.Context, abi.SectorID, ReportStateReq) error
 
@@ -62,7 +64,7 @@ type CommitmentManager interface {
 }
 
 type SectorNumberAllocator interface {
-	Next(context.Context, abi.ActorID) (uint64, error)
+	Next(context.Context, abi.ActorID, uint64, func(uint64) bool) (uint64, bool, error)
 }
 
 type SectorStateManager interface {

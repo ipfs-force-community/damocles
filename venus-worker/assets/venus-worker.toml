@@ -8,9 +8,15 @@ max_retries = 3
 [[store]]
 location = "./tmp/store1"
 
+[[store]]
+location = "./tmp/store2"
+
+[[store]]
+location = "./tmp/store3"
+
 [limit]
-pc1 = 1
-pc2 = 1
+pc1 = 3
+pc2 = 2
 c2 = 1
 
 [remote]
@@ -19,8 +25,17 @@ path = "./tmp/remote"
 [processors.pc2]
 external = true
 
+[[processors.pc2.subs]]
+# [processors.pc2.subs.cgroup]
+# cpuset = "24-27"
+
+[[processors.pc2.subs]]
+[processors.pc2.subs.cgroup]
+cpuset = "28-31"
+
 [processors.c2]
 external = true
 
-[processors.c2.cgroup]
-cpuset = "24-47"
+[[processors.c2.subs]]
+[processors.c2.subs.cgroup]
+cpuset = "32-47"

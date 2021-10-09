@@ -13,18 +13,14 @@ use crate::rpc::sealer::{
     AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo,
     ReportStateReq, SectorFailure, SectorID, SectorStateChange, SubmitResult, WorkerIdentifier,
 };
-use crate::sealing::seal::{add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1};
+use crate::sealing::processor::{
+    add_piece, clear_cache, seal_commit_phase1, seal_pre_commit_phase1, PaddedBytesAmount, Stage,
+    UnpaddedBytesAmount,
+};
+use crate::store::Store;
 use crate::watchdog::Ctx;
 
-use super::{
-    super::{
-        seal::{PaddedBytesAmount, Stage, UnpaddedBytesAmount},
-        store::Store,
-    },
-    *,
-};
-
-use super::HandleResult;
+use super::*;
 
 const SECTOR_INFO_KEY: &str = "info";
 const SECTOR_META_PREFIX: &str = "meta";
@@ -241,8 +237,40 @@ impl<'c> Sealer<'c> {
             let enter = span.enter();
 
             let prev = self.sector.state;
+            let is_empty = match self.sector.base.as_ref() {
+                None => true,
+                Some(base) => {
+                    if unsafe { self.ctrl_ctx.sector_id.as_ptr().as_ref() }
+                        .and_then(|inner| inner.as_ref())
+                        .is_none()
+                    {
+                        // set sector id for the first time
+                        self.ctrl_ctx.sector_id.store(Some(format!(
+                            "m-{}-s-{}",
+                            base.allocated.id.miner, base.allocated.id.number
+                        )));
+                    }
+                    false
+                }
+            };
 
             let handle_res = self.handle(event.take());
+            if is_empty {
+                match self.sector.base.as_ref() {
+                    Some(base) => {
+                        self.ctrl_ctx.sector_id.store(Some(format!(
+                            "m-{}-s-{}",
+                            base.allocated.id.miner, base.allocated.id.number
+                        )));
+                    }
+
+                    None => {}
+                };
+            } else {
+                if self.sector.base.is_none() {
+                    self.ctrl_ctx.sector_id.store(None);
+                }
+            }
 
             let fail = if let Err(eref) = handle_res.as_ref() {
                 Some(SectorFailure {
@@ -276,6 +304,16 @@ impl<'c> Sealer<'c> {
 
                     self.finalize()?;
                     return Ok(());
+                }
+
+                Err(Failure(Level::Abort, aerr)) => {
+                    if let Err(rerr) = self.report_finalized() {
+                        error!("report aborted sector finalized failed: {:?}", rerr);
+                    }
+
+                    warn!("cleanup aborted sector");
+                    self.finalize()?;
+                    return Err(aerr.abort());
                 }
 
                 Err(Failure(Level::Temporary, terr)) => {

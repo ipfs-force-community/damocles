@@ -36,34 +36,47 @@ pub(super) fn ready_msg(name: &str) -> String {
     format!("{} processor ready", name)
 }
 
-pub(super) fn start_sub_process<I: Input>(
+pub(super) fn start_sub_processes<I: Input>(
     cfg: &config::Ext,
     input_rx: Receiver<(I, Sender<Result<I::Out>>)>,
-) -> Result<SubProcess<I>> {
+) -> Result<Vec<SubProcess<I>>> {
+    let sub_cfgs = match &cfg.subs {
+        Some(s) if s.len() > 0 => s,
+
+        _ => {
+            return Err(anyhow!("no subs section found"));
+        }
+    };
+
+    let mut processes = Vec::with_capacity(sub_cfgs.len());
     let stage = I::STAGE;
-    let name = format!("sub-{}-{}", stage.name(), std::process::id());
 
-    let (child, stdin, stdout) = start_child(stage, cfg)?;
-    let mut cg = cfg
-        .cgroup
-        .as_ref()
-        .map(|c| cgroup::CtrlGroup::new(&name, c))
-        .transpose()?;
+    for (i, sub_cfg) in sub_cfgs.iter().enumerate() {
+        let name = format!("sub-{}-{}-{}", stage.name(), std::process::id(), i);
+        let (child, stdin, stdout) = start_child(stage, sub_cfg)?;
 
-    if let Some(inner) = cg.as_mut() {
-        let pid = child.id() as u64;
-        info!(child = pid, group = name.as_str(), "add into cgroup");
-        inner
-            .add_task(pid.into())
-            .context("add task id into cgroup")?;
+        let mut cg = sub_cfg
+            .cgroup
+            .as_ref()
+            .map(|c| cgroup::CtrlGroup::new(&name, c))
+            .transpose()?;
+
+        if let Some(inner) = cg.as_mut() {
+            let pid = child.id() as u64;
+            info!(child = pid, group = name.as_str(), "add into cgroup");
+            inner
+                .add_task(pid.into())
+                .context("add task id into cgroup")?;
+        }
+
+        let proc: SubProcess<_> = SubProcess::new(input_rx.clone(), name, child, stdin, stdout, cg);
+        processes.push(proc);
     }
 
-    let proc: SubProcess<_> = SubProcess::new(input_rx, name, child, stdin, stdout, cg);
-
-    Ok(proc)
+    Ok(processes)
 }
 
-fn start_child(stage: Stage, cfg: &config::Ext) -> Result<(Child, ChildStdin, ChildStdout)> {
+fn start_child(stage: Stage, cfg: &config::ExtSub) -> Result<(Child, ChildStdin, ChildStdout)> {
     let mut envs = HashMap::new();
     for (k, v) in vars() {
         envs.insert(k, v);

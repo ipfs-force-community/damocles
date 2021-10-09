@@ -1,16 +1,19 @@
 package confmgr
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/fsnotify/fsnotify"
 )
 
 type cfgItem struct {
@@ -22,23 +25,16 @@ type cfgItem struct {
 }
 
 func NewLocal(dir string) (ConfigManager, error) {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return nil, fmt.Errorf("construct fsnotify watcher: %w", err)
-	}
-
 	return &localMgr{
-		dir:     dir,
-		watcher: watcher,
-		delay:   10 * time.Second,
-		reg:     map[string]*cfgItem{},
+		dir:   dir,
+		delay: 10 * time.Second,
+		reg:   map[string]*cfgItem{},
 	}, nil
 }
 
 type localMgr struct {
-	dir     string
-	watcher *fsnotify.Watcher
-	delay   time.Duration
+	dir   string
+	delay time.Duration
 
 	regmu sync.RWMutex
 	reg   map[string]*cfgItem
@@ -53,53 +49,28 @@ func (lm *localMgr) run(ctx context.Context) {
 	log.Info("local conf mgr start")
 	defer log.Info("local conf mgr stop")
 
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGUSR1)
+
 	for {
 		select {
 		case <-ctx.Done():
 			log.Warnf("context done")
 			return
 
-		case event, ok := <-lm.watcher.Events:
-			if !ok {
-				return
+		case <-ch:
+			lm.regmu.Lock()
+			for i := range lm.reg {
+				go lm.loadModified(ctx, i, lm.reg[i])
 			}
-
-			if event.Op&fsnotify.Write != fsnotify.Write {
-				continue
-			}
-
-			lm.regmu.RLock()
-			item, has := lm.reg[event.Name]
-			lm.regmu.RUnlock()
-			if !has {
-				log.Warnw("config item not found", "fname", event.Name)
-				continue
-			}
-
-			lctx, lcancel := context.WithCancel(ctx)
-
-			if item.cancel != nil {
-				item.cancel()
-			}
-
-			item.cancel = lcancel
-
-			go lm.loadModified(lctx, event.Name, item)
-
-		case err, ok := <-lm.watcher.Errors:
-			if !ok {
-				log.Warnf("watcher error chan closed")
-				return
-			}
-
-			log.Warnf("watcher error: %s", err)
+			lm.regmu.Unlock()
 		}
+
 	}
 
 }
 
 func (lm *localMgr) Close(ctx context.Context) error {
-	lm.watcher.Close()
 	return nil
 }
 
@@ -151,10 +122,6 @@ func (lm *localMgr) Watch(ctx context.Context, key string, c interface{}, wlock 
 		return fmt.Errorf("duplicate watching file %s", fname)
 	}
 
-	if err := lm.watcher.Add(fname); err != nil {
-		return fmt.Errorf("add watcher for %s: %w", fname, err)
-	}
-
 	lm.reg[fname] = &cfgItem{
 		c:      c,
 		crv:    valC,
@@ -163,7 +130,7 @@ func (lm *localMgr) Watch(ctx context.Context, key string, c interface{}, wlock 
 		newfn:  newfn,
 	}
 
-	log.Infof("start to watch %s(%s)", key, fname)
+	log.Infof("will reload %s(%s) once receive reload sig", key, fname)
 
 	return nil
 }
@@ -201,6 +168,13 @@ func (lm *localMgr) loadModified(ctx context.Context, fname string, c *cfgItem) 
 	c.wlock.Lock()
 	c.crv.Elem().Set(reflect.ValueOf(obj).Elem())
 	c.wlock.Unlock()
+	buf := bytes.Buffer{}
+	encode := toml.NewEncoder(&buf)
+	err = encode.Encode(obj)
+	if err != nil {
+		l.Errorf("failed to marshal obj: %s", err)
+		return
+	}
 
-	l.Infof("%s loaded & updated", fname)
+	l.Infof("%s loaded & updated, after updated cfg is %s\n", fname, buf.String())
 }

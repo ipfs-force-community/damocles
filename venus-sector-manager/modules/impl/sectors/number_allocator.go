@@ -7,8 +7,8 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 )
 
 var _ api.SectorNumberAllocator = (*NumberAllocator)(nil)
@@ -26,7 +26,7 @@ type NumberAllocator struct {
 	locker *sectorsLocker
 }
 
-func (na *NumberAllocator) Next(ctx context.Context, mid abi.ActorID) (uint64, error) {
+func (na *NumberAllocator) Next(ctx context.Context, mid abi.ActorID, initNum uint64, check func(uint64) bool) (uint64, bool, error) {
 	lock := na.locker.lock(abi.SectorID{
 		Miner:  mid,
 		Number: 0,
@@ -48,17 +48,22 @@ func (na *NumberAllocator) Next(ctx context.Context, mid abi.ActorID) (uint64, e
 	case nil:
 
 	case kvstore.ErrKeyNotFound:
+		current = initNum
 
 	default:
-		return 0, fmt.Errorf("fetch current number for %d: %w", mid, err)
+		return 0, false, fmt.Errorf("fetch current number for %d: %w", mid, err)
 	}
 
 	current++
+	if !check(current) {
+		return current, false, nil
+	}
+
 	data := make([]byte, binary.MaxVarintLen64)
 	written := binary.PutUvarint(data, current)
 	if err := na.store.Put(ctx, key, data[:written]); err != nil {
-		return 0, fmt.Errorf("write next seq number: %w", err)
+		return 0, false, fmt.Errorf("write next seq number: %w", err)
 	}
 
-	return current, nil
+	return current, true, nil
 }

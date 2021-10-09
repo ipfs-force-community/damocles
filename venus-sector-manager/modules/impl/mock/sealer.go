@@ -78,6 +78,10 @@ func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (api.Poll
 	return s.commit.ProofState(ctx, sid)
 }
 
+func (s *Sealer) ListSectors(context.Context) ([]*api.SectorState, error) {
+	return nil, nil
+}
+
 func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) error {
 	log.Warnf("report state change for m-%d-s-%d: %#v", sid.Miner, sid.Number, req)
 	return nil

@@ -25,7 +25,8 @@ var (
 	errMsgPublishAttemptFailed  = "attempt to publish message but failed"
 	errMsgReceiptNotFound       = "receipt not found for on-chain message"
 	errMsgSectorAllocated       = "sector already allocated"
-	errMsgPreCommitInfoNotFound = "pre-commit info not found"
+	errMsgPreCommitInfoNotFound = "pre-commit info not found on chain"
+	errMsgSectorInfoNotFound    = "sector info not found on chain"
 )
 
 var log = logging.New("commitmgr")
@@ -82,13 +83,17 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 }
 
 func updateSector(ctx context.Context, stmgr api.SectorStateManager, sector []api.SectorState, plog *logging.ZapLogger) {
+	sectorID := make([]abi.SectorID, len(sector), len(sector))
 	for i := range sector {
+		sectorID[i] = sector[i].ID
 		sector[i].MessageInfo.NeedSend = false
 		err := stmgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
 		if err != nil {
 			plog.With("sector", sector[i].ID.Number).Errorf("Update sector MessageInfo failed: %s", err)
 		}
 	}
+
+	plog.Infof("Process sectors %v finished", sectorID)
 }
 
 func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, value abi.TokenAmount, method abi.MethodNum,
@@ -358,28 +363,10 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 		return api.PollPreCommitStateResp{}, err
 	}
 
-	log.Debugw("get message receipt", "mcid", sector.MessageInfo.PreCommitCid.String(), "msg-state", messager.MsgStateToString(msg.State))
+	mlog := log.With("sector-id", id, "stage", "pre-commit")
 
-	switch msg.State {
-	case messager.MessageState.OnChainMsg:
-		confidence := c.cfg.policy(id.Miner).MsgConfidence
-		if msg.Confidence < confidence {
-			return api.PollPreCommitStateResp{State: api.OnChainStatePacked}, nil
-		}
-
-		if msg.Receipt == nil {
-			return api.PollPreCommitStateResp{State: api.OnChainStateFailed, Desc: &errMsgReceiptNotFound}, nil
-		}
-
-		if msg.Receipt.ExitCode != exitcode.Ok {
-			resp := api.PollPreCommitStateResp{State: api.OnChainStateFailed}
-			if len(msg.Receipt.ReturnValue) > 0 {
-				maybeMsg := string(msg.Receipt.ReturnValue)
-				resp.Desc = &maybeMsg
-			}
-			return resp, nil
-		}
-
+	state, maybe := c.handleMessage(ctx, id.Miner, msg, mlog)
+	if state == api.OnChainStateLanded {
 		_, err := c.stateMgr.StateSectorPreCommitInfo(ctx, maddr, id.Number, nil)
 		if err == ErrSectorAllocated {
 			return api.PollPreCommitStateResp{State: api.OnChainStatePermFailed, Desc: &errMsgSectorAllocated}, nil
@@ -388,21 +375,9 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 		if err != nil {
 			return api.PollPreCommitStateResp{}, err
 		}
-
-		return api.PollPreCommitStateResp{State: api.OnChainStateLanded}, nil
-
-	case messager.MessageState.FailedMsg:
-		resp := api.PollPreCommitStateResp{State: api.OnChainStateFailed}
-		if msg.Receipt != nil && len(msg.Receipt.ReturnValue) > 0 {
-			maybeMsg := string(msg.Receipt.ReturnValue)
-			resp.Desc = &maybeMsg
-		}
-
-		return resp, nil
-
-	default:
-		return api.PollPreCommitStateResp{State: api.OnChainStatePending}, nil
 	}
+
+	return api.PollPreCommitStateResp{State: state, Desc: maybe}, nil
 }
 
 func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, info api.ProofInfo, hardReset bool) (api.SubmitProofResp, error) {
@@ -493,51 +468,63 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (ap
 		return api.PollProofStateResp{}, err
 	}
 
-	log.Debugw("get message receipt", "mcid", sector.MessageInfo.CommitCid.String(), "msg-state", messager.MsgStateToString(msg.State))
-
-	switch msg.State {
-	case messager.MessageState.OnChainMsg:
-		confidence := c.cfg.policy(id.Miner).MsgConfidence
-		if msg.Confidence < confidence {
-			return api.PollProofStateResp{State: api.OnChainStatePacked}, nil
-		}
-
-		if msg.Receipt == nil {
-			return api.PollProofStateResp{State: api.OnChainStateFailed, Desc: &errMsgReceiptNotFound}, nil
-		}
-
-		if msg.Receipt.ExitCode != exitcode.Ok {
-			resp := api.PollProofStateResp{State: api.OnChainStateFailed}
-			if len(msg.Receipt.ReturnValue) > 0 {
-				maybeMsg := string(msg.Receipt.ReturnValue)
-				resp.Desc = &maybeMsg
-			}
-			return resp, nil
-		}
-
+	mlog := log.With("sector-id", id, "stage", "prove-commit")
+	state, maybe := c.handleMessage(ctx, id.Miner, msg, mlog)
+	if state == api.OnChainStateLanded {
 		si, err := c.stateMgr.StateSectorGetInfo(ctx, maddr, id.Number, nil)
 
 		if err != nil {
 			return api.PollProofStateResp{}, err
 		}
 
-		if si != nil {
-			return api.PollProofStateResp{State: api.OnChainStateLanded}, nil
+		if si == nil {
+			return api.PollProofStateResp{State: api.OnChainStateFailed, Desc: &errMsgSectorInfoNotFound}, nil
+		}
+	}
+
+	return api.PollProofStateResp{State: state, Desc: maybe}, nil
+}
+
+func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, msg *messager.Message, mlog *logging.ZapLogger) (api.OnChainState, *string) {
+	mlog = mlog.With("msg-cid", msg.ID, "msg-state", messager.MsgStateToString(msg.State))
+	if msg.SignedCid != nil {
+		mlog = mlog.With("msg-signed-cid", msg.SignedCid.String())
+	}
+
+	mlog.Debug("handle message receipt")
+
+	var maybeMsg *string
+	if msg.Receipt != nil && len(msg.Receipt.ReturnValue) > 0 {
+		msgRet := string(msg.Receipt.ReturnValue)
+		if msg.State != messager.MessageState.OnChainMsg {
+			mlog.Warnf("MAYBE WARN from off-chani msg recepit: %s", msgRet)
 		}
 
-		return api.PollProofStateResp{State: api.OnChainStateFailed}, nil
+		maybeMsg = &msgRet
+	}
+
+	switch msg.State {
+	case messager.MessageState.OnChainMsg:
+		confidence := c.cfg.policy(mid).MsgConfidence
+		if msg.Confidence < confidence {
+			return api.OnChainStatePacked, maybeMsg
+		}
+
+		if msg.Receipt == nil {
+			return api.OnChainStateFailed, &errMsgReceiptNotFound
+		}
+
+		if msg.Receipt.ExitCode != exitcode.Ok {
+			return api.OnChainStateFailed, maybeMsg
+		}
+
+		return api.OnChainStateLanded, maybeMsg
 
 	case messager.MessageState.FailedMsg:
-		resp := api.PollProofStateResp{State: api.OnChainStateFailed}
-		if msg.Receipt != nil && len(msg.Receipt.ReturnValue) > 0 {
-			maybeMsg := string(msg.Receipt.ReturnValue)
-			resp.Desc = &maybeMsg
-		}
-
-		return resp, nil
+		return api.OnChainStateFailed, maybeMsg
 
 	default:
-		return api.PollProofStateResp{State: api.OnChainStatePending}, err
+		return api.OnChainStatePending, maybeMsg
 	}
 }
 

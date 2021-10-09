@@ -6,7 +6,7 @@ use forest_address::Address;
 use super::sector::{Base, Sector, State};
 use crate::logging::trace;
 use crate::rpc::sealer::{AllocatedSector, Deals, Seed, Ticket};
-use crate::sealing::seal::{
+use crate::sealing::processor::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
     SealPreCommitPhase2Output, SectorId,
 };

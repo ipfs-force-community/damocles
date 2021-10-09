@@ -78,6 +78,7 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 			}
 
 			sectors[idx].MessageInfo.CommitCid = &mcid
+			slog.Info("push commit success, cid: ", mcid)
 		}(i)
 	}
 	wg.Wait()
@@ -86,6 +87,9 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "prove", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
+
+	start := time.Now()
+	defer plog.Infof("finished process, elasped %s", time.Since(start))
 
 	defer updateSector(ctx, c.smgr, sectors, plog)
 

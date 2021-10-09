@@ -111,6 +111,10 @@ var utilMinerCreateCmd = &cli.Command{
 			Name:  "multiaddr",
 			Usage: "P2P peer address of the miner",
 		},
+		&cli.StringFlag{
+			Name:  "exid",
+			Usage: "extra identifier to avoid duplicate msg id for pushing into venus-messager",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		api, gctx, stop, err := extractAPI(cctx)
@@ -155,6 +159,7 @@ var utilMinerCreateCmd = &cli.Command{
 		}
 
 		mlog := Log.With("size", sizeStr, "from", fromStr, "actor", actor.String())
+		mlog.Info("constructing message")
 
 		owner := actor
 		if s := cctx.String("owner"); s != "" {
@@ -234,13 +239,26 @@ var utilMinerCreateCmd = &cli.Command{
 		}
 
 		mid := mblk.Cid().String()
-		rmid, err := api.Messager.PushMessageWithId(gctx, mid, msg, &messager.MsgMeta{})
-		if err != nil {
-			return RPCCallError("PushMessageWithId", err)
+		if exid := cctx.String("exid"); exid != "" {
+			mid = fmt.Sprintf("%s-%s", mid, exid)
+			mlog = mlog.With("exed-id", exid)
+			mlog.Warnf("use exed message id")
 		}
 
-		if rmid != mid {
-			Log.Warnf("mcid not equal to recv id: %s != %s", mid, rmid)
+		has, err := api.Messager.HasMessageByUid(gctx, mid)
+		if err != nil {
+			return RPCCallError("HasMessageByUid", err)
+		}
+
+		if !has {
+			rmid, err := api.Messager.PushMessageWithId(gctx, mid, msg, &messager.MsgMeta{})
+			if err != nil {
+				return RPCCallError("PushMessageWithId", err)
+			}
+
+			if rmid != mid {
+				mlog.Warnf("mcid not equal to recv id: %s != %s", mid, rmid)
+			}
 		}
 
 		mlog = mlog.With("mid", mid)
@@ -250,7 +268,7 @@ var utilMinerCreateCmd = &cli.Command{
 			mlog.Info("wait for message receipt")
 			time.Sleep(30 * time.Second)
 
-			ret, err := api.Messager.GetMessageByUid(gctx, rmid)
+			ret, err := api.Messager.GetMessageByUid(gctx, mid)
 			if err != nil {
 				mlog.Warnf("GetMessageByUid: %s", err)
 				continue

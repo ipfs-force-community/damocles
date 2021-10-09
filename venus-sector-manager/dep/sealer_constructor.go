@@ -1,14 +1,18 @@
 package dep
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/BurntSushi/toml"
 	"go.uber.org/fx"
 
+	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/commitmgr"
@@ -20,6 +24,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
+	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
 )
 
 type (
@@ -27,6 +32,7 @@ type (
 	OfflineMetaStore            kvstore.KVStore
 	PersistedObjectStoreManager objstore.Manager
 	SectorIndexMetaStore        kvstore.KVStore
+	ListenAddress               string
 )
 
 func BuildLocalSectorManager(cfg *modules.Config, locker confmgr.RLocker, mapi api.MinerInfoAPI, numAlloc api.SectorNumberAllocator) (api.SectorManager, error) {
@@ -56,6 +62,15 @@ func ProvideConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigMan
 	if err := cfgmgr.Load(gctx, modules.ConfigKey, &cfg); err != nil {
 		return nil, err
 	}
+
+	buf := bytes.Buffer{}
+	encode := toml.NewEncoder(&buf)
+	err := encode.Encode(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("Sector-manager initial cfg: %s\n", buf.String())
 
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
@@ -159,6 +174,42 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Conf
 	return mcli, nil
 }
 
+func BuildSealerClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) (api.SealerClient, error) {
+	var scli api.SealerClient
+
+	addr, err := net.ResolveTCPAddr("tcp", string(listen))
+	if err != nil {
+		return scli, err
+	}
+
+	ip := addr.IP
+	if ip == nil || ip.Equal(net.IPv4zero) {
+		ip = net.IPv4(127, 0, 0, 1)
+	}
+
+	maddr := fmt.Sprintf("/ip4/%s/tcp/%d", ip, addr.Port)
+
+	ainfo := apiinfo.NewAPIInfo(maddr, "")
+	apiAddr, err := ainfo.DialArgs("v0")
+	if err != nil {
+		return scli, err
+	}
+
+	closer, err := jsonrpc.NewClient(gctx, apiAddr, "Venus", &scli, ainfo.AuthHeader())
+	if err != nil {
+		return scli, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			closer()
+			return nil
+		},
+	})
+
+	return scli, nil
+}
+
 func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (chain.API, error) {
 	locker.Lock()
 	api, token := scfg.Chain.Api, scfg.Chain.Token
@@ -196,7 +247,7 @@ func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg
 				for i := range miners {
 					go func(mi int) {
 						defer wg.Done()
-						mid := miners[mi]
+						mid := miners[mi].ID
 
 						mlog := log.With("miner", mid)
 						_, err := mapi.Get(gctx, mid)

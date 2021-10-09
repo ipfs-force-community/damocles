@@ -36,7 +36,7 @@ var daemonInitCmd = &cli.Command{
 			return fmt.Errorf("construct config manager: %w", err)
 		}
 
-		cfg := modules.DefaultConfig()
+		cfg := modules.ExampleConfig()
 		if err := cfgmgr.SetDefault(cctx.Context, modules.ConfigKey, cfg); err != nil {
 			return fmt.Errorf("init sealer config: %w", err)
 		}
@@ -49,10 +49,7 @@ var daemonInitCmd = &cli.Command{
 var daemonRunCmd = &cli.Command{
 	Name: "run",
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:  "listen",
-			Value: ":1789",
-		},
+		internal.SealerListenFlag,
 		&cli.BoolFlag{
 			Name:  "poster",
 			Value: false,
