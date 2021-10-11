@@ -7,7 +7,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{ensure, Result};
 use jsonrpc_core_client::transports::ws::ConnectInfo;
 use serde::{Deserialize, Serialize};
 use toml::from_slice;
@@ -92,6 +92,28 @@ pub struct SealingOptional {
 
     /// ignore proof state check
     pub ignore_proof_check: Option<bool>,
+}
+
+impl SealingOptional {
+    fn check(&self) -> Result<()> {
+        for (name, interval) in &[
+            ("seal_interval", self.seal_interval),
+            ("recover_interval", self.recover_interval),
+            ("rpc_polling_interval", self.rpc_polling_interval),
+        ] {
+            ensure!(
+                interval.map(|v| v.as_secs() > 0).unwrap_or(true),
+                format!("{} should be greater than '0's", name)
+            );
+        }
+
+        ensure!(
+            self.max_retries.map(|re| re <= 1024).unwrap_or(true),
+            "max_retries should be less or equal than 1024"
+        );
+
+        Ok(())
+    }
 }
 
 /// configuration for remote store
@@ -185,7 +207,8 @@ impl Config {
         let mut content = Vec::with_capacity(1 << 10);
         r.read_to_end(&mut content)?;
 
-        let cfg = from_slice(&content)?;
+        let cfg: Self = from_slice(&content)?;
+        cfg.check()?;
 
         Ok(cfg)
     }
@@ -193,7 +216,19 @@ impl Config {
     /// load from config file
     pub fn load<P: AsRef<Path>>(p: P) -> Result<Self> {
         let f = File::open(p)?;
-        Self::from_reader(f)
+        let cfg = Self::from_reader(f)?;
+        cfg.check()?;
+        Ok(cfg)
+    }
+
+    fn check(&self) -> Result<()> {
+        for store in &self.store {
+            if let Some(cfg) = &store.sealing {
+                cfg.check()?;
+            }
+        }
+
+        self.sealing.check()
     }
 }
 
