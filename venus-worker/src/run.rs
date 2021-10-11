@@ -73,7 +73,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let mock_client = local::connect::<SealerClient, _, _>(io)
         .map_err(|e| anyhow!("build local client: {:?}", e))?;
 
-    let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
+    let store_mgr = StoreManager::load(&cfg.stores, &cfg.sealing)?;
     let workers = store_mgr.into_workers();
 
     let globl = GlobalModules {
@@ -135,7 +135,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .ok_or(anyhow!("remote path is required for deamon"))?;
     let remote = Box::new(FileStore::open(remote_store, cfg.remote.instance.clone())?);
 
-    let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing)?;
+    let store_mgr = StoreManager::load(&cfg.stores, &cfg.sealing)?;
 
     let rpc_connect_req = cfg.sealer_rpc.to_connect_info();
 

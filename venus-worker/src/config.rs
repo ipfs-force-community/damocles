@@ -189,7 +189,7 @@ pub struct Config {
     pub sealing: SealingOptional,
 
     /// section for list of sector stores
-    pub store: Vec<Store>,
+    pub stores: Vec<Store>,
 
     /// section for concurrent limit
     pub limit: HashMap<String, usize>,
@@ -222,7 +222,7 @@ impl Config {
     }
 
     fn check(&self) -> Result<()> {
-        for store in &self.store {
+        for store in &self.stores {
             if let Some(cfg) = &store.sealing {
                 cfg.check()?;
             }
