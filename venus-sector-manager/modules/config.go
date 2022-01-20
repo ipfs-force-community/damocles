@@ -79,7 +79,8 @@ func DefaultConfig() Config {
 			Includes: make([]string, 0),
 			Stores:   make([]filestore.Config, 0),
 		},
-		PoSt: DefaultPoStConfig(),
+		PoSt:          DefaultPoStConfig(),
+		RegisterProof: RegisterProofConfig{},
 	}
 }
 
@@ -91,6 +92,8 @@ type Config struct {
 	PersistedStore FileStoreConfig
 	// TODO: use separate config for each actor
 	PoSt PoStConfig
+
+	RegisterProof RegisterProofConfig
 }
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
@@ -312,4 +315,9 @@ type PoStPolicyConfigOptional struct {
 type PoStActorConfig struct {
 	Sender MustAddress
 	PoStPolicyConfigOptional
+}
+
+type RegisterProofConfig struct {
+	Apis  []string
+	Token string
 }

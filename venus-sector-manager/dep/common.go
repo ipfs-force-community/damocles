@@ -15,4 +15,5 @@ const (
 	InjectMessagerAPI
 	StartPoSter
 	InjectSealerClient
+	StartMiner
 )

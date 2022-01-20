@@ -11,18 +11,18 @@ require (
 	github.com/filecoin-project/go-address v0.0.5
 	github.com/filecoin-project/go-bitfield v0.2.4
 	github.com/filecoin-project/go-fil-commcid v0.0.0-20201016201715-d41df56b4f6a
-	github.com/filecoin-project/go-fil-markets v1.2.5 // indirect
 	github.com/filecoin-project/go-jsonrpc v0.1.4-0.20210217175800-45ea43ac2bec
-	github.com/filecoin-project/go-state-types v0.1.1-0.20210506134452-99b279731c48
+	github.com/filecoin-project/go-state-types v0.1.1-0.20210722133031-ad9bfe54c124
 	github.com/filecoin-project/specs-actors v0.9.14
 	github.com/filecoin-project/specs-actors/v2 v2.3.5
 	github.com/filecoin-project/specs-actors/v5 v5.0.1
 	github.com/filecoin-project/specs-storage v0.1.1-0.20201105051918-5188d9774506
 	github.com/filecoin-project/venus v1.0.5-0.20210903071919-7e01268384a0
 	github.com/filecoin-project/venus-messager v1.1.0
-	github.com/fsnotify/fsnotify v1.4.9
+	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ipfs-force-community/venus-common-utils v0.0.0-20210714054928-2042a9040759
+	github.com/ipfs-force-community/venus-common-utils v0.0.0-20210924063144-1d3a5b30de87
+	github.com/ipfs-force-community/venus-gateway v1.1.2-0.20220106064158-4c3c21fa1811
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipfs-blockstore v1.0.3

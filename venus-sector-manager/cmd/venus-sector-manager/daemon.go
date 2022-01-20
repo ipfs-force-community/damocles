@@ -70,6 +70,7 @@ var daemonRunCmd = &cli.Command{
 				cctx.Bool("poster"),
 				dep.PoSter(),
 			),
+			dep.Miner(),
 			dep.Sealer(&node),
 		)
 		if err != nil {

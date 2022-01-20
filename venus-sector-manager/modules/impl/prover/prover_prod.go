@@ -47,3 +47,9 @@ func (prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, secto
 
 	return proof, faultyIDs, err
 }
+
+func (p prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sectors SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]proof5.PoStProof, error) {
+	randomness[31] &= 0x3f
+
+	return ffi.GenerateWinningPoSt(minerID, sectors, randomness)
+}

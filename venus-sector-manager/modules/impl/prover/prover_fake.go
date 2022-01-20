@@ -34,3 +34,7 @@ func (prover) AggregateSealProofs(ctx context.Context, aggregateInfo proof5.Aggr
 func (prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, sectors SortedPrivateSectorInfo, randomness abi.PoStRandomness) (proof []proof5.PoStProof, skipped []abi.SectorID, err error) {
 	return nil, nil, nil
 }
+
+func (prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sectors SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]proof5.PoStProof, error) {
+	return nil, nil
+}
