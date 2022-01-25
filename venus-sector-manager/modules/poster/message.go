@@ -6,9 +6,10 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/cbor"
-	mtypes "github.com/filecoin-project/venus-messager/types"
-	"github.com/filecoin-project/venus/pkg/specactors"
-	"github.com/filecoin-project/venus/pkg/types"
+
+	"github.com/filecoin-project/venus/venus-shared/actors"
+	"github.com/filecoin-project/venus/venus-shared/types"
+	mtypes "github.com/filecoin-project/venus/venus-shared/types/messager"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
@@ -26,7 +27,7 @@ func (s *scheduler) publishMessage(ctx context.Context, method abi.MethodNum, pa
 
 	policy := postPolicyFromConfig(s.actor.ID, s.cfg)
 
-	encoded, err := specactors.SerializeParams(params)
+	encoded, err := actors.SerializeParams(params)
 	if err != nil {
 		return "", nil, fmt.Errorf("serialize params: %w", err)
 	}

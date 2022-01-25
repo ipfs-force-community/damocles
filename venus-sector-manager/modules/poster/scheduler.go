@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"golang.org/x/xerrors"
 	"sync"
 	"time"
 
@@ -13,12 +14,13 @@ import (
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/specs-storage/storage"
-	"github.com/filecoin-project/venus/pkg/clock"
-	"github.com/filecoin-project/venus/pkg/specactors/builtin"
-	"github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
-	specpolicy "github.com/filecoin-project/venus/pkg/specactors/policy"
-	"github.com/filecoin-project/venus/pkg/types"
 	"github.com/hashicorp/go-multierror"
+
+	"github.com/filecoin-project/venus/pkg/clock"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -703,8 +705,12 @@ func (s *scheduler) batchPartitions(partitions []chain.Partition, nv network.Ver
 	}
 
 	// Also respect the AddressedPartitionsMax (which is the same as DeclarationsMax (which is all really just MaxPartitionsPerDeadline))
-	if partitionsPerMsg > specpolicy.GetDeclarationsMax(nv) {
-		partitionsPerMsg = specpolicy.GetDeclarationsMax(nv)
+	declMax, err := specpolicy.GetDeclarationsMax(nv)
+	if err != nil {
+		return nil, xerrors.Errorf("getting max declarations: %w", err)
+	}
+	if partitionsPerMsg > declMax {
+		partitionsPerMsg = declMax
 	}
 
 	// The number of messages will be:

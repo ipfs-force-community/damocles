@@ -7,9 +7,10 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
-	"github.com/filecoin-project/venus/pkg/specactors"
-	"github.com/filecoin-project/venus/pkg/specactors/policy"
+
+	"github.com/filecoin-project/venus/venus-shared/actors"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	"github.com/filecoin-project/venus/venus-shared/actors/policy"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 )
@@ -97,9 +98,16 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 		return nil, big.Zero(), nil, fmt.Errorf("failed to get network version: %w", err)
 	}
 
-	msd := policy.GetMaxProveCommitDuration(specactors.VersionForNetwork(nv), sector.SectorType)
+	av, err := actors.VersionForNetwork(nv)
+	if err != nil {
+		return nil, big.Zero(), nil, fmt.Errorf("unsupported network vrsion: %w", err)
+	}
+	mpcd, err := policy.GetMaxProveCommitDuration(av, sector.SectorType)
+	if err != nil {
+		return nil, big.Zero(), nil, fmt.Errorf("getting max prove commit duration: %w", err)
+	}
 	// TODO: get costumer config
-	if minExpiration := sector.Ticket.Epoch + policy.MaxPreCommitRandomnessLookback + msd + miner.MinSectorExpiration; expiration < minExpiration {
+	if minExpiration := sector.Ticket.Epoch + policy.MaxPreCommitRandomnessLookback + mpcd + miner.MinSectorExpiration; expiration < minExpiration {
 		expiration = minExpiration
 	}
 

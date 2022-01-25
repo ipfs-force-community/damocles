@@ -4,20 +4,23 @@ import (
 	"context"
 
 	"github.com/filecoin-project/go-jsonrpc"
-	"github.com/filecoin-project/venus-messager/api/client"
-	"github.com/filecoin-project/venus-messager/types"
-	vtypes "github.com/filecoin-project/venus/pkg/types"
+
 	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
+
+	"github.com/filecoin-project/venus-messager/api/client"
+
+	"github.com/filecoin-project/venus/venus-shared/types"
+	mtypes "github.com/filecoin-project/venus/venus-shared/types/messager"
 )
 
 type (
-	UnsignedMessage = vtypes.UnsignedMessage
-	MsgMeta         = types.MsgMeta
-	Message         = types.Message
-	MessageReceipt  = vtypes.MessageReceipt
+	UnsignedMessage = types.Message
+	MsgMeta         = mtypes.SendSpec
+	Message         = mtypes.Message
+	MessageReceipt  = types.MessageReceipt
 )
 
-var MsgStateToString = types.MsgStateToString
+var MessageStateToString = mtypes.MessageStateToString
 
 var MessageState = struct {
 	UnKnown,
@@ -26,15 +29,15 @@ var MessageState = struct {
 	OnChainMsg,
 	FailedMsg,
 	ReplacedMsg,
-	NoWalletMsg types.MessageState
+	NoWalletMsg mtypes.MessageState
 }{
-	types.UnKnown,
-	types.UnFillMsg,
-	types.FillMsg,
-	types.OnChainMsg,
-	types.FailedMsg,
-	types.ReplacedMsg,
-	types.NoWalletMsg,
+	mtypes.UnKnown,
+	mtypes.UnFillMsg,
+	mtypes.FillMsg,
+	mtypes.OnChainMsg,
+	mtypes.FailedMsg,
+	mtypes.ReplacedMsg,
+	mtypes.NoWalletMsg,
 }
 
 type API interface {

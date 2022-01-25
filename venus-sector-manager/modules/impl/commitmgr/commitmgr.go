@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/ipfs/go-cid"
+	mh "github.com/multiformats/go-multihash"
+
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/exitcode"
-	venusTypes "github.com/filecoin-project/venus/pkg/types"
-	"github.com/ipfs/go-cid"
-	mh "github.com/multiformats/go-multihash"
+
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -104,7 +106,7 @@ func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, val
 		return cid.Undef, err
 	}
 
-	msg := venusTypes.UnsignedMessage{
+	msg := types.Message{
 		To:     to,
 		From:   from,
 		Value:  value,
@@ -486,7 +488,7 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (ap
 }
 
 func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, msg *messager.Message, mlog *logging.ZapLogger) (api.OnChainState, *string) {
-	mlog = mlog.With("msg-cid", msg.ID, "msg-state", messager.MsgStateToString(msg.State))
+	mlog = mlog.With("msg-cid", msg.ID, "msg-state", messager.MessageStateToString(msg.State))
 	if msg.SignedCid != nil {
 		mlog = mlog.With("msg-signed-cid", msg.SignedCid.String())
 	}
@@ -494,8 +496,8 @@ func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, 
 	mlog.Debug("handle message receipt")
 
 	var maybeMsg *string
-	if msg.Receipt != nil && len(msg.Receipt.ReturnValue) > 0 {
-		msgRet := string(msg.Receipt.ReturnValue)
+	if msg.Receipt != nil && len(msg.Receipt.Return) > 0 {
+		msgRet := string(msg.Receipt.Return)
 		if msg.State != messager.MessageState.OnChainMsg {
 			mlog.Warnf("MAYBE WARN from off-chani msg recepit: %s", msgRet)
 		}

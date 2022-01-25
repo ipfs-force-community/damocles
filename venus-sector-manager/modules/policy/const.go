@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/venus/fixtures/networks"
-	"github.com/filecoin-project/venus/pkg/specactors/builtin"
-	"github.com/filecoin-project/venus/pkg/specactors/policy"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	"github.com/filecoin-project/venus/venus-shared/actors/policy"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
@@ -19,10 +19,6 @@ func SetupNetwork(name string) error {
 	switch name {
 	case "mainnet":
 		NetParams = networks.Mainnet()
-	case "nerpa":
-		NetParams = networks.NerpaNet()
-	case "testnetnet":
-		NetParams = networks.Testnet()
 	case "integrationnet":
 		NetParams = networks.IntegrationNet()
 	case "2k":
@@ -31,8 +27,10 @@ func SetupNetwork(name string) error {
 		NetParams = networks.Calibration()
 	case "interop":
 		NetParams = networks.InteropNet()
-	case "forcenet":
+	case "force":
 		NetParams = networks.ForceNet()
+	case "butterfly":
+		NetParams = networks.ButterflySnapNet()
 	default:
 		return fmt.Errorf("invalid network name %s", name)
 	}
