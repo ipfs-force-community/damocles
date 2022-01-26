@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/venus/pkg/types"
+
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -115,7 +116,11 @@ func (p *PoSter) Run(ctx context.Context) {
 				firstTime = false
 			}
 
-			ch := p.chain.ChainNotify(ctx)
+			ch, err := p.chain.ChainNotify(ctx)
+			if err != nil {
+				log.Errorf("get ChainNotify error: %w", err)
+				continue
+			}
 			if ch == nil {
 				log.Error("get nil ChainNotify receiver")
 				continue

@@ -5,24 +5,25 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ipfs/go-cid"
+	cbg "github.com/whyrusleeping/cbor-gen"
+
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/network"
-	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
-	market5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/market"
-	"github.com/filecoin-project/venus/pkg/chain"
-	"github.com/filecoin-project/venus/pkg/specactors"
-	"github.com/filecoin-project/venus/pkg/specactors/builtin/market"
-	"github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
-	miner1 "github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
-	"github.com/filecoin-project/venus/pkg/types"
-	"github.com/ipfs/go-cid"
-	cbg "github.com/whyrusleeping/cbor-gen"
 
-	chainAPI "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
+	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
+	market5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/market"
+
+	"github.com/filecoin-project/venus/pkg/chain"
+	"github.com/filecoin-project/venus/venus-shared/actors"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/market"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	"github.com/filecoin-project/venus/venus-shared/types"
+
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	chainAPI "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 )
 
 type SealingAPIImpl struct {
@@ -50,12 +51,12 @@ func (s SealingAPIImpl) StateComputeDataCommitment(ctx context.Context, maddr ad
 
 	var ccparams []byte
 	if nv < network.Version13 {
-		ccparams, err = specactors.SerializeParams(&market2.ComputeDataCommitmentParams{
+		ccparams, err = actors.SerializeParams(&market2.ComputeDataCommitmentParams{
 			DealIDs:    deals,
 			SectorType: sectorType,
 		})
 	} else {
-		ccparams, err = specactors.SerializeParams(&market5.ComputeDataCommitmentParams{
+		ccparams, err = actors.SerializeParams(&market5.ComputeDataCommitmentParams{
 			Inputs: []*market5.SectorDataSpec{
 				{
 					DealIDs:    deals,
@@ -70,10 +71,10 @@ func (s SealingAPIImpl) StateComputeDataCommitment(ctx context.Context, maddr ad
 	}
 
 	ccmt := &types.Message{
-		To:     builtin5.StorageMarketActorAddr,
+		To:     market.Address,
 		From:   maddr,
 		Value:  types.NewInt(0),
-		Method: builtin5.MethodsMarket.ComputeDataCommitment,
+		Method: market.Methods.ComputeDataCommitment,
 		Params: ccparams,
 	}
 	r, err := s.api.StateCall(ctx, ccmt, tsk)
@@ -86,7 +87,7 @@ func (s SealingAPIImpl) StateComputeDataCommitment(ctx context.Context, maddr ad
 
 	if nv < network.Version13 {
 		var c cbg.CborCid
-		if err := c.UnmarshalCBOR(bytes.NewReader(r.MsgRct.ReturnValue)); err != nil {
+		if err := c.UnmarshalCBOR(bytes.NewReader(r.MsgRct.Return)); err != nil {
 			return cid.Undef, fmt.Errorf("failed to unmarshal CBOR to CborCid: %w", err)
 		}
 
@@ -94,7 +95,7 @@ func (s SealingAPIImpl) StateComputeDataCommitment(ctx context.Context, maddr ad
 	}
 
 	var cr market5.ComputeDataCommitmentReturn
-	if err := cr.UnmarshalCBOR(bytes.NewReader(r.MsgRct.ReturnValue)); err != nil {
+	if err := cr.UnmarshalCBOR(bytes.NewReader(r.MsgRct.Return)); err != nil {
 		return cid.Undef, fmt.Errorf("failed to unmarshal CBOR to CborCid: %w", err)
 	}
 
@@ -117,7 +118,7 @@ func (s SealingAPIImpl) StateSectorPreCommitInfo(ctx context.Context, maddr addr
 	}
 	stor := chain.ActorStore(ctx, chainAPI.NewAPIBlockstore(s.api))
 
-	state, err := miner1.Load(stor, act)
+	state, err := miner.Load(stor, act)
 	if err != nil {
 		return nil, fmt.Errorf("handleSealFailed(%d): temp error: loading miner state: %w", sectorNumber, err)
 	}

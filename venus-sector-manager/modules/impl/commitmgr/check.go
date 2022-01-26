@@ -7,8 +7,10 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+
 	proof2 "github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
-	"github.com/filecoin-project/venus/pkg/types"
+
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
@@ -56,6 +58,7 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorSta
 		return &ErrBadCommD{fmt.Errorf("on chain CommD differs: %s != %s ", si.Pre.CommD, commD)}
 	}
 
+	// never commit P2 message before, check ticket expiration
 	ticketEarliest := height - policy.MaxPreCommitRandomnessLookback
 
 	if si.Ticket.Epoch < ticketEarliest {

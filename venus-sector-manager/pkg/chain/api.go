@@ -4,10 +4,12 @@ import (
 	"context"
 
 	"github.com/filecoin-project/go-jsonrpc"
-	"github.com/filecoin-project/venus/app/client"
-	"github.com/filecoin-project/venus/app/submodule/apitypes"
-	"github.com/filecoin-project/venus/pkg/chain"
+
 	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
+
+	"github.com/filecoin-project/venus/pkg/chain"
+	"github.com/filecoin-project/venus/venus-shared/api/chain/v1"
+	"github.com/filecoin-project/venus/venus-shared/types"
 )
 
 const (
@@ -17,21 +19,21 @@ const (
 )
 
 type (
-	HeadChange = chain.HeadChange
-	Partition  = apitypes.Partition
+	HeadChange = types.HeadChange
+	Partition  = types.Partition
 )
 
 type API struct {
-	client.IChainInfoStruct
-	client.ISyncerStruct
-	client.IActorStruct
-	client.IBlockStoreStruct
-	client.IMinerStateStruct
+	v1.IChainInfoStruct
+	v1.ISyncerStruct
+	v1.IActorStruct
+	v1.IBlockStoreStruct
+	v1.IMinerStateStruct
 }
 
 func New(ctx context.Context, api, token string) (API, jsonrpc.ClientCloser, error) {
 	ainfo := apiinfo.NewAPIInfo(api, token)
-	addr, err := ainfo.DialArgs("v0")
+	addr, err := ainfo.DialArgs("v1")
 	if err != nil {
 		return API{}, nil, err
 	}

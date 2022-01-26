@@ -10,10 +10,11 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/specs-actors/v5/actors/builtin"
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
-	specactors "github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
+
+	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
+
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
@@ -54,7 +55,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 				return
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, deposit, specactors.Methods.PreCommitSector, p.msgClient, spec, enc.Bytes(), slog)
+			mcid, err := pushMessage(ctx, from, mid, deposit, miner.Methods.PreCommitSector, p.msgClient, spec, enc.Bytes(), slog)
 			if err != nil {
 				slog.Error("push pre-commit single failed: ", err)
 				return
@@ -96,7 +97,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 		})
 	}
 
-	params := miner.PreCommitSectorBatchParams{}
+	params := miner5.PreCommitSectorBatchParams{}
 
 	deposit := big.Zero()
 	for i := range infos {
@@ -113,7 +114,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	spec.GasOverEstimation = policy.BatchProCommitGasOverEstimation
 	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap.Std()
 
-	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, builtin5.MethodsMiner.PreCommitSectorBatch,
+	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, miner.Methods.PreCommitSectorBatch,
 		p.msgClient, spec, enc.Bytes(), plog)
 	if err != nil {
 		return fmt.Errorf("push batch precommit message failed: %w", err)

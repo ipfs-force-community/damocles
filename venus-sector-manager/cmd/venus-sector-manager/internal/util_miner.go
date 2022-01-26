@@ -7,17 +7,21 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
-	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/big"
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
-	power5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/power"
-	"github.com/filecoin-project/venus/pkg/constants"
-	"github.com/filecoin-project/venus/pkg/specactors"
-	"github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
-	"github.com/filecoin-project/venus/pkg/types"
 	"github.com/libp2p/go-libp2p-core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli/v2"
+
+	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/big"
+
+	power2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
+	power6 "github.com/filecoin-project/specs-actors/v6/actors/builtin/power"
+
+	"github.com/filecoin-project/venus/pkg/constants"
+	"github.com/filecoin-project/venus/venus-shared/actors"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/power"
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
@@ -211,7 +215,7 @@ var utilMinerCreateCmd = &cli.Command{
 			multiaddrs = append(multiaddrs, maddrNop2p.Bytes())
 		}
 
-		params, err := specactors.SerializeParams(&power5.CreateMinerParams{
+		params, err := actors.SerializeParams(&power6.CreateMinerParams{
 			Owner:               owner,
 			Worker:              worker,
 			WindowPoStProofType: postProof,
@@ -226,8 +230,8 @@ var utilMinerCreateCmd = &cli.Command{
 		msg := &messager.UnsignedMessage{
 			From: from,
 
-			To:     builtin5.StoragePowerActorAddr,
-			Method: builtin5.MethodsPower.CreateMiner,
+			To:     power.Address,
+			Method: power.Methods.CreateMiner,
 			Params: params,
 
 			Value: big.Zero(),
@@ -283,7 +287,7 @@ var utilMinerCreateCmd = &cli.Command{
 				mlog.Warnf("no wallet available for the sender %s, please check", from)
 
 			default:
-				mlog.Infof("msg state: %s", messager.MsgStateToString(ret.State))
+				mlog.Infof("msg state: %s", messager.MessageStateToString(ret.State))
 			}
 		}
 
@@ -295,8 +299,8 @@ var utilMinerCreateCmd = &cli.Command{
 			return nil
 		}
 
-		var retval power5.CreateMinerReturn
-		if err := retval.UnmarshalCBOR(bytes.NewReader(mret.Receipt.ReturnValue)); err != nil {
+		var retval power2.CreateMinerReturn
+		if err := retval.UnmarshalCBOR(bytes.NewReader(mret.Receipt.Return)); err != nil {
 			return fmt.Errorf("unmarshal message return: %w", err)
 		}
 

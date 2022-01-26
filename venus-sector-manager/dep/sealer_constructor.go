@@ -13,6 +13,10 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/filecoin-project/go-jsonrpc"
+
+	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
+
+
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/commitmgr"
@@ -24,7 +28,6 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
-	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
 )
 
 type (

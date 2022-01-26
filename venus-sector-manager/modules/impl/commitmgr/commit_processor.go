@@ -12,11 +12,12 @@ import (
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/specs-actors/v5/actors/builtin"
-	builtin5 "github.com/filecoin-project/specs-actors/v5/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
+
+	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
 	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
-	specactors "github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
+
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
@@ -71,7 +72,7 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 				return
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, collateral, specactors.Methods.ProveCommitSector, c.msgClient, spec, enc.Bytes(), slog)
+			mcid, err := pushMessage(ctx, from, mid, collateral, miner.Methods.ProveCommitSector, c.msgClient, spec, enc.Bytes(), slog)
 			if err != nil {
 				slog.Error("push commit single failed: ", err)
 				return
@@ -93,7 +94,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 
 	defer updateSector(ctx, c.smgr, sectors, plog)
 
-	if !c.EnableBatch(mid) || len(sectors) < miner.MinAggregatedSectors {
+	if !c.EnableBatch(mid) || len(sectors) < miner5.MinAggregatedSectors {
 		c.processIndividually(ctx, sectors, ctrlAddr, mid, plog)
 		return nil
 	}
@@ -164,7 +165,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	spec.GasOverEstimation = policy.BatchProCommitGasOverEstimation
 	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap.Std()
 
-	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, builtin5.MethodsMiner.ProveCommitAggregate,
+	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, miner.Methods.ProveCommitAggregate,
 		c.msgClient, spec, enc.Bytes(), plog)
 	if err != nil {
 		return fmt.Errorf("push aggregate prove message failed: %w", err)

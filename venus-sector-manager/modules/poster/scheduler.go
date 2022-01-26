@@ -13,12 +13,16 @@ import (
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/specs-storage/storage"
-	"github.com/filecoin-project/venus/pkg/clock"
-	"github.com/filecoin-project/venus/pkg/specactors/builtin"
-	"github.com/filecoin-project/venus/pkg/specactors/builtin/miner"
-	specpolicy "github.com/filecoin-project/venus/pkg/specactors/policy"
-	"github.com/filecoin-project/venus/pkg/types"
 	"github.com/hashicorp/go-multierror"
+	"golang.org/x/xerrors"
+
+	"github.com/filecoin-project/venus/pkg/clock"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
+	"github.com/filecoin-project/venus/venus-shared/types"
+
+	ffiproof "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -209,7 +213,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 		// Retry until we run out of sectors to prove.
 		for retries := 0; ; retries++ {
 			var partitions []miner.PoStPartition
-			var sinfos []builtin.SectorInfo
+			var xsinfos []builtin.ExtendedSectorInfo
 			for partIdx, partition := range batch {
 				// TODO: Can do this in parallel
 				toProve, err := bitfield.SubtractBitField(partition.LiveSectors, partition.FaultySectors)
@@ -252,14 +256,14 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 					continue
 				}
 
-				sinfos = append(sinfos, ssi...)
+				xsinfos = append(xsinfos, ssi...)
 				partitions = append(partitions, miner.PoStPartition{
 					Index:   uint64(batchPartitionStartIdx + partIdx),
 					Skipped: skipped,
 				})
 			}
 
-			if len(sinfos) == 0 {
+			if len(xsinfos) == 0 {
 				// nothing to prove for this batch
 				break
 			}
@@ -273,7 +277,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 
 			tsStart := s.clock.Now()
 
-			privSectors, err := s.sectorsPubToPrivate(ctx, sinfos)
+			privSectors, err := s.sectorsPubToPrivate(ctx, xsinfos)
 			if err != nil {
 				return nil, fmt.Errorf("turn public sector infos into private: %w", err)
 			}
@@ -305,6 +309,14 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 				}
 
 				// If we generated an incorrect proof, try again.
+				sinfos := make([]builtin.SectorInfo, len(xsinfos))
+				for i, xsi := range xsinfos {
+					sinfos[i] = builtin.SectorInfo{
+						SealProof:    xsi.SealProof,
+						SectorNumber: xsi.SectorNumber,
+						SealedCID:    xsi.SealedCID,
+					}
+				}
 				if correct, err := s.verifier.VerifyWindowPoSt(ctx, api.WindowPoStVerifyInfo{
 					Randomness:        abi.PoStRandomness(checkRand.Rand),
 					Proofs:            postOut,
@@ -364,7 +376,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 	return posts, nil
 }
 
-func (s *scheduler) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.SectorInfo) (api.SortedPrivateSectorInfo, error) {
+func (s *scheduler) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.ExtendedSectorInfo) (api.SortedPrivateSectorInfo, error) {
 	out := make([]api.PrivateSectorInfo, 0, len(sectorInfo))
 	for _, sector := range sectorInfo {
 		sid := storage.SectorRef{
@@ -382,14 +394,28 @@ func (s *scheduler) sectorsPubToPrivate(ctx context.Context, sectorInfo []builti
 			return api.SortedPrivateSectorInfo{}, fmt.Errorf("get objstore instance for %s: %w", util.FormatSectorID(sid.ID), err)
 		}
 
-		subCache := util.SectorPath(util.SectorPathTypeCache, sid.ID)
-		subSealed := util.SectorPath(util.SectorPathTypeSealed, sid.ID)
+		// TODO: Construct paths for snap deals ?
+		proveUpdate := sector.SectorKey != nil
+		var (
+			subCache,subSealed string
+		)
+		if proveUpdate {
 
+		} else {
+			subCache = util.SectorPath(util.SectorPathTypeCache, sid.ID)
+			subSealed = util.SectorPath(util.SectorPathTypeSealed, sid.ID)
+		}
+
+		ffiInfo := ffiproof.SectorInfo{
+			SealProof:    sector.SealProof,
+			SectorNumber: sector.SectorNumber,
+			SealedCID:    sector.SealedCID,
+		}
 		out = append(out, api.PrivateSectorInfo{
 			CacheDirPath:     objins.FullPath(ctx, subCache),
 			PoStProofType:    postProofType,
 			SealedSectorPath: objins.FullPath(ctx, subSealed),
-			SectorInfo:       sector,
+			SectorInfo:       ffiInfo,
 		})
 	}
 
@@ -646,7 +672,7 @@ func (s *scheduler) getObjInstanceForSector(ctx context.Context, sid abi.SectorI
 	return instance, nil
 }
 
-func (s *scheduler) sectorsForProof(ctx context.Context, goodSectors, allSectors bitfield.BitField, ts *types.TipSet) ([]builtin.SectorInfo, error) {
+func (s *scheduler) sectorsForProof(ctx context.Context, goodSectors, allSectors bitfield.BitField, ts *types.TipSet) ([]builtin.ExtendedSectorInfo, error) {
 	sset, err := s.chain.StateMinerSectors(ctx, s.actor.Addr, &goodSectors, ts.Key())
 	if err != nil {
 		return nil, err
@@ -656,22 +682,24 @@ func (s *scheduler) sectorsForProof(ctx context.Context, goodSectors, allSectors
 		return nil, nil
 	}
 
-	substitute := builtin.SectorInfo{
+	substitute := builtin.ExtendedSectorInfo{
 		SectorNumber: sset[0].SectorNumber,
 		SealedCID:    sset[0].SealedCID,
 		SealProof:    sset[0].SealProof,
+		SectorKey:    sset[0].SectorKeyCID,
 	}
 
-	sectorByID := make(map[uint64]builtin.SectorInfo, len(sset))
+	sectorByID := make(map[uint64]builtin.ExtendedSectorInfo, len(sset))
 	for _, sector := range sset {
-		sectorByID[uint64(sector.SectorNumber)] = builtin.SectorInfo{
+		sectorByID[uint64(sector.SectorNumber)] = builtin.ExtendedSectorInfo{
 			SectorNumber: sector.SectorNumber,
 			SealedCID:    sector.SealedCID,
 			SealProof:    sector.SealProof,
+			SectorKey:    sector.SectorKeyCID,
 		}
 	}
 
-	proofSectors := make([]builtin.SectorInfo, 0, len(sset))
+	proofSectors := make([]builtin.ExtendedSectorInfo, 0, len(sset))
 	if err := allSectors.ForEach(func(sectorNo uint64) error {
 		if info, found := sectorByID[sectorNo]; found {
 			proofSectors = append(proofSectors, info)
@@ -703,8 +731,12 @@ func (s *scheduler) batchPartitions(partitions []chain.Partition, nv network.Ver
 	}
 
 	// Also respect the AddressedPartitionsMax (which is the same as DeclarationsMax (which is all really just MaxPartitionsPerDeadline))
-	if partitionsPerMsg > specpolicy.GetDeclarationsMax(nv) {
-		partitionsPerMsg = specpolicy.GetDeclarationsMax(nv)
+	declMax, err := specpolicy.GetDeclarationsMax(nv)
+	if err != nil {
+		return nil, xerrors.Errorf("getting max declarations: %w", err)
+	}
+	if partitionsPerMsg > declMax {
+		partitionsPerMsg = declMax
 	}
 
 	// The number of messages will be:
