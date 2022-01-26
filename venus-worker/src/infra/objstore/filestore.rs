@@ -4,7 +4,7 @@ use std::fs::{create_dir_all, File, OpenOptions};
 use std::io::{copy, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 
 use super::{ObjResult, ObjectStore, Range};
 use crate::{
@@ -33,12 +33,16 @@ impl FileStore {
 
     /// open the file store at given path
     pub fn open<P: AsRef<Path>>(p: P, ins: Option<String>) -> Result<Self> {
-        let dir_path = p.as_ref().canonicalize()?;
-        if !dir_path.metadata().map(|meta| meta.is_dir())? {
+        let dir_path = p.as_ref().canonicalize().context("canonicalize dir path")?;
+        if !dir_path
+            .metadata()
+            .context("read dir metadata")
+            .map(|meta| meta.is_dir())?
+        {
             return Err(anyhow!("base path of the file store should a dir"));
         };
 
-        let _holder = PlaceHolder::open(&dir_path)?;
+        let _holder = PlaceHolder::open(&dir_path).context("open placeholder")?;
 
         let instance = match ins.or(dir_path.to_str().map(|s| s.to_owned())) {
             Some(i) => i,

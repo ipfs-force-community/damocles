@@ -3,7 +3,7 @@
 use std::fs::{create_dir_all, File, OpenOptions};
 use std::path::Path;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 
 const PLACEHOLDER_NAME: &str = ".holder";
 
@@ -28,9 +28,10 @@ impl PlaceHolder {
     pub fn open<P: AsRef<Path>>(dir: P) -> Result<Self> {
         let f = OpenOptions::new()
             .read(true)
-            .open(dir.as_ref().join(PLACEHOLDER_NAME))?;
+            .open(dir.as_ref().join(PLACEHOLDER_NAME))
+            .context("open read-only file")?;
 
-        let meta = f.metadata()?;
+        let meta = f.metadata().context("read file metadata")?;
         if !meta.is_file() {
             return Err(anyhow!("placeholder should be a file"));
         }

@@ -32,10 +32,10 @@ jobs:
       - name: build venus-sector-manager
         run: make build-smgr
 
-      - name: upload venus-sector-manager
-        uses: actions/upload-artifact@v2
-        with:
-          name: venus-sector-manager
-          path: ./dist/bin/
-          if-no-files-found: error
-          retention-days: 3
+      # - name: upload venus-sector-manager
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: venus-sector-manager
+      #     path: ./dist/bin/
+      #     if-no-files-found: error
+      #     retention-days: 3

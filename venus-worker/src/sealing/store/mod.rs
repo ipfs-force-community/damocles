@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::{create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 
 use crate::infra::util::PlaceHolder;
 use crate::logging::{debug_field, warn};
@@ -91,14 +91,19 @@ impl Store {
     fn open(loc: PathBuf, config: Sealing) -> Result<Self> {
         let location = Location(loc);
         let data_path = location.data_path();
-        if !data_path.symlink_metadata()?.is_dir() {
+        if !data_path
+            .symlink_metadata()
+            .context("read file metadata")?
+            .is_dir()
+        {
             return Err(anyhow!("{:?} is not a dir", data_path));
         }
 
-        let _holder = PlaceHolder::open(&location)?;
+        let _holder = PlaceHolder::open(&location).context("open placeholder")?;
 
         let meta_path = location.meta_path();
-        let meta = RocksMeta::open(&meta_path)?;
+        let meta =
+            RocksMeta::open(&meta_path).with_context(|| format!("open metadb {:?}", meta_path))?;
 
         Ok(Store {
             location,
@@ -218,7 +223,9 @@ impl StoreManager {
     pub fn load(list: &[StoreConfig], common: &SealingOptional) -> Result<Self> {
         let mut stores = HashMap::new();
         for scfg in list {
-            let store_path = Path::new(&scfg.location).canonicalize()?;
+            let store_path = Path::new(&scfg.location)
+                .canonicalize()
+                .with_context(|| format!("canonicalize store path {}", scfg.location))?;
 
             if stores.get(&store_path).is_some() {
                 warn!(path = debug_field(&store_path), "store already loaded");
@@ -226,7 +233,8 @@ impl StoreManager {
             }
 
             let sealing_config = customized_sealing_config(common, scfg.sealing.as_ref());
-            let store = Store::open(store_path.clone(), sealing_config)?;
+            let store = Store::open(store_path.clone(), sealing_config)
+                .with_context(|| format!("open store {:?}", store_path))?;
             stores.insert(store_path, store);
         }
 

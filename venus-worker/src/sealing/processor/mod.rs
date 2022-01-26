@@ -9,10 +9,14 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 pub mod external;
 mod safe;
 pub use safe::*;
+mod proof;
 
 /// enum for processor stages
 #[derive(Copy, Clone, Debug)]
 pub enum Stage {
+    /// construct tree d
+    TreeD,
+
     /// pre commit phase1
     PC1,
 
@@ -29,6 +33,7 @@ pub enum Stage {
 impl Stage {
     fn name(&self) -> &'static str {
         match self {
+            Stage::TreeD => "tree_d",
             Stage::PC1 => "pc1",
             Stage::PC2 => "pc2",
             Stage::C1 => "c1",
@@ -43,52 +48,25 @@ impl AsRef<str> for Stage {
     }
 }
 
-/// type alias of boxed PC2Processor
-pub type BoxedPC2Processor = Box<dyn PC2Processor>;
+pub type BoxedProcessor<I> = Box<dyn Processor<I>>;
+pub type BoxedTreeDProcessor = BoxedProcessor<TreeDInput>;
+pub type BoxedPC1Processor = BoxedProcessor<PC1Input>;
+pub type BoxedPC2Processor = BoxedProcessor<PC2Input>;
+pub type BoxedC2Processor = BoxedProcessor<C2Input>;
 
-/// type alias of boxed C2Processor
-pub type BoxedC2Processor = Box<dyn C2Processor>;
-
-/// abstraction for pre commit phase2 processor
-pub trait PC2Processor: Send + Sync {
-    /// execute pc2 task
-    fn process(
-        &self,
-        pc1out: SealPreCommitPhase1Output,
-        cache_dir: PathBuf,
-        sealed_file: PathBuf,
-    ) -> Result<SealPreCommitPhase2Output> {
-        PC2Input {
-            pc1out,
-            cache_dir,
-            sealed_file,
-        }
-        .process()
-    }
-}
-
-/// abstraction for commit phase2 processor
-pub trait C2Processor: Send + Sync {
-    /// execute c2 task
-    fn process(
-        &self,
-        c1out: SealCommitPhase1Output,
-        prover_id: ProverId,
-        sector_id: SectorId,
-    ) -> Result<SealCommitPhase2Output> {
-        C2Input {
-            c1out,
-            prover_id,
-            sector_id,
-        }
-        .process()
+pub trait Processor<I>: Send + Sync
+where
+    I: Input,
+{
+    fn process(&self, input: I) -> Result<I::Out> {
+        input.process()
     }
 }
 
 /// abstraction for inputs of one stage
-pub trait Input: Serialize + DeserializeOwned + Debug + Send
+pub trait Input: Serialize + DeserializeOwned + Debug + Send + Sync
 where
-    Self::Out: Serialize + DeserializeOwned + Debug + Send,
+    Self::Out: Serialize + DeserializeOwned + Debug + Send + Sync,
 {
     /// the stage which this input belongs to
     const STAGE: Stage;
@@ -102,10 +80,62 @@ where
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 /// inputs of stage pc2
+pub struct TreeDInput {
+    pub registered_proof: RegisteredSealProof,
+    pub staged_file: PathBuf,
+    pub cache_dir: PathBuf,
+}
+
+impl Input for TreeDInput {
+    const STAGE: Stage = Stage::TreeD;
+    type Out = bool;
+
+    fn process(self) -> Result<Self::Out> {
+        create_tree_d(
+            self.registered_proof,
+            Some(self.staged_file),
+            self.cache_dir,
+        )
+        .map(|_| true)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PC1Input {
+    pub registered_proof: RegisteredSealProof,
+    pub cache_path: PathBuf,
+    pub in_path: PathBuf,
+    pub out_path: PathBuf,
+    pub prover_id: ProverId,
+    pub sector_id: SectorId,
+    pub ticket: Ticket,
+    pub piece_infos: Vec<PieceInfo>,
+}
+
+impl Input for PC1Input {
+    const STAGE: Stage = Stage::PC1;
+    type Out = SealPreCommitPhase1Output;
+
+    fn process(self) -> Result<Self::Out> {
+        seal_pre_commit_phase1(
+            self.registered_proof,
+            self.cache_path,
+            self.in_path,
+            self.out_path,
+            self.prover_id,
+            self.sector_id,
+            self.ticket,
+            &self.piece_infos[..],
+        )
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// inputs of stage pc2
 pub struct PC2Input {
-    pc1out: SealPreCommitPhase1Output,
-    cache_dir: PathBuf,
-    sealed_file: PathBuf,
+    pub pc1out: SealPreCommitPhase1Output,
+    pub cache_dir: PathBuf,
+    pub sealed_file: PathBuf,
 }
 
 impl Input for PC2Input {
@@ -120,9 +150,9 @@ impl Input for PC2Input {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 /// inputs of stage c2
 pub struct C2Input {
-    c1out: SealCommitPhase1Output,
-    prover_id: ProverId,
-    sector_id: SectorId,
+    pub c1out: SealCommitPhase1Output,
+    pub prover_id: ProverId,
+    pub sector_id: SectorId,
 }
 
 impl Input for C2Input {
@@ -137,13 +167,24 @@ impl Input for C2Input {
 pub mod internal {
     //! internal impls
 
-    use super::{C2Processor, PC2Processor};
+    use std::marker::PhantomData;
 
-    /// processor impl for pc2
-    pub struct PC2;
-    impl PC2Processor for PC2 {}
+    use super::{Input, Processor};
 
-    /// proceesor impl for c2
-    pub struct C2;
-    impl C2Processor for C2 {}
+    pub struct Proc<I: Input> {
+        _data: PhantomData<I>,
+    }
+
+    impl<I> Proc<I>
+    where
+        I: Input,
+    {
+        pub fn new() -> Self {
+            Proc {
+                _data: Default::default(),
+            }
+        }
+    }
+
+    impl<I> Processor<I> for Proc<I> where I: Input {}
 }

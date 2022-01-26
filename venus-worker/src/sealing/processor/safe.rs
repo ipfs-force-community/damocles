@@ -2,6 +2,7 @@ use std::panic::catch_unwind;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use filecoin_proofs::StoreConfig;
 use filecoin_proofs_api::seal;
 pub use filecoin_proofs_api::seal::{
     add_piece, clear_cache, Labels, SealCommitPhase1Output, SealCommitPhase2Output,
@@ -11,6 +12,9 @@ pub use filecoin_proofs_api::{
     Commitment, PaddedBytesAmount, PieceInfo, ProverId, RegisteredSealProof, SectorId, Ticket,
     UnpaddedBytesAmount,
 };
+use storage_proofs_core::cache_key::CacheKey;
+
+use super::proof;
 
 macro_rules! safe_call {
     ($ex:expr) => {
@@ -18,9 +22,10 @@ macro_rules! safe_call {
             Ok(r) => r.map_err(anyhow::Error::msg),
             Err(p) => {
                 let error_msg = match p.downcast_ref::<&'static str>() {
-                    Some(message) => message,
-                    _ => "no unwind information",
+                    Some(message) => message.to_string(),
+                    _ => format!("non-str unwind err: {:?}", p),
                 };
+
                 Err(anyhow::Error::msg(error_msg))
             }
         }
@@ -93,4 +98,22 @@ pub fn seal_pre_commit_phase2(
     safe_call! {
         seal::seal_pre_commit_phase2(phase1_output, cache_path, out_path)
     }
+}
+
+pub fn create_tree_d(
+    registered_proof: RegisteredSealProof,
+    in_path: Option<PathBuf>,
+    cache_path: PathBuf,
+) -> Result<()> {
+    safe_call! {
+        proof::create_tree_d(
+            registered_proof,
+            in_path,
+            cache_path,
+        )
+    }
+}
+
+pub fn tree_d_path_in_dir(dir: &PathBuf) -> PathBuf {
+    StoreConfig::data_path(dir, &CacheKey::CommDTree.to_string())
 }

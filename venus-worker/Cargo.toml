@@ -9,6 +9,9 @@ edition = "2018"
 [dependencies]
 anyhow = "1"
 filecoin-proofs-api = "8.0"
+filecoin-proofs = "8.0"
+storage-proofs-core = "8.0"
+memmap = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.56"
 serde_repr = "0.1"
@@ -50,3 +53,7 @@ version = "0.16"
 [dependencies.jsonrpc-core-client]
 version = "17.0"
 path = "./jsonrpc-core-client"
+
+[features]
+default = ["numa"]
+numa = []

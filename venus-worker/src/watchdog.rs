@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
@@ -16,7 +17,7 @@ use crate::{
     logging::{error, error_span, info, warn},
     rpc::sealer::SealerClient,
     sealing::{
-        processor::{BoxedC2Processor, BoxedPC2Processor},
+        processor::{BoxedC2Processor, BoxedPC1Processor, BoxedPC2Processor, BoxedTreeDProcessor},
         resource::Pool,
     },
 };
@@ -35,9 +36,31 @@ pub struct Ctx {
 pub struct GlobalModules {
     pub rpc: Arc<SealerClient>,
     pub remote_store: Arc<Box<dyn ObjectStore>>,
+    pub processors: GloablProcessors,
+    pub static_tree_d: HashMap<u64, PathBuf>,
+    pub limit: Arc<Pool>,
+}
+
+#[derive(Clone)]
+pub struct GloablProcessors {
+    pub tree_d: Arc<BoxedTreeDProcessor>,
+    pub pc1: Arc<BoxedPC1Processor>,
     pub pc2: Arc<BoxedPC2Processor>,
     pub c2: Arc<BoxedC2Processor>,
-    pub limit: Arc<Pool>,
+}
+
+impl Module for Box<dyn Module> {
+    fn id(&self) -> String {
+        self.as_ref().id()
+    }
+
+    fn run(&mut self, ctx: Ctx) -> Result<()> {
+        self.as_mut().run(ctx)
+    }
+
+    fn should_wait(&self) -> bool {
+        self.as_ref().should_wait()
+    }
 }
 
 pub trait Module: Send {

@@ -32,10 +32,10 @@ jobs:
       - name: build venus-worker
         run: make build-worker
 
-      - name: upload venus-worker
-        uses: actions/upload-artifact@v2
-        with:
-          name: venus-worker
-          path: ./dist/bin/
-          if-no-files-found: error
-          retention-days: 3
+      # - name: upload venus-worker
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: venus-worker
+      #     path: ./dist/bin/
+      #     if-no-files-found: error
+      #     retention-days: 3

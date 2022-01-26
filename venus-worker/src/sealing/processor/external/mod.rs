@@ -1,6 +1,6 @@
 //! external implementations of processors
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::{bounded, Sender};
 
 use super::*;
@@ -8,84 +8,46 @@ use super::*;
 pub mod config;
 pub mod sub;
 
-type PC2InputSender = Sender<(PC2Input, Sender<Result<SealPreCommitPhase2Output>>)>;
-
-type C2InputSender = Sender<(C2Input, Sender<Result<SealCommitPhase2Output>>)>;
-
-/// processor impl for pc2
-pub struct PC2 {
-    input_tx: PC2InputSender,
+pub struct ExtProcessor<I>
+where
+    I: Input,
+{
+    input_tx: Sender<(I, Sender<Result<I::Out>>)>,
 }
 
-impl PC2 {
-    /// build a PC2 instance
-    pub fn build(cfg: &config::Ext) -> Result<(Self, Vec<sub::SubProcess<PC2Input>>)> {
+impl<I> ExtProcessor<I>
+where
+    I: Input,
+{
+    pub fn build(cfg: &config::Ext) -> Result<(Self, Vec<sub::SubProcess<I>>)> {
         let (input_tx, input_rx) = bounded(0);
-        let subproc = sub::start_sub_processes(cfg, input_rx)?;
+        let subproc = sub::start_sub_processes(cfg, input_rx)
+            .with_context(|| format!("start sub process for stage {}", I::STAGE.name()))?;
 
-        let pc2 = PC2 { input_tx };
+        let proc = Self { input_tx };
 
-        Ok((pc2, subproc))
+        Ok((proc, subproc))
     }
 }
 
-impl PC2Processor for PC2 {
-    fn process(
-        &self,
-        pc1out: SealPreCommitPhase1Output,
-        cache_dir: PathBuf,
-        sealed_file: PathBuf,
-    ) -> Result<SealPreCommitPhase2Output> {
+impl<I> Processor<I> for ExtProcessor<I>
+where
+    I: Input,
+{
+    fn process(&self, input: I) -> Result<I::Out> {
         let (res_tx, res_rx) = bounded(0);
-        self.input_tx.send((
-            PC2Input {
-                pc1out,
-                cache_dir,
-                sealed_file,
-            },
-            res_tx,
-        ))?;
+        self.input_tx.send((input, res_tx)).map_err(|e| {
+            anyhow!(
+                "failed to send input through chan for stage {}: {:?}",
+                I::STAGE.name(),
+                e
+            )
+        })?;
 
-        let res = res_rx.recv()?;
-        res
-    }
-}
+        let res = res_rx
+            .recv()
+            .with_context(|| format!("recv process result for stage {}", I::STAGE.name()))?;
 
-/// processor impl for c2
-pub struct C2 {
-    input_tx: C2InputSender,
-}
-
-impl C2 {
-    /// build a C2 instance
-    pub fn build(cfg: &config::Ext) -> Result<(Self, Vec<sub::SubProcess<C2Input>>)> {
-        let (input_tx, input_rx) = bounded(0);
-        let subproc = sub::start_sub_processes(cfg, input_rx)?;
-
-        let c2 = C2 { input_tx };
-
-        Ok((c2, subproc))
-    }
-}
-
-impl C2Processor for C2 {
-    fn process(
-        &self,
-        c1out: SealCommitPhase1Output,
-        prover_id: ProverId,
-        sector_id: SectorId,
-    ) -> Result<SealCommitPhase2Output> {
-        let (res_tx, res_rx) = bounded(0);
-        self.input_tx.send((
-            C2Input {
-                c1out,
-                prover_id,
-                sector_id,
-            },
-            res_tx,
-        ))?;
-
-        let res = res_rx.recv()?;
         res
     }
 }
