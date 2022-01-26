@@ -7,8 +7,7 @@ import (
 
 	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
 
-	"github.com/filecoin-project/venus-messager/api/client"
-
+	mapi "github.com/filecoin-project/venus/venus-shared/api/messager"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	mtypes "github.com/filecoin-project/venus/venus-shared/types/messager"
 )
@@ -41,7 +40,7 @@ var MessageState = struct {
 }
 
 type API interface {
-	client.IMessager
+	mapi.IMessager
 }
 
 func New(ctx context.Context, api, token string) (API, jsonrpc.ClientCloser, error) {
@@ -51,5 +50,5 @@ func New(ctx context.Context, api, token string) (API, jsonrpc.ClientCloser, err
 		return nil, nil, err
 	}
 
-	return client.NewMessageRPC(ctx, addr, ainfo.AuthHeader())
+	return mapi.NewIMessagerRPC(ctx, addr, ainfo.AuthHeader())
 }
