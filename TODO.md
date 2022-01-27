@@ -17,10 +17,14 @@
   - [x] submit remote path
   - [x] check file existance for submitted persisted files
 - [x] small instance of windost post
-- [] handle submit states gracefully
-  - [] handle ErrOutOfGas and other retry-able failed messages gracefully
-- [] deal manager
-- [] object(piece) storage service (proxy)
-- [] speed up cc sectors
-- [] link to dynamic lib if required
-- [] websocket client logging
+- [ ] handle submit states gracefully
+  - [ ] handle ErrOutOfGas and other retry-able failed messages gracefully
+- [ ] deal manager
+- [ ] object(piece) storage service (proxy)
+- [ ] speed up cc sectors
+- [ ] link to dynamic lib if required
+- [ ] websocket client logging
+- [ ] simplify jsonrpc usage
+- [ ] more graceful way of using `tracing`
+- [ ] upgrade rust-fil-proofs & related libs
+- [ ] upgrade forest related libs
