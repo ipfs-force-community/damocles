@@ -55,6 +55,11 @@ var daemonRunCmd = &cli.Command{
 			Value: false,
 			Usage: "enable poster module",
 		},
+		&cli.BoolFlag{
+			Name:  "miner",
+			Value: false,
+			Usage: "enable miner module",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		gctx, gcancel := internal.NewSigContext(context.Background())
@@ -69,6 +74,10 @@ var daemonRunCmd = &cli.Command{
 			dix.If(
 				cctx.Bool("poster"),
 				dep.PoSter(),
+			),
+			dix.If(
+				cctx.Bool("miner"),
+				dep.Miner(),
 			),
 			dep.Sealer(&node),
 		)
