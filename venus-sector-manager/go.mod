@@ -20,7 +20,7 @@ require (
 	github.com/filecoin-project/specs-actors/v6 v6.0.1
 	github.com/filecoin-project/specs-actors/v7 v7.0.0-rc1
 	github.com/filecoin-project/specs-storage v0.1.1-0.20211228030229-6d460d25a0c9
-	github.com/filecoin-project/venus v1.2.0-rc4.0.20220126012146-002ee9b8e171
+	github.com/filecoin-project/venus v1.2.0-rc5
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
