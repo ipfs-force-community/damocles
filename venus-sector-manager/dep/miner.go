@@ -1,6 +1,8 @@
 package dep
 
 import (
+	"fmt"
+
 	"github.com/dtynn/dix"
 	"go.uber.org/fx"
 
@@ -17,20 +19,29 @@ func Miner() dix.Option {
 	)
 }
 
-func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover api.Prover, cfg *modules.Config, indexer api.SectorIndexer) error {
-	for _, m := range cfg.SectorManager.Miners {
-		maddr, err := address.NewIDAddress(uint64(m.ID))
+func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover api.Prover, cfg *modules.SafeConfig, indexer api.SectorIndexer) error {
+	cfg.Lock()
+	actors := cfg.RegisterProof.Actors
+	cfg.Unlock()
+
+	for key, rpCfg := range actors {
+		mid, err := modules.ActorIDFromConfigKey(key)
+		if err != nil {
+			return fmt.Errorf("parse actor id from %s: %w", key, err)
+		}
+
+		maddr, err := address.NewIDAddress(uint64(mid))
 		if err != nil {
 			return err
 		}
 
 		actor := api.ActorIdent{
 			Addr: maddr,
-			ID:   m.ID,
+			ID:   mid,
 		}
 
-		for _, addr := range cfg.RegisterProof.Apis {
-			client, err := miner.NewProofEventClient(lc, addr, cfg.RegisterProof.Token)
+		for _, addr := range rpCfg.Apis {
+			client, err := miner.NewProofEventClient(lc, addr, rpCfg.Token)
 			if err != nil {
 				return err
 			}

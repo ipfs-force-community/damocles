@@ -66,6 +66,11 @@ func ExampleConfig() Config {
 		},
 	}
 
+	defaultCfg.RegisterProof.Actors["10000"] = RegisterProofActorConfig{
+		Apis:  []string{},
+		Token: "",
+	}
+
 	return defaultCfg
 }
 
@@ -80,7 +85,7 @@ func DefaultConfig() Config {
 			Stores:   make([]filestore.Config, 0),
 		},
 		PoSt:          DefaultPoStConfig(),
-		RegisterProof: RegisterProofConfig{},
+		RegisterProof: DefaultRegisterProofConfig(),
 	}
 }
 
@@ -317,7 +322,17 @@ type PoStActorConfig struct {
 	PoStPolicyConfigOptional
 }
 
-type RegisterProofConfig struct {
+type RegisterProofActorConfig struct {
 	Apis  []string
 	Token string
+}
+
+type RegisterProofConfig struct {
+	Actors map[string]RegisterProofActorConfig
+}
+
+func DefaultRegisterProofConfig() RegisterProofConfig {
+	return RegisterProofConfig{
+		Actors: map[string]RegisterProofActorConfig{},
+	}
 }
