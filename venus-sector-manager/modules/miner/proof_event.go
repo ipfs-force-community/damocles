@@ -10,7 +10,6 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"golang.org/x/xerrors"
 
-	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/specs-storage/storage"
 
@@ -47,21 +46,21 @@ func NewProofEvent(prover api.Prover, client proofevent.IProofEventAPI, actor ap
 }
 
 func (pe *ProofEvent) StartListening(ctx context.Context) {
-	log.Infof("start proof event listening")
+	log.Infof("start proof event listening for %s", pe.actor.Addr)
 	for {
 		if err := pe.listenProofRequestOnce(ctx); err != nil {
-			log.Errorf("listen head changes errored: %s", err)
+			log.Errorf("%s listen head changes errored: %s", pe.actor.Addr, err)
 		} else {
-			log.Warn("listenHeadChanges quit")
+			log.Warnf(" %s listenHeadChanges quit", pe.actor.Addr)
 		}
 		select {
 		case <-time.After(time.Second):
 		case <-ctx.Done():
-			log.Warnf("not restarting listenHeadChanges: context error: %s", ctx.Err())
+			log.Warnf("%s not restarting listenHeadChanges: context error: %s", pe.actor.Addr, ctx.Err())
 			return
 		}
 
-		log.Info("restarting listenHeadChanges")
+		log.Infof("restarting listenHeadChanges for %s", pe.actor.Addr)
 	}
 }
 
@@ -69,8 +68,9 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	policy := &proofevent.ProofRegisterPolicy{
-		MinerAddress: address.Address(pe.actor.Addr),
+		MinerAddress: pe.actor.Addr,
 	}
+
 	proofEventCh, err := pe.client.ListenProofEvent(ctx, policy)
 	if err != nil {
 		// Retry is handled by caller
@@ -85,7 +85,7 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 			if err != nil {
 				return xerrors.Errorf("odd error in connect %v", err)
 			}
-			log.Infof("success to connect with proof %s", req.ChannelId)
+			log.Infof("%s success to connect with proof %s", pe.actor.Addr, req.ChannelId)
 		case "ComputeProof":
 			req := types.ComputeProofRequest{}
 			err := json.Unmarshal(proofEvent.Payload, &req)
@@ -99,7 +99,7 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 			}
 			pe.processComputeProof(ctx, proofEvent.Id, req)
 		default:
-			log.Errorf("unexpect proof event type %s", proofEvent.Method)
+			log.Errorf("%s receive unexpect proof event type %s", pe.actor.Addr, proofEvent.Method)
 		}
 	}
 
@@ -144,7 +144,7 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqId uuid.UUID, 
 		Error:   "",
 	})
 	if err != nil {
-		log.Errorf("response proof event %s failed", reqId)
+		log.Errorf("%s response proof event %s failed", pe.actor.Addr, reqId)
 	}
 }
 
@@ -169,7 +169,7 @@ func (pe *ProofEvent) sectorsPubToPrivate(ctx context.Context, sectorInfo []buil
 		// TODO: Construct paths for snap deals ?
 		proveUpdate := sector.SectorKey != nil
 		var (
-			subCache,subSealed string
+			subCache, subSealed string
 		)
 		if proveUpdate {
 

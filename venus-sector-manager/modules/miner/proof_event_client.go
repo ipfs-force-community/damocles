@@ -7,13 +7,14 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc"
 
+	"github.com/ipfs-force-community/venus-gateway/proofevent"
+
 	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
 
-	"github.com/ipfs-force-community/venus-gateway/proofevent"
+	"github.com/filecoin-project/venus/venus-shared/api"
 )
 
 func NewProofEventClient(lc fx.Lifecycle, url, token string) (proofevent.IProofEventAPI, error) {
-	pvc := &ProofEventStruct{}
 	apiInfo := apiinfo.APIInfo{
 		Addr:  url,
 		Token: []byte(token),
@@ -24,7 +25,8 @@ func NewProofEventClient(lc fx.Lifecycle, url, token string) (proofevent.IProofE
 		return nil, err
 	}
 
-	closer, err := jsonrpc.NewMergeClient(context.Background(), addr, "Gateway", []interface{}{pvc}, apiInfo.AuthHeader())
+	var pvc ProofEventStruct
+	closer, err := jsonrpc.NewMergeClient(context.Background(), addr, "Gateway", api.GetInternalStructs(&pvc), apiInfo.AuthHeader())
 	if err != nil {
 		return nil, err
 	}
@@ -34,5 +36,5 @@ func NewProofEventClient(lc fx.Lifecycle, url, token string) (proofevent.IProofE
 			return nil
 		},
 	})
-	return pvc, nil
+	return &pvc, nil
 }
