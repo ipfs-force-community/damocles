@@ -16,9 +16,8 @@ import (
 	ffiproof "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
-
-	"github.com/ipfs-force-community/venus-gateway/proofevent"
-	"github.com/ipfs-force-community/venus-gateway/types"
+	"github.com/filecoin-project/venus/venus-shared/api/gateway"
+	vtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
@@ -29,12 +28,12 @@ var log = logging.Logger("proof_event")
 
 type ProofEvent struct {
 	prover  api.Prover
-	client  proofevent.IProofEventAPI
+	client  gateway.IProofEventAPI
 	actor   api.ActorIdent
 	indexer api.SectorIndexer
 }
 
-func NewProofEvent(prover api.Prover, client proofevent.IProofEventAPI, actor api.ActorIdent, indexer api.SectorIndexer) *ProofEvent {
+func NewProofEvent(prover api.Prover, client gateway.IProofEventAPI, actor api.ActorIdent, indexer api.SectorIndexer) *ProofEvent {
 	pe := &ProofEvent{
 		prover:  prover,
 		client:  client,
@@ -67,7 +66,7 @@ func (pe *ProofEvent) StartListening(ctx context.Context) {
 func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	policy := &proofevent.ProofRegisterPolicy{
+	policy := &vtypes.ProofRegisterPolicy{
 		MinerAddress: pe.actor.Addr,
 	}
 
@@ -80,17 +79,17 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 	for proofEvent := range proofEventCh {
 		switch proofEvent.Method {
 		case "InitConnect":
-			req := types.ConnectedCompleted{}
+			req := vtypes.ConnectedCompleted{}
 			err := json.Unmarshal(proofEvent.Payload, &req)
 			if err != nil {
 				return xerrors.Errorf("odd error in connect %v", err)
 			}
 			log.Infof("%s success to connect with proof %s", pe.actor.Addr, req.ChannelId)
 		case "ComputeProof":
-			req := types.ComputeProofRequest{}
+			req := vtypes.ComputeProofRequest{}
 			err := json.Unmarshal(proofEvent.Payload, &req)
 			if err != nil {
-				_ = pe.client.ResponseProofEvent(ctx, &types.ResponseEvent{
+				_ = pe.client.ResponseProofEvent(ctx, &vtypes.ResponseEvent{
 					Id:      proofEvent.Id,
 					Payload: nil,
 					Error:   err.Error(),
@@ -107,10 +106,10 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 }
 
 // context.Context, []builtin.ExtendedSectorInfo, abi.PoStRandomness, abi.ChainEpoch, network.Version
-func (pe *ProofEvent) processComputeProof(ctx context.Context, reqId uuid.UUID, req types.ComputeProofRequest) {
+func (pe *ProofEvent) processComputeProof(ctx context.Context, reqId uuid.UUID, req vtypes.ComputeProofRequest) {
 	privSectors, err := pe.sectorsPubToPrivate(ctx, req.SectorInfos)
 	if err != nil {
-		_ = pe.client.ResponseProofEvent(ctx, &types.ResponseEvent{
+		_ = pe.client.ResponseProofEvent(ctx, &vtypes.ResponseEvent{
 			Id:      reqId,
 			Payload: nil,
 			Error:   err.Error(),
@@ -120,7 +119,7 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqId uuid.UUID, 
 
 	proof, err := pe.prover.GenerateWinningPoSt(ctx, pe.actor.ID, privSectors, req.Rand)
 	if err != nil {
-		_ = pe.client.ResponseProofEvent(ctx, &types.ResponseEvent{
+		_ = pe.client.ResponseProofEvent(ctx, &vtypes.ResponseEvent{
 			Id:      reqId,
 			Payload: nil,
 			Error:   err.Error(),
@@ -130,7 +129,7 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqId uuid.UUID, 
 
 	proofBytes, err := json.Marshal(proof)
 	if err != nil {
-		_ = pe.client.ResponseProofEvent(ctx, &types.ResponseEvent{
+		_ = pe.client.ResponseProofEvent(ctx, &vtypes.ResponseEvent{
 			Id:      reqId,
 			Payload: nil,
 			Error:   err.Error(),
@@ -138,7 +137,7 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqId uuid.UUID, 
 		return
 	}
 
-	err = pe.client.ResponseProofEvent(ctx, &types.ResponseEvent{
+	err = pe.client.ResponseProofEvent(ctx, &vtypes.ResponseEvent{
 		Id:      reqId,
 		Payload: proofBytes,
 		Error:   "",
