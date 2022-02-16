@@ -39,26 +39,30 @@ make build-worker
 ```
 venus-sector-manager daemon init
 ```
-这将会初始化 `home` 目录下的内容，如配置文件、元数据库等。
-
+这将会初始化 `home` 目录下的内容，如配置文件、元数据库等，生成`sector-manager.cfg`配置文件。
 
 ##### 准备配置文件
 完成初始化之后的配置文件内容如下：
 ```
 # Default config:
 [SectorManager]
-#  Miners = []
 #  PreFetch = true
+#
+#  [[SectorManager.Miners]]
+#    ID = 10000
+#    InitNumber = 0
+#    MaxNumber = 10000
+#    Disabled = false
 #
 [Commitment]
 #  [Commitment.DefaultPolicy]
-#    CommitBatchThreshold = 0
-#    CommitBatchMaxWait = "0s"
-#    CommitCheckInterval = "0s"
+#    CommitBatchThreshold = 16
+#    CommitBatchMaxWait = "1h0m0s"
+#    CommitCheckInterval = "1m0s"
 #    EnableBatchProCommit = false
-#    PreCommitBatchThreshold = 0
-#    PreCommitBatchMaxWait = "0s"
-#    PreCommitCheckInterval = "0s"
+#    PreCommitBatchThreshold = 16
+#    PreCommitBatchMaxWait = "1h0m0s"
+#    PreCommitCheckInterval = "1m0s"
 #    EnableBatchPreCommit = false
 #    PreCommitGasOverEstimation = 0.0
 #    ProCommitGasOverEstimation = 0.0
@@ -68,12 +72,19 @@ venus-sector-manager daemon init
 #    MaxProCommitFeeCap = ""
 #    MaxBatchPreCommitFeeCap = ""
 #    MaxBatchProCommitFeeCap = ""
-#    MsgConfidence = 0
+#    MsgConfidence = 10
 #  [Commitment.Miners]
 #    [Commitment.Miners.example]
+#      CommitCheckInterval = "1m0s"
+#      PreCommitCheckInterval = "1m0s"
+#      PreCommitGasOverEstimation = 0.0
+#      ProCommitGasOverEstimation = 0.0
+#      BatchPreCommitGasOverEstimation = 0.0
+#      BatchProCommitGasOverEstimation = 0.0
+#      MsgConfidence = 10
 #      [Commitment.Miners.example.Controls]
-#        PreCommit = ""
-#        ProveCommit = ""
+#        PreCommit = "t1abjxfbp274xpdqcpuaykwkfb43omjotacm2p3za"
+#        ProveCommit = "t1abjxfbp274xpdqcpuaykwkfb43omjotacm2p3za"
 #
 [Chain]
 #  Api = ""
@@ -84,8 +95,13 @@ venus-sector-manager daemon init
 #  Token = ""
 #
 [PersistedStore]
-#  Includes = []
-#  Stores = []
+#  Includes = ["unavailable"]
+#
+#  [[PersistedStore.Stores]]
+#    Name = "storage name,like `100.100.10.1`"
+#    Path = "/path/to/storage/"
+#    Strict = false
+#    ReadOnly = true
 #
 [PoSt]
 #  [PoSt.Default]
@@ -95,53 +111,134 @@ venus-sector-manager daemon init
 #    MsgCheckInteval = "1m0s"
 #    MsgConfidence = 5
 #  [PoSt.Actors]
+#    [PoSt.Actors.10000]
+#      Sender = "t1abjxfbp274xpdqcpuaykwkfb43omjotacm2p3za"
+#      StrictCheck = false
+#      GasOverEstimation = 0.0
+#      MaxFeeCap = ""
+#      MsgCheckInteval = "1m0s"
+#      MsgConfidence = 5
 #
+[RegisterProof]
+#  [RegisterProof.Actors]
+#    [RegisterProof.Actors.10000]
+#      Apis = []
+#      Token = ""
 ```
+
+###### 链服务配置
+
+链服务配置指访问venus同步节点的配置，内容如下：
+```
+# 链服务连接信息
+[Chain]
+  Api = "/ip4/192.168.200.15/tcp/3453"
+  Token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiMjAwLTIxIiwicGVybSI6IndyaXRlIiwiZXh0IjoiIn0.Ykecm7OJ3qv2ZniXcABXCf6-LrRrE7coGqpzdYEQfok"
+```
+
+配置完成可通过下列命令测试是否成功：
+```
+$ ./dist/bin/venus-sector-manager --net=<nettype> util chain head
+```
+
+###### 消息服务配置
+
+消息服务配置指访问venus-messager节点的配置，内容如下：
+```
+# 消息服务连接信息
+[Messager]
+  Api = "/ip4/192.168.200.15/tcp/39812"
+  Token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiMjAwLTIxIiwicGVybSI6IndyaXRlIiwiZXh0IjoiIn0.Ykecm7OJ3qv2ZniXcABXCf6-LrRrE7coGqpzdYEQfok"
+```
+
+###### SectorManager配置
 
 如果使用者希望以最简方式启动，那么只需要填写部分内容，以使用 MinerID `f012345` 为例，内容如下：
 ```
 [SectorManager]
-# 允许进行扇区管理的 MinerID
-Miners = [
-        12345
-]
-
-# 启动时预取矿工信息
-PreFetch = true
+  # 启动时预取矿工信息
+  PreFetch = true
+  
+  # 允许进行扇区管理的 MinerID
+  [[SectorManager.Miners]]
+    ID = 12345
+    InitNumber = 0
+    MaxNumber = 10000
+    Disabled = false
 
 [Commitment]
-[Commitment.Miners]
+  [Commitment.DefaultPolicy]
+    CommitBatchThreshold = 16
+    CommitBatchMaxWait = "1h0m0s"
+    CommitCheckInterval = "1m0s"
+    EnableBatchProCommit = false
+    PreCommitBatchThreshold = 16
+    PreCommitBatchMaxWait = "1h0m0s"
+    PreCommitCheckInterval = "1m0s"
+    EnableBatchPreCommit = false
+    PreCommitGasOverEstimation = 0.0
+    ProCommitGasOverEstimation = 0.0
+    BatchPreCommitGasOverEstimation = 0.0
+    BatchProCommitGasOverEstimation = 0.0
+    MaxPreCommitFeeCap = ""
+    MaxProCommitFeeCap = ""
+    MaxBatchPreCommitFeeCap = ""
+    MaxBatchProCommitFeeCap = ""
+    MsgConfidence = 10
+  [Commitment.Miners]
+     
+    # 针对 f012345 的复制证明提交配置段
+    [Commitment.Miners.12345]
+      CommitCheckInterval = "1m0s"
+      PreCommitCheckInterval = "1m0s"
+      PreCommitGasOverEstimation = 0.0
+      ProCommitGasOverEstimation = 0.0
+      BatchPreCommitGasOverEstimation = 0.0
+      BatchProCommitGasOverEstimation = 0.0
+      MsgConfidence = 10
+      
+      # 针对 f012345 的复制证明提交所使用的钱包地址配置段
+      [Commitment.Miners.12345.Controls]
+        # 用于扇区 PreCommit 消息发送的钱包地址
+        PreCommit = "t3vep6ojdugx6clspkfpwzhgwglvyghe5liie3pfflb4h5a6kgrmoqfacpuqzz3af3bib3omppyigikacwj63q"
+        # 用于扇区 ProveCommit 消息发送的钱包地址
+        ProveCommit = "t3vep6ojdugx6clspkfpwzhgwglvyghe5liie3pfflb4h5a6kgrmoqfacpuqzz3af3bib3omppyigikacwj63q"
 
-# 针对 f012345 的复制证明提交配置段
-[Commitment.Miners.12345]
+# 扇区永久存储配置段
+[PersistedStore]
+  Includes = []
 
-# 针对 f012345 的复制证明提交所使用的钱包地址配置段
-[Commitment.Miners.12345.Controls]
-
-# 用于扇区 PreCommit 消息发送的钱包地址
-PreCommit = "f3vur6njy6uucabdgxujlq2tsvtfrhbjwyhumangldl5mbsuzm4otzrsoykmejpukkiywmqidhksbvm32qnjga"
-
-# 用于扇区 ProveCommit 消息发送的钱包地址
-ProveCommit = "f3vur6njy6uucabdgxujlq2tsvtfrhbjwyhumangldl5mbsuzm4otzrsoykmejpukkiywmqidhksbvm32qnjga"
-
-# 链服务连接信息
-[Chain]
-Api = "/ip4/127.0.0.1/tcp/3453"
-Token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoidC12ZW51cy1zZWFsZXIiLCJwZXJtIjoic2lnbiIsImV4dCI6IiJ9.4Ja5hqVQAshewiYzRTxKxWE8gLwRC-R21MJPLNeqLu0"
-
-# 消息服务连接信息
-[Messager]
-Api = "/ip4/127.0.0.1/tcp/39812"
-Token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoidC12ZW51cy1zZWFsZXIiLCJwZXJtIjoic2lnbiIsImV4dCI6IiJ9.4Ja5hqVQAshewiYzRTxKxWE8gLwRC-R21MJPLNeqLu0"
-
+  [[PersistedStore.Stores]]
+    Name = "storage-200-21"
+    Path = "/mnt/cluster/"
+    Strict = false
+    ReadOnly = true
+    
 # 时空证明配置段
 [PoSt]
-
-# 针对 f012345 的时空证明配置段
-[PoSt.Actors.12345]
-
-# 用于 WindowPoSt 消息发送的钱包地址
-Sender = "f3vur6njy6uucabdgxujlq2tsvtfrhbjwyhumangldl5mbsuzm4otzrsoykmejpukkiywmqidhksbvm32qnjga"
+  [PoSt.Default]
+    StrictCheck = false
+    GasOverEstimation = 0.0
+    MaxFeeCap = ""
+    MsgCheckInteval = "1m0s"
+    MsgConfidence = 5
+  [PoSt.Actors]
+    # 针对 f012345 的时空证明配置段
+    [PoSt.Actors.12345]
+      # 用于 WindowPoSt 消息发送的钱包地址
+      Sender = "t3vep6ojdugx6clspkfpwzhgwglvyghe5liie3pfflb4h5a6kgrmoqfacpuqzz3af3bib3omppyigikacwj63q"
+      StrictCheck = false
+      GasOverEstimation = 0.0
+      MaxFeeCap = ""
+      MsgCheckInteval = "1m0s"
+      MsgConfidence = 5
+      
+# 出块服务API注册配置段
+[RegisterProof]
+  [RegisterProof.Actors]
+    [RegisterProof.Actors.12345]
+      Apis = ["/ip4/192.168.200.15/tcp/45132"]
+      Token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiMjAwLTIxIiwicGVybSI6IndyaXRlIiwiZXh0IjoiIn0.Ykecm7OJ3qv2ZniXcABXCf6-LrRrE7coGqpzdYEQfok"
 ```
 
 
@@ -150,7 +247,7 @@ Sender = "f3vur6njy6uucabdgxujlq2tsvtfrhbjwyhumangldl5mbsuzm4otzrsoykmejpukkiywm
 如果没有通过其他渠道申请，那么可以考虑使用 `venus-sector-manager` 提供的命令行工具，方式可以参考：
 
 ```
-$ ./dist/bin/venus-sector-manager util miner create --help
+$ ./dist/bin/venus-sector-manager --net=<nettype> util miner create --help
 NAME:
    venus-sector-manager util miner create -
 
@@ -169,12 +266,23 @@ OPTIONS:
 ```
 注意：要使用链相关的命令行工具，需确保配置文件中的 `Chain` 和 `Messager` 两个段配置完整。
 
+查询矿工信息可使用下述命令：
+```
+$ ./dist/bin/venus-sector-manager --net=<nettype> util miner info -h
+NAME:
+   venus-sector-manager util miner info - 
+
+USAGE:
+   venus-sector-manager util miner info [command options] [miner address]
+
+```
+
 ##### 启动
 在完成配置文件的填写后，使用形似以下格式的命令启动：
 ```
-./dist/bin/venus-sector-manager --net=nerpa daemon run --poster
+./dist/bin/venus-sector-manager --net=nerpa daemon run --poster --miner
 ```
-以这条命令为例，将启动在 `nerpa` 网络上，并且启用时空证明模块。
+以这条命令为例，将启动在 `nerpa` 网络上，并且启用时空证明模块和注册出块服务到链服务层。
 
 
 #### venus-worker

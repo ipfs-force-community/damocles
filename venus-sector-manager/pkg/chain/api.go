@@ -7,15 +7,14 @@ import (
 
 	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
 
-	"github.com/filecoin-project/venus/pkg/chain"
 	"github.com/filecoin-project/venus/venus-shared/api/chain/v1"
 	"github.com/filecoin-project/venus/venus-shared/types"
 )
 
 const (
-	HCRevert  = chain.HCRevert
-	HCApply   = chain.HCApply
-	HCCurrent = chain.HCCurrent
+	HCRevert  = types.HCRevert
+	HCApply   = types.HCApply
+	HCCurrent = types.HCCurrent
 )
 
 type (

@@ -245,8 +245,8 @@ var utilMinerCreateCmd = &cli.Command{
 		mid := mblk.Cid().String()
 		if exid := cctx.String("exid"); exid != "" {
 			mid = fmt.Sprintf("%s-%s", mid, exid)
-			mlog = mlog.With("exed-id", exid)
-			mlog.Warnf("use exed message id")
+			mlog = mlog.With("extra-id", exid)
+			mlog.Warnf("use extra message id")
 		}
 
 		has, err := api.Messager.HasMessageByUid(gctx, mid)

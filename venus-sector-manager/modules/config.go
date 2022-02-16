@@ -66,6 +66,11 @@ func ExampleConfig() Config {
 		},
 	}
 
+	defaultCfg.RegisterProof.Actors["10000"] = RegisterProofActorConfig{
+		Apis:  []string{},
+		Token: "",
+	}
+
 	return defaultCfg
 }
 
@@ -79,7 +84,8 @@ func DefaultConfig() Config {
 			Includes: make([]string, 0),
 			Stores:   make([]filestore.Config, 0),
 		},
-		PoSt: DefaultPoStConfig(),
+		PoSt:          DefaultPoStConfig(),
+		RegisterProof: DefaultRegisterProofConfig(),
 	}
 }
 
@@ -91,6 +97,8 @@ type Config struct {
 	PersistedStore FileStoreConfig
 	// TODO: use separate config for each actor
 	PoSt PoStConfig
+
+	RegisterProof RegisterProofConfig
 }
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
@@ -312,4 +320,19 @@ type PoStPolicyConfigOptional struct {
 type PoStActorConfig struct {
 	Sender MustAddress
 	PoStPolicyConfigOptional
+}
+
+type RegisterProofActorConfig struct {
+	Apis  []string
+	Token string
+}
+
+type RegisterProofConfig struct {
+	Actors map[string]RegisterProofActorConfig
+}
+
+func DefaultRegisterProofConfig() RegisterProofConfig {
+	return RegisterProofConfig{
+		Actors: map[string]RegisterProofActorConfig{},
+	}
 }

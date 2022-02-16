@@ -4,7 +4,6 @@ go 1.16
 
 require (
 	github.com/BurntSushi/toml v0.4.1
-	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.3
 	github.com/docker/go-units v0.4.0
 	github.com/dtynn/dix v0.1.1
@@ -19,10 +18,10 @@ require (
 	github.com/filecoin-project/specs-actors/v5 v5.0.4
 	github.com/filecoin-project/specs-actors/v6 v6.0.1
 	github.com/filecoin-project/specs-actors/v7 v7.0.0-rc1
-	github.com/filecoin-project/specs-storage v0.1.1-0.20211228030229-6d460d25a0c9
-	github.com/filecoin-project/venus v1.2.0-rc4.0.20220126012146-002ee9b8e171
+	github.com/filecoin-project/specs-storage v0.2.0
+	github.com/filecoin-project/venus v1.2.0-rc5.0.20220215080128-de32eaebac93
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
-	github.com/golang/snappy v0.0.3 // indirect
+	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs-force-community/venus-common-utils v0.0.0-20211122032945-eb6cab79c62a
 	github.com/ipfs/go-block-format v0.0.3
@@ -40,10 +39,8 @@ require (
 	go.uber.org/zap v1.19.1
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/mod v0.5.0 // indirect
-	golang.org/x/sys v0.0.0-20211013075003-97ac67df715c // indirect
 	golang.org/x/tools v0.1.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
-	google.golang.org/genproto v0.0.0-20210828152312-66f60bf46e71 // indirect
 )
 
 replace (
