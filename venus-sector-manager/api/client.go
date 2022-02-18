@@ -27,7 +27,9 @@ type SealerClient struct {
 
 	ListSectors func(context.Context) ([]*SectorState, error)
 
-	ReportState func(context.Context, abi.SectorID, ReportStateReq) error
+	ReportState func(context.Context, abi.SectorID, ReportStateReq) (Meta, error)
 
-	ReportFinalized func(context.Context, abi.SectorID) error
+	ReportFinalized func(context.Context, abi.SectorID) (Meta, error)
+
+	ReportAborted func(context.Context, abi.SectorID, string) (Meta, error)
 }

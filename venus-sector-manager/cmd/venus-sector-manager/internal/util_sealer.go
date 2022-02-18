@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/dtynn/dix"
+	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
@@ -31,7 +33,7 @@ func extractSealerClient(cctx *cli.Context) (api.SealerClient, context.Context, 
 	}
 
 	return sapi, gctx, func() {
-		stopper(cctx.Context)
+		stopper(cctx.Context) // nolint: errcheck
 		gcancel()
 	}, nil
 }
@@ -50,6 +52,7 @@ var utilSealerSectorsCmd = &cli.Command{
 	Name: "sectors",
 	Subcommands: []*cli.Command{
 		utilSealerSectorsWorkerStatesCmd,
+		utilSealerSectorsAbortCmd,
 	},
 }
 
@@ -94,6 +97,42 @@ var utilSealerSectorsWorkerStatesCmd = &cli.Command{
 			}
 
 			fmt.Fprintln(os.Stdout, "")
+		}
+
+		return nil
+	},
+}
+
+var utilSealerSectorsAbortCmd = &cli.Command{
+	Name: "abort",
+	Action: func(cctx *cli.Context) error {
+		if count := cctx.Args().Len(); count < 2 {
+			return fmt.Errorf("both miner actor id & sector number are required, only %d args provided", count)
+		}
+
+		miner, err := strconv.ParseUint(cctx.Args().Get(0), 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid miner actor id: %w", err)
+		}
+
+		sectorNum, err := strconv.ParseUint(cctx.Args().Get(1), 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid sector number: %w", err)
+		}
+
+		cli, gctx, stop, err := extractSealerClient(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		_, err = cli.ReportAborted(gctx, abi.SectorID{
+			Miner:  abi.ActorID(miner),
+			Number: abi.SectorNumber(sectorNum),
+		}, "aborted via CLI")
+		if err != nil {
+			return fmt.Errorf("abort sector failed: %w", err)
 		}
 
 		return nil

@@ -71,6 +71,16 @@ func ExampleConfig() Config {
 		Token: "",
 	}
 
+	defaultCfg.DealManagerConfig.Enable = true
+	defaultCfg.DealManagerConfig.MarketAPI.Api = "http://some-host:some-port/"
+	defaultCfg.DealManagerConfig.MarketAPI.Token = "some token"
+	defaultCfg.DealManagerConfig.LocalPieceStores = append(defaultCfg.DealManagerConfig.LocalPieceStores, filestore.Config{
+		Name:     "piece storage name",
+		Path:     "/path/to/piece/storage",
+		Strict:   true,
+		ReadOnly: true,
+	})
+
 	return defaultCfg
 }
 
@@ -84,8 +94,9 @@ func DefaultConfig() Config {
 			Includes: make([]string, 0),
 			Stores:   make([]filestore.Config, 0),
 		},
-		PoSt:          DefaultPoStConfig(),
-		RegisterProof: DefaultRegisterProofConfig(),
+		PoSt:              DefaultPoStConfig(),
+		RegisterProof:     DefaultRegisterProofConfig(),
+		DealManagerConfig: DefaultDealManagerConfig(),
 	}
 }
 
@@ -98,7 +109,8 @@ type Config struct {
 	// TODO: use separate config for each actor
 	PoSt PoStConfig
 
-	RegisterProof RegisterProofConfig
+	RegisterProof     RegisterProofConfig
+	DealManagerConfig DealManagerConfig
 }
 
 func DefaultSectorManagerConfig() SectorManagerConfig {
@@ -334,5 +346,19 @@ type RegisterProofConfig struct {
 func DefaultRegisterProofConfig() RegisterProofConfig {
 	return RegisterProofConfig{
 		Actors: map[string]RegisterProofActorConfig{},
+	}
+}
+
+type DealManagerConfig struct {
+	Enable           bool
+	MarketAPI        RPCClientConfig
+	LocalPieceStores []filestore.Config
+}
+
+func DefaultDealManagerConfig() DealManagerConfig {
+	return DealManagerConfig{
+		Enable:           false,
+		MarketAPI:        RPCClientConfig{},
+		LocalPieceStores: []filestore.Config{},
 	}
 }

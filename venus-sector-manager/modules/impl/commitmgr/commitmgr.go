@@ -89,7 +89,7 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 }
 
 func updateSector(ctx context.Context, stmgr api.SectorStateManager, sector []api.SectorState, plog *logging.ZapLogger) {
-	sectorID := make([]abi.SectorID, len(sector), len(sector))
+	sectorID := make([]abi.SectorID, len(sector))
 	for i := range sector {
 		sectorID[i] = sector[i].ID
 		sector[i].MessageInfo.NeedSend = false

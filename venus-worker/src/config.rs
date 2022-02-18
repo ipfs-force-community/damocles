@@ -175,6 +175,15 @@ pub struct Config {
 
     /// static tree_d paths for cc sectors
     pub static_tree_d: Option<HashMap<String, String>>,
+
+    /// customized piece store proxy config field
+    pub piece_store: Option<PieceStoreConfig>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct PieceStoreConfig {
+    pub url: Option<String>,
+    pub token: Option<String>,
 }
 
 impl Config {

@@ -25,8 +25,9 @@ type PieceInfo struct {
 }
 
 type DealInfo struct {
-	ID    abi.DealID
-	Piece abi.PieceInfo
+	ID          abi.DealID
+	PayloadSize uint64
+	Piece       PieceInfo
 }
 
 type Deals []DealInfo
@@ -128,7 +129,8 @@ type PollProofStateResp struct {
 }
 
 type MinerInfo struct {
-	ID abi.ActorID
+	ID   abi.ActorID
+	Addr address.Address
 	// Addr                address.Address
 	// Owner               address.Address
 	// Worker              address.Address

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	logging "github.com/ipfs/go-log/v2"
 	"golang.org/x/xerrors"
 
@@ -16,8 +15,9 @@ import (
 	ffiproof "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
-	"github.com/filecoin-project/venus/venus-shared/api/gateway"
-	vtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
+	gateway "github.com/filecoin-project/venus/venus-shared/api/gateway/v1"
+	vtypes "github.com/filecoin-project/venus/venus-shared/types"
+	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
@@ -28,12 +28,12 @@ var log = logging.Logger("proof_event")
 
 type ProofEvent struct {
 	prover  api.Prover
-	client  gateway.IProofEventAPI
+	client  gateway.IGateway
 	actor   api.ActorIdent
 	indexer api.SectorIndexer
 }
 
-func NewProofEvent(prover api.Prover, client gateway.IProofEventAPI, actor api.ActorIdent, indexer api.SectorIndexer) *ProofEvent {
+func NewProofEvent(prover api.Prover, client gateway.IGateway, actor api.ActorIdent, indexer api.SectorIndexer) *ProofEvent {
 	pe := &ProofEvent{
 		prover:  prover,
 		client:  client,
@@ -66,7 +66,7 @@ func (pe *ProofEvent) StartListening(ctx context.Context) {
 func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	policy := &vtypes.ProofRegisterPolicy{
+	policy := &gtypes.ProofRegisterPolicy{
 		MinerAddress: pe.actor.Addr,
 	}
 
@@ -79,24 +79,24 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 	for proofEvent := range proofEventCh {
 		switch proofEvent.Method {
 		case "InitConnect":
-			req := vtypes.ConnectedCompleted{}
+			req := gtypes.ConnectedCompleted{}
 			err := json.Unmarshal(proofEvent.Payload, &req)
 			if err != nil {
 				return xerrors.Errorf("odd error in connect %v", err)
 			}
 			log.Infof("%s success to connect with proof %s", pe.actor.Addr, req.ChannelId)
 		case "ComputeProof":
-			req := vtypes.ComputeProofRequest{}
+			req := gtypes.ComputeProofRequest{}
 			err := json.Unmarshal(proofEvent.Payload, &req)
 			if err != nil {
-				_ = pe.client.ResponseProofEvent(ctx, &vtypes.ResponseEvent{
-					Id:      proofEvent.Id,
+				_ = pe.client.ResponseProofEvent(ctx, &gtypes.ResponseEvent{
+					ID:      proofEvent.ID,
 					Payload: nil,
 					Error:   err.Error(),
 				})
 				continue
 			}
-			pe.processComputeProof(ctx, proofEvent.Id, req)
+			pe.processComputeProof(ctx, proofEvent.ID, req)
 		default:
 			log.Errorf("%s receive unexpect proof event type %s", pe.actor.Addr, proofEvent.Method)
 		}
@@ -106,11 +106,11 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 }
 
 // context.Context, []builtin.ExtendedSectorInfo, abi.PoStRandomness, abi.ChainEpoch, network.Version
-func (pe *ProofEvent) processComputeProof(ctx context.Context, reqId uuid.UUID, req vtypes.ComputeProofRequest) {
+func (pe *ProofEvent) processComputeProof(ctx context.Context, reqID vtypes.UUID, req gtypes.ComputeProofRequest) {
 	privSectors, err := pe.sectorsPubToPrivate(ctx, req.SectorInfos)
 	if err != nil {
-		_ = pe.client.ResponseProofEvent(ctx, &vtypes.ResponseEvent{
-			Id:      reqId,
+		_ = pe.client.ResponseProofEvent(ctx, &gtypes.ResponseEvent{
+			ID:      reqID,
 			Payload: nil,
 			Error:   err.Error(),
 		})
@@ -119,8 +119,8 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqId uuid.UUID, 
 
 	proof, err := pe.prover.GenerateWinningPoSt(ctx, pe.actor.ID, privSectors, req.Rand)
 	if err != nil {
-		_ = pe.client.ResponseProofEvent(ctx, &vtypes.ResponseEvent{
-			Id:      reqId,
+		_ = pe.client.ResponseProofEvent(ctx, &gtypes.ResponseEvent{
+			ID:      reqID,
 			Payload: nil,
 			Error:   err.Error(),
 		})
@@ -129,21 +129,21 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqId uuid.UUID, 
 
 	proofBytes, err := json.Marshal(proof)
 	if err != nil {
-		_ = pe.client.ResponseProofEvent(ctx, &vtypes.ResponseEvent{
-			Id:      reqId,
+		_ = pe.client.ResponseProofEvent(ctx, &gtypes.ResponseEvent{
+			ID:      reqID,
 			Payload: nil,
 			Error:   err.Error(),
 		})
 		return
 	}
 
-	err = pe.client.ResponseProofEvent(ctx, &vtypes.ResponseEvent{
-		Id:      reqId,
+	err = pe.client.ResponseProofEvent(ctx, &gtypes.ResponseEvent{
+		ID:      reqID,
 		Payload: proofBytes,
 		Error:   "",
 	})
 	if err != nil {
-		log.Errorf("%s response proof event %s failed", pe.actor.Addr, reqId)
+		log.Errorf("%s response proof event %s failed", pe.actor.Addr, reqID)
 	}
 }
 

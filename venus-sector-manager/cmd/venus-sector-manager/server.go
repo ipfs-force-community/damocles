@@ -13,14 +13,16 @@ import (
 )
 
 func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node api.SealerAPI, addr string) error {
-	httpHandler, err := buildRPCServer(node)
+	mux, err := buildRPCServer(node)
 	if err != nil {
 		return fmt.Errorf("construct rpc server: %w", err)
 	}
 
+	// register piece store proxy
+
 	httpServer := &http.Server{
 		Addr:    addr,
-		Handler: httpHandler,
+		Handler: mux,
 		BaseContext: func(net.Listener) context.Context {
 			return ctx
 		},
@@ -45,7 +47,7 @@ func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node api.SealerAP
 	}
 
 	log.Info("stop application")
-	stopper(context.Background())
+	stopper(context.Background()) // nolint: errcheck
 
 	log.Info("http server shutdown")
 	if err := httpServer.Shutdown(context.Background()); err != nil {
@@ -56,7 +58,7 @@ func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node api.SealerAP
 	return nil
 }
 
-func buildRPCServer(hdl interface{}, opts ...jsonrpc.ServerOption) (http.Handler, error) {
+func buildRPCServer(hdl interface{}, opts ...jsonrpc.ServerOption) (*http.ServeMux, error) {
 	server := jsonrpc.NewServer(opts...)
 	server.Register("Venus", hdl)
 	http.Handle("/rpc/v0", server)

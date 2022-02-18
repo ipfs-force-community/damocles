@@ -12,6 +12,7 @@ var UtilCmd = &cli.Command{
 		utilChainCmd,
 		utilMinerCmd,
 		utilSealerCmd,
+		utilMarketCmd,
 	},
 	Before: func(cctx *cli.Context) error {
 		logging.SetupForSub(logSubSystem)

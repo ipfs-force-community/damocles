@@ -5,7 +5,7 @@ use anyhow::Result;
 use filecoin_proofs::StoreConfig;
 use filecoin_proofs_api::seal;
 pub use filecoin_proofs_api::seal::{
-    add_piece, clear_cache, Labels, SealCommitPhase1Output, SealCommitPhase2Output,
+    clear_cache, write_and_preprocess, Labels, SealCommitPhase1Output, SealCommitPhase2Output,
     SealPreCommitPhase1Output, SealPreCommitPhase2Output,
 };
 pub use filecoin_proofs_api::{

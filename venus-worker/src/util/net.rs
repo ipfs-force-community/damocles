@@ -1,8 +1,7 @@
-use std::convert::TryFrom;
 use std::net::{IpAddr, SocketAddr, TcpStream};
 
 use anyhow::{anyhow, Result};
-use hyper::Uri;
+use reqwest::Url;
 
 pub fn local_interface_ip(dest: SocketAddr) -> Result<IpAddr> {
     let stream = TcpStream::connect(dest)?;
@@ -11,19 +10,14 @@ pub fn local_interface_ip(dest: SocketAddr) -> Result<IpAddr> {
 }
 
 pub fn socket_addr_from_url(u: &str) -> Result<SocketAddr> {
-    let uri = Uri::try_from(u)?;
-    let host = uri
-        .host()
+    let url = Url::parse(u)?;
+    let host = url
+        .host_str()
         .ok_or(anyhow!("host is required in the target url"))?;
 
-    let port = match uri.port_u16() {
+    let port = match url.port_or_known_default() {
         Some(p) => p,
-        None => match uri.scheme_str() {
-            Some("https") | Some("wss") => 443,
-            Some("http") | Some("ws") => 80,
-            Some(other) => return Err(anyhow!("unknown scheme {} str in url", other)),
-            None => return Err(anyhow!("no scheme str in the target url")),
-        },
+        None => return Err(anyhow!("no known port for the url")),
     };
 
     let addr = format!("{}:{}", host, port).parse()?;

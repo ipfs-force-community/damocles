@@ -21,6 +21,7 @@ type SectorState struct {
 
 	LatestState *ReportStateReq
 	Finalized   Finalized
+	AbortReason string
 }
 
 func (s SectorState) DealIDs() []abi.DealID {

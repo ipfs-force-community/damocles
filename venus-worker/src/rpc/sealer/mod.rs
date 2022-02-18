@@ -7,7 +7,7 @@ use base64::STANDARD;
 use base64_serde::base64_serde_type;
 use fil_clock::ChainEpoch;
 use fil_types::{ActorID, PaddedPieceSize, SectorNumber};
-use forest_cid::Cid;
+use forest_cid::json::CidJson;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
@@ -113,18 +113,20 @@ pub struct DealInfo {
     #[serde(rename = "ID")]
     pub id: DealID,
 
+    pub payload_size: u64,
+
     /// piece data info
     pub piece: PieceInfo,
 }
 
 /// Piece information for part or a whole file.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct PieceInfo {
     /// Size in nodes. For BLS12-381 (capacity 254 bits), must be >= 16. (16 * 8 = 128).
     pub size: PaddedPieceSize,
     /// Content identifier for piece.
-    pub cid: Cid,
+    pub cid: CidJson,
 }
 
 /// types alias for deal piece info list

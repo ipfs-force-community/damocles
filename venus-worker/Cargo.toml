@@ -8,9 +8,9 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1"
-filecoin-proofs-api = "8.0"
-filecoin-proofs = "8.0"
-storage-proofs-core = "8.0"
+filecoin-proofs-api = "11"
+filecoin-proofs = "11"
+storage-proofs-core = "11"
 memmap = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.56"
@@ -19,7 +19,7 @@ base64-serde = "0.6"
 base64 = "0.13"
 forest_json_utils = "0.1"
 forest_address = "0.3"
-forest_cid = "0.3"
+forest_cid = { version = "0.3", features = ["json"]}
 fil_clock = "0.1"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8.5"
@@ -38,9 +38,9 @@ signal-hook = "0.3"
 flexi_logger = "0.18"
 ansi_term = "0.12.1"
 
-[dependencies.hyper]
-version = "0.14"
-features = ["client", "http1", "tcp"]
+[dependencies.reqwest]
+version = "0.11"
+features = ["blocking"]
 
 [dependencies.tokio]
 version = "1"

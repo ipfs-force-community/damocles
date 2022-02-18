@@ -8,8 +8,8 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 )
 
 var stateFields []reflect.StructField
@@ -134,7 +134,7 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals 
 	return save(ctx, sm.online, key, state)
 }
 
-func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID) error {
+func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinalize func(*api.SectorState) error) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
@@ -143,6 +143,13 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID) error {
 	state.Finalized = true
 	if err := sm.load(ctx, key, &state); err != nil {
 		return fmt.Errorf("load from online store: %w", err)
+	}
+
+	if onFinalize != nil {
+		err := onFinalize(&state)
+		if err != nil {
+			return fmt.Errorf("callback falied before finalize: %w", err)
+		}
 	}
 
 	if err := save(ctx, sm.offline, key, state); err != nil {

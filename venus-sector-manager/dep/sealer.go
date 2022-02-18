@@ -14,6 +14,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/sealer"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
 	messager "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
@@ -31,10 +32,7 @@ func Mock() dix.Option {
 func MockSealer(s *api.SealerAPI) dix.Option {
 	return dix.Options(
 		dix.Override(new(*mock.Sealer), mock.NewSealer),
-		dix.Override(InjectSealerAPI, func(instance *mock.Sealer) error {
-			*s = instance
-			return nil
-		}),
+		dix.Populate(InvokePopulate, s),
 	)
 }
 
@@ -62,23 +60,19 @@ func Product() dix.Option {
 		dix.Override(new(PersistedObjectStoreManager), BuildPersistedFileStoreMgr),
 		dix.Override(new(SectorIndexMetaStore), BuildSectorIndexMetaStore),
 		dix.Override(new(api.SectorIndexer), BuildSectorIndexer),
-
-		// TODO: use functional deal manager
-		dix.Override(new(api.DealManager), mock.NewDealManager),
+		dix.Override(ConstructMarketAPIRelated, BuildMarketAPIRelated),
 	)
 }
 
-func Sealer(s *api.SealerAPI) dix.Option {
+func Sealer(target ...interface{}) dix.Option {
 	return dix.Options(
 		dix.Override(new(*sealer.Sealer), sealer.New),
-		dix.Override(InjectSealerAPI, func(instance *sealer.Sealer) error {
-			*s = instance
-			return nil
-		}),
+		dix.Override(new(api.SealerAPI), dix.From(new(*sealer.Sealer))),
+		dix.If(len(target) > 0, dix.Populate(InvokePopulate, target...)),
 	)
 }
 
-func API(c *chain.API, m *messager.API) dix.Option {
+func API(target ...interface{}) dix.Option {
 	cfgmu := &sync.RWMutex{}
 	return dix.Options(
 		dix.Override(new(confmgr.WLocker), cfgmu),
@@ -86,28 +80,16 @@ func API(c *chain.API, m *messager.API) dix.Option {
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
 		dix.Override(new(*modules.Config), ProvideConfig),
 		dix.Override(new(chain.API), BuildChainClient),
+		dix.Override(new(api.MinerInfoAPI), BuildMinerInfoAPI),
 		dix.Override(new(messager.API), BuildMessagerClient),
-		dix.If(c != nil,
-			dix.Override(InjectChainAPI, func(instance chain.API) error {
-				*c = instance
-				return nil
-			}),
-		),
-		dix.If(m != nil,
-			dix.Override(InjectMessagerAPI, func(instance messager.API) error {
-				*m = instance
-				return nil
-			}),
-		),
+		dix.Override(new(market.API), BuildMarketAPI),
+		dix.If(len(target) > 0, dix.Populate(InvokePopulate, target...)),
 	)
 }
 
 func SealerClient(s *api.SealerClient) dix.Option {
 	return dix.Options(
 		dix.Override(new(api.SealerClient), BuildSealerClient),
-		dix.Override(InjectSealerClient, func(instance api.SealerClient) error {
-			*s = instance
-			return nil
-		}),
+		dix.Populate(InvokePopulate, s),
 	)
 }
