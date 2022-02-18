@@ -25,7 +25,7 @@ type SealerClient struct {
 
 	PollProofState func(context.Context, abi.SectorID) (PollProofStateResp, error)
 
-	ListSectors func(context.Context) ([]*SectorState, error)
+	ListSectors func(context.Context, SectorWorkerState) ([]*SectorState, error)
 
 	ReportState func(context.Context, abi.SectorID, ReportStateReq) (Meta, error)
 

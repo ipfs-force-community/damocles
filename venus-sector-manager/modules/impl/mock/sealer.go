@@ -79,7 +79,7 @@ func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (api.Poll
 	return s.commit.ProofState(ctx, sid)
 }
 
-func (s *Sealer) ListSectors(context.Context) ([]*api.SectorState, error) {
+func (s *Sealer) ListSectors(context.Context, api.SectorWorkerState) ([]*api.SectorState, error) {
 	return nil, nil
 }
 

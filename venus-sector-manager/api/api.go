@@ -35,7 +35,7 @@ type SealerAPI interface {
 
 	PollProofState(context.Context, abi.SectorID) (PollProofStateResp, error)
 
-	ListSectors(context.Context) ([]*SectorState, error)
+	ListSectors(context.Context, SectorWorkerState) ([]*SectorState, error)
 
 	ReportState(context.Context, abi.SectorID, ReportStateReq) (Meta, error)
 
@@ -81,7 +81,7 @@ type SectorStateManager interface {
 	Load(context.Context, abi.SectorID) (*SectorState, error)
 	Update(context.Context, abi.SectorID, ...interface{}) error
 	Finalize(context.Context, abi.SectorID, func(*SectorState) error) error
-	All(ctx context.Context) ([]*SectorState, error)
+	All(ctx context.Context, ws SectorWorkerState) ([]*SectorState, error)
 }
 
 type SectorIndexer interface {

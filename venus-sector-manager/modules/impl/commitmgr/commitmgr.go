@@ -268,7 +268,7 @@ func (c *CommitmentMgrImpl) startProLoop() {
 }
 
 func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
-	sectors, err := c.smgr.All(ctx)
+	sectors, err := c.smgr.All(ctx, api.WorkerOnline)
 	if err != nil {
 		log.Errorf("load all sector from db failed: %s", err)
 		return

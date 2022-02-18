@@ -261,8 +261,8 @@ func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (api.Poll
 	return s.commit.ProofState(ctx, sid)
 }
 
-func (s *Sealer) ListSectors(ctx context.Context) ([]*api.SectorState, error) {
-	return s.state.All(ctx)
+func (s *Sealer) ListSectors(ctx context.Context, ws api.SectorWorkerState) ([]*api.SectorState, error) {
+	return s.state.All(ctx, ws)
 }
 
 func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) (api.Meta, error) {
