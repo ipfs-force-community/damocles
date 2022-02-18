@@ -150,7 +150,6 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 
 	key := makeSectorKey(sid)
 	var state api.SectorState
-	state.Finalized = true
 	if err := sm.load(ctx, key, &state); err != nil {
 		return fmt.Errorf("load from online store: %w", err)
 	}
@@ -162,6 +161,7 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 		}
 	}
 
+	state.Finalized = true
 	if err := save(ctx, sm.offline, key, state); err != nil {
 		return fmt.Errorf("save info into offline store: %w", err)
 	}
