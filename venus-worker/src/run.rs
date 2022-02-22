@@ -137,10 +137,6 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .block_on(async move { http::connect(&rpc_url).await })
         .map_err(|e| anyhow!("jsonrpc connect to {}: {:?}", &cfg.sealer_rpc.url, e))?;
 
-    // let rpc_client = ws::connect(rpc_connect_req)
-    //     .map_err(|e| anyhow!("ws connect: {:?}", e))
-    //     .with_context(|| format!("rpc url {}", cfg.sealer_rpc.url))?;
-
     let instance = if let Some(name) = cfg.instance.as_ref().and_then(|s| s.name.as_ref()).cloned()
     {
         name
