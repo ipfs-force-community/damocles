@@ -115,8 +115,6 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .build()
         .context("construct runtime")?;
 
-    let _guard = runtime.enter();
-
     let cfg = config::Config::load(&cfg_path)
         .with_context(|| format!("load from config file {}", cfg_path))?;
     info!("config loaded\n {:?}", cfg);

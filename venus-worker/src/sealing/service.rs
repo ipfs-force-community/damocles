@@ -129,7 +129,7 @@ impl Module for Service {
 
         info!("listen on {:?}", addr);
 
-        let server = ServerBuilder::new(io).start_http(&addr)?;
+        let server = ServerBuilder::new(io).threads(8).start_http(&addr)?;
 
         server.wait();
 

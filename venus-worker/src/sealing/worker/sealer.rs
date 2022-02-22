@@ -6,8 +6,8 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
-use async_std::task::block_on;
 
+use crate::block_on;
 use crate::logging::{debug, debug_field, debug_span, info, info_span, warn};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
 use crate::rpc::sealer::{
@@ -29,11 +29,7 @@ const SECTOR_TRACE_PREFIX: &str = "trace";
 
 macro_rules! call_rpc {
     ($client:expr, $method:ident, $($arg:expr,)*) => {
-        block_on($client.$method(
-            $(
-                $arg,
-            )*
-        )).map_err(|e| anyhow!("rpc error: {:?}", e).temp())
+        block_on($client.$method($($arg,)*)).map_err(|e| anyhow!("rpc error: {:?}", e)).temp()
     };
 }
 

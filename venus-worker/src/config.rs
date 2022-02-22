@@ -15,6 +15,7 @@ use crate::sealing::processor::external::config::Ext;
 
 pub const DEFAULT_WORKER_SERVER_PORT: u16 = 17890;
 pub const DEFAULT_WORKER_SERVER_HOST: &str = "0.0.0.0";
+pub const LOCAL_HOST: &str = "127.0.0.1";
 
 /// configurations for sealing sectors
 #[derive(Debug, Clone)]
@@ -214,6 +215,28 @@ impl Config {
         let addr = format!("{}:{}", host, port)
             .parse()
             .with_context(|| format!("parse listen address with host: {}, port: {}", host, port))?;
+        Ok(addr)
+    }
+
+    /// get connect addr for worker server
+    pub fn worker_server_connect_addr(&self) -> Result<SocketAddr> {
+        let host = self
+            .worker_server
+            .as_ref()
+            .and_then(|c| c.host.as_ref())
+            .map(|s| s.as_str())
+            .unwrap_or(LOCAL_HOST);
+
+        let port = self
+            .worker_server
+            .as_ref()
+            .and_then(|c| c.port.as_ref())
+            .cloned()
+            .unwrap_or(DEFAULT_WORKER_SERVER_PORT);
+
+        let addr = format!("{}:{}", host, port).parse().with_context(|| {
+            format!("parse connect address with host: {}, port: {}", host, port)
+        })?;
         Ok(addr)
     }
 }

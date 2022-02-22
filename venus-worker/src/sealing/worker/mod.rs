@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use crossbeam_channel::{bounded, select, Receiver, Sender, TryRecvError};
 use crossbeam_utils::atomic::AtomicCell;
+use tokio::runtime::Builder;
 
 use crate::logging::{debug_field, error, info, warn};
 use crate::watchdog::{Ctx, Module};
@@ -131,6 +132,13 @@ impl Module for Worker {
     }
 
     fn run(&mut self, ctx: Ctx) -> Result<()> {
+        let rt = Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .context("construct single-thread runtime for worker")?;
+
+        let _rt_guard = rt.enter();
+
         let mut wait_for_resume = false;
         let mut resume_event = None;
         let resume_loop_tick = Duration::from_secs(1800);
