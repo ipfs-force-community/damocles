@@ -83,12 +83,12 @@ func (s *Sealer) ListSectors(context.Context) ([]*api.SectorState, error) {
 	return nil, nil
 }
 
-func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) error {
+func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) (api.Meta, error) {
 	log.Warnf("report state change for m-%d-s-%d: %#v", sid.Miner, sid.Number, req)
-	return nil
+	return api.Empty, nil
 }
 
-func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) error {
+func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (api.Meta, error) {
 	log.Warnf("report finalized for m-%d-s-%d", sid.Miner, sid.Number)
-	return nil
+	return api.Empty, nil
 }

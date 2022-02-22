@@ -10,6 +10,10 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
+var Empty Meta
+
+type Meta *struct{}
+
 type SealerAPI interface {
 	AllocateSector(context.Context, AllocateSectorSpec) (*AllocatedSector, error)
 
@@ -31,9 +35,9 @@ type SealerAPI interface {
 
 	ListSectors(context.Context) ([]*SectorState, error)
 
-	ReportState(context.Context, abi.SectorID, ReportStateReq) error
+	ReportState(context.Context, abi.SectorID, ReportStateReq) (Meta, error)
 
-	ReportFinalized(context.Context, abi.SectorID) error
+	ReportFinalized(context.Context, abi.SectorID) (Meta, error)
 }
 
 type RandomnessAPI interface {
