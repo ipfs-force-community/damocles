@@ -39,13 +39,13 @@ signal-hook = "0.3"
 flexi_logger = "0.18"
 ansi_term = "0.12.1"
 
+[dependencies.hyper]
+version = "0.14"
+features = ["client", "http1", "tcp"]
+
 [dependencies.fil_types]
 version = "0.2"
 features = ["json"]
-
-[dependencies.async-tungstenite]
-version = "*"
-features = ["async-native-tls"]
 
 [dependencies.rocksdb]
 version = "0.16"
