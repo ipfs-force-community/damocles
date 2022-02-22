@@ -1,6 +1,6 @@
 use crossbeam_channel::select;
 use jsonrpc_core::{Error, IoHandler, Result};
-use jsonrpc_ws_server::ServerBuilder;
+use jsonrpc_http_server::ServerBuilder;
 
 use super::worker::Ctrl;
 
@@ -129,9 +129,9 @@ impl Module for Service {
 
         info!("listen on {:?}", addr);
 
-        let server = ServerBuilder::new(io).start(&addr)?;
+        let server = ServerBuilder::new(io).start_http(&addr)?;
 
-        server.wait()?;
+        server.wait();
 
         Ok(())
     }

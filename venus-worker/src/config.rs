@@ -8,7 +8,6 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use jsonrpc_core_client::transports::ws::ConnectInfo;
 use serde::{Deserialize, Serialize};
 use toml::from_slice;
 
@@ -118,15 +117,6 @@ pub struct RPCClient {
     /// jsonrpc endpoint
     pub url: String,
     pub headers: Option<HashMap<String, String>>,
-}
-
-impl RPCClient {
-    pub fn to_connect_info(&self) -> ConnectInfo {
-        ConnectInfo {
-            url: self.url.clone(),
-            headers: self.headers.as_ref().cloned().unwrap_or_default(),
-        }
-    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
