@@ -230,18 +230,18 @@ func (s *Sealer) ListSectors(ctx context.Context) ([]*api.SectorState, error) {
 	return s.state.All(ctx)
 }
 
-func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) error {
+func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) (api.Meta, error) {
 	if err := s.state.Update(ctx, sid, &req); err != nil {
-		return err
+		return api.Empty, err
 	}
 
-	return nil
+	return api.Empty, nil
 }
 
-func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) error {
+func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (api.Meta, error) {
 	if err := s.state.Finalize(ctx, sid); err != nil {
-		return err
+		return api.Empty, err
 	}
 
-	return nil
+	return api.Empty, nil
 }

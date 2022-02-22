@@ -1,10 +1,10 @@
 use std::io::Write;
 
 use anyhow::{anyhow, Context, Result};
-use async_std::task::block_on;
 use clap::{value_t, App, Arg, ArgMatches, SubCommand};
 
 use venus_worker::{
+    block_on,
     client::{connect, WorkerClient},
     logging::{debug_field, info},
     Config,

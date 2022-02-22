@@ -1,9 +1,8 @@
 use std::convert::TryFrom;
 use std::net::{IpAddr, SocketAddr, TcpStream};
 
-use async_tungstenite::tungstenite::http::Uri;
-
 use anyhow::{anyhow, Result};
+use hyper::Uri;
 
 pub fn local_interface_ip(dest: SocketAddr) -> Result<IpAddr> {
     let stream = TcpStream::connect(dest)?;

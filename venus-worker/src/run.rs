@@ -7,7 +7,8 @@ use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
 use fil_types::ActorID;
 use jsonrpc_core::IoHandler;
-use jsonrpc_core_client::transports::{local, ws};
+use jsonrpc_core_client::transports::{http, local};
+use tokio::runtime::Builder;
 
 use crate::{
     config,
@@ -23,6 +24,13 @@ use crate::{
 
 /// start a worker process with mock modules
 pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<()> {
+    let runtime = Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("construct runtime")?;
+
+    let _guard = runtime.enter();
+
     let proof_type = SealProof::try_from(sector_size)?;
 
     info!(
@@ -53,8 +61,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let mut io = IoHandler::new();
     io.extend_with(mock_impl.to_delegate());
 
-    let mock_client = local::connect::<SealerClient, _, _>(io)
-        .map_err(|e| anyhow!("build local client: {:?}", e))?;
+    let (mock_client, _) = local::connect::<SealerClient, _, _>(io);
 
     let (processors, modules) = start_processors(&cfg).context("start processors")?;
 
@@ -103,6 +110,11 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
 
 /// start a normal venus-worker daemon
 pub fn start_deamon(cfg_path: String) -> Result<()> {
+    let runtime = Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("construct runtime")?;
+
     let cfg = config::Config::load(&cfg_path)
         .with_context(|| format!("load from config file {}", cfg_path))?;
     info!("config loaded\n {:?}", cfg);
@@ -120,11 +132,10 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing).context("load store manager")?;
 
-    let rpc_connect_req = cfg.sealer_rpc.to_connect_info();
-
-    let rpc_client = ws::connect(rpc_connect_req)
-        .map_err(|e| anyhow!("ws connect: {:?}", e))
-        .with_context(|| format!("rpc url {}", cfg.sealer_rpc.url))?;
+    let rpc_url = cfg.sealer_rpc.url.clone();
+    let rpc_client = runtime
+        .block_on(async move { http::connect(&rpc_url).await })
+        .map_err(|e| anyhow!("jsonrpc connect to {}: {:?}", &cfg.sealer_rpc.url, e))?;
 
     let instance = if let Some(name) = cfg.instance.as_ref().and_then(|s| s.name.as_ref()).cloned()
     {

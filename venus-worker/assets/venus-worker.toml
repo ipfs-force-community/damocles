@@ -1,12 +1,12 @@
 [sealer_rpc]
-url = "ws://127.0.0.1:1789/rpc/v0"
+url = "http://127.0.0.1:1789/rpc/v0"
 
 [sealing]
 enable_deals = false
 max_retries = 3
 
 [static_tree_d]
-2KiB = "./tmp/2k/sc-02-data-tree-d.dat"
+# 2KiB = "./tmp/2k/sc-02-data-tree-d.dat"
 
 [[store]]
 location = "./tmp/store1"

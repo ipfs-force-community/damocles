@@ -1,6 +1,7 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
 use clap::{value_t, App, Arg, SubCommand};
+use tokio::runtime::Builder;
 
 use venus_worker::{logging, start_deamon, start_mock};
 
@@ -9,6 +10,13 @@ mod store;
 mod worker;
 
 pub fn main() -> Result<()> {
+    let rt = Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("construct tokio runtime")?;
+
+    let _rt_guart = rt.enter();
+
     logging::init()?;
 
     let mock_cmd = SubCommand::with_name("mock")
