@@ -116,7 +116,7 @@ pub struct Store {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct RPCClient {
     /// jsonrpc endpoint
-    pub url: String,
+    pub addr: String,
     pub headers: Option<HashMap<String, String>>,
 }
 
