@@ -5,7 +5,6 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc"
 
-	chainV1 "github.com/filecoin-project/venus/venus-shared/api/chain/v1"
 	v1 "github.com/filecoin-project/venus/venus-shared/api/chain/v1"
 	"github.com/filecoin-project/venus/venus-shared/types"
 )
@@ -21,7 +20,7 @@ type (
 	Partition  = types.Partition
 )
 
-type API = chainV1.FullNode
+type API = v1.FullNode
 
 func New(ctx context.Context, api, token string) (API, jsonrpc.ClientCloser, error) {
 	client, closer, err := v1.DialFullNodeRPC(ctx, api, token, nil)
