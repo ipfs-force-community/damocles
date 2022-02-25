@@ -8,11 +8,15 @@ use byte_unit::Byte;
 use fil_types::ActorID;
 use jsonrpc_core::IoHandler;
 use jsonrpc_core_client::transports::{http, local};
+use reqwest::Url;
 use tokio::runtime::Builder;
 
 use crate::{
     config,
-    infra::objstore::filestore::FileStore,
+    infra::{
+        objstore::filestore::FileStore,
+        piecestore::{proxy::ProxyPieceStore, PieceStore},
+    },
     logging::{debug_field, info},
     rpc::sealer::{mock, Sealer, SealerClient},
     sealing::{processor, resource, service, store::StoreManager},
@@ -28,8 +32,6 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         .enable_all()
         .build()
         .context("construct runtime")?;
-
-    let _guard = runtime.enter();
 
     let proof_type = SealProof::try_from(sector_size)?;
 
@@ -76,6 +78,8 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         processors,
         limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
         static_tree_d,
+        rt: Arc::new(runtime),
+        piece_store: None,
     };
 
     let instance = cfg
@@ -153,6 +157,28 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         format!("{}", local_ip)
     };
 
+    let rpc_origin = Url::parse(&cfg.sealer_rpc.url)
+        .map(|u| u.origin().ascii_serialization())
+        .context("parse rpc url origin")?;
+
+    let piece_store: Option<Box<dyn PieceStore>> = if cfg.sealing.enable_deals.unwrap_or(false) {
+        let piece_store_url = cfg
+            .piece_store
+            .as_ref()
+            .and_then(|c| c.url.as_ref())
+            .unwrap_or(&rpc_origin);
+
+        Some(Box::new(
+            ProxyPieceStore::new(
+                piece_store_url,
+                cfg.piece_store.as_ref().and_then(|c| c.token.to_owned()),
+            )
+            .context("build proxy piece store")?,
+        ))
+    } else {
+        None
+    };
+
     let (processors, modules) = start_processors(&cfg).context("start processors")?;
 
     let workers = store_mgr.into_workers();
@@ -165,6 +191,8 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         processors,
         limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
         static_tree_d,
+        rt: Arc::new(runtime),
+        piece_store: piece_store.map(|s| Arc::new(s)),
     };
 
     let mut dog = WatchDog::build(cfg, instance, globl);

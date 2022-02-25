@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -16,15 +17,18 @@ import (
 
 	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
 
-
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/commitmgr"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/dealmgr"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/mock"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/piecestore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/sectors"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
@@ -253,9 +257,9 @@ func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg
 						mid := miners[mi].ID
 
 						mlog := log.With("miner", mid)
-						_, err := mapi.Get(gctx, mid)
+						info, err := mapi.Get(gctx, mid)
 						if err == nil {
-							mlog.Info("miner info pre-fetched")
+							mlog.Infof("miner info pre-fetched: %#v", info)
 						} else {
 							mlog.Warnf("miner info pre-fetch failed: %v", err)
 						}
@@ -368,4 +372,63 @@ func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker) (P
 
 func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (api.SectorIndexer, error) {
 	return sectors.NewIndexer(storeMgr, kv)
+}
+
+type MarketAPIRelatedComponets struct {
+	fx.Out
+
+	DealManager api.DealManager
+	MarketAPI   market.API
+}
+
+func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker, infoAPI api.MinerInfoAPI) (market.API, error) {
+	locker.Lock()
+	defer locker.Unlock()
+
+	mapi, mcloser, err := market.New(gctx, scfg.DealManagerConfig.MarketAPI.Api, scfg.DealManagerConfig.MarketAPI.Token)
+	if err != nil {
+		return nil, fmt.Errorf("construct market api: %w", err)
+	}
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			mcloser()
+			return nil
+		},
+	})
+
+	return mapi, nil
+}
+
+func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker, infoAPI api.MinerInfoAPI) (MarketAPIRelatedComponets, error) {
+	locker.Lock()
+	enabled := scfg.DealManagerConfig.Enable
+	locker.Unlock()
+
+	if !enabled {
+		log.Warn("deal manager based on market api is disabled, use mocked")
+		return MarketAPIRelatedComponets{
+			DealManager: mock.NewDealManager(),
+			MarketAPI:   nil,
+		}, nil
+	}
+
+	mapi, err := BuildMarketAPI(gctx, lc, scfg, locker, infoAPI)
+	if err != nil {
+		return MarketAPIRelatedComponets{}, fmt.Errorf("build market api: %w", err)
+	}
+
+	locals, err := filestore.OpenMany(scfg.DealManagerConfig.LocalPieceStores)
+	if err != nil {
+		return MarketAPIRelatedComponets{}, fmt.Errorf("open local piece stores: %w", err)
+	}
+
+	proxy := piecestore.NewProxy(locals, mapi)
+	http.DefaultServeMux.Handle(HttpEndpointPiecestore, http.StripPrefix(HttpEndpointPiecestore, proxy))
+	log.Info("piecestore proxy has been registered into default mux")
+
+	return MarketAPIRelatedComponets{
+		DealManager: dealmgr.New(mapi, infoAPI),
+		MarketAPI:   mapi,
+	}, nil
 }

@@ -15,8 +15,8 @@ use crate::rpc::sealer::{
     ReportStateReq, SectorFailure, SectorID, SectorStateChange, SubmitResult, WorkerIdentifier,
 };
 use crate::sealing::processor::{
-    add_piece, clear_cache, seal_commit_phase1, tree_d_path_in_dir, C2Input, PC1Input, PC2Input,
-    PaddedBytesAmount, Stage, TreeDInput, UnpaddedBytesAmount,
+    clear_cache, seal_commit_phase1, tree_d_path_in_dir, write_and_preprocess, C2Input, PC1Input,
+    PC2Input, PaddedBytesAmount, Stage, TreeDInput, UnpaddedBytesAmount,
 };
 use crate::store::Store;
 use crate::watchdog::Ctx;
@@ -543,6 +543,11 @@ impl<'c> Sealer<'c> {
             },
         }?;
 
+        debug!(
+            count = deals.as_ref().map(|d| d.len()).unwrap_or(0),
+            "pieces acquired"
+        );
+
         Ok(Event::AcquireDeals(deals))
     }
 
@@ -559,7 +564,7 @@ impl<'c> Sealer<'c> {
             // to make sure that we won't write into the staged file with any data exists
             .truncate(true)
             .open(self.staged_file(sector_id))
-            .abort()?;
+            .perm()?;
 
         // TODO: this is only for pledged sector
         let proof_type = fetch_cloned_field! {
@@ -567,20 +572,76 @@ impl<'c> Sealer<'c> {
             allocated.proof_type,
         }?;
 
+        let seal_proof_type = proof_type.into();
+
         let sector_size = proof_type.sector_size();
-        let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
+        let mut pieces = Vec::new();
 
-        let mut pledge_piece = io::repeat(0).take(unpadded_size.0);
-        let (piece_info, _) = add_piece(
-            proof_type.into(),
-            &mut pledge_piece,
-            &mut staged_file,
-            unpadded_size,
-            &[],
-        )
-        .abort()?;
+        // acquired peices
+        if let Some(deals) = self.sector.deals.as_ref() {
+            let piece_store = self
+                .ctx
+                .global
+                .piece_store
+                .as_ref()
+                .context("piece store is required")
+                .perm()?;
 
-        Ok(Event::AddPiece(vec![piece_info]))
+            for deal in deals {
+                debug!(deal_id = deal.id, cid = %deal.piece.cid.0, payload_size = deal.payload_size, piece_size = deal.piece.size.0, "trying to add piece");
+
+                let unpadded_piece_size = deal.piece.size.unpadded();
+                let (piece_info, _) = if deal.id == 0 {
+                    let mut pledge_piece = io::repeat(0).take(unpadded_piece_size.0);
+                    write_and_preprocess(
+                        seal_proof_type,
+                        &mut pledge_piece,
+                        &mut staged_file,
+                        UnpaddedBytesAmount(unpadded_piece_size.0),
+                    )
+                    .with_context(|| format!("write pledge piece, size={}", unpadded_piece_size.0))
+                    .perm()?
+                } else {
+                    let mut piece_reader = piece_store
+                        .get(deal.piece.cid.0, deal.payload_size, unpadded_piece_size)
+                        .perm()?;
+
+                    write_and_preprocess(
+                        seal_proof_type,
+                        &mut piece_reader,
+                        &mut staged_file,
+                        UnpaddedBytesAmount(unpadded_piece_size.0),
+                    )
+                    .with_context(|| {
+                        format!(
+                            "write deal piece, cid={}, size={}",
+                            deal.piece.cid.0, unpadded_piece_size.0
+                        )
+                    })
+                    .perm()?
+                };
+
+                pieces.push(piece_info);
+            }
+        }
+
+        if pieces.is_empty() {
+            let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
+
+            let mut pledge_piece = io::repeat(0).take(unpadded_size.0);
+            let (piece_info, _) = write_and_preprocess(
+                proof_type.into(),
+                &mut pledge_piece,
+                &mut staged_file,
+                unpadded_size,
+            )
+            .context("write full pledge piece")
+            .perm()?;
+
+            pieces.push(piece_info);
+        }
+
+        Ok(Event::AddPiece(pieces))
     }
 
     fn handle_piece_added(&mut self) -> HandleResult {
@@ -607,10 +668,14 @@ impl<'c> Sealer<'c> {
                 .crit()?;
         }
 
-        if let Some(static_tree_path) = self.ctx.global.static_tree_d.get(&proof_type.sector_size())
-        {
-            symlink(static_tree_path, tree_d_path_in_dir(&prepared_dir)).crit()?;
-            return Ok(Event::BuildTreeD);
+        // pledge sector
+        if self.sector.deals.as_ref().map(|d| d.len()).unwrap_or(0) == 0 {
+            if let Some(static_tree_path) =
+                self.ctx.global.static_tree_d.get(&proof_type.sector_size())
+            {
+                symlink(static_tree_path, tree_d_path_in_dir(&prepared_dir)).crit()?;
+                return Ok(Event::BuildTreeD);
+            }
         }
 
         let staged_file = self.staged_file(sector_id);
@@ -624,7 +689,7 @@ impl<'c> Sealer<'c> {
                 staged_file,
                 cache_dir: prepared_dir,
             })
-            .abort()?;
+            .perm()?;
 
         drop(token);
         Ok(Event::BuildTreeD)
@@ -716,7 +781,7 @@ impl<'c> Sealer<'c> {
                 ticket: ticket.0,
                 piece_infos,
             })
-            .abort()?;
+            .perm()?;
 
         drop(token);
         Ok(Event::PC1(out))
@@ -772,7 +837,7 @@ impl<'c> Sealer<'c> {
                 cache_dir,
                 sealed_file,
             })
-            .abort()?;
+            .perm()?;
 
         drop(token);
         Ok(Event::PC2(out))

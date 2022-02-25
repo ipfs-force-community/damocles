@@ -10,11 +10,13 @@ import (
 	"github.com/dtynn/dix"
 	"github.com/filecoin-project/go-address"
 	"github.com/urfave/cli/v2"
+	"go.uber.org/fx"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
@@ -64,21 +66,22 @@ func HomeFromCLICtx(cctx *cli.Context) (*homedir.Home, error) {
 }
 
 type API struct {
+	fx.In
 	Chain    chain.API
 	Messager messager.API
+	Market   market.API
 }
 
 func extractAPI(cctx *cli.Context) (*API, context.Context, stopper, error) {
 	gctx, gcancel := NewSigContext(cctx.Context)
 
-	var capi chain.API
-	var mapi messager.API
+	var a API
 
 	stopper, err := dix.New(
 		gctx,
 		DepsFromCLICtx(cctx),
 		dix.Override(new(dep.GlobalContext), gctx),
-		dep.API(&capi, &mapi),
+		dep.API(&a),
 	)
 
 	if err != nil {
@@ -86,13 +89,10 @@ func extractAPI(cctx *cli.Context) (*API, context.Context, stopper, error) {
 		return nil, nil, nil, fmt.Errorf("construct sealer api: %w", err)
 	}
 
-	return &API{
-			Chain:    capi,
-			Messager: mapi,
-		}, gctx, func() {
-			stopper(cctx.Context)
-			gcancel()
-		}, nil
+	return &a, gctx, func() {
+		stopper(cctx.Context) // nolint: errcheck
+		gcancel()
+	}, nil
 }
 
 func RPCCallError(method string, err error) error {

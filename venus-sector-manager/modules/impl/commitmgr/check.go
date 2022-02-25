@@ -102,8 +102,8 @@ func checkPieces(ctx context.Context, maddr address.Address, si api.SectorState,
 			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong provider: %s != %s", i, len(si.Deals), si.ID, p.ID, proposal.Provider, maddr)}
 		}
 
-		if proposal.PieceCID != p.Piece.PieceCID {
-			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong PieceCID: %x != %x", i, len(si.Deals), si.ID, p.ID, p.Piece.PieceCID, proposal.PieceCID)}
+		if proposal.PieceCID != p.Piece.Cid {
+			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong PieceCID: %x != %x", i, len(si.Deals), si.ID, p.ID, p.Piece.Cid, proposal.PieceCID)}
 		}
 
 		if p.Piece.Size != proposal.PieceSize {

@@ -6,15 +6,15 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-commp-utils/zerocomm"
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
-
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 )
 
 var (
@@ -97,18 +97,53 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec api.AllocateSectorSpec
 }
 
 func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.AcquireDealsSpec) (api.Deals, error) {
+	state, err := s.state.Load(ctx, sid)
+	if err != nil {
+		return nil, fmt.Errorf("load sector state: %w", err)
+	}
+
+	if len(state.Deals) != 0 {
+		return state.Deals, nil
+	}
+
 	deals, err := s.deal.Acquire(ctx, sid, spec.MaxDeals)
 	if err != nil {
 		return nil, err
 	}
 
+	success := false
+	slog := sectorLogger(sid).With("total-pieces", len(deals))
+
+	slog.Debugw("deals acquired")
+
+	defer func() {
+		if !success {
+			if rerr := s.deal.Release(ctx, sid, deals); rerr != nil {
+				slog.Errorf("failed to release deals %v", rerr)
+			}
+		}
+	}()
+
+	// validate deals
+	for di := range deals {
+		// should be a pledge piece
+		dinfo := deals[di]
+		if dinfo.ID == 0 {
+			expected := zerocomm.ZeroPieceCommitment(dinfo.Piece.Size.Unpadded())
+			if !expected.Equals(dinfo.Piece.Cid) {
+				slog.Errorw("got unexpected non-deal piece", "piece-seq", di, "piece-size", dinfo.Piece.Size, "piece-cid", dinfo.Piece.Cid)
+				return nil, fmt.Errorf("got unexpected non-deal piece")
+			}
+		}
+	}
+
 	err = s.state.Update(ctx, sid, deals)
 	if err != nil {
-		if rerr := s.deal.Release(ctx, deals); rerr != nil {
-			sectorLogger(sid).Errorf("failed to release deals %v", deals)
-		}
+		slog.Errorf("failed to update sector state: %v", err)
 		return nil, err
 	}
+
+	success = true
 
 	return deals, nil
 }
@@ -239,7 +274,30 @@ func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.Repo
 }
 
 func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (api.Meta, error) {
-	if err := s.state.Finalize(ctx, sid); err != nil {
+	sectorLogger(sid).Debug("sector finalized")
+	if err := s.state.Finalize(ctx, sid, nil); err != nil {
+		return api.Empty, err
+	}
+
+	return api.Empty, nil
+}
+
+func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason string) (api.Meta, error) {
+	err := s.state.Finalize(ctx, sid, func(st *api.SectorState) error {
+		if dealCount := len(st.Deals); dealCount > 0 {
+			err := s.deal.Release(ctx, sid, st.Deals)
+			if err != nil {
+				return fmt.Errorf("release deals in sector: %w", err)
+			}
+
+			sectorLogger(sid).Debugw("deals released", "count", dealCount)
+		}
+
+		st.AbortReason = reason
+		return nil
+	})
+
+	if err != nil {
 		return api.Empty, err
 	}
 

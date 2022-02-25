@@ -21,6 +21,6 @@ func (*nullDeal) Acquire(context.Context, abi.SectorID, *uint) (api.Deals, error
 	return nil, nil
 }
 
-func (*nullDeal) Release(context.Context, api.Deals) error {
+func (*nullDeal) Release(context.Context, abi.SectorID, api.Deals) error {
 	return nil
 }

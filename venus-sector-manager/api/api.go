@@ -38,6 +38,8 @@ type SealerAPI interface {
 	ReportState(context.Context, abi.SectorID, ReportStateReq) (Meta, error)
 
 	ReportFinalized(context.Context, abi.SectorID) (Meta, error)
+
+	ReportAborted(context.Context, abi.SectorID, string) (Meta, error)
 }
 
 type RandomnessAPI interface {
@@ -57,7 +59,7 @@ type SectorManager interface {
 
 type DealManager interface {
 	Acquire(context.Context, abi.SectorID, *uint) (Deals, error)
-	Release(context.Context, Deals) error
+	Release(context.Context, abi.SectorID, Deals) error
 }
 
 type CommitmentManager interface {
@@ -76,7 +78,7 @@ type SectorStateManager interface {
 	Init(context.Context, abi.SectorID, abi.RegisteredSealProof) error
 	Load(context.Context, abi.SectorID) (*SectorState, error)
 	Update(context.Context, abi.SectorID, ...interface{}) error
-	Finalize(context.Context, abi.SectorID) error
+	Finalize(context.Context, abi.SectorID, func(*SectorState) error) error
 	All(ctx context.Context) ([]*SectorState, error)
 }
 

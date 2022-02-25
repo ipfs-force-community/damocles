@@ -92,3 +92,8 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (api.Met
 	log.Warnf("report finalized for m-%d-s-%d", sid.Miner, sid.Number)
 	return api.Empty, nil
 }
+
+func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason string) (api.Meta, error) {
+	log.Warnf("report aborted for m-%d-s-%d: %s", sid.Miner, sid.Number, reason)
+	return api.Empty, nil
+}

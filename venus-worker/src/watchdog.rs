@@ -5,15 +5,11 @@ use std::thread;
 
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver, Select, Sender};
-
-/// return done tx & rx
-pub fn dones() -> (Sender<()>, Receiver<()>) {
-    bounded(0)
-}
+use tokio::runtime::Runtime;
 
 use crate::{
     config::Config,
-    infra::objstore::ObjectStore,
+    infra::{objstore::ObjectStore, piecestore::PieceStore},
     logging::{error, error_span, info, warn},
     rpc::sealer::SealerClient,
     sealing::{
@@ -21,6 +17,11 @@ use crate::{
         resource::Pool,
     },
 };
+
+/// return done tx & rx
+pub fn dones() -> (Sender<()>, Receiver<()>) {
+    bounded(0)
+}
 
 pub type Done = Receiver<()>;
 
@@ -39,6 +40,8 @@ pub struct GlobalModules {
     pub processors: GloablProcessors,
     pub static_tree_d: HashMap<u64, PathBuf>,
     pub limit: Arc<Pool>,
+    pub rt: Arc<Runtime>,
+    pub piece_store: Option<Arc<Box<dyn PieceStore>>>,
 }
 
 #[derive(Clone)]

@@ -9,11 +9,19 @@ import (
 var log = logging.New("dep")
 
 const (
-	ignoredInvoke dix.Invoke = iota
-	InjectSealerAPI
-	InjectChainAPI
-	InjectMessagerAPI
+	ignoredInvoke dix.Invoke = iota // nolint:deadcode,varcheck
 	StartPoSter
-	InjectSealerClient
 	StartMiner
+
+	// InvokePopulate should always be the last Invoke
+	InvokePopulate
+)
+
+const (
+	ignoredSpiecial dix.Special = iota // nolint:deadcode,varcheck
+	ConstructMarketAPIRelated
+)
+
+const (
+	HttpEndpointPiecestore = "/piecestore/"
 )

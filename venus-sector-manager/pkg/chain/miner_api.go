@@ -55,6 +55,7 @@ func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*api.MinerInfo
 
 	mi = &api.MinerInfo{
 		ID:                  mid,
+		Addr:                maddr,
 		SectorSize:          minfo.SectorSize,
 		WindowPoStProofType: minfo.WindowPoStProofType,
 		SealProofType:       sealProof,

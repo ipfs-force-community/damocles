@@ -39,6 +39,20 @@ type Config struct {
 	ReadOnly bool
 }
 
+func OpenMany(cfgs []Config) ([]*Store, error) {
+	stores := make([]*Store, 0, len(cfgs))
+	for _, cfg := range cfgs {
+		store, err := Open(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		stores = append(stores, store)
+	}
+
+	return stores, nil
+}
+
 func Open(cfg Config) (*Store, error) {
 	dirPath, err := filepath.Abs(cfg.Path)
 	if err != nil {
@@ -205,7 +219,7 @@ func (s *Store) Stat(ctx context.Context, p string) (objstore.Stat, error) {
 }
 
 func (s *Store) Put(ctx context.Context, p string, r io.Reader) (int64, error) {
-	if s.cfg.Strict {
+	if s.cfg.ReadOnly {
 		return 0, objstore.ErrReadOnlyStore
 	}
 
