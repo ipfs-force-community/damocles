@@ -72,7 +72,7 @@ func ExampleConfig() Config {
 	}
 
 	defaultCfg.DealManagerConfig.Enable = true
-	defaultCfg.DealManagerConfig.MarketAPI.Api = "http://some-host:some-port/"
+	defaultCfg.DealManagerConfig.MarketAPI.Api = "/ip4/{host}/tcp/{port}"
 	defaultCfg.DealManagerConfig.MarketAPI.Token = "some token"
 	defaultCfg.DealManagerConfig.LocalPieceStores = append(defaultCfg.DealManagerConfig.LocalPieceStores, filestore.Config{
 		Name:     "piece storage name",

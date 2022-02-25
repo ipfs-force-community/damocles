@@ -14,8 +14,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/filecoin-project/go-jsonrpc"
-
-	"github.com/ipfs-force-community/venus-common-utils/apiinfo"
+	vapi "github.com/filecoin-project/venus/venus-shared/api"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -196,8 +195,8 @@ func BuildSealerClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress
 
 	maddr := fmt.Sprintf("/ip4/%s/tcp/%d", ip, addr.Port)
 
-	ainfo := apiinfo.NewAPIInfo(maddr, "")
-	apiAddr, err := ainfo.DialArgs("v0")
+	ainfo := vapi.NewAPIInfo(maddr, "")
+	apiAddr, err := ainfo.DialArgs(vapi.VerString(api.MajorVersion))
 	if err != nil {
 		return scli, err
 	}
@@ -224,7 +223,7 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config,
 
 	ccli, ccloser, err := chain.New(gctx, api, token)
 	if err != nil {
-		return chain.API{}, err
+		return nil, err
 	}
 
 	lc.Append(fx.Hook{
