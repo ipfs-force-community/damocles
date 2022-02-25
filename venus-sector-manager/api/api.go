@@ -2,9 +2,12 @@ package api
 
 import (
 	"context"
+	"github.com/filecoin-project/go-address"
 
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/specs-storage/storage"
 
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
@@ -42,6 +45,10 @@ type SealerAPI interface {
 	ReportFinalized(context.Context, abi.SectorID) (Meta, error)
 
 	ReportAborted(context.Context, abi.SectorID, string) (Meta, error)
+
+	CheckProvable(context.Context, abi.RegisteredPoStProof, []storage.SectorRef, bool) (map[abi.SectorNumber]string, error)
+
+	SimulateWdPoSt(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
 }
 
 type RandomnessAPI interface {
@@ -88,4 +95,9 @@ type SectorIndexer interface {
 	Find(context.Context, abi.SectorID) (string, bool, error)
 	Update(context.Context, abi.SectorID, string) error
 	StoreMgr() objstore.Manager
+}
+
+type SectorTracker interface {
+	Provable(context.Context, abi.RegisteredPoStProof, []storage.SectorRef, bool) (map[abi.SectorNumber]string, error)
+	PubToPrivate(context.Context, abi.ActorID, []builtin.ExtendedSectorInfo) (SortedPrivateSectorInfo, error)
 }

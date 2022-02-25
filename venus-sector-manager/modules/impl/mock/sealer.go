@@ -3,8 +3,11 @@ package mock
 import (
 	"context"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/specs-storage/storage"
 
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
@@ -96,4 +99,12 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (api.Met
 func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason string) (api.Meta, error) {
 	log.Warnf("report aborted for m-%d-s-%d: %s", sid.Miner, sid.Number, reason)
 	return api.Empty, nil
+}
+
+func (s *Sealer) CheckProvable(context.Context, abi.RegisteredPoStProof, []storage.SectorRef, bool) (map[abi.SectorNumber]string, error) {
+	return nil, nil
+}
+
+func (s *Sealer) SimulateWdPoSt(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
+	return nil
 }

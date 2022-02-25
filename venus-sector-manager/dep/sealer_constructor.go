@@ -373,6 +373,10 @@ func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMeta
 	return sectors.NewIndexer(storeMgr, kv)
 }
 
+func BuildSectorTracker(indexer api.SectorIndexer) (api.SectorTracker, error) {
+	return sectors.NewTracker(indexer)
+}
+
 type MarketAPIRelatedComponets struct {
 	fx.Out
 

@@ -7,6 +7,7 @@ require (
 	github.com/dgraph-io/badger/v2 v2.2007.3
 	github.com/docker/go-units v0.4.0
 	github.com/dtynn/dix v0.1.2
+	github.com/fatih/color v1.13.0
 	github.com/filecoin-project/filecoin-ffi v0.30.4-0.20200910194244-f640612a1a1f
 	github.com/filecoin-project/go-address v0.0.6
 	github.com/filecoin-project/go-bitfield v0.2.4
@@ -22,6 +23,7 @@ require (
 	github.com/filecoin-project/specs-storage v0.2.0
 	github.com/filecoin-project/venus v1.2.2-0.20220225063919-ed9c00da1a10
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
+	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.1.0

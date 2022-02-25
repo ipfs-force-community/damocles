@@ -3,7 +3,11 @@ package api
 import (
 	"context"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/specs-storage/storage"
+
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 )
 
 type SealerClient struct {
@@ -32,4 +36,8 @@ type SealerClient struct {
 	ReportFinalized func(context.Context, abi.SectorID) (Meta, error)
 
 	ReportAborted func(context.Context, abi.SectorID, string) (Meta, error)
+
+	CheckProvable func(context.Context, abi.RegisteredPoStProof, []storage.SectorRef, bool) (map[abi.SectorNumber]string, error)
+
+	SimulateWdPoSt func(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
 }
