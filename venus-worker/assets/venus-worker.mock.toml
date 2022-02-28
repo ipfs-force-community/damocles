@@ -1,5 +1,5 @@
 [sealer_rpc]
-url = "http://127.0.0.1:1789/rpc/v0"
+addr = "/ip4/127.0.0.1/tcp/1789"
 
 [sealing]
 enable_deals = true

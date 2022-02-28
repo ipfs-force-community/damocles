@@ -22,7 +22,7 @@ use crate::{
     sealing::{processor, resource, service, store::StoreManager},
     signal::Signal,
     types::SealProof,
-    util::net::{local_interface_ip, socket_addr_from_url},
+    util::net::{local_interface_ip, rpc_addr, socket_addr_from_url},
     watchdog::{GloablProcessors, GlobalModules, Module, WatchDog},
 };
 
@@ -136,28 +136,29 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing).context("load store manager")?;
 
-    let rpc_url = cfg.sealer_rpc.url.clone();
+    let dial_addr = rpc_addr(&cfg.sealer_rpc.addr, 0)?;
+    info!(
+        raw = %cfg.sealer_rpc.addr,
+        addr = %dial_addr.as_str(),
+        "rpc dial info"
+    );
+
     let rpc_client = runtime
-        .block_on(async move { http::connect(&rpc_url).await })
-        .map_err(|e| anyhow!("jsonrpc connect to {}: {:?}", &cfg.sealer_rpc.url, e))?;
+        .block_on(async { http::connect(&dial_addr).await })
+        .map_err(|e| anyhow!("jsonrpc connect to {}: {:?}", &dial_addr, e))?;
 
     let instance = if let Some(name) = cfg.instance.as_ref().and_then(|s| s.name.as_ref()).cloned()
     {
         name
     } else {
-        let local_ip = socket_addr_from_url(&cfg.sealer_rpc.url)
-            .with_context(|| {
-                format!(
-                    "attempt to connect to sealer rpc service {}",
-                    &cfg.sealer_rpc.url
-                )
-            })
+        let local_ip = socket_addr_from_url(&dial_addr)
+            .with_context(|| format!("attempt to connect to sealer rpc service {}", &dial_addr))
             .and_then(local_interface_ip)
             .context("get local ip")?;
         format!("{}", local_ip)
     };
 
-    let rpc_origin = Url::parse(&cfg.sealer_rpc.url)
+    let rpc_origin = Url::parse(&dial_addr)
         .map(|u| u.origin().ascii_serialization())
         .context("parse rpc url origin")?;
 

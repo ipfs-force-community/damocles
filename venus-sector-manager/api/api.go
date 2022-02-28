@@ -10,6 +10,8 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
+const MajorVersion = 0
+
 var Empty Meta
 
 type Meta *struct{}

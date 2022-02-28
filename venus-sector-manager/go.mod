@@ -20,10 +20,9 @@ require (
 	github.com/filecoin-project/specs-actors/v6 v6.0.1
 	github.com/filecoin-project/specs-actors/v7 v7.0.0-rc1
 	github.com/filecoin-project/specs-storage v0.2.0
-	github.com/filecoin-project/venus v1.2.0
+	github.com/filecoin-project/venus v1.2.2-0.20220225063919-ed9c00da1a10
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ipfs-force-community/venus-common-utils v0.0.0-20211122032945-eb6cab79c62a
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.1.0
 	github.com/ipfs/go-ipfs-blockstore v1.1.2

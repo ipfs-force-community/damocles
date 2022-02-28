@@ -3,10 +3,10 @@ package market
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 
 	"github.com/filecoin-project/go-jsonrpc"
+	"github.com/filecoin-project/venus/venus-shared/api"
 	"github.com/filecoin-project/venus/venus-shared/api/market"
 	mtypes "github.com/filecoin-project/venus/venus-shared/types/market"
 	"github.com/ipfs/go-cid"
@@ -31,24 +31,29 @@ type (
 )
 
 func New(ctx context.Context, addr, token string) (API, jsonrpc.ClientCloser, error) {
-	u, err := url.Parse(addr)
+	ainfo := api.NewAPIInfo(addr, token)
+
+	dialAddr, err := ainfo.DialArgs(api.VerString(market.MajorVersion))
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid addr: %w", err)
+		return nil, nil, fmt.Errorf("get dial args for connecting: %w", err)
 	}
 
-	if u.Scheme == "" || u.Host == "" {
-		return nil, nil, fmt.Errorf("scheme or host is missing in addr")
-	}
-
-	// TODO: shoud be moved into venus-shared
-	header := http.Header{}
-	if token != "" {
-		header.Set("Authorization", "Bearer "+token)
-	}
-
-	cli, closer, err := market.NewIMarketRPC(ctx, addr, header)
+	cli, closer, err := market.NewIMarketRPC(ctx, dialAddr, ainfo.AuthHeader())
 	if err != nil {
 		return nil, nil, fmt.Errorf("construct market api client: %w", err)
+	}
+
+	u, err := url.Parse(dialAddr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%q is not a valid url: %w", dialAddr, err)
+	}
+
+	switch u.Scheme {
+	case "ws":
+		u.Scheme = "http"
+
+	case "wss":
+		u.Scheme = "https"
 	}
 
 	return &wrappedAPI{

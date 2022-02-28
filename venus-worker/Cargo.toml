@@ -37,6 +37,7 @@ cgroups-rs = "0.2"
 signal-hook = "0.3"
 flexi_logger = "0.18"
 ansi_term = "0.12.1"
+multiaddr = "0.14.0"
 
 [dependencies.reqwest]
 version = "0.11"
