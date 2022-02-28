@@ -21,7 +21,6 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/commitmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/dealmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/mock"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/piecestore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/sectors"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
@@ -31,6 +30,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/piecestore"
 )
 
 type (
