@@ -5,10 +5,11 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/ipfs/go-cid"
+
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
-	"github.com/ipfs/go-cid"
 )
 
 var log = logging.New("piecestore")
