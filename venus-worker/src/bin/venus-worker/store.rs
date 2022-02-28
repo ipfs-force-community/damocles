@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use clap::{values_t, App, Arg, ArgMatches, SubCommand};
+use clap::{values_t, App, Arg, ArgMatches,AppSettings, SubCommand};
 use tracing::{error, info};
 
 use venus_worker::{logging, objstore::filestore::FileStore, store::Store};
@@ -26,6 +26,7 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
     );
 
     SubCommand::with_name(SUB_CMD_NAME)
+        .setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(store_init_cmd)
         .subcommand(filestore_init_cmd)
 }

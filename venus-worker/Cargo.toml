@@ -8,9 +8,9 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1"
-filecoin-proofs-api = "11"
-filecoin-proofs = "11"
-storage-proofs-core = "11"
+filecoin-proofs-api = "11.0.0"
+storage-proofs-core = "11.0.2"
+filecoin-proofs = "11.0.2"
 memmap = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.56"

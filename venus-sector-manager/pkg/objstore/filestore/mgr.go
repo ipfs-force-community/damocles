@@ -18,6 +18,7 @@ func NewManager(cfgs []Config) (*Manager, error) {
 			return nil, err
 		}
 
+		log.Infow("load store", "name", store.cfg.Name, "path", store.cfg.Path)
 		stores[store.cfg.Name] = store
 	}
 

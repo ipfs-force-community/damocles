@@ -188,7 +188,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
-    let globl = GlobalModules {
+    let global = GlobalModules {
         rpc: Arc::new(rpc_client),
         remote_store: Arc::new(remote),
         processors,
@@ -205,7 +205,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         piece_store: piece_store.map(|s| Arc::new(s)),
     };
 
-    let mut dog = WatchDog::build(cfg, instance, globl);
+    let mut dog = WatchDog::build(cfg, instance, global);
 
     let mut ctrls = Vec::new();
     for (worker, ctrl) in workers {
@@ -270,7 +270,7 @@ fn start_processors(cfg: &config::Config) -> Result<(GloablProcessors, Vec<Box<d
 
     let pc2: processor::BoxedPC2Processor = construct_sub_processor!(pc2, cfg, modules);
 
-    let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, modules);
+    let c2: processor::BoxedC2Processor =  construct_sub_processor!(c2, cfg, modules);
 
     Ok((
         GloablProcessors {

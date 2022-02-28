@@ -1133,6 +1133,11 @@ impl<'c> Sealer<'c> {
             prove_input,
         }?;
 
+        let miner_id = fetch_cloned_field! {
+            self.sector.base,
+            allocated.id.miner,
+        }?;
+
         let out = self
             .ctx
             .global
@@ -1142,6 +1147,7 @@ impl<'c> Sealer<'c> {
                 c1out,
                 prover_id,
                 sector_id,
+                miner_id,
             })
             .perm()?;
 

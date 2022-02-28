@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
-use clap::{value_t, App, Arg, SubCommand};
+use clap::{value_t, App, Arg, AppSettings, SubCommand};
 use tokio::runtime::Builder;
 
 use venus_worker::{logging, start_deamon, start_mock};
@@ -63,6 +63,7 @@ pub fn main() -> Result<()> {
 
     let app = App::new("vc-worker")
         .version(env!("CARGO_PKG_VERSION"))
+        .setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(daemon_cmd)
         .subcommand(mock_cmd)
         .subcommand(processor_cmd)

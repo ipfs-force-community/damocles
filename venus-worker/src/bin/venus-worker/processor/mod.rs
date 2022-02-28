@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use clap::{App, ArgMatches, SubCommand};
+use clap::{App, ArgMatches, AppSettings, SubCommand};
 
 use venus_worker::{run_c2, run_pc1, run_pc2, run_tree_d};
 
@@ -11,6 +11,7 @@ pub(crate) fn subcommand<'a, 'b>() -> App<'a, 'b> {
     let pc2_cmd = SubCommand::with_name("pc2");
     let c2_cmd = SubCommand::with_name("c2");
     SubCommand::with_name(SUB_CMD_NAME)
+        .setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(tree_d_cmd)
         .subcommand(pc1_cmd)
         .subcommand(pc2_cmd)

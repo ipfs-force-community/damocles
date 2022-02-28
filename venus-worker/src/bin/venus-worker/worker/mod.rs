@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::{anyhow, Context, Result};
-use clap::{value_t, App, Arg, ArgMatches, SubCommand};
+use clap::{value_t, App, Arg, ArgMatches, AppSettings, SubCommand};
 
 use venus_worker::{
     block_on,
@@ -42,6 +42,7 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
         );
 
     SubCommand::with_name(SUB_CMD_NAME)
+        .setting(AppSettings::ArgRequiredElseHelp)
         .arg(
             Arg::with_name("config")
                 .long("config")
