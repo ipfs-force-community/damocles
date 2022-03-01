@@ -102,7 +102,7 @@ pub struct Remote {
     pub instance: Option<String>,
 }
 
-/// configurations for sector store
+/// configurations for local sealing store
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Store {
     /// store location
@@ -161,7 +161,7 @@ pub struct Config {
     /// section for common sealing
     pub sealing: SealingOptional,
 
-    /// section for list of sector stores
+    /// section for list of local sealing stores
     pub store: Vec<Store>,
 
     /// section for concurrent limit
