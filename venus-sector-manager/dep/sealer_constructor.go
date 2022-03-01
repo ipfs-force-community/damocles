@@ -386,7 +386,12 @@ type MarketAPIRelatedComponets struct {
 
 func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker, infoAPI api.MinerInfoAPI) (market.API, error) {
 	locker.Lock()
+	enabled := scfg.DealManagerConfig.Enable
 	defer locker.Unlock()
+
+	if !enabled {
+		return nil, nil
+	}
 
 	mapi, mcloser, err := market.New(gctx, scfg.DealManagerConfig.MarketAPI.Api, scfg.DealManagerConfig.MarketAPI.Token)
 	if err != nil {
