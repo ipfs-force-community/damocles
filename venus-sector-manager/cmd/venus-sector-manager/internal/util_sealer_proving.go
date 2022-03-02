@@ -57,16 +57,15 @@ func getMinerActorAddress(strMaddr string) (maddr address.Address, err error) {
 }
 
 func EpochTime(curr, e abi.ChainEpoch, blockDelay uint64) string {
-	switch {
-	case curr > e:
+	if curr > e {
 		return fmt.Sprintf("%d (%s ago)", e, durafmt.Parse(time.Second*time.Duration(int64(blockDelay)*int64(curr-e))).LimitFirstN(2))
-	case curr == e:
-		return fmt.Sprintf("%d (now)", e)
-	case curr < e:
+	}
+
+	if curr < e {
 		return fmt.Sprintf("%d (in %s)", e, durafmt.Parse(time.Second*time.Duration(int64(blockDelay)*int64(e-curr))).LimitFirstN(2))
 	}
 
-	panic("math broke")
+	return fmt.Sprintf("%d (now)", e)
 }
 
 func HeightToTime(ts *types.TipSet, openHeight abi.ChainEpoch, blockDelay uint64) string {
