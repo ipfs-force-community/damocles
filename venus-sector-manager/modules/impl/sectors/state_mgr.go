@@ -55,15 +55,25 @@ func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *api.Se
 	return nil
 }
 
-func (sm *StateManager) All(ctx context.Context) ([]*api.SectorState, error) {
-	iter, err := sm.online.Scan(ctx, nil)
+func (sm *StateManager) All(ctx context.Context, ws api.SectorWorkerState) ([]*api.SectorState, error) {
+	var (
+		iter kvstore.Iter
+		err  error
+	)
+
+	switch ws {
+	case api.WorkerOnline:
+		iter, err = sm.online.Scan(ctx, nil)
+	case api.WorkerOffline:
+		iter, err = sm.offline.Scan(ctx, nil)
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	defer iter.Close()
 
-	states := make([]*api.SectorState, 0, 32)
+	states := make([]*api.SectorState, 0, 32)  // TODO 只返回了32个?
 	for iter.Next() {
 		var state api.SectorState
 		if err := iter.View(ctx, func(data []byte) error {
@@ -140,7 +150,6 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 
 	key := makeSectorKey(sid)
 	var state api.SectorState
-	state.Finalized = true
 	if err := sm.load(ctx, key, &state); err != nil {
 		return fmt.Errorf("load from online store: %w", err)
 	}
@@ -152,6 +161,7 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 		}
 	}
 
+	state.Finalized = true
 	if err := save(ctx, sm.offline, key, state); err != nil {
 		return fmt.Errorf("save info into offline store: %w", err)
 	}

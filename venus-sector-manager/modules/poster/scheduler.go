@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/filecoin-project/go-address"
@@ -22,19 +21,26 @@ import (
 	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	ffiproof "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
-
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
-func newScheduler(ctx context.Context, mid abi.ActorID, cfg *modules.SafeConfig, verifier api.Verifier, prover api.Prover, indexer api.SectorIndexer, capi chain.API, rand api.RandomnessAPI, mapi messager.API) (*scheduler, error) {
+func newScheduler(
+	ctx context.Context,
+	mid abi.ActorID,
+	cfg *modules.SafeConfig,
+	verifier api.Verifier,
+	prover api.Prover,
+	indexer api.SectorIndexer,
+	sectorTracker api.SectorTracker,
+	capi chain.API,
+	rand api.RandomnessAPI,
+	mapi messager.API,
+) (*scheduler, error) {
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
 		return nil, err
@@ -51,18 +57,19 @@ func newScheduler(ctx context.Context, mid abi.ActorID, cfg *modules.SafeConfig,
 	}
 
 	return &scheduler{
-		gctx:      ctx,
-		actor:     actor,
-		proofType: minfo.WindowPoStProofType,
-		cfg:       cfg,
-		verifier:  verifier,
-		prover:    prover,
-		indexer:   indexer,
-		chain:     capi,
-		rand:      rand,
-		msg:       mapi,
-		clock:     clock.NewSystemClock(),
-		log:       log.With("miner", actor.ID),
+		gctx:          ctx,
+		actor:         actor,
+		proofType:     minfo.WindowPoStProofType,
+		cfg:           cfg,
+		verifier:      verifier,
+		prover:        prover,
+		indexer:       indexer,
+		sectorTracker: sectorTracker,
+		chain:         capi,
+		rand:          rand,
+		msg:           mapi,
+		clock:         clock.NewSystemClock(),
+		log:           log.With("miner", actor.ID),
 	}, nil
 }
 
@@ -71,13 +78,14 @@ type scheduler struct {
 	actor     api.ActorIdent
 	proofType abi.RegisteredPoStProof
 
-	cfg      *modules.SafeConfig
-	verifier api.Verifier
-	prover   api.Prover
-	indexer  api.SectorIndexer
-	chain    chain.API
-	rand     api.RandomnessAPI
-	msg      messager.API
+	cfg           *modules.SafeConfig
+	verifier      api.Verifier
+	prover        api.Prover
+	indexer       api.SectorIndexer
+	sectorTracker api.SectorTracker
+	chain         chain.API
+	rand          api.RandomnessAPI
+	msg           messager.API
 
 	clock clock.Clock
 	log   *logging.ZapLogger
@@ -277,7 +285,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 
 			tsStart := s.clock.Now()
 
-			privSectors, err := s.sectorsPubToPrivate(ctx, xsinfos)
+			privSectors, err := s.sectorTracker.PubToPrivate(ctx, s.actor.ID, xsinfos)
 			if err != nil {
 				return nil, fmt.Errorf("turn public sector infos into private: %w", err)
 			}
@@ -374,52 +382,6 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 	}
 
 	return posts, nil
-}
-
-func (s *scheduler) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.ExtendedSectorInfo) (api.SortedPrivateSectorInfo, error) {
-	out := make([]api.PrivateSectorInfo, 0, len(sectorInfo))
-	for _, sector := range sectorInfo {
-		sid := storage.SectorRef{
-			ID:        abi.SectorID{Miner: s.actor.ID, Number: sector.SectorNumber},
-			ProofType: sector.SealProof,
-		}
-
-		postProofType, err := sid.ProofType.RegisteredWindowPoStProof()
-		if err != nil {
-			return api.SortedPrivateSectorInfo{}, fmt.Errorf("acquiring registered PoSt proof from sector info %+v: %w", s, err)
-		}
-
-		objins, err := s.getObjInstanceForSector(ctx, sid.ID)
-		if err != nil {
-			return api.SortedPrivateSectorInfo{}, fmt.Errorf("get objstore instance for %s: %w", util.FormatSectorID(sid.ID), err)
-		}
-
-		// TODO: Construct paths for snap deals ?
-		proveUpdate := sector.SectorKey != nil
-		var (
-			subCache,subSealed string
-		)
-		if proveUpdate {
-
-		} else {
-			subCache = util.SectorPath(util.SectorPathTypeCache, sid.ID)
-			subSealed = util.SectorPath(util.SectorPathTypeSealed, sid.ID)
-		}
-
-		ffiInfo := ffiproof.SectorInfo{
-			SealProof:    sector.SealProof,
-			SectorNumber: sector.SectorNumber,
-			SealedCID:    sector.SealedCID,
-		}
-		out = append(out, api.PrivateSectorInfo{
-			CacheDirPath:     objins.FullPath(ctx, subCache),
-			PoStProofType:    postProofType,
-			SealedSectorPath: objins.FullPath(ctx, subSealed),
-			SectorInfo:       ffiInfo,
-		})
-	}
-
-	return api.NewSortedPrivateSectorInfo(out...), nil
 }
 
 func (s *scheduler) checkNextFaults(ctx context.Context, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.FaultDeclaration, error) {
@@ -580,13 +542,14 @@ func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, t
 		})
 	}
 
-	bad, err := s.checkProvable(ctx, tocheck)
+	strict := postPolicyFromConfig(s.actor.ID, s.cfg).StrictCheck
+	bad, err := s.sectorTracker.Provable(ctx, s.proofType, tocheck, strict)
 	if err != nil {
 		return bitfield.BitField{}, fmt.Errorf("checking provable sectors: %w", err)
 	}
 
-	for id := range bad {
-		delete(sectors, id.Number)
+	for num := range bad {
+		delete(sectors, num)
 	}
 
 	s.log.Warnw("Checked sectors", "checked", len(tocheck), "good", len(sectors))
@@ -597,79 +560,6 @@ func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, t
 	}
 
 	return sbf, nil
-}
-
-func (s *scheduler) checkProvable(ctx context.Context, targets []storage.SectorRef) (map[abi.SectorID]string, error) {
-	strict := postPolicyFromConfig(s.actor.ID, s.cfg).StrictCheck
-
-	results := make([]string, len(targets))
-	var wg sync.WaitGroup
-	wg.Add(len(targets))
-
-	for ti := range targets {
-		go func(i int) {
-			var reason string
-			defer func() {
-				if reason != "" {
-					results[i] = reason
-				}
-
-				wg.Done()
-			}()
-
-			sid := targets[i].ID
-			objins, err := s.getObjInstanceForSector(ctx, sid)
-			if err != nil {
-				reason = fmt.Sprintf("get objstore instance for %s: %s", util.FormatSectorID(sid), err)
-				return
-			}
-
-			subSealed := util.SectorPath(util.SectorPathTypeSealed, sid)
-			_, err = objins.Stat(ctx, subSealed)
-			if err != nil {
-				reason = fmt.Sprintf("get stat info for %s: %s", util.FormatSectorID(sid), err)
-				return
-			}
-
-			if !strict {
-				return
-			}
-
-			// TODO more strictly checks
-
-			return
-
-		}(ti)
-	}
-
-	wg.Wait()
-
-	bad := map[abi.SectorID]string{}
-	for ri := range results {
-		if results[ri] != "" {
-			bad[targets[ri].ID] = results[ri]
-		}
-	}
-
-	return bad, nil
-}
-
-func (s *scheduler) getObjInstanceForSector(ctx context.Context, sid abi.SectorID) (objstore.Store, error) {
-	insname, has, err := s.indexer.Find(ctx, sid)
-	if err != nil {
-		return nil, fmt.Errorf("find objstore instance: %w", err)
-	}
-
-	if !has {
-		return nil, fmt.Errorf("objstore instance not found")
-	}
-
-	instance, err := s.indexer.StoreMgr().GetInstance(ctx, insname)
-	if err != nil {
-		return nil, fmt.Errorf("get objstore instance %s: %w", insname, err)
-	}
-
-	return instance, nil
 }
 
 func (s *scheduler) sectorsForProof(ctx context.Context, goodSectors, allSectors bitfield.BitField, ts *types.TipSet) ([]builtin.ExtendedSectorInfo, error) {

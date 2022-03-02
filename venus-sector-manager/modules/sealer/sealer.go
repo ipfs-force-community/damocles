@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-commp-utils/zerocomm"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/specs-storage/storage"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
@@ -15,6 +17,9 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
+
+	"github.com/filecoin-project/venus/pkg/clock"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 )
 
 var (
@@ -29,7 +34,17 @@ func sectorLogger(sid abi.SectorID) *logging.ZapLogger {
 	return log.With("miner", sid.Miner, "num", sid.Number)
 }
 
-func New(capi chain.API, rand api.RandomnessAPI, sector api.SectorManager, state api.SectorStateManager, deal api.DealManager, commit api.CommitmentManager, sectorIdxer api.SectorIndexer) (*Sealer, error) {
+func New(
+	capi chain.API,
+	rand api.RandomnessAPI,
+	sector api.SectorManager,
+	state api.SectorStateManager,
+	deal api.DealManager,
+	commit api.CommitmentManager,
+	sectorIdxer api.SectorIndexer,
+	sectorfaultTracker api.SectorTracker,
+	prover api.Prover,
+) (*Sealer, error) {
 	return &Sealer{
 		capi:        capi,
 		rand:        rand,
@@ -38,6 +53,9 @@ func New(capi chain.API, rand api.RandomnessAPI, sector api.SectorManager, state
 		deal:        deal,
 		commit:      commit,
 		sectorIdxer: sectorIdxer,
+
+		sectorTracker: sectorfaultTracker,
+		prover:        prover,
 	}, nil
 }
 
@@ -49,6 +67,9 @@ type Sealer struct {
 	deal        api.DealManager
 	commit      api.CommitmentManager
 	sectorIdxer api.SectorIndexer
+
+	sectorTracker api.SectorTracker
+	prover        api.Prover
 }
 
 func (s *Sealer) checkSectorNumber(ctx context.Context, sid abi.SectorID) (bool, error) {
@@ -261,8 +282,8 @@ func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (api.Poll
 	return s.commit.ProofState(ctx, sid)
 }
 
-func (s *Sealer) ListSectors(ctx context.Context) ([]*api.SectorState, error) {
-	return s.state.All(ctx)
+func (s *Sealer) ListSectors(ctx context.Context, ws api.SectorWorkerState) ([]*api.SectorState, error) {
+	return s.state.All(ctx, ws)
 }
 
 func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) (api.Meta, error) {
@@ -302,4 +323,39 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 	}
 
 	return api.Empty, nil
+}
+
+func (s *Sealer) CheckProvable(ctx context.Context, pp abi.RegisteredPoStProof, sectors []storage.SectorRef, strict bool) (map[abi.SectorNumber]string, error) {
+
+	return s.sectorTracker.Provable(ctx, pp, sectors, strict)
+}
+
+func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
+	mid, err := address.IDFromAddress(maddr)
+	if err != nil {
+		return err
+	}
+
+	privSectors, err := s.sectorTracker.PubToPrivate(ctx, abi.ActorID(mid), sis)
+	if err != nil {
+		return fmt.Errorf("turn public sector infos into private: %w", err)
+	}
+
+	go func() {
+		tCtx := context.TODO()
+
+		tsStart := clock.NewSystemClock().Now()
+
+		log.Info("mock generate window post start")
+		_, _, err = s.prover.GenerateWindowPoSt(tCtx, abi.ActorID(mid), privSectors, append(abi.PoStRandomness{}, rand...))
+		if err != nil {
+			log.Warnf("generate window post failed: %v", err.Error())
+			return
+		}
+
+		elapsed := time.Since(tsStart)
+		log.Infow("mock generate window post", "elapsed", elapsed)
+	}()
+
+	return nil
 }

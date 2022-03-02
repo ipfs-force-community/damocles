@@ -25,18 +25,20 @@ func NewPoSter(
 	verifier api.Verifier,
 	prover api.Prover,
 	indexer api.SectorIndexer,
+	sectorTracker api.SectorTracker,
 	capi chain.API,
 	rand api.RandomnessAPI,
 	mapi messager.API,
 ) (*PoSter, error) {
 	p := &PoSter{
-		cfg:      cfg,
-		verifier: verifier,
-		prover:   prover,
-		indexer:  indexer,
-		chain:    capi,
-		rand:     rand,
-		msg:      mapi,
+		cfg:           cfg,
+		verifier:      verifier,
+		prover:        prover,
+		indexer:       indexer,
+		sectorTracker: sectorTracker,
+		chain:         capi,
+		rand:          rand,
+		msg:           mapi,
 	}
 
 	p.actors.handlers = map[address.Address]*changeHandler{}
@@ -51,7 +53,7 @@ func NewPoSter(
 			return nil, fmt.Errorf("parse actor id from %s: %w", key, err)
 		}
 
-		sched, err := newScheduler(ctx, mid, p.cfg, p.verifier, p.prover, p.indexer, p.chain, p.rand, p.msg)
+		sched, err := newScheduler(ctx, mid, p.cfg, p.verifier, p.prover, p.indexer, p.sectorTracker, p.chain, p.rand, p.msg)
 		if err != nil {
 			return nil, fmt.Errorf("construct scheduler for actor %d: %w", mid, err)
 		}
@@ -63,13 +65,14 @@ func NewPoSter(
 }
 
 type PoSter struct {
-	cfg      *modules.SafeConfig
-	verifier api.Verifier
-	prover   api.Prover
-	indexer  api.SectorIndexer
-	chain    chain.API
-	rand     api.RandomnessAPI
-	msg      messager.API
+	cfg           *modules.SafeConfig
+	verifier      api.Verifier
+	prover        api.Prover
+	indexer       api.SectorIndexer
+	sectorTracker api.SectorTracker
+	chain         chain.API
+	rand          api.RandomnessAPI
+	msg           messager.API
 
 	actors struct {
 		sync.RWMutex

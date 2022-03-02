@@ -50,6 +50,7 @@ func Product() dix.Option {
 		dix.Override(new(OfflineMetaStore), BuildOfflineMetaStore),
 		dix.Override(new(api.SectorNumberAllocator), BuildSectorNumberAllocator),
 		dix.Override(new(api.RandomnessAPI), randomness.New),
+		dix.Override(new(api.SectorTracker), BuildSectorTracker),
 		dix.Override(new(api.Prover), prover.Prover),
 		dix.Override(new(api.Verifier), prover.Verifier),
 		dix.Override(new(api.MinerInfoAPI), BuildMinerInfoAPI),

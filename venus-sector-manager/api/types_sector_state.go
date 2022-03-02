@@ -31,3 +31,10 @@ func (s SectorState) DealIDs() []abi.DealID {
 	}
 	return res
 }
+
+type SectorWorkerState string
+
+const (
+	WorkerOnline SectorWorkerState = "online"
+	WorkerOffline SectorWorkerState = "offline"
+)
