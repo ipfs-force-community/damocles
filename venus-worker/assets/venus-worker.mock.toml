@@ -18,7 +18,7 @@ max_retries = 3
 # rpc_polling_interval = "30s"
 # ignore_proof_check = false
 
-[[sealing_store]]
+[[sealing_thread]]
 location = "./mock-tmp/store1"
 # sealing.allowed_miners = [10123, 10124, 10125]
 # sealing.allowed_sizes = ["32GiB", "64GiB"]
@@ -29,16 +29,16 @@ location = "./mock-tmp/store1"
 # sealing.rpc_polling_interval = "30s"
 # sealing.ignore_proof_check = false
 
-[[sealing_store]]
+[[sealing_thread]]
 location = "./mock-tmp/store2"
 
-[[sealing_store]]
+[[sealing_thread]]
 location = "./mock-tmp/store3"
 
 [processor_limit]
-pc1 = 3
-pc2 = 2
-c2 = 1
+# pc1 = 3
+# pc2 = 2
+# c2 = 1
 
 [remote_store]
 # name = "persist-store1"

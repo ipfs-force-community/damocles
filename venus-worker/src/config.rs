@@ -104,7 +104,7 @@ pub struct Remote {
 
 /// configurations for local sealing store
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Store {
+pub struct SealingThread {
     /// store location
     pub location: String,
 
@@ -166,7 +166,7 @@ pub struct Config {
     pub sealing: SealingOptional,
 
     /// section for list of local sealing stores
-    pub sealing_store: Vec<Store>,
+    pub sealing_thread: Vec<SealingThread>,
 
     /// section for concurrent limit
     pub processor_limit: HashMap<String, usize>,

@@ -68,7 +68,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     let (processors, modules) = start_processors(&cfg).context("start processors")?;
 
     let store_mgr =
-        StoreManager::load(&cfg.sealing_store, &cfg.sealing).context("load store manager")?;
+        StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
     let workers = store_mgr.into_workers();
 
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
@@ -136,7 +136,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     );
 
     let store_mgr =
-        StoreManager::load(&cfg.sealing_store, &cfg.sealing).context("load store manager")?;
+        StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
 
     let dial_addr = rpc_addr(&cfg.sector_manager.rpc_client.addr, 0)?;
     info!(

@@ -11,7 +11,7 @@ use crate::logging::{debug_field, warn};
 use crate::metadb::rocks::RocksMeta;
 use crate::sealing::worker::{Ctrl, Worker};
 
-use crate::config::{Sealing, SealingOptional, Store as StoreConfig};
+use crate::config::{Sealing, SealingOptional, SealingThread};
 
 pub mod util;
 
@@ -220,7 +220,7 @@ pub struct StoreManager {
 
 impl StoreManager {
     /// loads specific
-    pub fn load(list: &[StoreConfig], common: &SealingOptional) -> Result<Self> {
+    pub fn load(list: &[SealingThread], common: &SealingOptional) -> Result<Self> {
         let mut stores = HashMap::new();
         for scfg in list {
             let store_path = Path::new(&scfg.location)
