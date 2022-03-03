@@ -156,7 +156,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 			return
 		}
 
-		if _, err = s.checkNextRecoveries(context.TODO(), declDeadline, partitions, ts.Key()); err != nil {
+		if _, err = s.checkNextRecoveries(context.TODO(), diPeriod{index: di.Index, open: di.Open}, declDeadline, partitions, ts.Key()); err != nil {
 			// TODO: This is potentially quite bad, but not even trying to post when this fails is objectively worse
 			s.log.Errorf("checking sector recoveries: %v", err)
 		}
@@ -165,7 +165,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 			return // FORK: declaring faults after ignition upgrade makes no sense
 		}
 
-		if _, err = s.checkNextFaults(context.TODO(), declDeadline, partitions, ts.Key()); err != nil {
+		if _, err = s.checkNextFaults(context.TODO(), diPeriod{index: di.Index, open: di.Open}, declDeadline, partitions, ts.Key()); err != nil {
 			// TODO: This is also potentially really bad, but we try to post anyways
 			s.log.Errorf("checking sector faults: %v", err)
 		}
@@ -384,7 +384,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 	return posts, nil
 }
 
-func (s *scheduler) checkNextFaults(ctx context.Context, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.FaultDeclaration, error) {
+func (s *scheduler) checkNextFaults(ctx context.Context, di diPeriod, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.FaultDeclaration, error) {
 	bad := uint64(0)
 	params := &miner.DeclareFaultsParams{
 		Faults: []miner.FaultDeclaration{},
@@ -431,7 +431,7 @@ func (s *scheduler) checkNextFaults(ctx context.Context, dlIdx uint64, partition
 
 	s.log.Errorw("DETECTED FAULTY SECTORS, declaring faults", "count", bad)
 
-	uid, waitCh, err := s.publishMessage(ctx, miner.Methods.DeclareFaults, params, true)
+	uid, waitCh, err := s.publishMessage(ctx, miner.Methods.DeclareFaults, params, di, true)
 	if err != nil {
 		return faults, err
 	}
@@ -451,7 +451,7 @@ func (s *scheduler) checkNextFaults(ctx context.Context, dlIdx uint64, partition
 	return faults, nil
 }
 
-func (s *scheduler) checkNextRecoveries(ctx context.Context, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.RecoveryDeclaration, error) {
+func (s *scheduler) checkNextRecoveries(ctx context.Context, di diPeriod, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.RecoveryDeclaration, error) {
 	faulty := uint64(0)
 	params := &miner.DeclareFaultsRecoveredParams{
 		Recoveries: []miner.RecoveryDeclaration{},
@@ -505,7 +505,7 @@ func (s *scheduler) checkNextRecoveries(ctx context.Context, dlIdx uint64, parti
 		return recoveries, nil
 	}
 
-	_, resCh, err := s.publishMessage(ctx, miner.Methods.DeclareFaultsRecovered, params, true)
+	_, resCh, err := s.publishMessage(ctx, miner.Methods.DeclareFaultsRecovered, params, di, true)
 	if err != nil {
 		return recoveries, err
 	}
@@ -716,7 +716,7 @@ func (s *scheduler) runSubmitPoST(
 
 func (s *scheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedPoStParams) error {
 	// to avoid being cancelled by proving period detection, use context.Background here
-	uid, resCh, err := s.publishMessage(context.Background(), miner.Methods.SubmitWindowedPoSt, proof, true)
+	uid, resCh, err := s.publishMessage(context.Background(), miner.Methods.SubmitWindowedPoSt, proof, diPeriod{}, true)
 	if err != nil {
 		return fmt.Errorf("publish window post message: %w", err)
 	}
