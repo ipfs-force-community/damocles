@@ -97,9 +97,9 @@ pub struct SealingOptional {
 /// configuration for remote store
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Remote {
+    pub name: Option<String>,
     /// store path, if we are using fs based store
     pub path: Option<String>,
-    pub instance: Option<String>,
 }
 
 /// configurations for local sealing store
@@ -142,48 +142,43 @@ pub struct Processors {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct InstanceConfig {
+pub struct WorkerInstanceConfig {
     pub name: Option<String>,
+    pub rpc_server: Option<RPCServer>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SectorManagerConfig {
+    pub rpc_client: RPCClient,
+    pub piece_token: Option<String>,
 }
 
 /// global configuration
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     /// section for local config
-    pub instance: Option<InstanceConfig>,
+    pub worker: Option<WorkerInstanceConfig>,
 
-    /// section for worker server
-    pub worker_server: Option<RPCServer>,
-
-    /// section for rpc
-    pub sealer_rpc: RPCClient,
+    /// section for sector manager rpc
+    pub sector_manager: SectorManagerConfig,
 
     /// section for common sealing
     pub sealing: SealingOptional,
 
     /// section for list of local sealing stores
-    pub store: Vec<Store>,
+    pub sealing_store: Vec<Store>,
 
     /// section for concurrent limit
-    pub limit: HashMap<String, usize>,
+    pub processor_limit: HashMap<String, usize>,
 
     /// section for remote store
-    pub remote: Remote,
+    pub remote_store: Remote,
 
     /// section for processors
     pub processors: Option<Processors>,
 
     /// static tree_d paths for cc sectors
     pub static_tree_d: Option<HashMap<String, String>>,
-
-    /// customized piece store proxy config field
-    pub piece_store: Option<PieceStoreConfig>,
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct PieceStoreConfig {
-    pub url: Option<String>,
-    pub token: Option<String>,
 }
 
 impl Config {
@@ -208,15 +203,17 @@ impl Config {
     /// get listen addr for worker server
     pub fn worker_server_listen_addr(&self) -> Result<SocketAddr> {
         let host = self
-            .worker_server
+            .worker
             .as_ref()
+            .and_then(|w| w.rpc_server.as_ref())
             .and_then(|c| c.host.as_ref())
             .map(|s| s.as_str())
             .unwrap_or(DEFAULT_WORKER_SERVER_HOST);
 
         let port = self
-            .worker_server
+            .worker
             .as_ref()
+            .and_then(|w| w.rpc_server.as_ref())
             .and_then(|c| c.port.as_ref())
             .cloned()
             .unwrap_or(DEFAULT_WORKER_SERVER_PORT);
@@ -230,15 +227,17 @@ impl Config {
     /// get connect addr for worker server
     pub fn worker_server_connect_addr(&self) -> Result<SocketAddr> {
         let host = self
-            .worker_server
+            .worker
             .as_ref()
+            .and_then(|w| w.rpc_server.as_ref())
             .and_then(|c| c.host.as_ref())
             .map(|s| s.as_str())
             .unwrap_or(LOCAL_HOST);
 
         let port = self
-            .worker_server
+            .worker
             .as_ref()
+            .and_then(|w| w.rpc_server.as_ref())
             .and_then(|c| c.port.as_ref())
             .cloned()
             .unwrap_or(DEFAULT_WORKER_SERVER_PORT);

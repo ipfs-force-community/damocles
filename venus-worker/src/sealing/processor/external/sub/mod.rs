@@ -105,8 +105,14 @@ fn start_child(stage: Stage, cfg: &config::ExtSub) -> Result<(Child, ChildStdin,
         .map(|s| Ok(PathBuf::from(s)))
         .unwrap_or(current_exe().context("get current exe name"))?;
 
+    let args = cfg
+        .args
+        .as_ref()
+        .cloned()
+        .unwrap_or(vec!["processor".to_owned(), stage.name().to_owned()]);
+
     let mut child = Command::new(bin)
-        .args(&["processor", stage.name()])
+        .args(args)
         .envs(envs.drain())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
