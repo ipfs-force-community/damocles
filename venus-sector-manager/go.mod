@@ -28,6 +28,7 @@ require (
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.1.0
 	github.com/ipfs/go-ipfs-blockstore v1.1.2
+	github.com/ipfs/go-ipld-cbor v0.0.6
 	github.com/ipfs/go-log/v2 v2.4.0
 	github.com/libp2p/go-libp2p-core v0.13.0
 	github.com/mitchellh/go-homedir v1.1.0
