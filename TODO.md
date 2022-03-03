@@ -29,3 +29,4 @@
 - [ ] upgrade rust-fil-proofs & related libs
 - [ ] upgrade forest related libs
 - [ ] reduce directlly usages of `specs-actors`
+- [ ] resource auto-dectection & config file generation
