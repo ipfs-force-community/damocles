@@ -31,3 +31,5 @@
 - [ ] reduce directlly usages of `specs-actors`
 - [ ] resource auto-dectection & config file generation
 - [ ] remote store via http
+- [ ] static tree_d file generator
+- [ ] skip add piece
