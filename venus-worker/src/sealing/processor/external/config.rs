@@ -18,20 +18,12 @@ pub struct Cgroup {
     pub cpuset: Option<String>,
 }
 
-/// configurations for each single processor used in sealing
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Ext {
-    /// enable external processor
-    pub external: bool,
-
-    /// options for each sub processor
-    pub subs: Option<Vec<ExtSub>>,
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ExtSub {
     /// binary path
     pub bin: Option<String>,
+
+    pub args: Option<Vec<String>>,
 
     #[serde(default)]
     #[serde(with = "humantime_serde")]

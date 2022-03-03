@@ -7,7 +7,7 @@ use venus_worker::{logging, objstore::filestore::FileStore, store::Store};
 pub const SUB_CMD_NAME: &str = "store";
 
 pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
-    let store_init_cmd = SubCommand::with_name("seal-init").arg(
+    let store_init_cmd = SubCommand::with_name("sealing-init").arg(
         Arg::with_name("location")
             .long("loc")
             .short("l")
@@ -32,7 +32,7 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
 
 pub(crate) fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
     match subargs.subcommand() {
-        ("seal-init", Some(m)) => {
+        ("sealing-init", Some(m)) => {
             let locs = values_t!(m, "location", String).context("get locations from flag")?;
 
             for loc in locs {

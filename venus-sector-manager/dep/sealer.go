@@ -32,6 +32,7 @@ func Mock() dix.Option {
 func MockSealer(s *api.SealerAPI) dix.Option {
 	return dix.Options(
 		dix.Override(new(*mock.Sealer), mock.NewSealer),
+		dix.Override(new(api.SealerAPI), dix.From(new(*mock.Sealer))),
 		dix.Populate(InvokePopulate, s),
 	)
 }

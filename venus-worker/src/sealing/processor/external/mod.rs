@@ -19,7 +19,7 @@ impl<I> ExtProcessor<I>
 where
     I: Input,
 {
-    pub fn build(cfg: &config::Ext) -> Result<(Self, Vec<sub::SubProcess<I>>)> {
+    pub fn build(cfg: &Vec<config::Ext>) -> Result<(Self, Vec<sub::SubProcess<I>>)> {
         let (input_tx, input_rx) = bounded(0);
         let subproc = sub::start_sub_processes(cfg, input_rx)
             .with_context(|| format!("start sub process for stage {}", I::STAGE.name()))?;

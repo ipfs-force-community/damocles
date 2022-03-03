@@ -49,13 +49,13 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
     info!("config loaded:\n {:?}", cfg);
 
     let remote = cfg
-        .remote
-        .path
+        .remote_store
+        .location
         .as_ref()
         .cloned()
         .ok_or(anyhow!("remote path is required for mock"))?;
     let remote_store = Box::new(
-        FileStore::open(&remote, cfg.remote.instance.clone())
+        FileStore::open(&remote, cfg.remote_store.name.clone())
             .with_context(|| format!("open remote filestore {}", remote))?,
     );
 
@@ -67,7 +67,8 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
 
     let (processors, modules) = start_processors(&cfg).context("start processors")?;
 
-    let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing).context("load store manager")?;
+    let store_mgr =
+        StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
     let workers = store_mgr.into_workers();
 
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
@@ -76,14 +77,21 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         rpc: Arc::new(mock_client),
         remote_store: Arc::new(remote_store),
         processors,
-        limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
+        limit: Arc::new(resource::Pool::new(
+            cfg.processors
+                .limit
+                .as_ref()
+                .cloned()
+                .unwrap_or_default()
+                .iter(),
+        )),
         static_tree_d,
         rt: Arc::new(runtime),
         piece_store: None,
     };
 
     let instance = cfg
-        .instance
+        .worker
         .as_ref()
         .and_then(|s| s.name.as_ref())
         .cloned()
@@ -124,21 +132,22 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     info!("config loaded\n {:?}", cfg);
 
     let remote_store = cfg
-        .remote
-        .path
+        .remote_store
+        .location
         .as_ref()
         .cloned()
         .ok_or(anyhow!("remote path is required for deamon"))?;
     let remote = Box::new(
-        FileStore::open(&remote_store, cfg.remote.instance.clone())
+        FileStore::open(&remote_store, cfg.remote_store.name.clone())
             .with_context(|| format!("open remote filestore {}", remote_store))?,
     );
 
-    let store_mgr = StoreManager::load(&cfg.store, &cfg.sealing).context("load store manager")?;
+    let store_mgr =
+        StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
 
-    let dial_addr = rpc_addr(&cfg.sealer_rpc.addr, 0)?;
+    let dial_addr = rpc_addr(&cfg.sector_manager.rpc_client.addr, 0)?;
     info!(
-        raw = %cfg.sealer_rpc.addr,
+        raw = %cfg.sector_manager.rpc_client.addr,
         addr = %dial_addr.as_str(),
         "rpc dial info"
     );
@@ -147,8 +156,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .block_on(async { http::connect(&dial_addr).await })
         .map_err(|e| anyhow!("jsonrpc connect to {}: {:?}", &dial_addr, e))?;
 
-    let instance = if let Some(name) = cfg.instance.as_ref().and_then(|s| s.name.as_ref()).cloned()
-    {
+    let instance = if let Some(name) = cfg.worker.as_ref().and_then(|s| s.name.as_ref()).cloned() {
         name
     } else {
         let local_ip = socket_addr_from_url(&dial_addr)
@@ -163,16 +171,10 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .context("parse rpc url origin")?;
 
     let piece_store: Option<Box<dyn PieceStore>> = if cfg.sealing.enable_deals.unwrap_or(false) {
-        let piece_store_url = cfg
-            .piece_store
-            .as_ref()
-            .and_then(|c| c.url.as_ref())
-            .unwrap_or(&rpc_origin);
-
         Some(Box::new(
             ProxyPieceStore::new(
-                piece_store_url,
-                cfg.piece_store.as_ref().and_then(|c| c.token.to_owned()),
+                &rpc_origin,
+                cfg.sector_manager.piece_token.as_ref().cloned(),
             )
             .context("build proxy piece store")?,
         ))
@@ -190,7 +192,14 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         rpc: Arc::new(rpc_client),
         remote_store: Arc::new(remote),
         processors,
-        limit: Arc::new(resource::Pool::new(cfg.limit.iter())),
+        limit: Arc::new(resource::Pool::new(
+            cfg.processors
+                .limit
+                .as_ref()
+                .cloned()
+                .unwrap_or_default()
+                .iter(),
+        )),
         static_tree_d,
         rt: Arc::new(runtime),
         piece_store: piece_store.map(|s| Arc::new(s)),
@@ -221,7 +230,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
 fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>> {
     let mut trees = HashMap::new();
-    if let Some(c) = cfg.static_tree_d.as_ref() {
+    if let Some(c) = cfg.processors.static_tree_d.as_ref() {
         for (k, v) in c {
             let b = Byte::from_str(k).with_context(|| format!("invalid bytes string {}", k))?;
             let size = b.get_bytes() as u64;
@@ -239,12 +248,7 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
 
 macro_rules! construct_sub_processor {
     ($field:ident, $cfg:ident, $modules:ident) => {
-        if let Some(ext) = $cfg
-            .processors
-            .as_ref()
-            .and_then(|p| p.$field.as_ref())
-            .and_then(|ext| if ext.external { Some(ext) } else { None })
-        {
+        if let Some(ext) = $cfg.processors.$field.as_ref() {
             let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
             for sub in subs {
                 $modules.push(Box::new(sub));

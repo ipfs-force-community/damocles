@@ -19,13 +19,17 @@
 - [x] small instance of windost post
 - [ ] handle submit states gracefully
   - [ ] handle ErrOutOfGas and other retry-able failed messages gracefully
-- [ ] deal manager
+- [x] deal manager
 - [ ] object(piece) storage service (proxy)
 - [ ] speed up cc sectors
-- [ ] link to dynamic lib if required
-- [ ] websocket client logging
-- [ ] simplify jsonrpc usage
+- [x] link to dynamic lib if required
+- [x] websocket client logging
+- [x] simplify jsonrpc usage
 - [ ] more graceful way of using `tracing`
-- [ ] upgrade rust-fil-proofs & related libs
+- [x] upgrade rust-fil-proofs & related libs
 - [ ] upgrade forest related libs
 - [ ] reduce directlly usages of `specs-actors`
+- [ ] resource auto-dectection & config file generation
+- [ ] remote store via http
+- [ ] static tree_d file generator
+- [ ] skip add piece
