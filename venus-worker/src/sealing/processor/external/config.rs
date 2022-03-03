@@ -18,15 +18,8 @@ pub struct Cgroup {
     pub cpuset: Option<String>,
 }
 
-/// configurations for each single processor used in sealing
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Ext {
-    /// options for each sub processor
-    pub subs: Option<Vec<ExtSub>>,
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ExtSub {
     /// binary path
     pub bin: Option<String>,
 

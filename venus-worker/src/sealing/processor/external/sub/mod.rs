@@ -37,21 +37,17 @@ pub(super) fn ready_msg(name: &str) -> String {
 }
 
 pub(super) fn start_sub_processes<I: Input>(
-    cfg: &config::Ext,
+    cfg: &Vec<config::Ext>,
     input_rx: Receiver<(I, Sender<Result<I::Out>>)>,
 ) -> Result<Vec<SubProcess<I>>> {
-    let sub_cfgs = match &cfg.subs {
-        Some(s) if s.len() > 0 => s,
+    if cfg.len() == 0 {
+        return Err(anyhow!("no subs section found"));
+    }
 
-        _ => {
-            return Err(anyhow!("no subs section found"));
-        }
-    };
-
-    let mut processes = Vec::with_capacity(sub_cfgs.len());
+    let mut processes = Vec::with_capacity(cfg.len());
     let stage = I::STAGE;
 
-    for (i, sub_cfg) in sub_cfgs.iter().enumerate() {
+    for (i, sub_cfg) in cfg.iter().enumerate() {
         let name = format!("sub-{}-{}-{}", stage.name(), std::process::id(), i);
         let (child, stdin, stdout) = start_child(stage, sub_cfg)
             .with_context(|| format!("start child with name {}", name))?;
@@ -78,7 +74,7 @@ pub(super) fn start_sub_processes<I: Input>(
     Ok(processes)
 }
 
-fn start_child(stage: Stage, cfg: &config::ExtSub) -> Result<(Child, ChildStdin, ChildStdout)> {
+fn start_child(stage: Stage, cfg: &config::Ext) -> Result<(Child, ChildStdin, ChildStdout)> {
     let mut envs = HashMap::new();
     for (k, v) in vars() {
         envs.insert(k, v);

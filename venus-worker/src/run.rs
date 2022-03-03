@@ -77,7 +77,14 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
         rpc: Arc::new(mock_client),
         remote_store: Arc::new(remote_store),
         processors,
-        limit: Arc::new(resource::Pool::new(cfg.processor_limit.iter())),
+        limit: Arc::new(resource::Pool::new(
+            cfg.processors
+                .limit
+                .as_ref()
+                .cloned()
+                .unwrap_or_default()
+                .iter(),
+        )),
         static_tree_d,
         rt: Arc::new(runtime),
         piece_store: None,
@@ -185,7 +192,14 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         rpc: Arc::new(rpc_client),
         remote_store: Arc::new(remote),
         processors,
-        limit: Arc::new(resource::Pool::new(cfg.processor_limit.iter())),
+        limit: Arc::new(resource::Pool::new(
+            cfg.processors
+                .limit
+                .as_ref()
+                .cloned()
+                .unwrap_or_default()
+                .iter(),
+        )),
         static_tree_d,
         rt: Arc::new(runtime),
         piece_store: piece_store.map(|s| Arc::new(s)),
@@ -216,7 +230,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
 fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>> {
     let mut trees = HashMap::new();
-    if let Some(c) = cfg.static_tree_d.as_ref() {
+    if let Some(c) = cfg.processors.static_tree_d.as_ref() {
         for (k, v) in c {
             let b = Byte::from_str(k).with_context(|| format!("invalid bytes string {}", k))?;
             let size = b.get_bytes() as u64;
@@ -234,7 +248,7 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
 
 macro_rules! construct_sub_processor {
     ($field:ident, $cfg:ident, $modules:ident) => {
-        if let Some(ext) = $cfg.processors.as_ref().and_then(|p| p.$field.as_ref()) {
+        if let Some(ext) = $cfg.processors.$field.as_ref() {
             let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
             for sub in subs {
                 $modules.push(Box::new(sub));

@@ -130,15 +130,20 @@ pub struct RPCServer {
 /// configurations for processors
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Processors {
-    pub tree_d: Option<Ext>,
+    pub limit: Option<HashMap<String, usize>>,
 
-    pub pc1: Option<Ext>,
+    /// static tree_d paths for cc sectors
+    pub static_tree_d: Option<HashMap<String, String>>,
+
+    pub tree_d: Option<Vec<Ext>>,
+
+    pub pc1: Option<Vec<Ext>>,
 
     /// section for pc2 processor
-    pub pc2: Option<Ext>,
+    pub pc2: Option<Vec<Ext>>,
 
     /// section for c2 processor
-    pub c2: Option<Ext>,
+    pub c2: Option<Vec<Ext>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -168,17 +173,11 @@ pub struct Config {
     /// section for list of local sealing stores
     pub sealing_thread: Vec<SealingThread>,
 
-    /// section for concurrent limit
-    pub processor_limit: HashMap<String, usize>,
-
     /// section for remote store
     pub remote_store: Remote,
 
     /// section for processors
-    pub processors: Option<Processors>,
-
-    /// static tree_d paths for cc sectors
-    pub static_tree_d: Option<HashMap<String, String>>,
+    pub processors: Processors,
 }
 
 impl Config {
