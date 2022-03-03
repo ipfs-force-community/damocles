@@ -50,7 +50,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
 
     let remote = cfg
         .remote_store
-        .path
+        .location
         .as_ref()
         .cloned()
         .ok_or(anyhow!("remote path is required for mock"))?;
@@ -126,7 +126,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let remote_store = cfg
         .remote_store
-        .path
+        .location
         .as_ref()
         .cloned()
         .ok_or(anyhow!("remote path is required for deamon"))?;

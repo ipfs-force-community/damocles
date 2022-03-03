@@ -42,7 +42,7 @@ location = "./mock-tmp/store3"
 
 [remote_store]
 # name = "persist-store1"
-path = "./mock-tmp/remote"
+location = "./mock-tmp/remote"
 
 # fields for tree_d processor
 [[processors.tree_d.subs]]
