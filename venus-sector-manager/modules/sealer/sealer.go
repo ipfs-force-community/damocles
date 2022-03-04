@@ -207,7 +207,7 @@ func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance
 			return false, nil
 		}
 
-		return false, err
+		return false, fmt.Errorf("unable to get instance of sector id %d instance %s %w", sid, instance, err)
 	}
 
 	// check for sealed file existance
@@ -217,14 +217,14 @@ func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance
 			return false, nil
 		}
 
-		return false, err
+		return false, fmt.Errorf("failed to check sealed file for sector id %d instance %s %w", sid, instance, err)
 	}
 
 	reader.Close()
 
 	err = s.sectorIdxer.Update(ctx, sid, instance)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("unable to update sector indexer for sector id %d instance %s %w", sid, instance, err)
 	}
 
 	return true, nil

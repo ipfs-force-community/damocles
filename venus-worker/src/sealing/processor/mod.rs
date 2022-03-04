@@ -4,11 +4,13 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use fil_types::ActorID;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 pub mod external;
 mod safe;
 pub use safe::*;
+
 mod proof;
 
 /// enum for processor stages
@@ -153,6 +155,7 @@ pub struct C2Input {
     pub c1out: SealCommitPhase1Output,
     pub prover_id: ProverId,
     pub sector_id: SectorId,
+    pub miner_id: ActorID,
 }
 
 impl Input for C2Input {
