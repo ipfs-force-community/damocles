@@ -270,7 +270,7 @@ fn start_processors(cfg: &config::Config) -> Result<(GloablProcessors, Vec<Box<d
 
     let pc2: processor::BoxedPC2Processor = construct_sub_processor!(pc2, cfg, modules);
 
-    let c2: processor::BoxedC2Processor =  construct_sub_processor!(c2, cfg, modules);
+    let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, modules);
 
     Ok((
         GloablProcessors {

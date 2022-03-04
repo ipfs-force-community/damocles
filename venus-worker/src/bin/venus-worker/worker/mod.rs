@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::{anyhow, Context, Result};
-use clap::{value_t, App, Arg, ArgMatches, AppSettings, SubCommand};
+use clap::{value_t, App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use venus_worker::{
     block_on,

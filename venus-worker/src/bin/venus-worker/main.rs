@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
-use clap::{value_t, App, Arg, AppSettings, SubCommand};
+use clap::{value_t, App, AppSettings, Arg, SubCommand};
 use tokio::runtime::Builder;
 
 use venus_worker::{logging, start_deamon, start_mock};

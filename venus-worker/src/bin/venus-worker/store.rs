@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use clap::{values_t, App, Arg, ArgMatches,AppSettings, SubCommand};
+use clap::{values_t, App, AppSettings, Arg, ArgMatches, SubCommand};
 use tracing::{error, info};
 
 use venus_worker::{logging, objstore::filestore::FileStore, store::Store};
