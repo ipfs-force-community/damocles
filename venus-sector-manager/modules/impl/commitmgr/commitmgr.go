@@ -18,7 +18,6 @@ import (
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
@@ -46,7 +45,7 @@ type CommitmentMgrImpl struct {
 
 	smgr api.SectorStateManager
 
-	cfg Cfg
+	cfg *modules.SafeConfig
 
 	commitBatcher    map[abi.ActorID]*Batcher
 	preCommitBatcher map[abi.ActorID]*Batcher
@@ -62,7 +61,7 @@ type CommitmentMgrImpl struct {
 }
 
 func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr SealingAPI, smgr api.SectorStateManager,
-	cfg *modules.Config, locker confmgr.RLocker, verif api.Verifier, prover api.Prover,
+	cfg *modules.SafeConfig, verif api.Verifier, prover api.Prover,
 ) (*CommitmentMgrImpl, error) {
 	prePendingChan := make(chan api.SectorState, 1024)
 	proPendingChan := make(chan api.SectorState, 1024)
@@ -72,7 +71,7 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 		msgClient: commitApi,
 		stateMgr:  stateMgr,
 		smgr:      smgr,
-		cfg:       Cfg{cfg, locker},
+		cfg:       cfg,
 
 		commitBatcher:    map[abi.ActorID]*Batcher{},
 		preCommitBatcher: map[abi.ActorID]*Batcher{},
@@ -200,6 +199,32 @@ func (c *CommitmentMgrImpl) Stop() {
 	})
 }
 
+func (c *CommitmentMgrImpl) preSender(mid abi.ActorID) (address.Address, error) {
+	mcfg, err := c.cfg.MinerConfig(mid)
+	if err != nil {
+		return address.Undef, fmt.Errorf("get miner config for %d: %w", mid, err)
+	}
+
+	if !mcfg.Commitment.Pre.Sender.Valid() {
+		return address.Undef, fmt.Errorf("sender address not valid")
+	}
+
+	return mcfg.Commitment.Pre.Sender.Std(), nil
+}
+
+func (c *CommitmentMgrImpl) proveSender(mid abi.ActorID) (address.Address, error) {
+	mcfg, err := c.cfg.MinerConfig(mid)
+	if err != nil {
+		return address.Undef, fmt.Errorf("get miner config for %d: %w", mid, err)
+	}
+
+	if !mcfg.Commitment.Prove.Sender.Valid() {
+		return address.Undef, fmt.Errorf("sender address not valid")
+	}
+
+	return mcfg.Commitment.Prove.Sender.Std(), nil
+}
+
 func (c *CommitmentMgrImpl) startPreLoop() {
 	llog := log.With("loop", "pre")
 
@@ -215,13 +240,13 @@ func (c *CommitmentMgrImpl) startPreLoop() {
 				continue
 			}
 
-			ctrl, ok := c.cfg.ctrl(miner)
-			if !ok {
-				llog.Errorf("no available prove commit control address for %d", miner)
+			sender, err := c.preSender(miner)
+			if err != nil {
+				llog.Errorf("get sender address: %s", err)
 				continue
 			}
 
-			c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.PreCommit.Std(), PreCommitProcessor{
+			c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, sender, PreCommitProcessor{
 				api:       c.stateMgr,
 				msgClient: c.msgClient,
 				smgr:      c.smgr,
@@ -248,13 +273,13 @@ func (c *CommitmentMgrImpl) startProLoop() {
 				continue
 			}
 
-			ctrl, ok := c.cfg.ctrl(miner)
-			if !ok {
-				llog.Errorf("no available prove commit control address for %d", miner)
+			sender, err := c.proveSender(miner)
+			if err != nil {
+				llog.Errorf("get sender address: %s", err)
 				continue
 			}
 
-			c.commitBatcher[miner] = NewBatcher(c.ctx, miner, ctrl.ProveCommit.Std(), CommitProcessor{
+			c.commitBatcher[miner] = NewBatcher(c.ctx, miner, sender, CommitProcessor{
 				api:       c.stateMgr,
 				msgClient: c.msgClient,
 				smgr:      c.smgr,
@@ -288,8 +313,9 @@ func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
 }
 
 func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info api.PreCommitInfo, hardReset bool) (api.SubmitPreCommitResp, error) {
-	if _, has := c.cfg.ctrl(id.Miner); !has {
-		return api.SubmitPreCommitResp{}, fmt.Errorf("%w: %d", errNoControlAddrsAvailable, id.Miner)
+	_, err := c.preSender(id.Miner)
+	if err != nil {
+		return api.SubmitPreCommitResp{}, err
 	}
 
 	sector, err := c.smgr.Load(ctx, id)
@@ -391,8 +417,9 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 }
 
 func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, info api.ProofInfo, hardReset bool) (api.SubmitProofResp, error) {
-	if _, has := c.cfg.ctrl(id.Miner); !has {
-		return api.SubmitProofResp{}, fmt.Errorf("%w: %d", errNoControlAddrsAvailable, id.Miner)
+	_, err := c.proveSender(id.Miner)
+	if err != nil {
+		return api.SubmitProofResp{}, err
 	}
 
 	sector, err := c.smgr.Load(ctx, id)
@@ -519,7 +546,7 @@ func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, 
 
 	switch msg.State {
 	case messager.MessageState.OnChainMsg:
-		confidence := c.cfg.policy(mid).MsgConfidence
+		confidence := c.cfg.MustMinerConfig(mid).Commitment.Confidence
 		if msg.Confidence < confidence {
 			return api.OnChainStatePacked, maybeMsg
 		}

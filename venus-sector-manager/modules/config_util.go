@@ -1,10 +1,11 @@
 package modules
 
 import (
-	"bytes"
 	"fmt"
-	"reflect"
+	"math"
+	mbig "math/big"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -26,54 +27,11 @@ func ActorIDFromConfigKey(key string) (abi.ActorID, error) {
 	return abi.ActorID(num), nil
 }
 
-func cloneConfig(dest, src, optional interface{}) error {
-	var buf bytes.Buffer
-	err := toml.NewEncoder(&buf).Encode(src)
-	if err != nil {
-		return fmt.Errorf("encode src: %w", err)
-	}
-
-	_, err = toml.Decode(string(buf.Bytes()), dest)
-	if err != nil {
-		return fmt.Errorf("decode src onto dest: %w", err)
-	}
-
-	if optional != nil {
-		buf.Reset()
-		err = toml.NewEncoder(&buf).Encode(optional)
-		if err != nil {
-			return fmt.Errorf("encode optional: %w", err)
-		}
-
-		_, err = toml.Decode(string(buf.Bytes()), dest)
-		if err != nil {
-			return fmt.Errorf("decode optional onto dest: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func checkOptionalConfig(original, optional reflect.Type) {
-	fieldNum := original.NumField()
-	for i := 0; i < fieldNum; i++ {
-		fori := original.Field(i)
-		fopt := optional.Field(i)
-		if fori.Name != fopt.Name {
-			panic(fmt.Errorf("field name not match: %s != %s", fori.Name, fopt.Name))
-		}
-
-		if fopt.Type.Kind() != reflect.Ptr || fopt.Type.Elem() != fori.Type {
-			panic(fmt.Errorf("field type not match: %s vs %s", fori.Type, fopt.Type))
-		}
-	}
-}
-
 var (
 	_ toml.TextMarshaler   = Duration(0)
 	_ toml.TextUnmarshaler = (*Duration)(nil)
-	_ toml.TextMarshaler   = BigInt{}
-	_ toml.TextUnmarshaler = (*BigInt)(nil)
+	_ toml.TextMarshaler   = FIL{}
+	_ toml.TextUnmarshaler = (*FIL)(nil)
 )
 
 type MustAddress address.Address
@@ -105,6 +63,10 @@ func (ma MustAddress) Std() address.Address {
 	return address.Address(ma)
 }
 
+func (ma MustAddress) Valid() bool {
+	return address.Address(ma) != address.Undef
+}
+
 type Duration time.Duration
 
 func (d Duration) MarshalText() ([]byte, error) {
@@ -125,38 +87,123 @@ func (d Duration) Std() time.Duration {
 	return time.Duration(d)
 }
 
-type BigInt big.Int
+// units should be desc ordered by precision
+var filUnits = []struct {
+	name      string
+	short     string
+	pretty    string
+	precision int
+}{
+	{
+		name:      "fil",
+		short:     "",
+		pretty:    "FIL",
+		precision: 18,
+	},
+	{
+		name:      "nanofil",
+		short:     "nfil",
+		pretty:    "nanoFIL",
+		precision: 9,
+	},
+	{
+		name:      "attofil",
+		short:     "afil",
+		pretty:    "attoFIL",
+		precision: 1,
+	},
+}
 
-func (b BigInt) MarshalText() ([]byte, error) {
-	if b.Int == nil {
+type FIL big.Int
+
+var (
+	AttoFIL = FIL(big.NewInt(1))
+	NanoFIL = AttoFIL.Mul(1_000_000_000)
+	OneFIL  = NanoFIL.Mul(1_000_000_000)
+)
+
+func (f FIL) Mul(num int64) FIL {
+	return FIL(big.Mul(big.Int(f), big.NewInt(num)))
+}
+
+func (f FIL) Short() string {
+	n := big.Int(f).Abs()
+
+	var r *mbig.Rat
+	var ui int
+	for i, unit := range filUnits {
+		p := big.NewInt(int64(math.Pow10(unit.precision)))
+		if n.GreaterThanEqual(p) {
+			r = new(mbig.Rat).SetFrac(f.Int, p.Int)
+			ui = i
+			break
+		}
+	}
+
+	if r == nil || r.Sign() == 0 {
+		return "0"
+	}
+
+	return strings.TrimRight(strings.TrimRight(r.FloatString(filUnits[ui].precision), "0"), ".") + " " + filUnits[ui].pretty
+}
+
+func (f FIL) Std() big.Int {
+	if f.Int == nil {
+		return big.Int{}
+	}
+
+	return big.Int(f).Copy()
+}
+
+func ParseFIL(raw string) (FIL, error) {
+	suffix := strings.TrimLeft(raw, "-.1234567890")
+	s := raw[:len(raw)-len(suffix)]
+	if len(s) > 50 {
+		return FIL{}, fmt.Errorf("number string length too large: %d", len(s))
+	}
+
+	r, ok := new(mbig.Rat).SetString(s)
+	if !ok {
+		return FIL{}, fmt.Errorf("failed to parse %q as a decimal number", s)
+	}
+
+	norm := strings.ToLower(strings.TrimSpace(suffix))
+	for _, unit := range filUnits {
+		if unit.name == norm || unit.short == norm {
+			r = r.Mul(r, mbig.NewRat(int64(math.Pow10(unit.precision)), 1))
+			if !r.IsInt() {
+				return FIL{}, fmt.Errorf("invalid FIL string %q", raw)
+			}
+
+			return FIL(big.Int{Int: r.Num()}), nil
+		}
+	}
+
+	return FIL{}, fmt.Errorf("invalid FIL unit %s", norm)
+}
+
+func (f FIL) MarshalText() ([]byte, error) {
+	if f.Int == nil {
 		return nil, nil
 	}
 
-	return big.Int(b).MarshalText()
+	return []byte(f.Short()), nil
 }
 
-func (b *BigInt) UnmarshalText(text []byte) error {
+func (f *FIL) UnmarshalText(text []byte) error {
 	if len(text) == 0 {
-		if b != nil {
-			b.Int = nil
+		if f != nil {
+			f.Int = nil
 		}
 
 		return nil
 	}
 
-	bi, err := big.FromString(string(text))
+	fil, err := ParseFIL(string(text))
 	if err != nil {
-		return err
+		return fmt.Errorf("parse FIL: %w", err)
 	}
 
-	*b = BigInt(bi)
+	*f = fil
 	return nil
-}
-
-func (b BigInt) Std() big.Int {
-	if b.Int == nil {
-		return big.Int{}
-	}
-
-	return big.Int(b).Copy()
 }

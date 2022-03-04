@@ -17,6 +17,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
@@ -27,14 +28,15 @@ type PreCommitProcessor struct {
 
 	smgr api.SectorStateManager
 
-	config Cfg
+	config *modules.SafeConfig
 }
 
 func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []api.SectorState, from address.Address, mid abi.ActorID, l *logging.ZapLogger) {
+	mcfg := p.config.MustMinerConfig(mid)
+
 	var spec messager.MsgMeta
-	policy := p.config.policy(mid)
-	spec.GasOverEstimation = policy.PreCommitGasOverEstimation
-	spec.MaxFeeCap = policy.MaxPreCommitFeeCap.Std()
+	spec.GasOverEstimation = mcfg.Commitment.Pre.GasOverEstimation
+	spec.MaxFeeCap = mcfg.Commitment.Pre.MaxFeeCap.Std()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(sectors))
@@ -109,10 +111,12 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	if err := params.MarshalCBOR(enc); err != nil {
 		return fmt.Errorf("couldn't serialize PreCommitSectorBatchParams: %w", err)
 	}
+
+	mcfg := p.config.MustMinerConfig(mid)
+
 	var spec messager.MsgMeta
-	policy := p.config.policy(mid)
-	spec.GasOverEstimation = policy.BatchProCommitGasOverEstimation
-	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap.Std()
+	spec.GasOverEstimation = mcfg.Commitment.Pre.GasOverEstimation
+	spec.MaxFeeCap = mcfg.Commitment.Pre.MaxFeeCap.Std()
 
 	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, miner.Methods.PreCommitSectorBatch,
 		p.msgClient, spec, enc.Bytes(), plog)
@@ -128,7 +132,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 }
 
 func (p PreCommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
-	maxWait := p.config.policy(mid).PreCommitBatchMaxWait.Std()
+	maxWait := p.config.MustMinerConfig(mid).Commitment.Pre.Batch.MaxWait.Std()
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := p.api.ChainHead(ctx)
 	if err != nil {
@@ -146,15 +150,15 @@ func (p PreCommitProcessor) Expire(ctx context.Context, sectors []api.SectorStat
 }
 
 func (p PreCommitProcessor) CheckAfter(mid abi.ActorID) *time.Timer {
-	return time.NewTimer(p.config.policy(mid).PreCommitCheckInterval.Std())
+	return time.NewTimer(p.config.MustMinerConfig(mid).Commitment.Pre.Batch.CheckInterval.Std())
 }
 
 func (p PreCommitProcessor) Threshold(mid abi.ActorID) int {
-	return p.config.policy(mid).PreCommitBatchThreshold
+	return p.config.MustMinerConfig(mid).Commitment.Pre.Batch.Threshold
 }
 
 func (p PreCommitProcessor) EnableBatch(mid abi.ActorID) bool {
-	return p.config.policy(mid).EnableBatchPreCommit
+	return p.config.MustMinerConfig(mid).Commitment.Pre.Batch.Enabled
 }
 
 var _ Processor = (*PreCommitProcessor)(nil)

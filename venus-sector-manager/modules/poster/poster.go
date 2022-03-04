@@ -44,18 +44,17 @@ func NewPoSter(
 	p.actors.handlers = map[address.Address]*changeHandler{}
 
 	cfg.Lock()
-	actors := cfg.PoSt.Actors
+	miners := cfg.Miners
 	cfg.Unlock()
 
-	for key := range actors {
-		mid, err := modules.ActorIDFromConfigKey(key)
-		if err != nil {
-			return nil, fmt.Errorf("parse actor id from %s: %w", key, err)
+	for _, mcfg := range miners {
+		if !mcfg.PoSt.Enabled {
+			continue
 		}
 
-		sched, err := newScheduler(ctx, mid, p.cfg, p.verifier, p.prover, p.indexer, p.sectorTracker, p.chain, p.rand, p.msg)
+		sched, err := newScheduler(ctx, mcfg.Actor, p.cfg, p.verifier, p.prover, p.indexer, p.sectorTracker, p.chain, p.rand, p.msg)
 		if err != nil {
-			return nil, fmt.Errorf("construct scheduler for actor %d: %w", mid, err)
+			return nil, fmt.Errorf("construct scheduler for actor %d: %w", mcfg.Actor, err)
 		}
 
 		p.actors.handlers[sched.actor.Addr] = newChangeHandler(sched, sched.actor.Addr)

@@ -25,12 +25,10 @@ type diPeriod struct {
 }
 
 func (s *scheduler) publishMessage(ctx context.Context, method abi.MethodNum, params cbor.Marshaler, di *diPeriod, wait bool) (string, <-chan msgOrErr, error) {
-	sender, err := senderFromConfig(s.actor.ID, s.cfg)
+	mcfg, err := s.cfg.MinerConfig(s.actor.ID)
 	if err != nil {
 		return "", nil, fmt.Errorf("get sender: %w", err)
 	}
-
-	policy := postPolicyFromConfig(s.actor.ID, s.cfg)
 
 	encoded, err := actors.SerializeParams(params)
 	if err != nil {
@@ -38,7 +36,7 @@ func (s *scheduler) publishMessage(ctx context.Context, method abi.MethodNum, pa
 	}
 
 	msg := types.Message{
-		From:   sender,
+		From:   mcfg.PoSt.Sender.Std(),
 		To:     s.actor.Addr,
 		Method: method,
 		Params: encoded,
@@ -46,13 +44,13 @@ func (s *scheduler) publishMessage(ctx context.Context, method abi.MethodNum, pa
 	}
 
 	spec := messager.MsgMeta{
-		GasOverEstimation: policy.GasOverEstimation,
-		MaxFeeCap:         policy.MaxFeeCap.Std(),
+		GasOverEstimation: mcfg.PoSt.GasOverEstimation,
+		MaxFeeCap:         mcfg.PoSt.MaxFeeCap.Std(),
 	}
 
 	mid := ""
 	if di == nil {
-		mid = fmt.Sprintf("%s", msg.Cid().String())
+		mid = msg.Cid().String()
 	} else {
 		mid = fmt.Sprintf("%s-%v-%v", msg.Cid().String(), di.index, di.open)
 	}
@@ -69,7 +67,7 @@ func (s *scheduler) publishMessage(ctx context.Context, method abi.MethodNum, pa
 	go func() {
 		defer close(ch)
 
-		m, err := s.waitMessage(ctx, uid, policy.MsgConfidence)
+		m, err := s.waitMessage(ctx, uid, mcfg.PoSt.Confidence)
 		ch <- msgOrErr{
 			Message: m,
 			err:     err,
