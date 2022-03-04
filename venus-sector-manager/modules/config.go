@@ -131,14 +131,16 @@ func defaultMinerSectorConfig(example bool) MinerSectorConfig {
 }
 
 type MinerCommitmentConfig struct {
-	Pre   MinerCommitmentPolicyConfig
-	Prove MinerCommitmentPolicyConfig
+	Confidence int64
+	Pre        MinerCommitmentPolicyConfig
+	Prove      MinerCommitmentPolicyConfig
 }
 
 func defaultMinerCommitmentConfig(example bool) MinerCommitmentConfig {
 	cfg := MinerCommitmentConfig{
-		Pre:   defaultMinerCommitmentPolicyConfig(example),
-		Prove: defaultMinerCommitmentPolicyConfig(example),
+		Confidence: 10,
+		Pre:        defaultMinerCommitmentPolicyConfig(example),
+		Prove:      defaultMinerCommitmentPolicyConfig(example),
 	}
 
 	return cfg

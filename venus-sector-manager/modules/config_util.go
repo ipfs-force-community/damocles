@@ -63,6 +63,10 @@ func (ma MustAddress) Std() address.Address {
 	return address.Address(ma)
 }
 
+func (ma MustAddress) Valid() bool {
+	return address.Address(ma) != address.Undef
+}
+
 type Duration time.Duration
 
 func (d Duration) MarshalText() ([]byte, error) {

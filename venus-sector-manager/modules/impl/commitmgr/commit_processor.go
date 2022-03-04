@@ -20,6 +20,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
@@ -30,16 +31,17 @@ type CommitProcessor struct {
 
 	smgr api.SectorStateManager
 
-	config Cfg
+	config *modules.SafeConfig
 
 	prover api.Prover
 }
 
 func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.SectorState, from address.Address, mid abi.ActorID, plog *logging.ZapLogger) {
+	mcfg := c.config.MustMinerConfig(mid)
+
 	var spec messager.MsgMeta
-	policy := c.config.policy(mid)
-	spec.GasOverEstimation = policy.ProCommitGasOverEstimation
-	spec.MaxFeeCap = policy.MaxProCommitFeeCap.Std()
+	spec.GasOverEstimation = mcfg.Commitment.Prove.GasOverEstimation
+	spec.MaxFeeCap = mcfg.Commitment.Prove.MaxFeeCap.Std()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(sectors))
@@ -160,10 +162,11 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %w", err)
 	}
 
+	mcfg := c.config.MustMinerConfig(mid)
+
 	var spec messager.MsgMeta
-	policy := c.config.policy(mid)
-	spec.GasOverEstimation = policy.BatchProCommitGasOverEstimation
-	spec.MaxFeeCap = policy.MaxBatchProCommitFeeCap.Std()
+	spec.GasOverEstimation = mcfg.Commitment.Prove.GasOverEstimation
+	spec.MaxFeeCap = mcfg.Commitment.Prove.MaxFeeCap.Std()
 
 	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, miner.Methods.ProveCommitAggregate,
 		c.msgClient, spec, enc.Bytes(), plog)
@@ -181,7 +184,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 }
 
 func (c CommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
-	maxWait := c.config.policy(mid).CommitBatchMaxWait.Std()
+	maxWait := c.config.MustMinerConfig(mid).Commitment.Prove.Batch.MaxWait.Std()
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := c.api.ChainHead(ctx)
 	if err != nil {
@@ -197,15 +200,15 @@ func (c CommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, 
 }
 
 func (c CommitProcessor) CheckAfter(mid abi.ActorID) *time.Timer {
-	return time.NewTimer(c.config.policy(mid).CommitCheckInterval.Std())
+	return time.NewTimer(c.config.MustMinerConfig(mid).Commitment.Prove.Batch.CheckInterval.Std())
 }
 
 func (c CommitProcessor) Threshold(mid abi.ActorID) int {
-	return c.config.policy(mid).CommitBatchThreshold
+	return c.config.MustMinerConfig(mid).Commitment.Prove.Batch.Threshold
 }
 
 func (c CommitProcessor) EnableBatch(mid abi.ActorID) bool {
-	return c.config.policy(mid).EnableBatchProCommit
+	return c.config.MustMinerConfig(mid).Commitment.Prove.Batch.Enabled
 }
 
 var _ Processor = (*CommitProcessor)(nil)
