@@ -24,7 +24,7 @@ type diPeriod struct {
 	open  abi.ChainEpoch
 }
 
-func (s *scheduler) publishMessage(ctx context.Context, method abi.MethodNum, params cbor.Marshaler, di diPeriod, wait bool) (string, <-chan msgOrErr, error) {
+func (s *scheduler) publishMessage(ctx context.Context, method abi.MethodNum, params cbor.Marshaler, di *diPeriod, wait bool) (string, <-chan msgOrErr, error) {
 	sender, err := senderFromConfig(s.actor.ID, s.cfg)
 	if err != nil {
 		return "", nil, fmt.Errorf("get sender: %w", err)
@@ -45,14 +45,17 @@ func (s *scheduler) publishMessage(ctx context.Context, method abi.MethodNum, pa
 		Value:  types.NewInt(0),
 	}
 
-	mcid := msg.Cid()
-
 	spec := messager.MsgMeta{
 		GasOverEstimation: policy.GasOverEstimation,
 		MaxFeeCap:         policy.MaxFeeCap.Std(),
 	}
 
-	mid := fmt.Sprintf("%s-%v-%v", mcid.String(), di.index, di.open)
+	mid := ""
+	if di == nil {
+		mid = fmt.Sprintf("%s", msg.Cid().String())
+	} else {
+		mid = fmt.Sprintf("%s-%v-%v", msg.Cid().String(), di.index, di.open)
+	}
 	uid, err := s.msg.PushMessageWithId(ctx, mid, &msg, &spec)
 	if err != nil {
 		return "", nil, fmt.Errorf("push msg with id %s: %w", mid, err)
