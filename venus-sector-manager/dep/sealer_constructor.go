@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -64,13 +62,14 @@ func BuildLocalConfigManager(gctx GlobalContext, lc fx.Lifecycle, home *homedir.
 }
 
 func ProvideConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigManager, locker confmgr.WLocker) (*modules.Config, error) {
-	cfg := modules.DefaultConfig()
+	cfg := modules.DefaultConfig(false)
 	if err := cfgmgr.Load(gctx, modules.ConfigKey, &cfg); err != nil {
 		return nil, err
 	}
 
 	buf := bytes.Buffer{}
 	encode := toml.NewEncoder(&buf)
+	encode.Indent = ""
 	err := encode.Encode(cfg)
 	if err != nil {
 		return nil, err
@@ -81,7 +80,7 @@ func ProvideConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigMan
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
 			return cfgmgr.Watch(gctx, modules.ConfigKey, &cfg, locker, func() interface{} {
-				c := modules.DefaultConfig()
+				c := modules.DefaultConfig(false)
 				return &c
 			})
 		},
@@ -162,7 +161,7 @@ func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaSto
 
 func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (messager.API, error) {
 	locker.Lock()
-	api, token := scfg.Messager.Api, scfg.Messager.Token
+	api, token := scfg.Common.API.Messager, scfg.Common.API.Token
 	locker.Unlock()
 
 	mcli, mcloser, err := messager.New(gctx, api, token)
@@ -218,7 +217,7 @@ func BuildSealerClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress
 
 func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (chain.API, error) {
 	locker.Lock()
-	api, token := scfg.Chain.Api, scfg.Chain.Token
+	api, token := scfg.Common.API.Chain, scfg.Common.API.Token
 	locker.Unlock()
 
 	ccli, ccloser, err := chain.New(gctx, api, token)
@@ -240,11 +239,10 @@ func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg
 	mapi := chain.NewMinerInfoAPI(capi)
 
 	locker.Lock()
-	prefetch := scfg.SectorManager.PreFetch
-	miners := scfg.SectorManager.Miners
+	miners := scfg.Miners
 	locker.Unlock()
 
-	if prefetch && len(miners) > 0 {
+	if len(miners) > 0 {
 		lc.Append(fx.Hook{
 			OnStart: func(ctx context.Context) error {
 				var wg sync.WaitGroup
@@ -253,7 +251,7 @@ func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg
 				for i := range miners {
 					go func(mi int) {
 						defer wg.Done()
-						mid := miners[mi].ID
+						mid := miners[mi].Actor
 
 						mlog := log.With("miner", mid)
 						info, err := mapi.Get(gctx, mid)
@@ -282,8 +280,7 @@ func BuildCommitmentManager(
 	mapi messager.API,
 	rapi api.RandomnessAPI,
 	stmgr api.SectorStateManager,
-	scfg *modules.Config,
-	rlock confmgr.RLocker,
+	scfg *modules.SafeConfig,
 	verif api.Verifier,
 	prover api.Prover,
 ) (api.CommitmentManager, error) {
@@ -293,7 +290,6 @@ func BuildCommitmentManager(
 		commitmgr.NewSealingAPIImpl(capi, rapi),
 		stmgr,
 		scfg,
-		rlock,
 		verif,
 		prover,
 	)
@@ -339,34 +335,10 @@ func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedi
 
 func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker) (PersistedObjectStoreManager, error) {
 	locker.Lock()
-	persistCfg := scfg.PersistedStore
+	persistCfg := scfg.Common.PersistStores
 	locker.Unlock()
 
-	cfgs := make([]filestore.Config, 0)
-	for _, include := range persistCfg.Includes {
-		abs, err := filepath.Abs(include)
-		if err != nil {
-			return nil, fmt.Errorf("invalid include path %s: %w", include, err)
-		}
-
-		entries, err := os.ReadDir(abs)
-		if err != nil {
-			return nil, fmt.Errorf("read dir entries inside %s: %w", abs, err)
-		}
-
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				log.Warnw("skipped non-dir entry", "include", abs, "sub", entry.Name())
-				continue
-			}
-
-			cfgs = append(cfgs, filestore.DefaultConfig(filepath.Join(abs, entry.Name()), true))
-		}
-	}
-
-	cfgs = append(cfgs, persistCfg.Stores...)
-
-	return filestore.NewManager(cfgs)
+	return filestore.NewManager(persistCfg)
 }
 
 func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (api.SectorIndexer, error) {
@@ -384,16 +356,16 @@ type MarketAPIRelatedComponets struct {
 	MarketAPI   market.API
 }
 
-func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker, infoAPI api.MinerInfoAPI) (market.API, error) {
-	locker.Lock()
-	enabled := scfg.DealManagerConfig.Enable
-	defer locker.Unlock()
+func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI api.MinerInfoAPI) (market.API, error) {
+	scfg.Lock()
+	api, token := scfg.Common.API.Market, scfg.Common.API.Token
+	defer scfg.Unlock()
 
-	if !enabled {
+	if api == "" {
 		return nil, nil
 	}
 
-	mapi, mcloser, err := market.New(gctx, scfg.DealManagerConfig.MarketAPI.Api, scfg.DealManagerConfig.MarketAPI.Token)
+	mapi, mcloser, err := market.New(gctx, api, token)
 	if err != nil {
 		return nil, fmt.Errorf("construct market api: %w", err)
 	}
@@ -408,12 +380,13 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, l
 	return mapi, nil
 }
 
-func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker, infoAPI api.MinerInfoAPI) (MarketAPIRelatedComponets, error) {
-	locker.Lock()
-	enabled := scfg.DealManagerConfig.Enable
-	locker.Unlock()
+func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI api.MinerInfoAPI) (MarketAPIRelatedComponets, error) {
+	mapi, err := BuildMarketAPI(gctx, lc, scfg, infoAPI)
+	if err != nil {
+		return MarketAPIRelatedComponets{}, fmt.Errorf("build market api: %w", err)
+	}
 
-	if !enabled {
+	if mapi == nil {
 		log.Warn("deal manager based on market api is disabled, use mocked")
 		return MarketAPIRelatedComponets{
 			DealManager: mock.NewDealManager(),
@@ -421,12 +394,11 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Co
 		}, nil
 	}
 
-	mapi, err := BuildMarketAPI(gctx, lc, scfg, locker, infoAPI)
-	if err != nil {
-		return MarketAPIRelatedComponets{}, fmt.Errorf("build market api: %w", err)
-	}
+	scfg.Lock()
+	pieceStoreCfg := scfg.Common.PieceStores
+	scfg.Unlock()
 
-	locals, err := filestore.OpenMany(scfg.DealManagerConfig.LocalPieceStores)
+	locals, err := filestore.OpenMany(pieceStoreCfg)
 	if err != nil {
 		return MarketAPIRelatedComponets{}, fmt.Errorf("open local piece stores: %w", err)
 	}
@@ -436,7 +408,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Co
 	log.Info("piecestore proxy has been registered into default mux")
 
 	return MarketAPIRelatedComponets{
-		DealManager: dealmgr.New(mapi, infoAPI),
+		DealManager: dealmgr.New(mapi, infoAPI, scfg),
 		MarketAPI:   mapi,
 	}, nil
 }

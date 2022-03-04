@@ -36,7 +36,7 @@ var daemonInitCmd = &cli.Command{
 			return fmt.Errorf("construct config manager: %w", err)
 		}
 
-		cfg := modules.ExampleConfig()
+		cfg := modules.DefaultConfig(true)
 		if err := cfgmgr.SetDefault(cctx.Context, modules.ConfigKey, cfg); err != nil {
 			return fmt.Errorf("init sealer config: %w", err)
 		}

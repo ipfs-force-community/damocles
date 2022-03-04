@@ -17,6 +17,10 @@ var (
 	_ ConfigManager = (*localMgr)(nil)
 )
 
+type ConfigUnmarshaller interface {
+	UnmarshalConfig([]byte) error
+}
+
 type RLocker interface {
 	sync.Locker
 }
@@ -37,6 +41,7 @@ func ConfigComment(t interface{}) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	_, _ = buf.WriteString("# Default config:\n")
 	e := toml.NewEncoder(buf)
+	e.Indent = ""
 	if err := e.Encode(t); err != nil {
 		return nil, fmt.Errorf("encoding config: %w", err)
 	}

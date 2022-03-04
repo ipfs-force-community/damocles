@@ -95,7 +95,15 @@ func (lm *localMgr) Load(ctx context.Context, key string, c interface{}) error {
 		return fmt.Errorf("failed to load %s: %w", fname, err)
 	}
 
-	return toml.Unmarshal(data, c)
+	return lm.unmarshal(data, c)
+}
+
+func (lm *localMgr) unmarshal(data []byte, obj interface{}) error {
+	if un, ok := obj.(ConfigUnmarshaller); ok {
+		return un.UnmarshalConfig(data)
+	}
+
+	return toml.Unmarshal(data, obj)
 }
 
 func (lm *localMgr) Watch(ctx context.Context, key string, c interface{}, wlock WLocker, newfn func() interface{}) error {
@@ -141,10 +149,7 @@ func (lm *localMgr) loadModified(ctx context.Context, fname string, c *cfgItem) 
 
 	l := log.With("fname", fname)
 
-	select {
-	case <-ctx.Done():
-
-	}
+	<-ctx.Done()
 
 	cerr := ctx.Err()
 	if cerr == context.Canceled {
@@ -159,7 +164,7 @@ func (lm *localMgr) loadModified(ctx context.Context, fname string, c *cfgItem) 
 	}
 
 	obj := c.newfn()
-	err = toml.Unmarshal(data, obj)
+	err = lm.unmarshal(data, obj)
 	if err != nil {
 		l.Errorf("failed to unmarshal data: %s", err)
 		return

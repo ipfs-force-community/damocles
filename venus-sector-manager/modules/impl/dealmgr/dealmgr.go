@@ -9,24 +9,36 @@ import (
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
 )
 
 var _ api.DealManager = (*DealManager)(nil)
 
-func New(marketAPI market.API, infoAPI api.MinerInfoAPI) *DealManager {
+func New(marketAPI market.API, infoAPI api.MinerInfoAPI, scfg *modules.SafeConfig) *DealManager {
 	return &DealManager{
 		market: marketAPI,
 		info:   infoAPI,
+		scfg:   scfg,
 	}
 }
 
 type DealManager struct {
 	market market.API
 	info   api.MinerInfoAPI
+	scfg   *modules.SafeConfig
 }
 
 func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, maxDeals *uint) (api.Deals, error) {
+	mcfg, err := dm.scfg.MinerConfig(sid.Miner)
+	if err != nil {
+		return nil, fmt.Errorf("get miner config: %w", err)
+	}
+
+	if !mcfg.Deal.Enabled {
+		return nil, nil
+	}
+
 	minfo, err := dm.info.Get(ctx, sid.Miner)
 	if err != nil {
 		return nil, fmt.Errorf("get miner info: %w", err)

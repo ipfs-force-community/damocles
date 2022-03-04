@@ -1,12 +1,16 @@
 package modules
 
 import (
+	"bytes"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 )
 
@@ -253,9 +257,38 @@ func defaultMinerConfig(example bool) MinerConfig {
 	return cfg
 }
 
+var _ confmgr.ConfigUnmarshaller = (*Config)(nil)
+
 type Config struct {
 	Common CommonConfig
 	Miners []MinerConfig
+}
+
+func (c *Config) UnmarshalConfig(data []byte) error {
+	primitive := struct {
+		Common CommonConfig
+		Miners []toml.Primitive
+	}{}
+
+	meta, err := toml.NewDecoder(bytes.NewReader(data)).Decode(&primitive)
+	if err != nil {
+		return fmt.Errorf("toml.Unmarshal to primitive: %w", err)
+	}
+
+	miners := make([]MinerConfig, 0, len(primitive.Miners))
+	for i, pm := range primitive.Miners {
+		mcfg := defaultMinerConfig(false)
+		err := meta.PrimitiveDecode(pm, &mcfg)
+		if err != nil {
+			return fmt.Errorf("decode primitive to miner config #%d: %w", i, err)
+		}
+
+		miners = append(miners, mcfg)
+	}
+
+	c.Common = primitive.Common
+	c.Miners = miners
+	return nil
 }
 
 func DefaultConfig(example bool) Config {
