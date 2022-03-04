@@ -38,7 +38,7 @@ func NewManager(
 
 type minerCandidate struct {
 	info *api.MinerInfo
-	cfg  *modules.SectorManagerMinerConfig
+	cfg  *modules.MinerSectorConfig
 }
 
 type Manager struct {
@@ -53,7 +53,7 @@ type Manager struct {
 
 func (m *Manager) Allocate(ctx context.Context, allowedMiners []abi.ActorID, allowedProofs []abi.RegisteredSealProof) (*api.AllocatedSector, error) {
 	m.cfg.Lock()
-	miners := m.cfg.SectorManager.Miners
+	miners := m.cfg.Miners
 	m.cfg.Unlock()
 
 	if len(miners) == 0 {
@@ -71,19 +71,19 @@ func (m *Manager) Allocate(ctx context.Context, allowedMiners []abi.ActorID, all
 		go func(mi int) {
 			defer wg.Done()
 
-			if miners[mi].Disabled {
-				log.Warnw("sector allocator disabled", "miner", miners[mi].ID)
+			if !miners[mi].Sector.Enabled {
+				log.Warnw("sector allocator disabled", "miner", miners[mi].Actor)
 				errs[mi] = errMinerDisabled
 				return
 			}
 
-			mid := miners[mi].ID
+			mid := miners[mi].Actor
 
 			minfo, err := m.info.Get(ctx, mid)
 			if err == nil {
 				infos[mi] = &minerCandidate{
 					info: minfo,
-					cfg:  &miners[mi],
+					cfg:  &miners[mi].Sector,
 				}
 			} else {
 				errs[mi] = err

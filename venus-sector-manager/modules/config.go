@@ -2,13 +2,11 @@ package modules
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 	"time"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
-
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 )
 
@@ -21,344 +19,251 @@ func init() {
 	fakeAddress = MustAddress(fake)
 }
 
-var fakeAddress MustAddress
-
-const ConfigKey = "sector-manager"
-
-func init() {
-	checkOptionalConfig(reflect.TypeOf(CommitmentPolicyConfig{}), reflect.TypeOf(CommitmentPolicyConfigOptional{}))
-	checkOptionalConfig(reflect.TypeOf(PoStPolicyConfig{}), reflect.TypeOf(PoStPolicyConfigOptional{}))
-}
-
 type SafeConfig struct {
 	*Config
 	sync.Locker
 }
 
-func ExampleConfig() Config {
-	defaultCfg := DefaultConfig()
-
-	// Example for miner section
-	var maxNumber uint64 = 10000
-	defaultCfg.SectorManager.Miners = append(defaultCfg.SectorManager.Miners, SectorManagerMinerConfig{
-		ID:         10000,
-		InitNumber: 0,
-		MaxNumber:  &maxNumber,
-		Disabled:   false,
-	})
-	defaultCfg.Commitment.Miners["example"] = ExampleCommitmentMinerConfig()
-	defaultCfg.PersistedStore.Includes = append(defaultCfg.PersistedStore.Includes, "unavailable")
-	defaultCfg.PersistedStore.Stores = append(defaultCfg.PersistedStore.Stores, filestore.Config{
-		Name:     "storage name,like `100.100.10.1`",
-		Path:     "/path/to/storage/",
-		Strict:   false,
-		ReadOnly: true,
-	})
-
-	defaultCfg.PoSt.Actors["10000"] = PoStActorConfig{
-		Sender: fakeAddress,
-		PoStPolicyConfigOptional: PoStPolicyConfigOptional{
-			StrictCheck:       &defaultCfg.PoSt.Default.StrictCheck,
-			GasOverEstimation: &defaultCfg.PoSt.Default.GasOverEstimation,
-			MaxFeeCap:         &defaultCfg.PoSt.Default.MaxFeeCap,
-			MsgCheckInteval:   &defaultCfg.PoSt.Default.MsgCheckInteval,
-			MsgConfidence:     &defaultCfg.PoSt.Default.MsgConfidence,
-		},
+func (sc *SafeConfig) MustMinerConfig(mid abi.ActorID) MinerConfig {
+	mc, err := sc.MinerConfig(mid)
+	if err != nil {
+		panic(err)
 	}
 
-	defaultCfg.RegisterProof.Actors["10000"] = RegisterProofActorConfig{
-		Apis:  []string{},
-		Token: "",
-	}
-
-	defaultCfg.DealManagerConfig.Enable = true
-	defaultCfg.DealManagerConfig.MarketAPI.Api = "/ip4/{host}/tcp/{port}"
-	defaultCfg.DealManagerConfig.MarketAPI.Token = "some token"
-	defaultCfg.DealManagerConfig.LocalPieceStores = append(defaultCfg.DealManagerConfig.LocalPieceStores, filestore.Config{
-		Name:     "piece storage name",
-		Path:     "/path/to/piece/storage",
-		Strict:   true,
-		ReadOnly: true,
-	})
-
-	return defaultCfg
+	return mc
 }
 
-func DefaultConfig() Config {
-	return Config{
-		SectorManager: DefaultSectorManagerConfig(),
-		Commitment:    DefaultCommitment(),
-		Chain:         RPCClientConfig{},
-		Messager:      RPCClientConfig{},
-		PersistedStore: FileStoreConfig{
-			Includes: make([]string, 0),
-			Stores:   make([]filestore.Config, 0),
-		},
-		PoSt:              DefaultPoStConfig(),
-		RegisterProof:     DefaultRegisterProofConfig(),
-		DealManagerConfig: DefaultDealManagerConfig(),
+func (sc *SafeConfig) MinerConfig(mid abi.ActorID) (MinerConfig, error) {
+	sc.Lock()
+	defer sc.Unlock()
+
+	for i := range sc.Miners {
+		if sc.Miners[i].Actor == mid {
+			return sc.Miners[i], nil
+		}
 	}
+
+	return MinerConfig{}, fmt.Errorf("config for miner actor %d not found", mid)
+}
+
+var fakeAddress MustAddress
+
+const ConfigKey = "sector-manager"
+
+type CommonAPIConfig struct {
+	Chain    string
+	Messager string
+	Market   string
+	Gateway  []string
+	Token    string
+}
+
+func defaultCommonAPIConfig(example bool) CommonAPIConfig {
+	cfg := CommonAPIConfig{}
+	if example {
+		cfg.Chain = "/ip4/{api_host}/tcp/{api_port}"
+		cfg.Messager = "/ip4/{api_host}/tcp/{api_port}"
+		cfg.Market = "/ip4/{api_host}/tcp/{api_port}"
+		cfg.Gateway = []string{"/ip4/{api_host}/tcp/{api_port}"}
+		cfg.Token = "{some token}"
+	}
+	return cfg
+}
+
+type CommonConfig struct {
+	API           CommonAPIConfig
+	PieceStores   []filestore.Config
+	PersistStores []filestore.Config
+}
+
+func exampleFilestoreConfig() filestore.Config {
+	return filestore.Config{
+		Name: "{store_name}",
+		Path: "{store_path}",
+	}
+}
+
+func defaultCommonConfig(example bool) CommonConfig {
+	cfg := CommonConfig{
+		API:           defaultCommonAPIConfig(example),
+		PieceStores:   []filestore.Config{},
+		PersistStores: []filestore.Config{},
+	}
+
+	if example {
+		cfg.PieceStores = append(cfg.PieceStores, exampleFilestoreConfig())
+		cfg.PersistStores = append(cfg.PersistStores, exampleFilestoreConfig())
+	}
+
+	return cfg
+}
+
+type FeeConfig struct {
+	GasOverEstimation float64
+	MaxFeeCap         FIL
+}
+
+func defaultFeeConfig() FeeConfig {
+	return FeeConfig{
+		GasOverEstimation: 1.2,
+		MaxFeeCap:         NanoFIL.Mul(5),
+	}
+}
+
+type MinerSectorConfig struct {
+	InitNumber uint64
+	MaxNumber  *uint64
+	Enabled    bool
+}
+
+func defaultMinerSectorConfig(example bool) MinerSectorConfig {
+	cfg := MinerSectorConfig{
+		InitNumber: 0,
+		Enabled:    true,
+	}
+
+	if example {
+		max := uint64(1_000_000)
+		cfg.MaxNumber = &max
+	}
+
+	return cfg
+}
+
+type MinerCommitmentConfig struct {
+	Pre   MinerCommitmentPolicyConfig
+	Prove MinerCommitmentPolicyConfig
+}
+
+func defaultMinerCommitmentConfig(example bool) MinerCommitmentConfig {
+	cfg := MinerCommitmentConfig{
+		Pre:   defaultMinerCommitmentPolicyConfig(example),
+		Prove: defaultMinerCommitmentPolicyConfig(example),
+	}
+
+	return cfg
+}
+
+type MinerCommitmentPolicyConfig struct {
+	Sender MustAddress
+	FeeConfig
+	Batch MinerCommitmentBatchPolicyConfig
+}
+
+func defaultMinerCommitmentPolicyConfig(example bool) MinerCommitmentPolicyConfig {
+	cfg := MinerCommitmentPolicyConfig{
+		FeeConfig: defaultFeeConfig(),
+		Batch:     defaultMinerCommitmentBatchPolicyConfig(),
+	}
+
+	if example {
+		cfg.Sender = fakeAddress
+	}
+
+	return cfg
+}
+
+type MinerCommitmentBatchPolicyConfig struct {
+	Enabled       bool
+	Threshold     int
+	MaxWait       Duration
+	CheckInterval Duration
+	FeeConfig
+}
+
+func defaultMinerCommitmentBatchPolicyConfig() MinerCommitmentBatchPolicyConfig {
+	cfg := MinerCommitmentBatchPolicyConfig{
+		Enabled:       false,
+		Threshold:     16,
+		MaxWait:       Duration(time.Hour),
+		CheckInterval: Duration(time.Minute),
+		FeeConfig:     defaultFeeConfig(),
+	}
+
+	return cfg
+}
+
+type MinerPoStConfig struct {
+	Sender      MustAddress
+	Enabled     bool
+	StrictCheck bool
+	FeeConfig
+	Confidence uint64
+}
+
+func defaultMinerPoStConfig(example bool) MinerPoStConfig {
+	cfg := MinerPoStConfig{
+		Enabled:     true,
+		StrictCheck: true,
+		FeeConfig:   defaultFeeConfig(),
+		Confidence:  10,
+	}
+
+	if example {
+		cfg.Sender = fakeAddress
+	}
+
+	return cfg
+}
+
+type MinerDealConfig struct {
+	Enabled bool
+}
+
+func defaultMinerDealConfig() MinerDealConfig {
+	return MinerDealConfig{
+		Enabled: false,
+	}
+}
+
+type MinerProofConfig struct {
+	Enabled bool
+}
+
+func defaultMinerProofConfig() MinerProofConfig {
+	return MinerProofConfig{
+		Enabled: false,
+	}
+}
+
+type MinerConfig struct {
+	Actor      abi.ActorID
+	Sector     MinerSectorConfig
+	Commitment MinerCommitmentConfig
+	PoSt       MinerPoStConfig
+	Proof      MinerProofConfig
+	Deal       MinerDealConfig
+}
+
+func defaultMinerConfig(example bool) MinerConfig {
+	cfg := MinerConfig{
+		Sector:     defaultMinerSectorConfig(example),
+		Commitment: defaultMinerCommitmentConfig(example),
+		PoSt:       defaultMinerPoStConfig(example),
+		Proof:      defaultMinerProofConfig(),
+		Deal:       defaultMinerDealConfig(),
+	}
+
+	if example {
+		cfg.Actor = 10086
+	}
+
+	return cfg
 }
 
 type Config struct {
-	SectorManager  SectorManagerConfig
-	Commitment     CommitmentManagerConfig
-	Chain          RPCClientConfig
-	Messager       RPCClientConfig
-	PersistedStore FileStoreConfig
-	// TODO: use separate config for each actor
-	PoSt PoStConfig
-
-	RegisterProof     RegisterProofConfig
-	DealManagerConfig DealManagerConfig
+	Common CommonConfig
+	Miners []MinerConfig
 }
 
-func DefaultSectorManagerConfig() SectorManagerConfig {
-	return SectorManagerConfig{
-		Miners:   []SectorManagerMinerConfig{},
-		PreFetch: true,
+func DefaultConfig(example bool) Config {
+	cfg := Config{
+		Common: defaultCommonConfig(example),
 	}
-}
 
-type SectorManagerConfig struct {
-	Miners   []SectorManagerMinerConfig
-	PreFetch bool
-}
-
-type SectorManagerMinerConfig struct {
-	ID         abi.ActorID
-	InitNumber uint64
-	MaxNumber  *uint64
-	Disabled   bool
-}
-
-func DefaultCommitment() CommitmentManagerConfig {
-	return CommitmentManagerConfig{
-		DefaultPolicy: DefaultCommitmentPolicy(),
-		Miners:        map[string]CommitmentMinerConfig{},
-	}
-}
-
-type CommitmentManagerConfig struct {
-	DefaultPolicy CommitmentPolicyConfig
-	Miners        map[string]CommitmentMinerConfig
-}
-
-func (c *CommitmentManagerConfig) MustPolicy(mid abi.ActorID) CommitmentPolicyConfig {
-	cfg, err := c.Policy(mid)
-	if err != nil {
-		panic(err)
+	if example {
+		cfg.Miners = append(cfg.Miners, defaultMinerConfig(example))
 	}
 
 	return cfg
-}
-
-func (c *CommitmentManagerConfig) Policy(mid abi.ActorID) (CommitmentPolicyConfig, error) {
-	var dest CommitmentPolicyConfig
-	var optional interface{}
-
-	if opt, ok := c.Miners[ActorID2ConfigKey(mid)]; ok {
-		optional = opt.CommitmentPolicyConfigOptional
-	}
-
-	err := cloneConfig(&dest, c.DefaultPolicy, optional)
-	if err != nil {
-		return CommitmentPolicyConfig{}, err
-	}
-
-	return dest, nil
-}
-
-type CommitmentPolicyConfig struct {
-	CommitBatchThreshold int
-	CommitBatchMaxWait   Duration
-	CommitCheckInterval  Duration
-	EnableBatchProCommit bool
-
-	PreCommitBatchThreshold int
-	PreCommitBatchMaxWait   Duration
-	PreCommitCheckInterval  Duration
-	EnableBatchPreCommit    bool
-
-	PreCommitGasOverEstimation      float64
-	ProCommitGasOverEstimation      float64
-	BatchPreCommitGasOverEstimation float64
-	BatchProCommitGasOverEstimation float64
-
-	MaxPreCommitFeeCap      BigInt
-	MaxProCommitFeeCap      BigInt
-	MaxBatchPreCommitFeeCap BigInt
-	MaxBatchProCommitFeeCap BigInt
-	MsgConfidence           int64
-}
-
-func DefaultCommitmentPolicy() CommitmentPolicyConfig {
-	return CommitmentPolicyConfig{
-		CommitBatchThreshold:            16,
-		CommitBatchMaxWait:              Duration(time.Hour),
-		CommitCheckInterval:             Duration(time.Minute),
-		PreCommitBatchThreshold:         16,
-		PreCommitBatchMaxWait:           Duration(time.Hour),
-		PreCommitCheckInterval:          Duration(time.Minute),
-		PreCommitGasOverEstimation:      0,
-		ProCommitGasOverEstimation:      0,
-		BatchPreCommitGasOverEstimation: 0,
-		BatchProCommitGasOverEstimation: 0,
-		MsgConfidence:                   10,
-	}
-
-}
-
-type CommitmentPolicyConfigOptional struct {
-	CommitBatchThreshold *int
-	CommitBatchMaxWait   *Duration
-	CommitCheckInterval  *Duration
-	EnableBatchProCommit *bool
-
-	PreCommitBatchThreshold *int
-	PreCommitBatchMaxWait   *Duration
-	PreCommitCheckInterval  *Duration
-	EnableBatchPreCommit    *bool
-
-	PreCommitGasOverEstimation      *float64
-	ProCommitGasOverEstimation      *float64
-	BatchPreCommitGasOverEstimation *float64
-	BatchProCommitGasOverEstimation *float64
-
-	MaxPreCommitFeeCap      *BigInt
-	MaxProCommitFeeCap      *BigInt
-	MaxBatchPreCommitFeeCap *BigInt
-	MaxBatchProCommitFeeCap *BigInt
-	MsgConfidence           *int64
-}
-
-type CommitmentControlAddress struct {
-	PreCommit   MustAddress
-	ProveCommit MustAddress
-}
-
-type CommitmentMinerConfig struct {
-	Controls CommitmentControlAddress
-	CommitmentPolicyConfigOptional
-}
-
-func ExampleCommitmentMinerConfig() CommitmentMinerConfig {
-	defaultCfg := DefaultCommitmentPolicy()
-	return CommitmentMinerConfig{
-		Controls: CommitmentControlAddress{
-			PreCommit:   fakeAddress,
-			ProveCommit: fakeAddress,
-		},
-		CommitmentPolicyConfigOptional: CommitmentPolicyConfigOptional{
-			CommitCheckInterval:             &defaultCfg.CommitCheckInterval,
-			PreCommitCheckInterval:          &defaultCfg.PreCommitCheckInterval,
-			PreCommitGasOverEstimation:      &defaultCfg.PreCommitGasOverEstimation,
-			ProCommitGasOverEstimation:      &defaultCfg.ProCommitGasOverEstimation,
-			BatchPreCommitGasOverEstimation: &defaultCfg.BatchPreCommitGasOverEstimation,
-			BatchProCommitGasOverEstimation: &defaultCfg.BatchProCommitGasOverEstimation,
-			MsgConfidence:                   &defaultCfg.MsgConfidence,
-		},
-	}
-}
-
-type RPCClientConfig struct {
-	Api   string
-	Token string
-}
-
-type FileStoreConfig struct {
-	Includes []string
-	Stores   []filestore.Config
-}
-
-func DefaultPoStConfig() PoStConfig {
-	return PoStConfig{
-		Default: PoStPolicyConfig{
-			MsgCheckInteval: Duration(time.Minute),
-			MsgConfidence:   5,
-		},
-		Actors: map[string]PoStActorConfig{},
-	}
-}
-
-type PoStConfig struct {
-	Default PoStPolicyConfig
-	Actors  map[string]PoStActorConfig
-}
-
-func (c *PoStConfig) MustPolicy(mid abi.ActorID) PoStPolicyConfig {
-	cfg, err := c.Policy(mid)
-	if err != nil {
-		panic(err)
-	}
-
-	return cfg
-}
-
-func (c *PoStConfig) Policy(mid abi.ActorID) (PoStPolicyConfig, error) {
-	var dest PoStPolicyConfig
-	var optional interface{}
-
-	if opt, ok := c.Actors[ActorID2ConfigKey(mid)]; ok {
-		optional = opt.PoStPolicyConfigOptional
-	}
-
-	err := cloneConfig(&dest, c.Default, optional)
-	if err != nil {
-		return PoStPolicyConfig{}, err
-	}
-
-	return dest, nil
-}
-
-type PoStPolicyConfig struct {
-	StrictCheck       bool
-	GasOverEstimation float64
-	MaxFeeCap         BigInt
-
-	MsgCheckInteval Duration
-	MsgConfidence   uint64
-}
-
-type PoStPolicyConfigOptional struct {
-	StrictCheck       *bool
-	GasOverEstimation *float64
-	MaxFeeCap         *BigInt
-
-	MsgCheckInteval *Duration
-	MsgConfidence   *uint64
-}
-
-type PoStActorConfig struct {
-	Sender MustAddress
-	PoStPolicyConfigOptional
-}
-
-type RegisterProofActorConfig struct {
-	Apis  []string
-	Token string
-}
-
-type RegisterProofConfig struct {
-	Actors map[string]RegisterProofActorConfig
-}
-
-func DefaultRegisterProofConfig() RegisterProofConfig {
-	return RegisterProofConfig{
-		Actors: map[string]RegisterProofActorConfig{},
-	}
-}
-
-type DealManagerConfig struct {
-	Enable           bool
-	MarketAPI        RPCClientConfig
-	LocalPieceStores []filestore.Config
-}
-
-func DefaultDealManagerConfig() DealManagerConfig {
-	return DealManagerConfig{
-		Enable:           false,
-		MarketAPI:        RPCClientConfig{},
-		LocalPieceStores: []filestore.Config{},
-	}
 }

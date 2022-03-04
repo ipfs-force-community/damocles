@@ -524,6 +524,11 @@ func (s *scheduler) checkNextRecoveries(ctx context.Context, di *diPeriod, dlIdx
 }
 
 func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, tsk types.TipSetKey) (bitfield.BitField, error) {
+	mcfg, err := s.cfg.MinerConfig(s.actor.ID)
+	if err != nil {
+		return bitfield.BitField{}, err
+	}
+
 	sectorInfos, err := s.chain.StateMinerSectors(ctx, s.actor.Addr, &check, tsk)
 	if err != nil {
 		return bitfield.BitField{}, err
@@ -542,8 +547,7 @@ func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, t
 		})
 	}
 
-	strict := postPolicyFromConfig(s.actor.ID, s.cfg).StrictCheck
-	bad, err := s.sectorTracker.Provable(ctx, s.proofType, tocheck, strict)
+	bad, err := s.sectorTracker.Provable(ctx, s.proofType, tocheck, mcfg.PoSt.StrictCheck)
 	if err != nil {
 		return bitfield.BitField{}, fmt.Errorf("checking provable sectors: %w", err)
 	}
