@@ -46,6 +46,7 @@ var utilSealerCmd = &cli.Command{
 	Subcommands: []*cli.Command{
 		utilSealerSectorsCmd,
 		utilSealerProvingCmd,
+		utilSealerActorCmd,
 	},
 }
 
