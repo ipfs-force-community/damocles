@@ -81,6 +81,7 @@ func API(target ...interface{}) dix.Option {
 		dix.Override(new(confmgr.RLocker), cfgmu.RLocker()),
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
 		dix.Override(new(*modules.Config), ProvideConfig),
+		dix.Override(new(*modules.SafeConfig), ProvideSafeConfig),
 		dix.Override(new(chain.API), BuildChainClient),
 		dix.Override(new(api.MinerInfoAPI), BuildMinerInfoAPI),
 		dix.Override(new(messager.API), BuildMessagerClient),
