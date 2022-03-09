@@ -13,7 +13,9 @@ use crate::{
     logging::{error, error_span, info, warn},
     rpc::sealer::SealerClient,
     sealing::{
-        processor::{BoxedC2Processor, BoxedPC1Processor, BoxedPC2Processor, BoxedTreeDProcessor},
+        processor::{
+            BoxedC2Processor, BoxedPC1Processor, BoxedPC2Processor, BoxedTreeDProcessor, PieceInfo,
+        },
         resource::Pool,
     },
 };
@@ -39,6 +41,8 @@ pub struct GlobalModules {
     pub remote_store: Arc<Box<dyn ObjectStore>>,
     pub processors: GloablProcessors,
     pub static_tree_d: HashMap<u64, PathBuf>,
+    pub static_staged: HashMap<u64, PathBuf>,
+    pub static_pieces: HashMap<u64, Vec<PieceInfo>>,
     pub limit: Arc<Pool>,
     pub rt: Arc<Runtime>,
     pub piece_store: Option<Arc<Box<dyn PieceStore>>>,

@@ -626,21 +626,46 @@ impl<'c> Sealer<'c> {
         }
 
         if pieces.is_empty() {
-            let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
+            if let Some(static_staged) =
+                self.ctx.global.static_staged.get(&proof_type.sector_size())
+            {
+                symlink(static_staged, self.staged_file(sector_id)).crit()?;
 
-            let mut pledge_piece = io::repeat(0).take(unpadded_size.0);
-            let (piece_info, _) = write_and_preprocess(
-                proof_type.into(),
-                &mut pledge_piece,
-                &mut staged_file,
-                unpadded_size,
-            )
-            .context("write full pledge piece")
-            .perm()?;
+                match self.ctx.global.static_pieces.get(&proof_type.sector_size()) {
+                    Some(ref_pieces) => pieces = Vec::clone(ref_pieces),
+                    None => warn!("no piece info for {}", proof_type.sector_size()),
+                };
+            } else {
+                let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
 
-            pieces.push(piece_info);
+                let mut pledge_piece = io::repeat(0).take(unpadded_size.0);
+                let (piece_info, _) = write_and_preprocess(
+                    proof_type.into(),
+                    &mut pledge_piece,
+                    &mut staged_file,
+                    unpadded_size,
+                )
+                .context("write full pledge piece")
+                .perm()?;
+
+                pieces.push(piece_info);
+            }
+
+            // let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
+
+            // let mut pledge_piece = io::repeat(0).take(unpadded_size.0);
+            // let (piece_info, _) = write_and_preprocess(
+            //     proof_type.into(),
+            //     &mut pledge_piece,
+            //     &mut staged_file,
+            //     unpadded_size,
+            // )
+            // .context("write full pledge piece")
+            // .perm()?;
+
+            // pieces.push(piece_info);
         }
-
+   
         Ok(Event::AddPiece(pieces))
     }
 

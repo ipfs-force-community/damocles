@@ -47,6 +47,18 @@ location = "./mock-tmp/remote"
 [processors.static_tree_d]
 # 2KiB = "./tmp/2k/sc-02-data-tree-d.dat"
 
+[processors.static_staged]
+# 2KiB = "./tmp/2k/unsealed"
+# 512MiB = "./tmp/512m/unsealed"
+# 32GiB = "./tmp/32g/unsealed"
+# 64GiB = "./tmp/64g/unsealed"
+
+[processors.static_pieces]
+# 2KiB = "./tmp/2k/pieces"
+# 512MiB = "./tmp/512m/pieces"
+# 32GiB = "./tmp/32g/pieces"
+# 64GiB = "./tmp/64g/pieces"
+
 # fields for tree_d processor
 [[processors.tree_d]]
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -73,6 +74,10 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
 
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
+    let static_staged = construct_static_staged(&cfg).context("check static staged files")?;
+
+    let static_pieces = construct_static_pieces(&cfg).context("check static pieces files")?;
+
     let globl = GlobalModules {
         rpc: Arc::new(mock_client),
         remote_store: Arc::new(remote_store),
@@ -86,6 +91,8 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
                 .iter(),
         )),
         static_tree_d,
+        static_staged,
+        static_pieces,
         rt: Arc::new(runtime),
         piece_store: None,
     };
@@ -188,6 +195,10 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
+    let static_staged = construct_static_staged(&cfg).context("check static staged files")?;
+
+    let static_pieces = construct_static_pieces(&cfg).context("check static pieces files")?;
+
     let global = GlobalModules {
         rpc: Arc::new(rpc_client),
         remote_store: Arc::new(remote),
@@ -201,6 +212,8 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
                 .iter(),
         )),
         static_tree_d,
+        static_staged,
+        static_pieces,
         rt: Arc::new(runtime),
         piece_store: piece_store.map(|s| Arc::new(s)),
     };
@@ -240,6 +253,47 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
                 .with_context(|| format!("invalid tree_d path {} for sector size {}", v, k))?;
 
             trees.insert(size, tree_path);
+        }
+    }
+
+    Ok(trees)
+}
+
+fn construct_static_staged(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>> {
+    let mut trees = HashMap::new();
+    if let Some(c) = cfg.processors.static_staged.as_ref() {
+        for (k, v) in c {
+            let b = Byte::from_str(k).with_context(|| format!("invalid bytes string {}", k))?;
+            let size = b.get_bytes() as u64;
+            SealProof::try_from(size).with_context(|| format!("invalid sector size {}", k))?;
+            let staged_path = PathBuf::from(v.to_owned())
+                .canonicalize()
+                .with_context(|| format!("invalid  path {} for sector size {}", v, k))?;
+
+            trees.insert(size, staged_path);
+        }
+    }
+
+    Ok(trees)
+}
+
+fn construct_static_pieces(
+    cfg: &config::Config,
+) -> Result<HashMap<u64, Vec<processor::PieceInfo>>> {
+    let mut trees = HashMap::new();
+    if let Some(c) = cfg.processors.static_pieces.as_ref() {
+        for (k, v) in c {
+            let b = Byte::from_str(k).with_context(|| format!("invalid bytes string {}", k))?;
+            let size = b.get_bytes() as u64;
+            SealProof::try_from(size).with_context(|| format!("invalid sector size {}", k))?;
+            let pieces_path = PathBuf::from(v.to_owned())
+                .canonicalize()
+                .with_context(|| format!("invalid pieces path {} for sector size {}", v, k))?;
+
+            let piece_infos = fs::read_to_string(pieces_path)?;
+            let pieces: Vec<processor::PieceInfo> = serde_json::from_str(&piece_infos).unwrap();
+
+            trees.insert(size, pieces);
         }
     }
 

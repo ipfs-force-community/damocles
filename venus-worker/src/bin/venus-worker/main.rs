@@ -8,6 +8,7 @@ use venus_worker::{logging, start_deamon, start_mock};
 mod processor;
 mod store;
 mod worker;
+mod generator;
 
 pub fn main() -> Result<()> {
     let rt = Builder::new_multi_thread()
@@ -60,6 +61,7 @@ pub fn main() -> Result<()> {
     let processor_cmd = processor::subcommand();
     let store_cmd = store::subcommand();
     let worker_cmd = worker::subcommand();
+    let generator_cmd = generator::subcommand();
 
     let app = App::new("vc-worker")
         .version(env!("CARGO_PKG_VERSION"))
@@ -68,7 +70,8 @@ pub fn main() -> Result<()> {
         .subcommand(mock_cmd)
         .subcommand(processor_cmd)
         .subcommand(store_cmd)
-        .subcommand(worker_cmd);
+        .subcommand(worker_cmd)
+        .subcommand(generator_cmd);
 
     let matches = app.get_matches();
 
@@ -93,6 +96,8 @@ pub fn main() -> Result<()> {
         (store::SUB_CMD_NAME, Some(args)) => store::submatch(args),
 
         (worker::SUB_CMD_NAME, Some(args)) => worker::submatch(args),
+
+        (generator::SUB_CMD_NAME, Some(args)) => generator::submatch(args),
 
         (name, _) => Err(anyhow!("unexpected subcommand `{}`", name)),
     }

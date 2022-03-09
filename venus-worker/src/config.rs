@@ -135,6 +135,12 @@ pub struct Processors {
     /// static tree_d paths for cc sectors
     pub static_tree_d: Option<HashMap<String, String>>,
 
+    /// static staged file paths for cc sectors
+    pub static_staged: Option<HashMap<String, String>>,
+
+    /// static pieces file paths for cc sectors
+    pub static_pieces: Option<HashMap<String, String>>,
+
     pub tree_d: Option<Vec<Ext>>,
 
     pub pc1: Option<Vec<Ext>>,
