@@ -52,5 +52,5 @@ func SectorPath(typ pathType, sid abi.SectorID) string {
 }
 
 func FormatSectorID(sid abi.SectorID) string {
-	return fmt.Sprintf("s-%d-%d", sid.Miner, sid.Number)
+	return fmt.Sprintf("s-t0%d-%d", sid.Miner, sid.Number)
 }

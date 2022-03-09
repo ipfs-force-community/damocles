@@ -358,7 +358,7 @@ impl<'c> Sealer<'c> {
     }
 
     fn sector_path(&self, sector_id: &SectorID) -> String {
-        format!("s-{}-{}", sector_id.miner, sector_id.number)
+        format!("s-t0{}-{}", sector_id.miner, sector_id.number)
     }
 
     fn prepared_dir(&self, sector_id: &SectorID) -> PathBuf {
