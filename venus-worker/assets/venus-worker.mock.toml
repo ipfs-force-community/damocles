@@ -61,6 +61,7 @@ envs = { RUST_LOG = "info" }
 [[processors.pc1]]
 numa_preferred = 0
 cgroup.cpuset = "6-7"
+envs = { FIL_PROOFS_USE_MULTICORE_SDR = "1" }
 
 [[processors.pc1]]
 numa_preferred = 1
