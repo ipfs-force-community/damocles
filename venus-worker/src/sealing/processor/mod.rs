@@ -30,6 +30,12 @@ pub enum Stage {
 
     /// commit phase2
     C2,
+
+    /// snap_encode_into
+    SnapReplicaUpdate,
+
+    /// snap_generate_sector_update_proof
+    SnapProveReplicaUpdate,
 }
 
 impl Stage {
@@ -40,6 +46,8 @@ impl Stage {
             Stage::PC2 => "pc2",
             Stage::C1 => "c1",
             Stage::C2 => "c2",
+            Stage::SnapReplicaUpdate => "snap-ru",
+            Stage::SnapProveReplicaUpdate => "snap-pru",
         }
     }
 }
@@ -164,6 +172,76 @@ impl Input for C2Input {
 
     fn process(self) -> Result<Self::Out> {
         seal_commit_phase2(self.c1out, self.prover_id, self.sector_id)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// inputs for stage SnapReplicaUpdate
+pub struct SnapReplicaUpdateInput {
+    registered_proof: RegisteredUpdateProof,
+    new_replica_path: PathBuf,
+    new_cache_path: PathBuf,
+    sector_path: PathBuf,
+    sector_cache_path: PathBuf,
+    staged_data_path: PathBuf,
+    piece_infos: Vec<PieceInfo>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SnapReplicaUpdateOutput {
+    pub comm_r_new: Commitment,
+    pub comm_r_last_new: Commitment,
+    pub comm_d_new: Commitment,
+}
+
+impl Input for SnapReplicaUpdateInput {
+    const STAGE: Stage = Stage::SnapReplicaUpdate;
+    type Out = SnapReplicaUpdateOutput;
+
+    fn process(self) -> Result<Self::Out> {
+        snap_encode_into(
+            self.registered_proof,
+            self.new_replica_path,
+            self.new_cache_path,
+            self.sector_path,
+            self.sector_cache_path,
+            self.staged_data_path,
+            &self.piece_infos[..],
+        )
+        .map(|out| SnapReplicaUpdateOutput {
+            comm_r_new: out.comm_r_new,
+            comm_r_last_new: out.comm_r_last_new,
+            comm_d_new: out.comm_d_new,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+/// inputs for stage SnapProveReplicaUpdate
+pub struct SnapProveReplicaUpdateInput {
+    registered_proof: RegisteredUpdateProof,
+    vannilla_proofs: Vec<Vec<u8>>,
+    comm_r_old: Commitment,
+    comm_r_new: Commitment,
+    comm_d_new: Commitment,
+}
+
+impl Input for SnapProveReplicaUpdateInput {
+    const STAGE: Stage = Stage::SnapProveReplicaUpdate;
+    type Out = Vec<u8>;
+
+    fn process(self) -> Result<Self::Out> {
+        snap_generate_sector_update_proof(
+            self.registered_proof,
+            self.vannilla_proofs
+                .into_iter()
+                .map(|p| PartitionProofBytes(p))
+                .collect(),
+            self.comm_r_old,
+            self.comm_r_new,
+            self.comm_d_new,
+        )
+        .map(|out| out.0)
     }
 }
 

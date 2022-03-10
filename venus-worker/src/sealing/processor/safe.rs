@@ -3,14 +3,19 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use filecoin_proofs::StoreConfig;
+pub use filecoin_proofs::{EmptySectorUpdateEncoded, EmptySectorUpdateProof};
 use filecoin_proofs_api::seal;
 pub use filecoin_proofs_api::seal::{
     clear_cache, write_and_preprocess, Labels, SealCommitPhase1Output, SealCommitPhase2Output,
     SealPreCommitPhase1Output, SealPreCommitPhase2Output,
 };
+pub use filecoin_proofs_api::update::{
+    empty_sector_update_encode_into, generate_empty_sector_update_proof_with_vanilla,
+    generate_partition_proofs, verify_empty_sector_update_proof, verify_partition_proofs,
+};
 pub use filecoin_proofs_api::{
-    Commitment, PaddedBytesAmount, PieceInfo, ProverId, RegisteredSealProof, SectorId, Ticket,
-    UnpaddedBytesAmount,
+    Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, ProverId, RegisteredSealProof,
+    RegisteredUpdateProof, SectorId, Ticket, UnpaddedBytesAmount,
 };
 use storage_proofs_core::cache_key::CacheKey;
 
@@ -116,4 +121,68 @@ pub fn create_tree_d(
 
 pub fn tree_d_path_in_dir(dir: &PathBuf) -> PathBuf {
     StoreConfig::data_path(dir, &CacheKey::CommDTree.to_string())
+}
+
+pub fn snap_encode_into(
+    registered_proof: RegisteredUpdateProof,
+    new_replica_path: PathBuf,
+    new_cache_path: PathBuf,
+    sector_path: PathBuf,
+    sector_cache_path: PathBuf,
+    staged_data_path: PathBuf,
+    piece_infos: &[PieceInfo],
+) -> Result<EmptySectorUpdateEncoded> {
+    safe_call! {
+        empty_sector_update_encode_into(
+            registered_proof,
+            new_replica_path,
+            new_cache_path,
+            sector_path,
+            sector_cache_path,
+            staged_data_path,
+            piece_infos,
+        )
+    }
+}
+
+pub fn snap_generate_partition_proofs(
+    registered_proof: RegisteredUpdateProof,
+    comm_r_old: Commitment,
+    comm_r_new: Commitment,
+    comm_d_new: Commitment,
+    sector_path: PathBuf,
+    sector_cache_path: PathBuf,
+    replica_path: PathBuf,
+    replica_cache_path: PathBuf,
+) -> Result<Vec<PartitionProofBytes>> {
+    safe_call! {
+        generate_partition_proofs(
+            registered_proof,
+            comm_r_old,
+            comm_r_new,
+            comm_d_new,
+            sector_path,
+            sector_cache_path,
+            replica_path,
+            replica_cache_path,
+        )
+    }
+}
+
+pub fn snap_generate_sector_update_proof(
+    registered_proof: RegisteredUpdateProof,
+    vannilla_proofs: Vec<PartitionProofBytes>,
+    comm_r_old: Commitment,
+    comm_r_new: Commitment,
+    comm_d_new: Commitment,
+) -> Result<EmptySectorUpdateProof> {
+    safe_call! {
+        generate_empty_sector_update_proof_with_vanilla(
+            registered_proof,
+            vannilla_proofs,
+            comm_r_old,
+            comm_r_new,
+            comm_d_new,
+        )
+    }
 }

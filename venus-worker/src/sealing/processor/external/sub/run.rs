@@ -30,7 +30,7 @@ pub fn run_c2() -> Result<()> {
 }
 
 /// used for processor sub command
-fn run<I: Input>() -> Result<()> {
+pub fn run<I: Input>() -> Result<()> {
     #[cfg(feature = "numa")]
     crate::sys::numa::try_set_preferred();
 
