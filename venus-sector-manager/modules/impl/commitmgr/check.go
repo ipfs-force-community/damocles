@@ -8,11 +8,9 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 
-	proof2 "github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
-
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	apitypes "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 )
 
@@ -35,7 +33,7 @@ type ErrCommitWaitFailed struct{ error }
 
 // checkPrecommit checks that data commitment generated in the sealing process
 //  matches pieces, and that the seal ticket isn't expired
-func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorState, api SealingAPI) (err error) {
+func checkPrecommit(ctx context.Context, maddr address.Address, si apitypes.SectorState, api SealingAPI) (err error) {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
 		return &ErrApi{fmt.Errorf("get chain head failed %w", err)}
@@ -83,7 +81,7 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si api.SectorSta
 	return nil
 }
 
-func checkPieces(ctx context.Context, maddr address.Address, si api.SectorState, api SealingAPI) error {
+func checkPieces(ctx context.Context, maddr address.Address, si apitypes.SectorState, api SealingAPI) error {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
 		return &ErrApi{fmt.Errorf("getting chain head: %w", err)}
@@ -118,7 +116,7 @@ func checkPieces(ctx context.Context, maddr address.Address, si api.SectorState,
 	return nil
 }
 
-func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.TipSetToken, maddr address.Address, verif api.Verifier, api SealingAPI) (err error) {
+func checkCommit(ctx context.Context, si apitypes.SectorState, proof []byte, tok apitypes.TipSetToken, maddr address.Address, verif apitypes.Verifier, api SealingAPI) (err error) {
 	if si.Seed == nil {
 		return &ErrBadSeed{fmt.Errorf("seed epoch was not set")}
 	}
@@ -155,7 +153,7 @@ func checkCommit(ctx context.Context, si api.SectorState, proof []byte, tok api.
 		return &ErrBadSeed{fmt.Errorf("seed has changed")}
 	}
 
-	ok, err := verif.VerifySeal(ctx, proof2.SealVerifyInfo{
+	ok, err := verif.VerifySeal(ctx, apitypes.SealVerifyInfo{
 		SectorID:              si.ID,
 		SealedCID:             pci.Info.SealedCID,
 		SealProof:             pci.Info.SealProof,

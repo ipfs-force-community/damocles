@@ -12,10 +12,8 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/specs-storage/storage"
 
-	ffiproof "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
-
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
-	gateway "github.com/filecoin-project/venus/venus-shared/api/gateway/v1"
+	v1 "github.com/filecoin-project/venus/venus-shared/api/gateway/v1"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
@@ -28,12 +26,12 @@ var log = logging.Logger("proof_event")
 
 type ProofEvent struct {
 	prover  api.Prover
-	client  gateway.IGateway
+	client  v1.IGateway
 	actor   api.ActorIdent
 	indexer api.SectorIndexer
 }
 
-func NewProofEvent(prover api.Prover, client gateway.IGateway, actor api.ActorIdent, indexer api.SectorIndexer) *ProofEvent {
+func NewProofEvent(prover api.Prover, client v1.IGateway, actor api.ActorIdent, indexer api.SectorIndexer) *ProofEvent {
 	pe := &ProofEvent{
 		prover:  prover,
 		client:  client,
@@ -177,7 +175,7 @@ func (pe *ProofEvent) sectorsPubToPrivate(ctx context.Context, sectorInfo []buil
 			subSealed = util.SectorPath(util.SectorPathTypeSealed, sid.ID)
 		}
 
-		ffiInfo := ffiproof.SectorInfo{
+		ffiInfo := builtin.SectorInfo{
 			SealProof:    sector.SealProof,
 			SectorNumber: sector.SectorNumber,
 			SealedCID:    sector.SealedCID,

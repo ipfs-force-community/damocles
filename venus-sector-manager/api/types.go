@@ -1,12 +1,13 @@
 package api
 
 import (
+	"github.com/ipfs/go-cid"
+
 	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/specs-actors/actors/builtin/miner"
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
-	"github.com/ipfs/go-cid"
+
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 )
 
 type AllocateSectorSpec struct {
@@ -155,7 +156,7 @@ type ProofInfo = ProofOnChainInfo
 
 type AggregateInput struct {
 	Spt   abi.RegisteredSealProof
-	Info  proof5.AggregateSealVerifyInfo
+	Info  AggregateSealVerifyInfo
 	Proof []byte
 }
 

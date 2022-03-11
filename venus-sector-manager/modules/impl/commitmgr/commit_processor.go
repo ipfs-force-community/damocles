@@ -13,9 +13,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
-	proof5 "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
-
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
@@ -96,7 +93,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 
 	defer updateSector(ctx, c.smgr, sectors, plog)
 
-	if !c.EnableBatch(mid) || len(sectors) < miner5.MinAggregatedSectors {
+	if !c.EnableBatch(mid) || len(sectors) < api.MinAggregatedSectors {
 		c.processIndividually(ctx, sectors, ctrlAddr, mid, plog)
 		return nil
 	}
@@ -106,7 +103,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 		return fmt.Errorf("get chain head failed: %w", err)
 	}
 
-	infos := []proof5.AggregateSealVerifyInfo{}
+	infos := []api.AggregateSealVerifyInfo{}
 	sectorsMap := map[abi.SectorNumber]api.SectorState{}
 	failed := map[abi.SectorID]struct{}{}
 
@@ -122,7 +119,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 
 		collateral = big.Add(collateral, sc)
 
-		infos = append(infos, proof5.AggregateSealVerifyInfo{
+		infos = append(infos, api.AggregateSealVerifyInfo{
 			Number:                p.ID.Number,
 			Randomness:            abi.SealRandomness(p.Ticket.Ticket),
 			InteractiveRandomness: abi.InteractiveSealRandomness(p.Seed.Seed),
@@ -146,7 +143,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 		proofs = append(proofs, sectorsMap[infos[i].Number].Proof.Proof)
 	}
 
-	params.AggregateProof, err = c.prover.AggregateSealProofs(ctx, proof5.AggregateSealVerifyProofAndInfos{
+	params.AggregateProof, err = c.prover.AggregateSealProofs(ctx, api.AggregateSealVerifyProofAndInfos{
 		Miner:          mid,
 		SealProof:      sectorsMap[infos[0].Number].SectorType,
 		AggregateProof: abi.RegisteredAggregationProof_SnarkPackV1,

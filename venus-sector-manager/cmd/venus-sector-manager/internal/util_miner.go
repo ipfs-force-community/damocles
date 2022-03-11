@@ -14,15 +14,13 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 
-	power2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
-	power6 "github.com/filecoin-project/specs-actors/v6/actors/builtin/power"
-
 	"github.com/filecoin-project/venus/pkg/constants"
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/power"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
+	apitypes "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
@@ -215,7 +213,7 @@ var utilMinerCreateCmd = &cli.Command{
 			multiaddrs = append(multiaddrs, maddrNop2p.Bytes())
 		}
 
-		params, err := actors.SerializeParams(&power6.CreateMinerParams{
+		params, err := actors.SerializeParams(&apitypes.CreateMinerParams{
 			Owner:               owner,
 			Worker:              worker,
 			WindowPoStProofType: postProof,
@@ -299,7 +297,7 @@ var utilMinerCreateCmd = &cli.Command{
 			return nil
 		}
 
-		var retval power2.CreateMinerReturn
+		var retval apitypes.CreateMinerReturn
 		if err := retval.UnmarshalCBOR(bytes.NewReader(mret.Receipt.Return)); err != nil {
 			return fmt.Errorf("unmarshal message return: %w", err)
 		}
