@@ -14,7 +14,6 @@ import (
 	"github.com/filecoin-project/go-state-types/network"
 
 	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
-	market5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/market"
 
 	"github.com/filecoin-project/venus/pkg/chain"
 	"github.com/filecoin-project/venus/venus-shared/actors"
@@ -56,8 +55,8 @@ func (s SealingAPIImpl) StateComputeDataCommitment(ctx context.Context, maddr ad
 			SectorType: sectorType,
 		})
 	} else {
-		ccparams, err = actors.SerializeParams(&market5.ComputeDataCommitmentParams{
-			Inputs: []*market5.SectorDataSpec{
+		ccparams, err = actors.SerializeParams(&api.ComputeDataCommitmentParams{
+			Inputs: []*api.SectorDataSpec{
 				{
 					DealIDs:    deals,
 					SectorType: sectorType,
@@ -94,7 +93,7 @@ func (s SealingAPIImpl) StateComputeDataCommitment(ctx context.Context, maddr ad
 		return cid.Cid(c), nil
 	}
 
-	var cr market5.ComputeDataCommitmentReturn
+	var cr api.ComputeDataCommitmentReturn
 	if err := cr.UnmarshalCBOR(bytes.NewReader(r.MsgRct.Return)); err != nil {
 		return cid.Undef, fmt.Errorf("failed to unmarshal CBOR to CborCid: %w", err)
 	}

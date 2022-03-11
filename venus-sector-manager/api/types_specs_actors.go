@@ -1,12 +1,17 @@
 package api
 
 import (
+	market7 "github.com/filecoin-project/specs-actors/v7/actors/builtin/market"
 	miner7 "github.com/filecoin-project/specs-actors/v7/actors/builtin/miner"
 	power7 "github.com/filecoin-project/specs-actors/v7/actors/builtin/power"
 	proof7 "github.com/filecoin-project/specs-actors/v7/actors/runtime/proof"
 )
 
 type (
+	ComputeDataCommitmentParams = market7.ComputeDataCommitmentParams
+	ComputeDataCommitmentReturn = market7.ComputeDataCommitmentReturn
+	SectorDataSpec              = market7.SectorDataSpec
+
 	ChangeWorkerAddressParams  = miner7.ChangeWorkerAddressParams
 	CompactSectorNumbersParams = miner7.CompactSectorNumbersParams
 	PreCommitSectorBatchParams = miner7.PreCommitSectorBatchParams

@@ -1,11 +1,10 @@
 package api
 
 import (
-	"github.com/ipfs/go-cid"
-
 	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 )
