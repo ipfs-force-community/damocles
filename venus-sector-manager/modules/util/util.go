@@ -47,10 +47,18 @@ const (
 	SectorPathTypeUnsealed = "unsealed"
 )
 
+const sectorIDFormat = "s-t0%d-%d"
+
 func SectorPath(typ pathType, sid abi.SectorID) string {
 	return filepath.Join(string(typ), FormatSectorID(sid))
 }
 
 func FormatSectorID(sid abi.SectorID) string {
-	return fmt.Sprintf("s-t0%d-%d", sid.Miner, sid.Number)
+	return fmt.Sprintf(sectorIDFormat, sid.Miner, sid.Number)
+}
+
+func ScanSectorID(s string) (abi.SectorID, bool) {
+	var sid abi.SectorID
+	read, err := fmt.Sscanf(s, sectorIDFormat, &sid.Miner, &sid.Number)
+	return sid, err == nil && read == 2
 }
