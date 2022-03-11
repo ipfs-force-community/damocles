@@ -8,9 +8,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1"
-filecoin-proofs-api = "11.0.0"
 storage-proofs-core = "11.0.2"
-filecoin-proofs = "11.0.2"
 memmap = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.56"
@@ -39,6 +37,16 @@ flexi_logger = "0.18"
 ansi_term = "0.12.1"
 multiaddr = "0.14.0"
 
+[dependencies.filecoin-proofs-api]
+version = "11"
+default-features = false
+features = ["opencl", "multicore-sdr"]
+
+[dependencies.filecoin-proofs]
+version = "11.0.2"
+default-features = false
+features = ["opencl", "multicore-sdr"]
+
 [dependencies.reqwest]
 version = "0.11"
 features = ["blocking"]
@@ -61,3 +69,4 @@ features = ["tls", "http"]
 [features]
 default = ["numa"]
 numa = []
+cuda = ["filecoin-proofs/cuda", "filecoin-proofs-api/cuda"]
