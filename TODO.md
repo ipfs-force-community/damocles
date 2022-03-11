@@ -34,3 +34,4 @@
 - [ ] static tree_d file generator
 - [ ] skip add piece
 - [ ] commitment mgr: get sender in runtime
+- [ ] remove pkg `xerrors`
