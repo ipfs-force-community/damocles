@@ -9,8 +9,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/specs-storage/storage"
 
-	ffiproof "github.com/filecoin-project/specs-actors/v5/actors/runtime/proof"
-
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
@@ -140,7 +138,7 @@ func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, sectorInfo 
 			subSealed = util.SectorPath(util.SectorPathTypeSealed, sid.ID)
 		}
 
-		ffiInfo := ffiproof.SectorInfo{
+		ffiInfo := builtin.SectorInfo{
 			SealProof:    sector.SealProof,
 			SectorNumber: sector.SectorNumber,
 			SealedCID:    sector.SealedCID,

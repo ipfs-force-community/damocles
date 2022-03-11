@@ -11,8 +11,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 
-	miner5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/miner"
-
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
@@ -99,7 +97,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 		})
 	}
 
-	params := miner5.PreCommitSectorBatchParams{}
+	params := api.PreCommitSectorBatchParams{}
 
 	deposit := big.Zero()
 	for i := range infos {
