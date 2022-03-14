@@ -1,4 +1,4 @@
-use std::fs::{create_dir_all, remove_dir_all, remove_file, File, OpenOptions};
+use std::fs::{create_dir_all, remove_dir_all, remove_file, OpenOptions};
 use std::io::{self, prelude::*};
 use std::os::unix::fs::symlink;
 use std::path::PathBuf;
@@ -629,38 +629,20 @@ impl<'c> Sealer<'c> {
 
         if pieces.is_empty() {
             // skip AP for cc sector
-            let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
-
-            let staged_path = self.staged_file(sector_id);
-            let cc_staged_file = File::create(&staged_path)
-                .context("create staged file")
-                .perm()?;
-            cc_staged_file
+            staged_file
                 .set_len(sector_size)
-                .context("add zero piece")
+                .context("add zero commitment")
                 .perm()?;
 
             let commitment = get_all_zero_commitment(sector_size)
-                .context("get all zero commitment")
+                .context("get zero commitment")
                 .perm()?;
+
+            let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
             let pi = PieceInfo::new(commitment, unpadded_size)
-                .context("create all zero piece info")
+                .context("create piece info")
                 .perm()?;
             pieces.push(pi);
-
-            // let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
-
-            // let mut pledge_piece = io::repeat(0).take(unpadded_size.0);
-            // let (piece_info, _) = write_and_preprocess(
-            //     proof_type.into(),
-            //     &mut pledge_piece,
-            //     &mut staged_file,
-            //     unpadded_size,
-            // )
-            // .context("write full pledge piece")
-            // .perm()?;
-
-            // pieces.push(piece_info);
         }
 
         Ok(Event::AddPiece(pieces))
