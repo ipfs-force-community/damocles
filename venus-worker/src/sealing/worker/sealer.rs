@@ -16,8 +16,10 @@ use crate::rpc::sealer::{
 };
 use crate::sealing::processor::{
     clear_cache, seal_commit_phase1, tree_d_path_in_dir, write_and_preprocess, C2Input, PC1Input,
-    PC2Input, PaddedBytesAmount, Stage, TreeDInput, UnpaddedBytesAmount,
+    PC2Input, PaddedBytesAmount, PieceInfo, Stage, TreeDInput, UnpaddedBytesAmount,
 };
+use crate::sealing::util::get_all_zero_commitment;
+
 use crate::store::Store;
 use crate::watchdog::Ctx;
 
@@ -152,10 +154,10 @@ impl<'c> Sealer<'c> {
             .base
             .as_ref()
             .map(|base| base.allocated.id.clone())
-        {
-            Some(sid) => sid,
-            None => return Ok(()),
-        };
+            {
+                Some(sid) => sid,
+                None => return Ok(()),
+            };
 
         let _ = call_rpc! {
             self.ctx.global.rpc,
@@ -464,7 +466,7 @@ impl<'c> Sealer<'c> {
                 return Ok(None);
             }
         }
-        .map(From::from)
+            .map(From::from)
     }
 
     fn handle_empty(&mut self) -> HandleResult {
@@ -599,8 +601,8 @@ impl<'c> Sealer<'c> {
                         &mut staged_file,
                         UnpaddedBytesAmount(unpadded_piece_size.0),
                     )
-                    .with_context(|| format!("write pledge piece, size={}", unpadded_piece_size.0))
-                    .perm()?
+                        .with_context(|| format!("write pledge piece, size={}", unpadded_piece_size.0))
+                        .perm()?
                 } else {
                     let mut piece_reader = piece_store
                         .get(deal.piece.cid.0, deal.payload_size, unpadded_piece_size)
@@ -612,13 +614,13 @@ impl<'c> Sealer<'c> {
                         &mut staged_file,
                         UnpaddedBytesAmount(unpadded_piece_size.0),
                     )
-                    .with_context(|| {
-                        format!(
-                            "write deal piece, cid={}, size={}",
-                            deal.piece.cid.0, unpadded_piece_size.0
-                        )
-                    })
-                    .perm()?
+                        .with_context(|| {
+                            format!(
+                                "write deal piece, cid={}, size={}",
+                                deal.piece.cid.0, unpadded_piece_size.0
+                            )
+                        })
+                        .perm()?
                 };
 
                 pieces.push(piece_info);
@@ -626,19 +628,21 @@ impl<'c> Sealer<'c> {
         }
 
         if pieces.is_empty() {
+            // skip AP for cc sector
+            staged_file
+                .set_len(sector_size)
+                .context("add zero commitment")
+                .perm()?;
+
+            let commitment = get_all_zero_commitment(sector_size)
+                .context("get zero commitment")
+                .perm()?;
+
             let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
-
-            let mut pledge_piece = io::repeat(0).take(unpadded_size.0);
-            let (piece_info, _) = write_and_preprocess(
-                proof_type.into(),
-                &mut pledge_piece,
-                &mut staged_file,
-                unpadded_size,
-            )
-            .context("write full pledge piece")
-            .perm()?;
-
-            pieces.push(piece_info);
+            let pi = PieceInfo::new(commitment, unpadded_size)
+                .context("create piece info")
+                .perm()?;
+            pieces.push(pi);
         }
 
         Ok(Event::AddPiece(pieces))
@@ -671,7 +675,7 @@ impl<'c> Sealer<'c> {
         // pledge sector
         if self.sector.deals.as_ref().map(|d| d.len()).unwrap_or(0) == 0 {
             if let Some(static_tree_path) =
-                self.ctx.global.static_tree_d.get(&proof_type.sector_size())
+            self.ctx.global.static_tree_d.get(&proof_type.sector_size())
             {
                 symlink(static_tree_path, tree_d_path_in_dir(&prepared_dir)).crit()?;
                 return Ok(Event::BuildTreeD);
@@ -759,7 +763,7 @@ impl<'c> Sealer<'c> {
             tree_d_path_in_dir(&prepared_dir),
             tree_d_path_in_dir(&cache_dir),
         )
-        .crit()?;
+            .crit()?;
 
         let (prover_id, sector_id) = fetch_cloned_field! {
             self.sector.base,
@@ -922,7 +926,7 @@ impl<'c> Sealer<'c> {
                         "pre commit on-chain info permanent failed: {:?}",
                         state.desc
                     )
-                    .perm())
+                        .perm())
                 }
 
                 OnChainState::Pending | OnChainState::Packed => {}
@@ -1033,7 +1037,7 @@ impl<'c> Sealer<'c> {
             Err(anyhow!(
                 "sector files are persisted but unavailable for sealer"
             ))
-            .perm()
+                .perm()
         }
     }
 
@@ -1115,7 +1119,7 @@ impl<'c> Sealer<'c> {
             p2out,
             piece_infos,
         )
-        .perm()?;
+            .perm()?;
 
         drop(token);
         Ok(Event::C1(out))
@@ -1166,7 +1170,7 @@ impl<'c> Sealer<'c> {
                 self.sector.phases.c2out,
                 proof,
             }?
-            .into(),
+                .into(),
         };
 
         let res = call_rpc! {
@@ -1223,7 +1227,7 @@ impl<'c> Sealer<'c> {
                             "proof on-chain info permanent failed: {:?}",
                             state.desc
                         )
-                        .perm())
+                            .perm())
                     }
 
                     OnChainState::Pending | OnChainState::Packed => {}
