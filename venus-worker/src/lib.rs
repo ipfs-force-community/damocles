@@ -16,6 +16,7 @@ mod util;
 pub use config::Config;
 pub use infra::objstore;
 pub use run::{start_deamon, start_mock};
+pub use sealing::generator::generate_static_tree_d;
 pub use sealing::processor::{
     external::sub::{run, run_c2, run_pc1, run_pc2, run_tree_d},
     Input, SnapProveReplicaUpdateInput, SnapReplicaUpdateInput,

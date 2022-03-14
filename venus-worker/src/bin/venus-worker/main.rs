@@ -5,6 +5,7 @@ use tokio::runtime::Builder;
 
 use venus_worker::{logging, start_deamon, start_mock};
 
+mod generator;
 mod processor;
 mod store;
 mod worker;
@@ -57,6 +58,7 @@ pub fn main() -> Result<()> {
                 .help("path for the config file"),
         );
 
+    let generator_cmd = generator::subcommand();
     let processor_cmd = processor::subcommand();
     let store_cmd = store::subcommand();
     let worker_cmd = worker::subcommand();
@@ -65,6 +67,7 @@ pub fn main() -> Result<()> {
         .version(env!("CARGO_PKG_VERSION"))
         .setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(daemon_cmd)
+        .subcommand(generator_cmd)
         .subcommand(mock_cmd)
         .subcommand(processor_cmd)
         .subcommand(store_cmd)
@@ -87,6 +90,8 @@ pub fn main() -> Result<()> {
 
             start_deamon(cfg_path)
         }
+
+        (generator::SUB_CMD_NAME, Some(args)) => generator::submatch(args),
 
         (processor::SUB_CMD_NAME, Some(args)) => processor::submatch(args),
 
