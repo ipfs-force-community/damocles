@@ -105,6 +105,7 @@ pub fn seal_pre_commit_phase2(
     }
 }
 
+/// create tree-d file
 pub fn create_tree_d(
     registered_proof: RegisteredSealProof,
     in_path: Option<PathBuf>,
