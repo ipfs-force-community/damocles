@@ -35,7 +35,12 @@ location = "./mock-tmp/store2"
 [[sealing_thread]]
 location = "./mock-tmp/store3"
 
-[remote_store]
+# deprecated
+# [remote_store]
+# name = "persist-store1"
+# location = "./mock-tmp/remote"
+
+[[attached]]
 # name = "persist-store1"
 location = "./mock-tmp/remote"
 

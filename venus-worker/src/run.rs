@@ -14,7 +14,7 @@ use tokio::runtime::Builder;
 use crate::{
     config,
     infra::{
-        objstore::filestore::FileStore,
+        objstore::{attached::AttachedManager, filestore::FileStore, ObjectStore},
         piecestore::{proxy::ProxyPieceStore, PieceStore},
     },
     logging::{debug_field, info},
@@ -48,16 +48,59 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
 
     info!("config loaded:\n {:?}", cfg);
 
-    let remote = cfg
-        .remote_store
-        .location
-        .as_ref()
-        .cloned()
-        .ok_or(anyhow!("remote path is required for mock"))?;
-    let remote_store = Box::new(
-        FileStore::open(&remote, cfg.remote_store.name.clone())
-            .with_context(|| format!("open remote filestore {}", remote))?,
+    let mut attached: Vec<Box<dyn ObjectStore>> = Vec::new();
+    let mut attached_writable = 0;
+    if let Some(remote_cfg) = cfg.remote_store.as_ref() {
+        let remote_store = Box::new(
+            FileStore::open(
+                remote_cfg.location.clone(),
+                remote_cfg.name.clone(),
+                remote_cfg.readonly.unwrap_or(false),
+            )
+            .with_context(|| format!("open remote filestore {}", remote_cfg.location))?,
+        );
+
+        if !remote_store.readonly() {
+            attached_writable += 1;
+        }
+
+        attached.push(remote_store);
+    }
+
+    if let Some(attach_cfgs) = cfg.attached.as_ref() {
+        for (sidx, scfg) in attach_cfgs.iter().enumerate() {
+            let attached_store = Box::new(
+                FileStore::open(
+                    scfg.location.clone(),
+                    scfg.name.clone(),
+                    scfg.readonly.unwrap_or(false),
+                )
+                .with_context(|| format!("open attached filestore #{}", sidx))?,
+            );
+
+            if !attached_store.readonly() {
+                attached_writable += 1;
+            }
+
+            attached.push(attached_store);
+        }
+    }
+
+    if attached.is_empty() {
+        return Err(anyhow!("no attached store available"));
+    }
+
+    if attached_writable == 0 {
+        return Err(anyhow!("no attached store available for writing"));
+    }
+
+    info!(
+        "{} stores attached, {} writable",
+        attached.len(),
+        attached_writable
     );
+
+    let attached_mgr = AttachedManager::init(attached).context("init attached manager")?;
 
     let mock_impl = mock::SimpleMockSealerRpc::new(miner, proof_type);
     let mut io = IoHandler::new();
@@ -75,7 +118,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
 
     let globl = GlobalModules {
         rpc: Arc::new(mock_client),
-        remote_store: Arc::new(remote_store),
+        attached: Arc::new(attached_mgr),
         processors,
         limit: Arc::new(resource::Pool::new(
             cfg.processors
@@ -131,16 +174,59 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .with_context(|| format!("load from config file {}", cfg_path))?;
     info!("config loaded\n {:?}", cfg);
 
-    let remote_store = cfg
-        .remote_store
-        .location
-        .as_ref()
-        .cloned()
-        .ok_or(anyhow!("remote path is required for deamon"))?;
-    let remote = Box::new(
-        FileStore::open(&remote_store, cfg.remote_store.name.clone())
-            .with_context(|| format!("open remote filestore {}", remote_store))?,
+    let mut attached: Vec<Box<dyn ObjectStore>> = Vec::new();
+    let mut attached_writable = 0;
+    if let Some(remote_cfg) = cfg.remote_store.as_ref() {
+        let remote_store = Box::new(
+            FileStore::open(
+                remote_cfg.location.clone(),
+                remote_cfg.name.clone(),
+                remote_cfg.readonly.unwrap_or(false),
+            )
+            .with_context(|| format!("open remote filestore {}", remote_cfg.location))?,
+        );
+
+        if !remote_store.readonly() {
+            attached_writable += 1;
+        }
+
+        attached.push(remote_store);
+    }
+
+    if let Some(attach_cfgs) = cfg.attached.as_ref() {
+        for (sidx, scfg) in attach_cfgs.iter().enumerate() {
+            let attached_store = Box::new(
+                FileStore::open(
+                    scfg.location.clone(),
+                    scfg.name.clone(),
+                    scfg.readonly.unwrap_or(false),
+                )
+                .with_context(|| format!("open attached filestore #{}", sidx))?,
+            );
+
+            if !attached_store.readonly() {
+                attached_writable += 1;
+            }
+
+            attached.push(attached_store);
+        }
+    }
+
+    if attached.is_empty() {
+        return Err(anyhow!("no attached store available"));
+    }
+
+    if attached_writable == 0 {
+        return Err(anyhow!("no attached store available for writing"));
+    }
+
+    info!(
+        "{} stores attached, {} writable",
+        attached.len(),
+        attached_writable
     );
+
+    let attached_mgr = AttachedManager::init(attached).context("init attached manager")?;
 
     let store_mgr =
         StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
@@ -190,7 +276,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let global = GlobalModules {
         rpc: Arc::new(rpc_client),
-        remote_store: Arc::new(remote),
+        attached: Arc::new(attached_mgr),
         processors,
         limit: Arc::new(resource::Pool::new(
             cfg.processors

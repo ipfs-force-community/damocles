@@ -9,7 +9,7 @@ use tokio::runtime::Runtime;
 
 use crate::{
     config::Config,
-    infra::{objstore::ObjectStore, piecestore::PieceStore},
+    infra::{objstore::attached::AttachedManager, piecestore::PieceStore},
     logging::{error, error_span, info, warn},
     rpc::sealer::SealerClient,
     sealing::{
@@ -36,7 +36,7 @@ pub struct Ctx {
 #[derive(Clone)]
 pub struct GlobalModules {
     pub rpc: Arc<SealerClient>,
-    pub remote_store: Arc<Box<dyn ObjectStore>>,
+    pub attached: Arc<AttachedManager>,
     pub processors: GloablProcessors,
     pub static_tree_d: HashMap<u64, PathBuf>,
     pub limit: Arc<Pool>,
