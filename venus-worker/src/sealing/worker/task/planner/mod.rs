@@ -7,7 +7,7 @@ pub const PLANNER_NAME_SNAPUP: &str = "snapup";
 
 mod sealer;
 
-// mod snapup;
+mod snapup;
 
 mod common;
 
@@ -36,8 +36,8 @@ pub fn get_planner(p: Option<&str>) -> Result<Box<dyn Planner>> {
     match p {
         None | Some(PLANNER_NAME_SEALER) => Ok(Box::new(sealer::SealerPlanner)),
 
-        // Some(PLANNER_NAME_SNAPUP) => Ok(Box::new(snapup::SnapUpPlanner)),
-        //
+        Some(PLANNER_NAME_SNAPUP) => Ok(Box::new(snapup::SnapUpPlanner)),
+
         Some(other) => Err(anyhow!("unknown planner {}", other)),
     }
 }

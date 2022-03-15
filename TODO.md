@@ -35,3 +35,8 @@
 - [ ] skip add piece
 - [ ] commitment mgr: get sender in runtime
 - [ ] remove pkg `xerrors`
+- [ ] copy persisted files to local for snap up sectors
+- [ ] re-submission logic
+- [ ] handle submit error: FilesMissed
+- [ ] check status for upgrading sectors
+- [ ] cleanups & checks within steps of snap up planner

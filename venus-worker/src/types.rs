@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 use anyhow::{anyhow, Error};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::sealing::processor::RegisteredSealProof;
+use crate::sealing::processor::{RegisteredSealProof, RegisteredUpdateProof};
 
 const SIZE_2K: u64 = 2 << 10;
 const SIZE_8M: u64 = 8 << 20;
@@ -96,6 +96,60 @@ impl From<SealProof> for RegisteredSealProof {
             SealProof::StackedDrg512MiBV1_1 => RegisteredSealProof::StackedDrg512MiBV1_1,
             SealProof::StackedDrg32GiBV1_1 => RegisteredSealProof::StackedDrg32GiBV1_1,
             SealProof::StackedDrg64GiBV1_1 => RegisteredSealProof::StackedDrg64GiBV1_1,
+        }
+    }
+}
+
+impl From<&SealProof> for RegisteredSealProof {
+    fn from(val: &SealProof) -> Self {
+        match val {
+            SealProof::StackedDrg2KiBV1 => RegisteredSealProof::StackedDrg2KiBV1,
+            SealProof::StackedDrg8MiBV1 => RegisteredSealProof::StackedDrg8MiBV1,
+            SealProof::StackedDrg512MiBV1 => RegisteredSealProof::StackedDrg512MiBV1,
+            SealProof::StackedDrg32GiBV1 => RegisteredSealProof::StackedDrg32GiBV1,
+            SealProof::StackedDrg64GiBV1 => RegisteredSealProof::StackedDrg64GiBV1,
+
+            SealProof::StackedDrg2KiBV1_1 => RegisteredSealProof::StackedDrg2KiBV1_1,
+            SealProof::StackedDrg8MiBV1_1 => RegisteredSealProof::StackedDrg8MiBV1_1,
+            SealProof::StackedDrg512MiBV1_1 => RegisteredSealProof::StackedDrg512MiBV1_1,
+            SealProof::StackedDrg32GiBV1_1 => RegisteredSealProof::StackedDrg32GiBV1_1,
+            SealProof::StackedDrg64GiBV1_1 => RegisteredSealProof::StackedDrg64GiBV1_1,
+        }
+    }
+}
+
+impl From<SealProof> for RegisteredUpdateProof {
+    fn from(val: SealProof) -> Self {
+        match val {
+            SealProof::StackedDrg2KiBV1 => RegisteredUpdateProof::StackedDrg2KiBV1,
+            SealProof::StackedDrg8MiBV1 => RegisteredUpdateProof::StackedDrg8MiBV1,
+            SealProof::StackedDrg512MiBV1 => RegisteredUpdateProof::StackedDrg512MiBV1,
+            SealProof::StackedDrg32GiBV1 => RegisteredUpdateProof::StackedDrg32GiBV1,
+            SealProof::StackedDrg64GiBV1 => RegisteredUpdateProof::StackedDrg64GiBV1,
+
+            SealProof::StackedDrg2KiBV1_1 => RegisteredUpdateProof::StackedDrg2KiBV1,
+            SealProof::StackedDrg8MiBV1_1 => RegisteredUpdateProof::StackedDrg8MiBV1,
+            SealProof::StackedDrg512MiBV1_1 => RegisteredUpdateProof::StackedDrg512MiBV1,
+            SealProof::StackedDrg32GiBV1_1 => RegisteredUpdateProof::StackedDrg32GiBV1,
+            SealProof::StackedDrg64GiBV1_1 => RegisteredUpdateProof::StackedDrg64GiBV1,
+        }
+    }
+}
+
+impl From<&SealProof> for RegisteredUpdateProof {
+    fn from(val: &SealProof) -> Self {
+        match val {
+            SealProof::StackedDrg2KiBV1 => RegisteredUpdateProof::StackedDrg2KiBV1,
+            SealProof::StackedDrg8MiBV1 => RegisteredUpdateProof::StackedDrg8MiBV1,
+            SealProof::StackedDrg512MiBV1 => RegisteredUpdateProof::StackedDrg512MiBV1,
+            SealProof::StackedDrg32GiBV1 => RegisteredUpdateProof::StackedDrg32GiBV1,
+            SealProof::StackedDrg64GiBV1 => RegisteredUpdateProof::StackedDrg64GiBV1,
+
+            SealProof::StackedDrg2KiBV1_1 => RegisteredUpdateProof::StackedDrg2KiBV1,
+            SealProof::StackedDrg8MiBV1_1 => RegisteredUpdateProof::StackedDrg8MiBV1,
+            SealProof::StackedDrg512MiBV1_1 => RegisteredUpdateProof::StackedDrg512MiBV1,
+            SealProof::StackedDrg32GiBV1_1 => RegisteredUpdateProof::StackedDrg32GiBV1,
+            SealProof::StackedDrg64GiBV1_1 => RegisteredUpdateProof::StackedDrg64GiBV1,
         }
     }
 }
