@@ -5,6 +5,7 @@ use std::fmt;
 use std::io::{self, Read};
 use std::path::Path;
 
+pub mod attached;
 pub mod filestore;
 
 /// errors in object storage usage
@@ -77,4 +78,10 @@ pub trait ObjectStore: Send + Sync {
         path: &Path,
         ranges: &[Range],
     ) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>>;
+
+    /// copy an object to a local path
+    fn copy_to(&self, path: &Path, dest: &Path, allow_sym: bool) -> ObjResult<()>;
+
+    /// if this instance is read-only
+    fn readonly(&self) -> bool;
 }

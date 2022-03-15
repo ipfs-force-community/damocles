@@ -96,10 +96,12 @@ pub struct SealingOptional {
 
 /// configuration for remote store
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Remote {
+pub struct Attached {
     pub name: Option<String>,
     /// store path, if we are using fs based store
-    pub location: Option<String>,
+    pub location: String,
+
+    pub readonly: Option<bool>,
 }
 
 /// configurations for local sealing store
@@ -173,8 +175,11 @@ pub struct Config {
     /// section for list of local sealing stores
     pub sealing_thread: Vec<SealingThread>,
 
-    /// section for remote store
-    pub remote_store: Remote,
+    /// section for remote store, deprecated
+    pub remote_store: Option<Attached>,
+
+    /// section for attached store
+    pub attached: Option<Vec<Attached>>,
 
     /// section for processors
     pub processors: Processors,

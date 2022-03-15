@@ -1,16 +1,14 @@
 //! ObjectStore implemented based on fs
 
-use std::fs::{create_dir_all, File, OpenOptions};
+use std::fs::{create_dir_all, remove_file, File, OpenOptions};
 use std::io::{copy, BufReader, Read, Seek, SeekFrom};
+use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
 use anyhow::{anyhow, Context, Result};
 
 use super::{ObjResult, ObjectStore, Range};
-use crate::{
-    infra::util::PlaceHolder,
-    logging::{debug_field, trace},
-};
+use crate::logging::{debug_field, trace};
 
 const LOG_TARGET: &str = "filestore";
 
@@ -19,20 +17,19 @@ pub struct FileStore {
     sep: String,
     local_path: PathBuf,
     instance: String,
-    _holder: PlaceHolder,
+    readonly: bool,
 }
 
 impl FileStore {
     /// init filestore, create a placeholder file in its root dir
     pub fn init<P: AsRef<Path>>(p: P) -> Result<()> {
         create_dir_all(p.as_ref())?;
-        let _holder = PlaceHolder::init(p.as_ref())?;
 
         Ok(())
     }
 
     /// open the file store at given path
-    pub fn open<P: AsRef<Path>>(p: P, ins: Option<String>) -> Result<Self> {
+    pub fn open<P: AsRef<Path>>(p: P, ins: Option<String>, readonly: bool) -> Result<Self> {
         let dir_path = p.as_ref().canonicalize().context("canonicalize dir path")?;
         if !dir_path
             .metadata()
@@ -41,8 +38,6 @@ impl FileStore {
         {
             return Err(anyhow!("base path of the file store should a dir"));
         };
-
-        let _holder = PlaceHolder::open(&dir_path).context("open placeholder")?;
 
         let instance = match ins.or(dir_path.to_str().map(|s| s.to_owned())) {
             Some(i) => i,
@@ -58,7 +53,7 @@ impl FileStore {
             sep: MAIN_SEPARATOR.to_string(),
             local_path: dir_path,
             instance,
-            _holder,
+            readonly,
         })
     }
 
@@ -146,6 +141,30 @@ impl ObjectStore for FileStore {
         });
 
         Ok(iter)
+    }
+
+    fn copy_to(&self, path: &Path, dst: &Path, allow_sym: bool) -> ObjResult<()> {
+        if allow_sym {
+            let src_path = self.path(path)?;
+            remove_file(dst)?;
+            symlink(src_path, dst)?;
+            return Ok(());
+        }
+
+        let mut r = self.get(path)?;
+        let mut f = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(dst)?;
+
+        copy(&mut r, &mut f)?;
+        Ok(())
+    }
+
+    fn readonly(&self) -> bool {
+        self.readonly
     }
 }
 

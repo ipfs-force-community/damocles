@@ -947,6 +947,22 @@ impl<'c> Sealer<'c> {
     }
 
     fn handle_pc_landed(&mut self) -> HandleResult {
+        let proof_type = fetch_cloned_field! {
+            self.sector.base,
+            allocated.proof_type,
+        }?;
+
+        let sector_size = proof_type.sector_size();
+        let persist_store = self
+            .ctx
+            .global
+            .attached
+            .acquire_persist(sector_size, None)
+            .context("no available persist store")
+            .perm()?;
+
+        debug!(name = %persist_store.instance(), "persist store acquired");
+
         let allocated = fetch_field! {
             self.sector.base,
             allocated,
@@ -999,19 +1015,14 @@ impl<'c> Sealer<'c> {
             let copy_enter = copy_span.enter();
 
             let source = opt.open(&one).crit()?;
-            let size = self
-                .ctx
-                .global
-                .remote_store
-                .put(target_path, Box::new(source))
-                .crit()?;
+            let size = persist_store.put(target_path, Box::new(source)).crit()?;
 
             debug!(size, "persist done");
 
             drop(copy_enter);
         }
 
-        Ok(Event::Persist(self.ctx.global.remote_store.instance()))
+        Ok(Event::Persist(persist_store.instance()))
     }
 
     fn handle_persisted(&mut self) -> HandleResult {
