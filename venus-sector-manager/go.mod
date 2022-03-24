@@ -16,7 +16,6 @@ require (
 	github.com/filecoin-project/go-jsonrpc v0.1.5
 	github.com/filecoin-project/go-state-types v0.1.3
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
-	github.com/filecoin-project/specs-actors/v5 v5.0.4
 	github.com/filecoin-project/specs-actors/v7 v7.0.0-rc1
 	github.com/filecoin-project/specs-storage v0.2.0
 	github.com/filecoin-project/venus v1.2.2-0.20220225063919-ed9c00da1a10

@@ -143,7 +143,7 @@ var utilSealerSectorsAbortCmd = &cli.Command{
 }
 
 var utilSealerSectorsListCmd = &cli.Command{
-	Name: "list",
+	Name:  "list",
 	Usage: "Print sector data in completed state",
 	Action: func(cctx *cli.Context) error {
 		cli, gctx, stop, err := extractSealerClient(cctx)
@@ -177,16 +177,32 @@ var utilSealerSectorsListCmd = &cli.Command{
 			}
 
 			fmt.Fprintln(os.Stdout, "\tTicket:")
-			fmt.Fprintf(os.Stdout, "\t\tHeight: %d\n", state.Ticket.Epoch)
-			fmt.Fprintf(os.Stdout, "\t\tValue: %x\n", state.Ticket.Ticket)
+			if state.Ticket != nil {
+				fmt.Fprintf(os.Stdout, "\t\tHeight: %d\n", state.Ticket.Epoch)
+				fmt.Fprintf(os.Stdout, "\t\tValue: %x\n", state.Ticket.Ticket)
+			} else {
+				fmt.Fprintln(os.Stdout, "\t\tNULL")
+			}
 
 			fmt.Fprintln(os.Stdout, "\tSeed:")
-			fmt.Fprintf(os.Stdout, "\t\tHeight: %d\n", state.Seed.Epoch)
-			fmt.Fprintf(os.Stdout, "\t\tValue: %x\n", state.Seed.Seed)
+			if state.Seed != nil {
+				fmt.Fprintf(os.Stdout, "\t\tHeight: %d\n", state.Seed.Epoch)
+				fmt.Fprintf(os.Stdout, "\t\tValue: %x\n", state.Seed.Seed)
+			} else {
+				fmt.Fprintln(os.Stdout, "\t\tNULL")
+			}
 
 			fmt.Fprintln(os.Stdout, "\tMessageInfo:")
-			fmt.Fprintf(os.Stdout, "\t\tPre: %s\n", state.MessageInfo.PreCommitCid.String())
-			fmt.Fprintf(os.Stdout, "\t\tProve: %s\n", state.MessageInfo.CommitCid.String())
+			if state.MessageInfo.PreCommitCid != nil {
+				fmt.Fprintf(os.Stdout, "\t\tPre: %s\n", state.MessageInfo.PreCommitCid.String())
+			} else {
+				fmt.Fprintln(os.Stdout, "\t\tPre: NULL")
+			}
+			if state.MessageInfo.CommitCid != nil {
+				fmt.Fprintf(os.Stdout, "\t\tProve: %s\n", state.MessageInfo.CommitCid.String())
+			} else {
+				fmt.Fprintln(os.Stdout, "\t\tProve: NULL")
+			}
 			fmt.Fprintf(os.Stdout, "\t\tNeedSeed: %v\n", state.MessageInfo.NeedSend)
 
 			fmt.Fprintln(os.Stdout, "\tState:")
