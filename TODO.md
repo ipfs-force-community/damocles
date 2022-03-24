@@ -31,8 +31,8 @@
 - [ ] reduce directlly usages of `specs-actors`
 - [ ] resource auto-dectection & config file generation
 - [ ] remote store via http
-- [ ] static tree_d file generator
-- [ ] skip add piece
+- [x] static tree_d file generator
+- [x] skip add piece
 - [ ] commitment mgr: get sender in runtime
 - [ ] remove pkg `xerrors`
 - [ ] copy persisted files to local for snap up sectors
@@ -40,3 +40,17 @@
 - [ ] handle submit error: FilesMissed
 - [ ] check status for upgrading sectors
 - [ ] cleanups & checks within steps of snap up planner
+- [ ] support more aquire policy in venus-market
+- [x] support multiple task inside one ext processor
+- [ ] batch submit for upgraded sectors
+- [ ] venus-sector-manager: move module definitions into `/modules`
+- [ ] use repeated zeroes for AddPiece no matter what its deal_id is
+- [ ] config option for sending funds
+- [x] configurable sector lifetime
+- [ ] configurable retry interval & max attempts for temp error in snap committer
+- [ ] deal policy: sector expiration
+- [ ] deal policy: min size, min deals
+- [ ] deal policy: max size
+- [x] persist for snap: free space
+- [ ] unify: constructing wdpost inputs
+- [ ] cancellable snap committing

@@ -1,6 +1,6 @@
 //! ObjectStore implemented based on fs
 
-use std::fs::{create_dir_all, remove_file, File, OpenOptions};
+use std::fs::{create_dir_all, remove_dir_all, remove_file, File, OpenOptions};
 use std::io::{copy, BufReader, Read, Seek, SeekFrom};
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
@@ -150,8 +150,14 @@ impl ObjectStore for FileStore {
             return Err(anyhow!("{:?} is not a dir", path).into());
         }
 
+        if let Some(parent) = dst.parent() {
+            create_dir_all(parent)?;
+        }
+
         if sym_only {
-            remove_file(dst)?;
+            if dst.exists() {
+                remove_dir_all(dst)?;
+            }
             symlink(src_path, dst)?;
             return Ok(());
         }
@@ -179,7 +185,9 @@ impl ObjectStore for FileStore {
     fn link_object(&self, path: &Path, dst: &Path, sym_only: bool) -> ObjResult<()> {
         if sym_only {
             let src_path = self.path(path)?;
-            remove_file(dst)?;
+            if dst.exists() {
+                remove_file(dst)?;
+            }
             symlink(src_path, dst)?;
             return Ok(());
         }

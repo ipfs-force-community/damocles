@@ -347,6 +347,16 @@ pub struct AllocatedSnapUpSector {
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
+pub struct SnapUpOnChainInfo {
+    pub comm_r: [u8; 32],
+    pub comm_d: [u8; 32],
+    pub access_instance: String,
+    pub pieces: Vec<CidJson>,
+    pub proof: B64Vec,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct SubmitSnapUpProofResp {
     pub res: SubmitResult,
     pub desc: Option<String>,
@@ -422,8 +432,6 @@ pub trait Sealer {
     fn submit_snapup_proof(
         &self,
         id: SectorID,
-        pieces: Vec<CidJson>,
-        proof: B64Vec,
-        instance: String,
+        snapup_info: SnapUpOnChainInfo,
     ) -> Result<SubmitSnapUpProofResp>;
 }

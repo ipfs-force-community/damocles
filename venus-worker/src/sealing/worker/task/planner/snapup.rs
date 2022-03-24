@@ -6,8 +6,10 @@ use super::{
     super::{call_rpc, cloned_required, field_required, Finalized},
     common, plan, Event, ExecResult, Planner, State, Task,
 };
-use crate::logging::warn;
-use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SubmitResult};
+use crate::logging::{debug, warn};
+use crate::rpc::sealer::{
+    AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult,
+};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
     snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir,
@@ -119,7 +121,7 @@ impl<'c, 't> SnapUp<'c, 't> {
             None => return Ok(Event::Retry),
         };
 
-        if allocated.deals.is_empty() {
+        if allocated.pieces.is_empty() {
             return Err(anyhow!("deals required, got empty").abort());
         }
 
@@ -129,7 +131,7 @@ impl<'c, 't> SnapUp<'c, 't> {
 
         Ok(Event::AllocatedSnapUpSector(
             allocated.sector,
-            allocated.deals,
+            allocated.pieces,
             Finalized {
                 public: allocated.public,
                 private: allocated.private,
@@ -167,6 +169,7 @@ impl<'c, 't> SnapUp<'c, 't> {
         );
         cloned_required!(piece_infos, self.task.sector.phases.pieces);
 
+        debug!("trying to find access store named {}", access_instance);
         let access_store = self
             .task
             .ctx
@@ -182,15 +185,31 @@ impl<'c, 't> SnapUp<'c, 't> {
         sealed_file.prepare().perm()?;
         access_store
             .link_object(sealed_file.rel(), sealed_file.as_ref(), true)
+            .with_context(|| {
+                format!(
+                    "link sealed file {:?} to {:?}",
+                    sealed_file.rel(),
+                    sealed_file.full()
+                )
+            })
             .perm()?;
 
         let cache_dir = self.task.cache_dir(sector_id);
+        debug!("trying to link cache dir");
         access_store
             .link_dir(cache_dir.rel(), cache_dir.as_ref(), true)
+            .with_context(|| {
+                format!(
+                    "link cache file {:?} to {:?}",
+                    cache_dir.rel(),
+                    cache_dir.full()
+                )
+            })
             .perm()?;
 
         // init update file
         let update_file = self.task.update_file(sector_id);
+        debug!(path=?update_file.full(),  "trying to init update file");
         {
             let file = update_file.init_file().perm()?;
             file.set_len(proof_type.sector_size())
@@ -199,14 +218,20 @@ impl<'c, 't> SnapUp<'c, 't> {
         }
 
         let update_cache_dir = self.task.update_cache_dir(sector_id);
-        update_cache_dir.prepare().perm()?;
+        debug!(path=?update_cache_dir.full(),  "trying to init update cache dir");
+        update_cache_dir
+            .prepare()
+            .context("prepare update cache dir")
+            .perm()?;
 
         // tree d
+        debug!("trying to prepare tree_d");
         let prepared_dir = self.task.prepared_dir(sector_id);
         symlink(
             tree_d_path_in_dir(prepared_dir.as_ref()),
             tree_d_path_in_dir(update_cache_dir.as_ref()),
         )
+        .context("link prepared tree_d")
         .crit()?;
 
         // staged file shoud be already exists, do nothing
@@ -303,6 +328,7 @@ impl<'c, 't> SnapUp<'c, 't> {
         let sector_id = self.task.sector_id()?;
         field_required!(proof, self.task.sector.phases.snap_prov_out.as_ref());
         field_required!(deals, self.task.sector.deals.as_ref());
+        field_required!(encode_out, self.task.sector.phases.snap_encode_out.as_ref());
         cloned_required!(instance, self.task.sector.phases.persist_instance);
         let piece_cids = deals.iter().map(|d| d.piece.cid.clone()).collect();
 
@@ -310,9 +336,13 @@ impl<'c, 't> SnapUp<'c, 't> {
             self.task.ctx.global.rpc,
             submit_snapup_proof,
             sector_id.clone(),
-            piece_cids,
-            proof.into(),
-            instance,
+            SnapUpOnChainInfo {
+                comm_r: encode_out.comm_r_new,
+                comm_d: encode_out.comm_d_new,
+                access_instance: instance,
+                pieces: piece_cids,
+                proof: proof.into(),
+            },
         }?;
 
         match res.res {

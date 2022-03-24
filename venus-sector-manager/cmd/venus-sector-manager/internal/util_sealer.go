@@ -20,7 +20,7 @@ var utilSealerCmd = &cli.Command{
 		utilSealerSectorsCmd,
 		utilSealerProvingCmd,
 		utilSealerActorCmd,
-		// utilSealerSnapCmd,
+		utilSealerSnapCmd,
 	},
 }
 

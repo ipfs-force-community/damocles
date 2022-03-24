@@ -33,6 +33,7 @@ type Stat struct {
 type Store interface {
 	Instance(context.Context) string
 	Get(context.Context, string) (io.ReadCloser, error)
+	Del(context.Context, string) error
 	Stat(context.Context, string) (Stat, error)
 	Put(context.Context, string, io.Reader) (int64, error)
 	GetChunks(context.Context, string, []Range) ([]ReaderResult, error)

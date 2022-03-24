@@ -383,10 +383,10 @@ fn start_processors(
     let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, locks, modules);
 
     let snap_encode: processor::BoxedSnapEncodeProcessor =
-        construct_sub_processor!(snap_encode, cfg, modules);
+        construct_sub_processor!(snap_encode, cfg, locks, modules);
 
     let snap_prove: processor::BoxedSnapProveProcessor =
-        construct_sub_processor!(snap_prove, cfg, modules);
+        construct_sub_processor!(snap_prove, cfg, locks, modules);
 
     Ok((
         GloablProcessors {

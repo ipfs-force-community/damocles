@@ -29,10 +29,10 @@ pub const STAGE_NAME_C1: &str = "c1";
 pub const STAGE_NAME_C2: &str = "c2";
 
 /// name str for snap encode
-pub const STAGE_NAME_SNAP_ENCODE: &str = "snap-encode";
+pub const STAGE_NAME_SNAP_ENCODE: &str = "snap_encode";
 
 /// name str for snap prove
-pub const STAGE_NAME_SNAP_PROVE: &str = "snap-prove";
+pub const STAGE_NAME_SNAP_PROVE: &str = "snap_prove";
 
 /// enum for processor stages
 #[derive(Copy, Clone, Debug)]

@@ -80,11 +80,19 @@ func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, sis 
 }
 
 func (s *Sealer) SnapUpPreFetch(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*api.SnapUpFetchResult, error) {
-	return &api.SnapUpFetchResult{}, nil
+	count, diff, err := s.snapup.PreFetch(ctx, mid, dlindex)
+	if err != nil {
+		return nil, fmt.Errorf("prefetch: %w", err)
+	}
+
+	return &api.SnapUpFetchResult{
+		Total: count,
+		Diff:  diff,
+	}, nil
 }
 
 func (s *Sealer) SnapUpCandidates(ctx context.Context, mid abi.ActorID) ([]*bitfield.BitField, error) {
-	return nil, nil
+	return s.snapup.Candidates(ctx, mid)
 }
 
 func (s *Sealer) ProvingSectorInfo(ctx context.Context, sid abi.SectorID) (api.ProvingSectorInfo, error) {
