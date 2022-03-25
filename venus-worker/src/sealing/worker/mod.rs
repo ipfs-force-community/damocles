@@ -135,7 +135,7 @@ impl Module for Worker {
 
         let mut wait_for_resume = false;
         let mut resume_event = None;
-        let resume_loop_tick = Duration::from_secs(1800);
+        let resume_loop_tick = Duration::from_secs(60);
 
         'SEAL_LOOP: loop {
             if wait_for_resume {
