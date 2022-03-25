@@ -38,4 +38,7 @@ pub struct Ext {
 
     /// preferred numa node number
     pub numa_preferred: Option<c_int>,
+
+    /// concurrent limit
+    pub concurrent: Option<usize>,
 }

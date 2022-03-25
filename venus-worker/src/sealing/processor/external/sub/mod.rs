@@ -8,7 +8,7 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::thread;
 
 use anyhow::{anyhow, Context, Result};
-use crossbeam_channel::{after, bounded, select, Receiver, Sender};
+use crossbeam_channel::{after, bounded, select, unbounded, Sender};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -26,7 +26,14 @@ pub use process::*;
 mod cgroup;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+struct Request<T> {
+    pub id: u64,
+    pub data: T,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Response<T> {
+    pub id: u64,
     pub err_msg: Option<String>,
     pub result: Option<T>,
 }
@@ -38,12 +45,15 @@ pub(super) fn ready_msg(name: &str) -> String {
 
 pub(super) fn start_sub_processes<I: Input>(
     cfg: &Vec<config::Ext>,
-    input_rx: Receiver<(I, Sender<Result<I::Out>>)>,
-) -> Result<Vec<SubProcess<I>>> {
+) -> Result<(
+    Vec<(Sender<(I, Sender<Result<I::Out>>)>, Sender<()>)>,
+    Vec<SubProcess<I>>,
+)> {
     if cfg.len() == 0 {
         return Err(anyhow!("no subs section found"));
     }
 
+    let mut txes = Vec::with_capacity(cfg.len());
     let mut processes = Vec::with_capacity(cfg.len());
     let stage = I::STAGE;
 
@@ -67,11 +77,28 @@ pub(super) fn start_sub_processes<I: Input>(
                 .with_context(|| format!("add task id {} into cgroup", pid))?;
         }
 
-        let proc: SubProcess<_> = SubProcess::new(input_rx.clone(), name, child, stdin, stdout, cg);
+        let (limit_tx, limit_rx) = match sub_cfg.concurrent.clone() {
+            Some(0) => return Err(anyhow!("invalid concurrent limit 0")),
+            Some(size) => bounded(size),
+            None => unbounded(),
+        };
+
+        let (tx, rx) = bounded(0);
+        let proc: SubProcess<_> = SubProcess::new(
+            rx,
+            limit_tx.clone(),
+            limit_rx,
+            name,
+            child,
+            stdin,
+            stdout,
+            cg,
+        );
+        txes.push((tx, limit_tx));
         processes.push(proc);
     }
 
-    Ok(processes)
+    Ok((txes, processes))
 }
 
 fn start_child(stage: Stage, cfg: &config::Ext) -> Result<(Child, ChildStdin, ChildStdout)> {

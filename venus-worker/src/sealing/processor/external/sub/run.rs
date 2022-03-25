@@ -1,13 +1,13 @@
 use std::io::{stdin, stdout, Write};
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use serde_json::{from_str, to_string};
 
 use super::{
     super::{C2Input, Input, PC1Input, PC2Input, TreeDInput},
-    ready_msg, Response,
+    ready_msg, Request, Response,
 };
-use crate::logging::{debug, info, info_span, trace};
+use crate::logging::{debug, error, info, warn_span};
 
 /// start the main loop of c2 processor
 pub fn run_tree_d() -> Result<()> {
@@ -40,43 +40,63 @@ pub fn run<I: Input>() -> Result<()> {
     writeln!(output, "{}", ready_msg(name))?;
 
     let pid = std::process::id();
-    let span = info_span!("sub", name, pid);
+    let span = warn_span!("sub", name, pid);
     let _guard = span.enter();
 
-    let mut line = String::new();
     let input = stdin();
+    let mut line = String::new();
 
     info!("processor ready");
     loop {
         debug!("waiting for new incoming line");
-        input.read_line(&mut line)?;
-        trace!("line: {}", line.as_str());
-
-        debug!("process line");
-        let response = match process_line::<I>(line.as_str()) {
-            Ok(o) => Response {
-                err_msg: None,
-                result: Some(o),
-            },
-
-            Err(e) => Response {
-                err_msg: Some(format!("{:?}", e)),
-                result: None,
-            },
-        };
-        trace!("response: {:?}", response);
-
-        debug!("write output");
-        let res_str = to_string(&response)?;
-        trace!("response: {}", res_str.as_str());
-        writeln!(output, "{}", res_str)?;
         line.clear();
+        let size = input.read_line(&mut line)?;
+        if size == 0 {
+            return Err(anyhow!("got empty line, parent might be out"));
+        }
+
+        let req: Request<I> = match from_str(&line).context("unmarshal request") {
+            Ok(r) => r,
+            Err(e) => {
+                error!("unmarshal request: {:?}", e);
+                continue;
+            }
+        };
+
+        std::thread::spawn(move || {
+            let _guard = warn_span!("request", id = req.id, size = size).entered();
+            if let Err(e) = process_request(req) {
+                error!("failed: {:?}", e);
+            }
+        });
     }
 }
 
-fn process_line<I: Input>(line: &str) -> Result<I::Out> {
-    let input: I = from_str(line)?;
-    trace!("input: {:?}", input);
+fn process_request<I: Input>(req: Request<I>) -> Result<()> {
+    debug!("request received");
 
-    input.process()
+    let resp = match req.data.process() {
+        Ok(out) => Response {
+            id: req.id,
+            err_msg: None,
+            result: Some(out),
+        },
+
+        Err(e) => Response {
+            id: req.id,
+            err_msg: Some(format!("{:?}", e)),
+            result: None,
+        },
+    };
+    debug!(ok = resp.result.is_some(), "request done");
+
+    let res_str = to_string(&resp).context("marshal response")?;
+    let sout = stdout();
+    let mut output = sout.lock();
+    writeln!(output, "{}", res_str)?;
+    drop(output);
+
+    debug!("response written");
+
+    Ok(())
 }
