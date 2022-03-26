@@ -40,6 +40,8 @@ type SealerAPI interface {
 
 	ListSectors(context.Context, SectorWorkerState) ([]*SectorState, error)
 
+	RestoreSector(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
+
 	ReportState(context.Context, abi.SectorID, ReportStateReq) (Meta, error)
 
 	ReportFinalized(context.Context, abi.SectorID) (Meta, error)
@@ -88,6 +90,7 @@ type SectorStateManager interface {
 	Load(context.Context, abi.SectorID) (*SectorState, error)
 	Update(context.Context, abi.SectorID, ...interface{}) error
 	Finalize(context.Context, abi.SectorID, func(*SectorState) error) error
+	Restore(context.Context, abi.SectorID, func(*SectorState) error) error
 	All(ctx context.Context, ws SectorWorkerState) ([]*SectorState, error)
 }
 

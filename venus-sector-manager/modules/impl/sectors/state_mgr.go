@@ -45,8 +45,15 @@ type StateManager struct {
 	locker *sectorsLocker
 }
 
-func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *api.SectorState) error {
-	if err := sm.online.View(ctx, key, func(content []byte) error {
+func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *api.SectorState, online bool) error {
+	var kv kvstore.KVStore
+	if online {
+		kv = sm.online
+	} else {
+		kv = sm.offline
+	}
+
+	if err := kv.View(ctx, key, func(content []byte) error {
 		return json.Unmarshal(content, state)
 	}); err != nil {
 		return fmt.Errorf("load state: %w", err)
@@ -73,7 +80,7 @@ func (sm *StateManager) All(ctx context.Context, ws api.SectorWorkerState) ([]*a
 
 	defer iter.Close()
 
-	states := make([]*api.SectorState, 0, 32)  // TODO 只返回了32个?
+	states := make([]*api.SectorState, 0, 32) // TODO 只返回了32个?
 	for iter.Next() {
 		var state api.SectorState
 		if err := iter.View(ctx, func(data []byte) error {
@@ -116,7 +123,7 @@ func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID) (*api.Sector
 
 	var state api.SectorState
 	key := makeSectorKey(sid)
-	if err := sm.load(ctx, key, &state); err != nil {
+	if err := sm.load(ctx, key, &state, true); err != nil {
 		return nil, err
 	}
 
@@ -129,7 +136,7 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals 
 
 	var state api.SectorState
 	key := makeSectorKey(sid)
-	if err := sm.load(ctx, key, &state); err != nil {
+	if err := sm.load(ctx, key, &state, true); err != nil {
 		return err
 	}
 
@@ -150,7 +157,7 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 
 	key := makeSectorKey(sid)
 	var state api.SectorState
-	if err := sm.load(ctx, key, &state); err != nil {
+	if err := sm.load(ctx, key, &state, true); err != nil {
 		return fmt.Errorf("load from online store: %w", err)
 	}
 
@@ -168,6 +175,35 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 
 	if err := sm.online.Del(ctx, key); err != nil {
 		return fmt.Errorf("del from online store: %w", err)
+	}
+
+	return nil
+}
+
+func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore func(*api.SectorState) error) error {
+	lock := sm.locker.lock(sid)
+	defer lock.unlock()
+
+	key := makeSectorKey(sid)
+	var state api.SectorState
+	if err := sm.load(ctx, key, &state, false); err != nil {
+		return fmt.Errorf("load from offline store: %w", err)
+	}
+
+	if onRestore != nil {
+		err := onRestore(&state)
+		if err != nil {
+			return fmt.Errorf("callback falied before restore: %w", err)
+		}
+	}
+
+	state.Finalized = false
+	if err := save(ctx, sm.online, key, state); err != nil {
+		return fmt.Errorf("save info into online store: %w", err)
+	}
+
+	if err := sm.offline.Del(ctx, key); err != nil {
+		return fmt.Errorf("del from offline store: %w", err)
 	}
 
 	return nil

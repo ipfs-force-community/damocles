@@ -31,6 +31,8 @@ type SealerClient struct {
 
 	ListSectors func(context.Context, SectorWorkerState) ([]*SectorState, error)
 
+	RestoreSector func(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
+
 	ReportState func(context.Context, abi.SectorID, ReportStateReq) (Meta, error)
 
 	ReportFinalized func(context.Context, abi.SectorID) (Meta, error)

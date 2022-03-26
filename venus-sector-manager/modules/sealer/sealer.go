@@ -286,6 +286,31 @@ func (s *Sealer) ListSectors(ctx context.Context, ws api.SectorWorkerState) ([]*
 	return s.state.All(ctx, ws)
 }
 
+func (s *Sealer) RestoreSector(ctx context.Context, sid abi.SectorID, forced bool) (api.Meta, error) {
+	var onRestore func(st *api.SectorState) error
+	if !forced {
+		onRestore = func(st *api.SectorState) error {
+			if len(st.Deals) != 0 {
+				return fmt.Errorf("sector with deals can not be normally restored")
+			}
+
+			if st.AbortReason == "" {
+				return fmt.Errorf("sector is not aborted, can not be normally restored")
+			}
+
+			st.AbortReason = ""
+			return nil
+		}
+	}
+
+	err := s.state.Restore(ctx, sid, onRestore)
+	if err != nil {
+		return api.Empty, err
+	}
+
+	return api.Empty, nil
+}
+
 func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) (api.Meta, error) {
 	if err := s.state.Update(ctx, sid, &req); err != nil {
 		return api.Empty, err
