@@ -86,6 +86,10 @@ func (s *Sealer) ListSectors(context.Context, api.SectorWorkerState) ([]*api.Sec
 	return nil, nil
 }
 
+func (s *Sealer) RestoreSector(context.Context, abi.SectorID, bool) (api.Meta, error) {
+	return api.Empty, nil
+}
+
 func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) (api.Meta, error) {
 	log.Warnf("report state change for m-%d-s-%d: %#v", sid.Miner, sid.Number, req)
 	return api.Empty, nil

@@ -56,6 +56,7 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsWorkerStatesCmd,
 		utilSealerSectorsAbortCmd,
 		utilSealerSectorsListCmd,
+		utilSealerSectorsRestoreCmd,
 	},
 }
 
@@ -213,6 +214,51 @@ var utilSealerSectorsListCmd = &cli.Command{
 			fmt.Fprintf(os.Stdout, "\tFinalized: %v\n", state.Finalized)
 
 			fmt.Fprintln(os.Stdout, "")
+		}
+
+		return nil
+	},
+}
+
+var utilSealerSectorsRestoreCmd = &cli.Command{
+	Name:  "restore",
+	Usage: "restore a sector state that may already finalized or aborted",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:   "force",
+			Hidden: true,
+			Value:  false,
+		},
+	},
+	ArgsUsage: "<miner actor id> <sector number>",
+	Action: func(cctx *cli.Context) error {
+		if count := cctx.Args().Len(); count < 2 {
+			return fmt.Errorf("both miner actor id & sector number are required, only %d args provided", count)
+		}
+
+		miner, err := strconv.ParseUint(cctx.Args().Get(0), 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid miner actor id: %w", err)
+		}
+
+		sectorNum, err := strconv.ParseUint(cctx.Args().Get(1), 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid sector number: %w", err)
+		}
+
+		cli, gctx, stop, err := extractSealerClient(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		_, err = cli.RestoreSector(gctx, abi.SectorID{
+			Miner:  abi.ActorID(miner),
+			Number: abi.SectorNumber(sectorNum),
+		}, cctx.Bool("force"))
+		if err != nil {
+			return fmt.Errorf("restore sector failed: %w", err)
 		}
 
 		return nil
