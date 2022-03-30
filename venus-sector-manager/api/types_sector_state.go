@@ -25,9 +25,11 @@ type SectorState struct {
 }
 
 func (s SectorState) DealIDs() []abi.DealID {
-	res := make([]abi.DealID, len(s.Deals))
+	res := make([]abi.DealID, 0, len(s.Deals))
 	for i := range s.Deals {
-		res[i] = s.Deals[i].ID
+		if id := s.Deals[i].ID; id != 0 {
+			res = append(res, id)
+		}
 	}
 	return res
 }
@@ -35,6 +37,6 @@ func (s SectorState) DealIDs() []abi.DealID {
 type SectorWorkerState string
 
 const (
-	WorkerOnline SectorWorkerState = "online"
+	WorkerOnline  SectorWorkerState = "online"
 	WorkerOffline SectorWorkerState = "offline"
 )
