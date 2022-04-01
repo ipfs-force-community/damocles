@@ -88,7 +88,7 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 		}
 	}
 
-	expiration, err := Expiration(ctx, stateMgr, sector.Deals)
+	expiration, err := Expiration(ctx, stateMgr, sector.Deals())
 	if err != nil {
 		return nil, big.Zero(), nil, fmt.Errorf("handlePreCommitting: failed to compute pre-commit expiry: %w", err)
 	}
