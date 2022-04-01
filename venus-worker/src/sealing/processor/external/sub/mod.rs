@@ -46,7 +46,7 @@ pub(super) fn ready_msg(name: &str) -> String {
 pub(super) fn start_sub_processes<I: Input>(
     cfg: &Vec<config::Ext>,
 ) -> Result<(
-    Vec<(Sender<(I, Sender<Result<I::Out>>)>, Sender<()>)>,
+    Vec<(Sender<(I, Sender<Result<I::Out>>)>, Sender<()>, Vec<String>)>,
     Vec<SubProcess<I>>,
 )> {
     if cfg.len() == 0 {
@@ -94,7 +94,11 @@ pub(super) fn start_sub_processes<I: Input>(
             stdout,
             cg,
         );
-        txes.push((tx, limit_tx));
+        txes.push((
+            tx,
+            limit_tx,
+            sub_cfg.locks.as_ref().cloned().unwrap_or_default(),
+        ));
         processes.push(proc);
     }
 

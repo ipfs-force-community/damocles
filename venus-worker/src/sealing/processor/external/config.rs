@@ -41,4 +41,6 @@ pub struct Ext {
 
     /// concurrent limit
     pub concurrent: Option<usize>,
+
+    pub locks: Option<Vec<String>>,
 }

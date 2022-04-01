@@ -108,7 +108,16 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
 
     let (mock_client, _) = local::connect::<SealerClient, _, _>(io);
 
-    let (processors, modules) = start_processors(&cfg).context("start processors")?;
+    let ext_locks = Arc::new(resource::Pool::new(
+        cfg.processors
+            .ext_locks
+            .as_ref()
+            .cloned()
+            .unwrap_or_default()
+            .iter(),
+    ));
+
+    let (processors, modules) = start_processors(&cfg, &ext_locks).context("start processors")?;
 
     let store_mgr =
         StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
@@ -128,6 +137,7 @@ pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<
                 .unwrap_or_default()
                 .iter(),
         )),
+        ext_locks,
         static_tree_d,
         rt: Arc::new(runtime),
         piece_store: None,
@@ -268,7 +278,16 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         None
     };
 
-    let (processors, modules) = start_processors(&cfg).context("start processors")?;
+    let ext_locks = Arc::new(resource::Pool::new(
+        cfg.processors
+            .ext_locks
+            .as_ref()
+            .cloned()
+            .unwrap_or_default()
+            .iter(),
+    ));
+
+    let (processors, modules) = start_processors(&cfg, &ext_locks).context("start processors")?;
 
     let workers = store_mgr.into_workers();
 
@@ -286,6 +305,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
                 .unwrap_or_default()
                 .iter(),
         )),
+        ext_locks,
         static_tree_d,
         rt: Arc::new(runtime),
         piece_store: piece_store.map(|s| Arc::new(s)),
@@ -333,9 +353,9 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
 }
 
 macro_rules! construct_sub_processor {
-    ($field:ident, $cfg:ident, $modules:ident) => {
+    ($field:ident, $cfg:ident, $locks:ident, $modules:ident) => {
         if let Some(ext) = $cfg.processors.$field.as_ref() {
-            let (proc, subs) = processor::external::ExtProcessor::build(ext)?;
+            let (proc, subs) = processor::external::ExtProcessor::build(ext, $locks.clone())?;
             for sub in subs {
                 $modules.push(Box::new(sub));
             }
@@ -347,16 +367,20 @@ macro_rules! construct_sub_processor {
     };
 }
 
-fn start_processors(cfg: &config::Config) -> Result<(GloablProcessors, Vec<Box<dyn Module>>)> {
+fn start_processors(
+    cfg: &config::Config,
+    locks: &Arc<resource::Pool>,
+) -> Result<(GloablProcessors, Vec<Box<dyn Module>>)> {
     let mut modules: Vec<Box<dyn Module>> = Vec::new();
 
-    let tree_d: processor::BoxedTreeDProcessor = construct_sub_processor!(tree_d, cfg, modules);
+    let tree_d: processor::BoxedTreeDProcessor =
+        construct_sub_processor!(tree_d, cfg, locks, modules);
 
-    let pc1: processor::BoxedPC1Processor = construct_sub_processor!(pc1, cfg, modules);
+    let pc1: processor::BoxedPC1Processor = construct_sub_processor!(pc1, cfg, locks, modules);
 
-    let pc2: processor::BoxedPC2Processor = construct_sub_processor!(pc2, cfg, modules);
+    let pc2: processor::BoxedPC2Processor = construct_sub_processor!(pc2, cfg, locks, modules);
 
-    let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, modules);
+    let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, locks, modules);
 
     Ok((
         GloablProcessors {
