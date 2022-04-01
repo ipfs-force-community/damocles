@@ -11,24 +11,34 @@ type SectorState struct {
 	SectorType abi.RegisteredSealProof
 
 	// may be nil
-	Deals  Deals
-	Ticket *Ticket
-	Seed   *Seed
-	Pre    *PreCommitInfo
-	Proof  *ProofInfo
+	Ticket *Ticket        `json:",omitempty"`
+	Seed   *Seed          `json:",omitempty"`
+	Pieces Deals          `json:"Deals"`
+	Pre    *PreCommitInfo `json:",omitempty"`
+	Proof  *ProofInfo     `json:",omitempty"`
 
 	MessageInfo MessageInfo
 
-	LatestState *ReportStateReq
+	LatestState *ReportStateReq `json:",omitempty"`
 	Finalized   Finalized
 	AbortReason string
 }
 
 func (s SectorState) DealIDs() []abi.DealID {
-	res := make([]abi.DealID, 0, len(s.Deals))
-	for i := range s.Deals {
-		if id := s.Deals[i].ID; id != 0 {
+	res := make([]abi.DealID, 0, len(s.Pieces))
+	for i := range s.Pieces {
+		if id := s.Pieces[i].ID; id != 0 {
 			res = append(res, id)
+		}
+	}
+	return res
+}
+
+func (s SectorState) Deals() Deals {
+	res := make([]DealInfo, 0)
+	for _, piece := range s.Pieces {
+		if piece.ID != 0 {
+			res = append(res, piece)
 		}
 	}
 	return res

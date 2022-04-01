@@ -87,7 +87,8 @@ func checkPieces(ctx context.Context, maddr address.Address, si apitypes.SectorS
 		return &ErrApi{fmt.Errorf("getting chain head: %w", err)}
 	}
 
-	for i, p := range si.Deals {
+	deals := si.Deals()
+	for i, p := range deals {
 		// if no deal is associated with the piece, ensure that we added it as
 		// filler (i.e. ensure that it has a zero PieceCID)
 
@@ -97,19 +98,19 @@ func checkPieces(ctx context.Context, maddr address.Address, si apitypes.SectorS
 		}
 
 		if proposal.Provider != maddr {
-			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong provider: %s != %s", i, len(si.Deals), si.ID, p.ID, proposal.Provider, maddr)}
+			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong provider: %s != %s", i, len(deals), si.ID, p.ID, proposal.Provider, maddr)}
 		}
 
 		if proposal.PieceCID != p.Piece.Cid {
-			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong PieceCID: %x != %x", i, len(si.Deals), si.ID, p.ID, p.Piece.Cid, proposal.PieceCID)}
+			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong PieceCID: %x != %x", i, len(deals), si.ID, p.ID, p.Piece.Cid, proposal.PieceCID)}
 		}
 
 		if p.Piece.Size != proposal.PieceSize {
-			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with different size: %d != %d", i, len(si.Deals), si.ID, p.ID, p.Piece.Size, proposal.PieceSize)}
+			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with different size: %d != %d", i, len(deals), si.ID, p.ID, p.Piece.Size, proposal.PieceSize)}
 		}
 
 		if height >= proposal.StartEpoch {
-			return &ErrExpiredDeals{fmt.Errorf("piece %d (of %v) of sector %d refers expired deal %d - should start at %d, head %d", i, len(si.Deals), si.ID, p.ID, proposal.StartEpoch, height)}
+			return &ErrExpiredDeals{fmt.Errorf("piece %d (of %v) of sector %d refers expired deal %d - should start at %d, head %d", i, len(deals), si.ID, p.ID, proposal.StartEpoch, height)}
 		}
 	}
 

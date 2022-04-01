@@ -168,10 +168,11 @@ var utilSealerSectorsListCmd = &cli.Command{
 			}
 
 			fmt.Fprintln(os.Stdout, "\tDeals:")
-			if state.Deals == nil {
+			deals := state.Deals()
+			if len(deals) == 0 {
 				fmt.Fprintln(os.Stdout, "\t\tNULL")
 			} else {
-				for _, deal := range state.Deals {
+				for _, deal := range deals {
 					fmt.Fprintf(os.Stdout, "\t\tID: %d\n", deal.ID)
 					fmt.Fprintf(os.Stdout, "\t\tPiece: %v\n", deal.Piece)
 				}

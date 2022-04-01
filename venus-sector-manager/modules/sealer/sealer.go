@@ -123,42 +123,42 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.Ac
 		return nil, fmt.Errorf("load sector state: %w", err)
 	}
 
-	if len(state.Deals) != 0 {
-		return state.Deals, nil
+	if len(state.Pieces) != 0 {
+		return state.Pieces, nil
 	}
 
-	deals, err := s.deal.Acquire(ctx, sid, spec.MaxDeals)
+	pieces, err := s.deal.Acquire(ctx, sid, spec.MaxDeals)
 	if err != nil {
 		return nil, err
 	}
 
 	success := false
-	slog := sectorLogger(sid).With("total-pieces", len(deals))
+	slog := sectorLogger(sid).With("total-pieces", len(pieces))
 
 	slog.Debugw("deals acquired")
 
 	defer func() {
 		if !success {
-			if rerr := s.deal.Release(ctx, sid, deals); rerr != nil {
+			if rerr := s.deal.Release(ctx, sid, pieces); rerr != nil {
 				slog.Errorf("failed to release deals %v", rerr)
 			}
 		}
 	}()
 
 	// validate deals
-	for di := range deals {
+	for di := range pieces {
 		// should be a pledge piece
-		dinfo := deals[di]
-		if dinfo.ID == 0 {
-			expected := zerocomm.ZeroPieceCommitment(dinfo.Piece.Size.Unpadded())
-			if !expected.Equals(dinfo.Piece.Cid) {
-				slog.Errorw("got unexpected non-deal piece", "piece-seq", di, "piece-size", dinfo.Piece.Size, "piece-cid", dinfo.Piece.Cid)
+		piece := pieces[di]
+		if piece.ID == 0 {
+			expected := zerocomm.ZeroPieceCommitment(piece.Piece.Size.Unpadded())
+			if !expected.Equals(piece.Piece.Cid) {
+				slog.Errorw("got unexpected non-deal piece", "piece-seq", di, "piece-size", piece.Piece.Size, "piece-cid", piece.Piece.Cid)
 				return nil, fmt.Errorf("got unexpected non-deal piece")
 			}
 		}
 	}
 
-	err = s.state.Update(ctx, sid, deals)
+	err = s.state.Update(ctx, sid, pieces)
 	if err != nil {
 		slog.Errorf("failed to update sector state: %v", err)
 		return nil, err
@@ -166,7 +166,7 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.Ac
 
 	success = true
 
-	return deals, nil
+	return pieces, nil
 }
 
 func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket, error) {
@@ -290,7 +290,7 @@ func (s *Sealer) RestoreSector(ctx context.Context, sid abi.SectorID, forced boo
 	var onRestore func(st *api.SectorState) error
 	if !forced {
 		onRestore = func(st *api.SectorState) error {
-			if len(st.Deals) != 0 {
+			if len(st.Pieces) != 0 {
 				return fmt.Errorf("sector with deals can not be normally restored")
 			}
 
@@ -330,8 +330,8 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (api.Met
 
 func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason string) (api.Meta, error) {
 	err := s.state.Finalize(ctx, sid, func(st *api.SectorState) error {
-		if dealCount := len(st.Deals); dealCount > 0 {
-			err := s.deal.Release(ctx, sid, st.Deals)
+		if dealCount := len(st.Pieces); dealCount > 0 {
+			err := s.deal.Release(ctx, sid, st.Pieces)
 			if err != nil {
 				return fmt.Errorf("release deals in sector: %w", err)
 			}
