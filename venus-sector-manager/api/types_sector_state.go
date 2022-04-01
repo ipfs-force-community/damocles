@@ -34,7 +34,7 @@ func (s SectorState) DealIDs() []abi.DealID {
 	return res
 }
 
-func (s SectorState) Deals() Deals{
+func (s SectorState) Deals() Deals {
 	res := make([]DealInfo, 0)
 	for _, piece := range s.Pieces {
 		if piece.ID != 0 {
