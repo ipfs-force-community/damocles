@@ -145,7 +145,8 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.Ac
 		}
 	}()
 
-	// validate deals
+	// validate deals & pick real deals
+	realDeals := make(api.Deals, 0)
 	for di := range deals {
 		// should be a pledge piece
 		dinfo := deals[di]
@@ -155,10 +156,14 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.Ac
 				slog.Errorw("got unexpected non-deal piece", "piece-seq", di, "piece-size", dinfo.Piece.Size, "piece-cid", dinfo.Piece.Cid)
 				return nil, fmt.Errorf("got unexpected non-deal piece")
 			}
+			continue
 		}
+
+		realDeals = append(realDeals, dinfo)
 	}
 
-	err = s.state.Update(ctx, sid, deals)
+	// only store real deals
+	err = s.state.Update(ctx, sid, realDeals)
 	if err != nil {
 		slog.Errorf("failed to update sector state: %v", err)
 		return nil, err
