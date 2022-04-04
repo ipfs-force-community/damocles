@@ -49,7 +49,7 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, maxDeals *
 		spec.MaxPiece = int(*maxDeals)
 	}
 
-	dinfos, err := dm.market.AssignUnPackedDeals(ctx, minfo.Addr, minfo.SectorSize, spec)
+	dinfos, err := dm.market.AssignUnPackedDeals(ctx, sid, minfo.SectorSize, spec)
 	if err != nil {
 		return nil, fmt.Errorf("assign non-packed deals: %w", err)
 	}
