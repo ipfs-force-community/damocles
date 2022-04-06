@@ -18,7 +18,7 @@ require (
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
 	github.com/filecoin-project/specs-actors/v7 v7.0.0-rc1
 	github.com/filecoin-project/specs-storage v0.2.0
-	github.com/filecoin-project/venus v1.2.2-0.20220225063919-ed9c00da1a10
+	github.com/filecoin-project/venus v1.2.4-0.20220404074220-277186d62e53
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
