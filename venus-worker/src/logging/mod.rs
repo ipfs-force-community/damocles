@@ -38,7 +38,7 @@ pub fn init() -> Result<()> {
         .with_ansi(std::io::stderr().is_tty())
         .with_target(true)
         .with_thread_ids(true)
-        .with_timer(time::LocalTime::rfc_3339())
+        .with_timer(time::UtcTime::rfc_3339())
         .with_filter(env_filter.or(worker_env_filter));
 
     registry().with(fmt_layer).init();
