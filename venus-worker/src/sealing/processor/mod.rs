@@ -74,9 +74,9 @@ where
 }
 
 /// abstraction for inputs of one stage
-pub trait Input: Serialize + DeserializeOwned + Debug + Send + Sync
+pub trait Input: Serialize + DeserializeOwned + Debug + Send + Sync + 'static
 where
-    Self::Out: Serialize + DeserializeOwned + Debug + Send + Sync,
+    Self::Out: Serialize + DeserializeOwned + Debug + Send + Sync + 'static,
 {
     /// the stage which this input belongs to
     const STAGE: Stage;

@@ -40,6 +40,7 @@ pub struct GlobalModules {
     pub processors: GloablProcessors,
     pub static_tree_d: HashMap<u64, PathBuf>,
     pub limit: Arc<Pool>,
+    pub ext_locks: Arc<Pool>,
     pub rt: Arc<Runtime>,
     pub piece_store: Option<Arc<Box<dyn PieceStore>>>,
 }

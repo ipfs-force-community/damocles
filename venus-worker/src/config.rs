@@ -134,6 +134,8 @@ pub struct RPCServer {
 pub struct Processors {
     pub limit: Option<HashMap<String, usize>>,
 
+    pub ext_locks: Option<HashMap<String, usize>>,
+
     /// static tree_d paths for cc sectors
     pub static_tree_d: Option<HashMap<String, String>>,
 
