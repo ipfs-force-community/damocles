@@ -3,6 +3,7 @@ package dealmgr
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -27,6 +28,8 @@ type DealManager struct {
 	market market.API
 	info   api.MinerInfoAPI
 	scfg   *modules.SafeConfig
+
+	acquireMu sync.Mutex
 }
 
 func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, maxDeals *uint) (api.Deals, error) {
@@ -48,6 +51,9 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, maxDeals *
 	if maxDeals != nil {
 		spec.MaxPiece = int(*maxDeals)
 	}
+
+	dm.acquireMu.Lock()
+	defer dm.acquireMu.Unlock()
 
 	dinfos, err := dm.market.AssignUnPackedDeals(ctx, sid, minfo.SectorSize, spec)
 	if err != nil {
