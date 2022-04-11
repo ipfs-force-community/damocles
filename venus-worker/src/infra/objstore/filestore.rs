@@ -6,6 +6,7 @@ use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
 use anyhow::{anyhow, Context, Result};
+use nix::sys::statvfs::statvfs;
 
 use super::{ObjResult, ObjectStore, Range};
 use crate::logging::{debug_field, trace};
@@ -165,6 +166,11 @@ impl ObjectStore for FileStore {
 
     fn readonly(&self) -> bool {
         self.readonly
+    }
+
+    fn free_space(&self) -> ObjResult<u64> {
+        let stat = statvfs(&self.local_path).context("get via statvfs")?;
+        Ok(stat.block_size() * stat.blocks_free())
     }
 }
 
