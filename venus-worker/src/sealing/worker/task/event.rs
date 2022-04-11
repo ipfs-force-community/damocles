@@ -27,9 +27,9 @@ pub enum Event {
 
     BuildTreeD,
 
-    AssignTicket(Ticket),
+    AssignTicket(Option<Ticket>),
 
-    PC1(SealPreCommitPhase1Output),
+    PC1(Ticket, SealPreCommitPhase1Output),
 
     PC2(SealPreCommitPhase2Output),
 
@@ -82,7 +82,7 @@ impl Debug for Event {
 
             Self::AssignTicket(_) => "AssignTicket",
 
-            Self::PC1(_) => "PC1",
+            Self::PC1(_, _) => "PC1",
 
             Self::PC2(_) => "PC2",
 
@@ -188,10 +188,11 @@ impl Event {
             Self::BuildTreeD => {}
 
             Self::AssignTicket(ticket) => {
-                replace!(s.phases.ticket, ticket);
+                mem_replace!(s.phases.ticket, ticket);
             }
 
-            Self::PC1(out) => {
+            Self::PC1(ticket, out) => {
+                replace!(s.phases.ticket, ticket);
                 replace!(s.phases.pc1out, out);
             }
 
