@@ -50,7 +50,7 @@ impl Planner for SealerPlanner {
             },
 
             State::TicketAssigned => {
-                Event::PC1(_) => State::PC1Done,
+                Event::PC1(_, _) => State::PC1Done,
             },
 
             State::PC1Done => {
@@ -260,15 +260,7 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_tree_d_built(&self) -> ExecResult {
-        let sector_id = self.task.sector_id()?.clone();
-
-        let ticket = call_rpc! {
-            self.task.ctx.global.rpc,
-            assign_ticket,
-            sector_id,
-        }?;
-
-        Ok(Event::AssignTicket(ticket))
+        Ok(Event::AssignTicket(None))
     }
 
     fn cleanup_before_pc1(&self, cache_dir: &PathBuf, sealed_file: &PathBuf) -> Result<()> {
@@ -295,10 +287,13 @@ impl<'c, 't> Sealer<'c, 't> {
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
 
-        field_required! {
-            ticket,
-            self.task.sector.phases.ticket.as_ref().map(|t| t.ticket.clone())
-        }
+        let ticket = call_rpc! {
+            self.task.ctx.global.rpc,
+            assign_ticket,
+            sector_id.clone(),
+        }?;
+
+        debug!(ticket = ?ticket.ticket.0, epoch = ticket.epoch, "ticket assigned from sector-manager");
 
         field_required! {
             piece_infos,
@@ -336,13 +331,13 @@ impl<'c, 't> Sealer<'c, 't> {
                 out_path: sealed_file.into(),
                 prover_id: prove_input.0,
                 sector_id: prove_input.1,
-                ticket: ticket.0,
+                ticket: ticket.ticket.0.clone(),
                 piece_infos,
             })
             .perm()?;
 
         drop(token);
-        Ok(Event::PC1(out))
+        Ok(Event::PC1(ticket, out))
     }
 
     fn cleanup_before_pc2(&self, cache_dir: &PathBuf) -> Result<()> {
