@@ -30,27 +30,32 @@ impl Worker for ServiceImpl {
             .ctrls
             .iter()
             .map(|(idx, ctrl)| {
-                let name: &str = ctrl.sealing_state.load().into();
-                let sector_id = unsafe { ctrl.sector_id.as_ptr().as_ref() }
-                    .and_then(|inner| inner.as_ref())
-                    .cloned();
-                let last_error = unsafe { ctrl.last_sealing_error.as_ptr().as_ref() }
-                    .and_then(|inner| inner.as_ref())
-                    .cloned();
-                WorkerInfo {
+                let (state, sector_id, last_error, paused_at) = ctrl
+                    .load_state(|cst| {
+                        (
+                            cst.job.state,
+                            cst.job.id.to_owned(),
+                            cst.job.last_error.to_owned(),
+                            cst.paused_at.to_owned(),
+                        )
+                    })
+                    .map_err(|e| {
+                        let mut err = Error::internal_error();
+                        err.message = e.to_string();
+                        err
+                    })?;
+
+                Ok(WorkerInfo {
                     location: ctrl.location.to_pathbuf(),
                     sector_id,
                     index: *idx,
-                    paused: ctrl.paused.load(),
-                    paused_elapsed: ctrl
-                        .paused_at
-                        .load()
-                        .map(|ins| format!("{:?}", ins.elapsed())),
-                    state: name.to_owned(),
+                    paused: paused_at.is_some(),
+                    paused_elapsed: paused_at.map(|ins| format!("{:?}", ins.elapsed())),
+                    state: state.as_str().to_owned(),
                     last_error,
-                }
+                })
             })
-            .collect())
+            .collect::<Result<_>>()?)
     }
 
     fn worker_pause(&self, index: usize) -> Result<bool> {

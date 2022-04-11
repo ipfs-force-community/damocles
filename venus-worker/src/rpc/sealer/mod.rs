@@ -68,6 +68,12 @@ impl From<Vec<u8>> for B64Vec {
     }
 }
 
+impl From<&Vec<u8>> for B64Vec {
+    fn from(val: &Vec<u8>) -> B64Vec {
+        B64Vec(val.clone())
+    }
+}
+
 /// type alias for u64
 pub type DealID = u64;
 
@@ -166,6 +172,8 @@ pub enum SubmitResult {
 
     /// submission is rejected for some reason
     Rejected = 4,
+
+    FilesMissed = 5,
 }
 
 /// state for submitted pre_commit or proof
@@ -309,6 +317,41 @@ pub struct SectorFailure {
     pub desc: String,
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct AllocateSnapUpSpec {
+    pub sector: AllocateSectorSpec,
+    pub deals: AcquireDealsSpec,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SectorPublicInfo {
+    pub comm_r: [u8; 32],
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SectorPrivateInfo {
+    pub access_instance: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct AllocatedSnapUpSector {
+    pub sector: AllocatedSector,
+    pub pieces: Deals,
+    pub public: SectorPublicInfo,
+    pub private: SectorPrivateInfo,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SubmitSnapUpProofResp {
+    pub res: SubmitResult,
+    pub desc: Option<String>,
+}
+
 /// defines the SealerRpc service
 #[rpc]
 pub trait Sealer {
@@ -365,4 +408,22 @@ pub trait Sealer {
     /// api definition
     #[rpc(name = "Venus.ReportFinalized")]
     fn report_finalized(&self, id: SectorID) -> Result<()>;
+
+    // snap up
+    /// api definition
+    #[rpc(name = "Venus.AllocateSanpUpSector")]
+    fn allocate_snapup_sector(
+        &self,
+        spec: AllocateSnapUpSpec,
+    ) -> Result<Option<AllocatedSnapUpSector>>;
+
+    /// api definition
+    #[rpc(name = "Venus.SubmitSnapUpProof")]
+    fn submit_snapup_proof(
+        &self,
+        id: SectorID,
+        pieces: Vec<CidJson>,
+        proof: B64Vec,
+        instance: String,
+    ) -> Result<SubmitSnapUpProofResp>;
 }

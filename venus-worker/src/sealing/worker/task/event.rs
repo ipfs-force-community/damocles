@@ -3,32 +3,16 @@ use std::fmt::{self, Debug};
 use anyhow::{anyhow, Result};
 use forest_address::Address;
 
-use super::sector::{Base, Sector, State};
+use super::{
+    sector::{Base, Finalized, Sector, State},
+    Planner,
+};
 use crate::logging::trace;
 use crate::rpc::sealer::{AllocatedSector, Deals, Seed, Ticket};
 use crate::sealing::processor::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
-    SealPreCommitPhase2Output, SectorId,
+    SealPreCommitPhase2Output, SectorId, SnapEncodeOutput,
 };
-
-macro_rules! plan {
-    ($e:expr, $st:expr, $($prev:pat => {$($evt:pat => $next:expr,)+},)*) => {
-        match $st {
-            $(
-                $prev => {
-                    match $e {
-                        $(
-                            $evt => $next,
-                        )+
-                        _ => return Err(anyhow!("unexpected event {:?} for state {:?}", $e, $st)),
-                    }
-                }
-            )*
-
-            other => return Err(anyhow!("unexpected state {:?}", other)),
-        }
-    };
-}
 
 pub enum Event {
     SetState(State),
@@ -70,6 +54,15 @@ pub enum Event {
     ReSubmitProof,
 
     Finish,
+
+    // for snap up
+    AllocatedSnapUpSector(AllocatedSector, Deals, Finalized),
+
+    SnapEncode(SnapEncodeOutput),
+
+    SnapProve(Vec<u8>),
+
+    RePersist,
 }
 
 impl Debug for Event {
@@ -114,6 +107,15 @@ impl Debug for Event {
             Self::ReSubmitProof => "ReSubmitProof",
 
             Self::Finish => "Finish",
+
+            // for snap up
+            Self::AllocatedSnapUpSector(_, _, _) => "AllocatedSnapUpSector",
+
+            Self::SnapEncode(_) => "SnapEncode",
+
+            Self::SnapProve(_) => "SnapProve",
+
+            Self::RePersist => "RePersist",
         };
 
         f.write_str(name)
@@ -137,11 +139,11 @@ macro_rules! mem_replace {
 }
 
 impl Event {
-    pub fn apply(self, s: &mut Sector) -> Result<()> {
+    pub fn apply<P: Planner>(self, p: &P, s: &mut Sector) -> Result<()> {
         let next = if let Event::SetState(s) = self {
             s
         } else {
-            self.plan(&s.state)?
+            p.plan(&self, &s.state)?
         };
 
         if next == s.state {
@@ -234,88 +236,34 @@ impl Event {
             Self::SubmitPersistance => {}
 
             Self::Finish => {}
+
+            // for snap up
+            Self::AllocatedSnapUpSector(sector, deals, finalized) => {
+                let mut prover_id: ProverId = Default::default();
+                let actor_addr_payload = Address::new_id(sector.id.miner).payload_bytes();
+                prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
+
+                let sector_id = SectorId::from(sector.id.number);
+
+                let base = Base {
+                    allocated: sector,
+                    prove_input: (prover_id, sector_id),
+                };
+
+                replace!(s.base, base);
+                replace!(s.deals, deals);
+                replace!(s.finalized, finalized);
+            }
+
+            Self::SnapEncode(out) => {
+                replace!(s.phases.snap_encode_out, out);
+            }
+
+            Self::SnapProve(out) => {
+                replace!(s.phases.snap_prov_out, out);
+            }
+
+            Self::RePersist => {}
         };
-    }
-
-    fn plan(&self, st: &State) -> Result<State> {
-        // syntax:
-        // prev_state => {
-        //      event0 => next_state0,
-        //      event1 => next_state1,
-        //      ...
-        // },
-        //
-        let next = plan! {
-            self,
-            st,
-
-            State::Empty => {
-                Event::Allocate(_) => State::Allocated,
-            },
-
-            State::Allocated => {
-                Event::AcquireDeals(_) => State::DealsAcquired,
-            },
-
-            State::DealsAcquired => {
-                Event::AddPiece(_) => State::PieceAdded,
-            },
-
-            State::PieceAdded => {
-                Event::BuildTreeD => State::TreeDBuilt,
-            },
-
-            State::TreeDBuilt => {
-                Event::AssignTicket(_) => State::TicketAssigned,
-            },
-
-            State::TicketAssigned => {
-                Event::PC1(_) => State::PC1Done,
-            },
-
-            State::PC1Done => {
-                Event::PC2(_) => State::PC2Done,
-            },
-
-            State::PC2Done => {
-                Event::SubmitPC => State::PCSubmitted,
-            },
-
-            State::PCSubmitted => {
-                Event::ReSubmitPC => State::PC2Done,
-                Event::CheckPC => State::PCLanded,
-            },
-
-            State::PCLanded => {
-                Event::Persist(_) => State::Persisted,
-            },
-
-            State::Persisted => {
-                Event::SubmitPersistance => State::PersistanceSubmitted,
-            },
-
-            State::PersistanceSubmitted => {
-                Event::AssignSeed(_) => State::SeedAssigned,
-            },
-
-            State::SeedAssigned => {
-                Event::C1(_) => State::C1Done,
-            },
-
-            State::C1Done => {
-                Event::C2(_) => State::C2Done,
-            },
-
-            State::C2Done => {
-                Event::SubmitProof => State::ProofSubmitted,
-            },
-
-            State::ProofSubmitted => {
-                Event::ReSubmitProof => State::C2Done,
-                Event::Finish => State::Finished,
-            },
-        };
-
-        Ok(next)
     }
 }

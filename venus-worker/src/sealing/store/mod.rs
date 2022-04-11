@@ -1,15 +1,19 @@
 //! definition of the sealing store
 
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::fs::{create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
+use byte_unit::Byte;
+use fil_types::ActorID;
 
 use crate::infra::util::PlaceHolder;
 use crate::logging::{debug_field, warn};
 use crate::metadb::rocks::RocksMeta;
 use crate::sealing::worker::{Ctrl, Worker};
+use crate::types::SealProof;
 
 use crate::config::{Sealing, SealingOptional, SealingThread};
 
@@ -57,6 +61,9 @@ pub struct Store {
     /// storage location
     pub location: Location,
 
+    /// storage usage plan
+    pub plan: Option<String>,
+
     /// sub path for data dir
     pub data_path: PathBuf,
 
@@ -66,6 +73,12 @@ pub struct Store {
     /// embedded meta database for current store
     pub meta: RocksMeta,
     meta_path: PathBuf,
+
+    /// allowed miners parsed from config
+    pub allowed_miners: Option<Vec<ActorID>>,
+
+    /// allowed proof types from config
+    pub allowed_proof_types: Option<Vec<SealProof>>,
 
     _holder: PlaceHolder,
 }
@@ -88,7 +101,27 @@ impl Store {
     }
 
     /// opens the store at given location
-    fn open(loc: PathBuf, config: Sealing) -> Result<Self> {
+    fn open(loc: PathBuf, config: Sealing, plan: Option<String>) -> Result<Self> {
+        let allowed_miners = config.allowed_miners.as_ref().cloned();
+        let allowed_proof_types = config
+            .allowed_sizes
+            .as_ref()
+            .map(|sizes| {
+                sizes
+                    .iter()
+                    .map(|size_str| {
+                        Byte::from_str(size_str.as_str())
+                            .with_context(|| format!("invalid size string {}", &size_str))
+                            .and_then(|s| {
+                                (s.get_bytes() as u64).try_into().with_context(|| {
+                                    format!("invalid SealProof from {}", &size_str)
+                                })
+                            })
+                    })
+                    .collect::<Result<Vec<_>>>()
+            })
+            .transpose()?;
+
         let location = Location(loc);
         let data_path = location.data_path();
         if !data_path
@@ -107,10 +140,13 @@ impl Store {
 
         Ok(Store {
             location,
+            plan,
             data_path,
             config,
             meta,
             meta_path,
+            allowed_miners,
+            allowed_proof_types,
             _holder,
         })
     }
@@ -233,8 +269,12 @@ impl StoreManager {
             }
 
             let sealing_config = customized_sealing_config(common, scfg.sealing.as_ref());
-            let store = Store::open(store_path.clone(), sealing_config)
-                .with_context(|| format!("open store {:?}", store_path))?;
+            let store = Store::open(
+                store_path.clone(),
+                sealing_config,
+                scfg.plan.as_ref().cloned(),
+            )
+            .with_context(|| format!("open store {:?}", store_path))?;
             stores.insert(store_path, store);
         }
 

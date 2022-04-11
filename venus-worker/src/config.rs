@@ -110,6 +110,8 @@ pub struct SealingThread {
     /// store location
     pub location: String,
 
+    pub plan: Option<String>,
+
     /// special sealing configuration
     pub sealing: Option<SealingOptional>,
 }
@@ -148,6 +150,12 @@ pub struct Processors {
 
     /// section for c2 processor
     pub c2: Option<Vec<Ext>>,
+
+    /// section for pc2 processor
+    pub snap_encode: Option<Vec<Ext>>,
+
+    /// section for c2 processor
+    pub snap_prove: Option<Vec<Ext>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
