@@ -198,7 +198,7 @@ impl<'c, 't> Sealer<'c, 't> {
             acquire_deals,
             sector_id,
             AcquireDealsSpec {
-                max_deals: None,
+                max_deals: self.task.store.config.max_deals.as_ref().cloned(),
             },
         }?;
 
