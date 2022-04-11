@@ -187,3 +187,20 @@ where
         self.map_err(|e| Error::new(e).crit())
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct Interrupt;
+
+impl std::fmt::Display for Interrupt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("interrupt")
+    }
+}
+
+impl StdError for Interrupt {}
+
+impl From<Interrupt> for Failure {
+    fn from(int: Interrupt) -> Self {
+        Failure(Level::Permanent, int.into())
+    }
+}

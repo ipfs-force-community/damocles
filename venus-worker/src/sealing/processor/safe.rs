@@ -187,3 +187,21 @@ pub fn snap_generate_sector_update_proof(
         )
     }
 }
+
+pub fn snap_verify_sector_update_proof(
+    registered_proof: RegisteredUpdateProof,
+    proof: &[u8],
+    comm_r_old: Commitment,
+    comm_r_new: Commitment,
+    comm_d_new: Commitment,
+) -> Result<bool> {
+    safe_call! {
+        verify_empty_sector_update_proof(
+            registered_proof,
+            proof,
+            comm_r_old,
+            comm_r_new,
+            comm_d_new,
+        )
+    }
+}

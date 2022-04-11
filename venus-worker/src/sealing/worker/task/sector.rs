@@ -5,10 +5,12 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub use fil_clock::ChainEpoch;
 pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness};
 
-use crate::rpc::sealer::{AllocatedSector, Deals, Seed, Ticket};
+use crate::rpc::sealer::{
+    AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket,
+};
 use crate::sealing::processor::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
-    SealPreCommitPhase2Output, SectorId,
+    SealPreCommitPhase2Output, SectorId, SnapEncodeOutput,
 };
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
@@ -73,6 +75,8 @@ def_state! {
     ProofSubmitted,
     Finished,
     Aborted,
+    SnapEncoded,
+    SnapProved,
 }
 
 impl std::fmt::Debug for State {
@@ -116,6 +120,11 @@ pub struct Phases {
     pub c2out: Option<SealCommitPhase2Output>,
 
     pub c2_re_submit: bool,
+
+    // snap up
+    pub snap_encode_out: Option<SnapEncodeOutput>,
+
+    pub snap_prov_out: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -124,9 +133,17 @@ pub struct Base {
     pub prove_input: (ProverId, SectorId),
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Finalized {
+    pub public: SectorPublicInfo,
+    pub private: SectorPrivateInfo,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Sector {
     pub version: u32,
+
+    pub plan: Option<String>,
 
     pub state: State,
     pub prev_state: Option<State>,
@@ -137,20 +154,16 @@ pub struct Sector {
     // deal pieces
     pub deals: Option<Deals>,
 
+    pub finalized: Option<Finalized>,
+
     pub phases: Phases,
 }
 
 impl Sector {
-    pub fn update_state(&mut self, next: State) {
-        let prev = std::mem::replace(&mut self.state, next);
-        self.prev_state.replace(prev);
-    }
-}
-
-impl Default for Sector {
-    fn default() -> Self {
+    pub fn new(plan: Option<String>) -> Self {
         Sector {
             version: CURRENT_SECTOR_VERSION,
+            plan,
 
             state: Default::default(),
             prev_state: None,
@@ -160,7 +173,14 @@ impl Default for Sector {
 
             deals: None,
 
+            finalized: None,
+
             phases: Default::default(),
         }
+    }
+
+    pub fn update_state(&mut self, next: State) {
+        let prev = std::mem::replace(&mut self.state, next);
+        self.prev_state.replace(prev);
     }
 }

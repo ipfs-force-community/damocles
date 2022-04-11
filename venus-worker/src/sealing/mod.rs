@@ -2,6 +2,7 @@
 
 mod worker;
 
+pub(self) mod failure;
 pub mod processor;
 pub mod resource;
 pub mod service;
