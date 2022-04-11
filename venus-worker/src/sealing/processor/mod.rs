@@ -13,6 +13,27 @@ pub use safe::*;
 
 mod proof;
 
+/// name str for tree_d
+pub const STAGE_NAME_TREED: &str = "tree_d";
+
+/// name str for pc1
+pub const STAGE_NAME_PC1: &str = "pc1";
+
+/// name str for pc2
+pub const STAGE_NAME_PC2: &str = "pc2";
+
+/// name str for c1
+pub const STAGE_NAME_C1: &str = "c1";
+
+/// name str for c2
+pub const STAGE_NAME_C2: &str = "c2";
+
+/// name str for snap encode
+pub const STAGE_NAME_SNAP_ENCODE: &str = "snap-encode";
+
+/// name str for snap prove
+pub const STAGE_NAME_SNAP_PROVE: &str = "snap-prove";
+
 /// enum for processor stages
 #[derive(Copy, Clone, Debug)]
 pub enum Stage {
@@ -32,22 +53,22 @@ pub enum Stage {
     C2,
 
     /// snap_encode_into
-    SnapReplicaUpdate,
+    SnapEncode,
 
     /// snap_generate_sector_update_proof
-    SnapProveReplicaUpdate,
+    SnapProve,
 }
 
 impl Stage {
     fn name(&self) -> &'static str {
         match self {
-            Stage::TreeD => "tree_d",
-            Stage::PC1 => "pc1",
-            Stage::PC2 => "pc2",
-            Stage::C1 => "c1",
-            Stage::C2 => "c2",
-            Stage::SnapReplicaUpdate => "snap-ru",
-            Stage::SnapProveReplicaUpdate => "snap-pru",
+            Stage::TreeD => STAGE_NAME_TREED,
+            Stage::PC1 => STAGE_NAME_PC1,
+            Stage::PC2 => STAGE_NAME_PC2,
+            Stage::C1 => STAGE_NAME_C1,
+            Stage::C2 => STAGE_NAME_C2,
+            Stage::SnapEncode => STAGE_NAME_SNAP_ENCODE,
+            Stage::SnapProve => STAGE_NAME_SNAP_PROVE,
         }
     }
 }
@@ -63,6 +84,8 @@ pub type BoxedTreeDProcessor = BoxedProcessor<TreeDInput>;
 pub type BoxedPC1Processor = BoxedProcessor<PC1Input>;
 pub type BoxedPC2Processor = BoxedProcessor<PC2Input>;
 pub type BoxedC2Processor = BoxedProcessor<C2Input>;
+pub type BoxedSnapEncodeProcessor = BoxedProcessor<SnapEncodeInput>;
+pub type BoxedSnapProveProcessor = BoxedProcessor<SnapProveInput>;
 
 pub trait Processor<I>: Send + Sync
 where
@@ -176,27 +199,40 @@ impl Input for C2Input {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-/// inputs for stage SnapReplicaUpdate
-pub struct SnapReplicaUpdateInput {
-    registered_proof: RegisteredUpdateProof,
-    new_replica_path: PathBuf,
-    new_cache_path: PathBuf,
-    sector_path: PathBuf,
-    sector_cache_path: PathBuf,
-    staged_data_path: PathBuf,
-    piece_infos: Vec<PieceInfo>,
+/// inputs for stage SnapEncode
+pub struct SnapEncodeInput {
+    /// field used in snap encode stage
+    pub registered_proof: RegisteredUpdateProof,
+
+    /// field used in snap encode stage
+    pub new_replica_path: PathBuf,
+
+    /// field used in snap encode stage
+    pub new_cache_path: PathBuf,
+
+    /// field used in snap encode stage
+    pub sector_path: PathBuf,
+
+    /// field used in snap encode stage
+    pub sector_cache_path: PathBuf,
+
+    /// field used in snap encode stage
+    pub staged_data_path: PathBuf,
+
+    /// field used in snap encode stage
+    pub piece_infos: Vec<PieceInfo>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SnapReplicaUpdateOutput {
+pub struct SnapEncodeOutput {
     pub comm_r_new: Commitment,
     pub comm_r_last_new: Commitment,
     pub comm_d_new: Commitment,
 }
 
-impl Input for SnapReplicaUpdateInput {
-    const STAGE: Stage = Stage::SnapReplicaUpdate;
-    type Out = SnapReplicaUpdateOutput;
+impl Input for SnapEncodeInput {
+    const STAGE: Stage = Stage::SnapEncode;
+    type Out = SnapEncodeOutput;
 
     fn process(self) -> Result<Self::Out> {
         snap_encode_into(
@@ -208,7 +244,7 @@ impl Input for SnapReplicaUpdateInput {
             self.staged_data_path,
             &self.piece_infos[..],
         )
-        .map(|out| SnapReplicaUpdateOutput {
+        .map(|out| SnapEncodeOutput {
             comm_r_new: out.comm_r_new,
             comm_r_last_new: out.comm_r_last_new,
             comm_d_new: out.comm_d_new,
@@ -217,18 +253,29 @@ impl Input for SnapReplicaUpdateInput {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-/// inputs for stage SnapProveReplicaUpdate
-pub struct SnapProveReplicaUpdateInput {
-    registered_proof: RegisteredUpdateProof,
-    vannilla_proofs: Vec<Vec<u8>>,
-    comm_r_old: Commitment,
-    comm_r_new: Commitment,
-    comm_d_new: Commitment,
+/// inputs for stage SnapProve
+pub struct SnapProveInput {
+    /// field of registered update proof type
+    pub registered_proof: RegisteredUpdateProof,
+
+    /// field of vannilla proofs
+    pub vannilla_proofs: Vec<Vec<u8>>,
+
+    /// field of old comm_r
+    pub comm_r_old: Commitment,
+
+    /// field of new comm_r
+    pub comm_r_new: Commitment,
+
+    /// field of new comm_d
+    pub comm_d_new: Commitment,
 }
 
-impl Input for SnapProveReplicaUpdateInput {
-    const STAGE: Stage = Stage::SnapProveReplicaUpdate;
-    type Out = Vec<u8>;
+pub type SnapProveOutput = Vec<u8>;
+
+impl Input for SnapProveInput {
+    const STAGE: Stage = Stage::SnapProve;
+    type Out = SnapProveOutput;
 
     fn process(self) -> Result<Self::Out> {
         snap_generate_sector_update_proof(
