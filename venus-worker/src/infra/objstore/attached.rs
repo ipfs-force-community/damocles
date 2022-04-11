@@ -73,7 +73,7 @@ impl AttachedManager {
         match weighted_instances.choose_weighted(&mut OsRng, |ins| ins.1) {
             Ok(ins) => {
                 let space = byte_unit::Byte::from(ins.1).get_appropriate_unit(true);
-                debug!(free = %space.to_string(), "store selected");
+                debug!(free = %space.to_string(), instance = %ins.0.instance(), "store selected");
                 Some(ins.0.as_ref())
             }
             Err(e) => {
