@@ -29,6 +29,9 @@ pub struct Sealing {
     /// enable sealing sectors with deal pieces
     pub enable_deals: bool,
 
+    /// max limit of deals count inside one sector
+    pub max_deals: Option<usize>,
+
     /// max retry times for tempoary failed sector
     pub max_retries: u32,
 
@@ -51,6 +54,7 @@ impl Default for Sealing {
             allowed_miners: None,
             allowed_sizes: None,
             enable_deals: false,
+            max_deals: None,
             max_retries: 5,
             seal_interval: Duration::from_secs(30),
             recover_interval: Duration::from_secs(30),
@@ -71,6 +75,9 @@ pub struct SealingOptional {
 
     /// enable sealing sectors with deal pieces
     pub enable_deals: Option<bool>,
+
+    /// max limit of deals count inside one sector
+    pub max_deals: Option<usize>,
 
     /// max retry times for tempoary failed sector
     pub max_retries: Option<u32>,

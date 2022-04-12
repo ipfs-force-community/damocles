@@ -236,6 +236,7 @@ fn customized_sealing_config(
         {
             allowed_miners,
             allowed_sizes,
+            max_deals,
         },
         {
             enable_deals,

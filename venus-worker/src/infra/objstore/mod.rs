@@ -84,4 +84,7 @@ pub trait ObjectStore: Send + Sync {
 
     /// if this instance is read-only
     fn readonly(&self) -> bool;
+
+    /// return free space of the object store
+    fn free_space(&self) -> ObjResult<u64>;
 }
