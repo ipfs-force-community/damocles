@@ -55,15 +55,18 @@ var fakeAddress MustAddress
 const ConfigKey = "sector-manager"
 
 type CommonAPIConfig struct {
-	Chain    string
-	Messager string
-	Market   string
-	Gateway  []string
-	Token    string
+	Chain              string
+	Messager           string
+	Market             string
+	Gateway            []string
+	Token              string
+	ChainEventInterval Duration
 }
 
 func defaultCommonAPIConfig(example bool) CommonAPIConfig {
-	cfg := CommonAPIConfig{}
+	cfg := CommonAPIConfig{
+		ChainEventInterval: Duration(time.Minute),
+	}
 	if example {
 		cfg.Chain = "/ip4/{api_host}/tcp/{api_port}"
 		cfg.Messager = "/ip4/{api_host}/tcp/{api_port}"
@@ -115,20 +118,45 @@ func defaultFeeConfig() FeeConfig {
 }
 
 type MinerSectorConfig struct {
-	InitNumber uint64
-	MaxNumber  *uint64
-	Enabled    bool
+	InitNumber   uint64
+	MaxNumber    *uint64
+	Enabled      bool
+	LifetimeDays uint64
 }
 
 func defaultMinerSectorConfig(example bool) MinerSectorConfig {
 	cfg := MinerSectorConfig{
-		InitNumber: 0,
-		Enabled:    true,
+		InitNumber:   0,
+		Enabled:      true,
+		LifetimeDays: 540,
 	}
 
 	if example {
 		max := uint64(1_000_000)
 		cfg.MaxNumber = &max
+	}
+
+	return cfg
+}
+
+type MinerSnapUpConfig struct {
+	Enabled bool
+	Sender  MustAddress
+	FeeConfig
+	MessageConfidential abi.ChainEpoch
+	ReleaseCondidential abi.ChainEpoch
+}
+
+func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
+	cfg := MinerSnapUpConfig{
+		Enabled:             true,
+		FeeConfig:           defaultFeeConfig(),
+		MessageConfidential: 15,
+		ReleaseCondidential: 30,
+	}
+
+	if example {
+		cfg.Sender = fakeAddress
 	}
 
 	return cfg
@@ -235,6 +263,7 @@ func defaultMinerProofConfig() MinerProofConfig {
 type MinerConfig struct {
 	Actor      abi.ActorID
 	Sector     MinerSectorConfig
+	SnapUp     MinerSnapUpConfig
 	Commitment MinerCommitmentConfig
 	PoSt       MinerPoStConfig
 	Proof      MinerProofConfig
@@ -244,6 +273,7 @@ type MinerConfig struct {
 func defaultMinerConfig(example bool) MinerConfig {
 	cfg := MinerConfig{
 		Sector:     defaultMinerSectorConfig(example),
+		SnapUp:     defaultMinerSnapUpConfig(example),
 		Commitment: defaultMinerCommitmentConfig(example),
 		PoSt:       defaultMinerPoStConfig(example),
 		Proof:      defaultMinerProofConfig(),
