@@ -23,7 +23,9 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	apitypes "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
 var utilSealerActorCmd = &cli.Command{
@@ -35,6 +37,8 @@ var utilSealerActorCmd = &cli.Command{
 		},
 	},
 	Subcommands: []*cli.Command{
+		utilSealerActorBalanceCmd,
+		utilSealerActorAddBalanceCmd,
 		utilSealerActorWithdrawCmd,
 		utilSealerActorRepayDebtCmd,
 		utilSealerActorSetOwnerCmd,
@@ -42,6 +46,102 @@ var utilSealerActorCmd = &cli.Command{
 		utilSealerActorProposeChangeWorker,
 		utilSealerActorConfirmChangeWorker,
 		utilSealerActorCompactAllocatedCmd,
+	},
+}
+
+var utilSealerActorBalanceCmd = &cli.Command{
+	Name:      "balance",
+	ArgsUsage: "<miner actor id/address>",
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if count := args.Len(); count < 1 {
+			return fmt.Errorf("3 args required, got %d", count)
+		}
+
+		miner, err := ShouldAddress(args.Get(0), true, true)
+		if err != nil {
+			return fmt.Errorf("parse to actor: %w", err)
+		}
+
+		mlog := Log.With("miner", miner.String())
+
+		api, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("build apis: %w", err)
+		}
+
+		defer stop()
+
+		ts, err := api.Chain.ChainHead(gctx)
+		if err != nil {
+			return RPCCallError("ChainHead", err)
+		}
+
+		mlog = mlog.With("height", ts.Height())
+
+		actor, err := api.Chain.StateGetActor(gctx, miner, ts.Key())
+		if err != nil {
+			return RPCCallError("StateGetActor", err)
+		}
+
+		mlog.Infof("balance: %s", modules.FIL(actor.Balance).Short())
+
+		return nil
+	},
+}
+
+var utilSealerActorAddBalanceCmd = &cli.Command{
+	Name: "add-balance",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name: "exid",
+		},
+	},
+	ArgsUsage: "<from address> <miner actor id/address> <amount>",
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if count := args.Len(); count < 3 {
+			return fmt.Errorf("3 args required, got %d", count)
+		}
+
+		from, err := ShouldAddress(args.Get(0), true, false)
+		if err != nil {
+			return fmt.Errorf("parse from address: %w", err)
+		}
+
+		to, err := ShouldAddress(args.Get(1), true, true)
+		if err != nil {
+			return fmt.Errorf("parse to actor: %w", err)
+		}
+
+		value, err := modules.ParseFIL(args.Get(2))
+		if err != nil {
+			return fmt.Errorf("parse value: %w", err)
+		}
+
+		api, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("build apis: %w", err)
+		}
+
+		defer stop()
+
+		msg := &messager.UnsignedMessage{
+			From: from,
+
+			To:     to,
+			Method: 0,
+			Params: []byte{},
+
+			Value: value.Std(),
+		}
+
+		err = waitMessage(gctx, api, msg, cctx.String("exid"), nil, nil)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	},
 }
 
@@ -63,7 +163,7 @@ var utilSealerActorWithdrawCmd = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -164,7 +264,7 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -265,7 +365,7 @@ var utilSealerActorControlList = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -308,7 +408,7 @@ var utilSealerActorControlSet = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -422,7 +522,7 @@ var utilSealerActorSetOwnerCmd = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -514,7 +614,7 @@ var utilSealerActorProposeChangeWorker = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -621,7 +721,7 @@ var utilSealerActorConfirmChangeWorker = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -728,7 +828,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}

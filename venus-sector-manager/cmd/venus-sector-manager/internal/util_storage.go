@@ -14,6 +14,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 	"github.com/urfave/cli/v2"
@@ -66,6 +67,7 @@ var utilStorageAttachCmd = &cli.Command{
 		name := cctx.String("name")
 		strict := cctx.Bool("strict")
 		readOnly := cctx.Bool("read-only")
+		useCacheDir := cctx.Bool("use-cache-dir")
 
 		scfg := filestore.Config{
 			Name:     name,
@@ -98,34 +100,6 @@ var utilStorageAttachCmd = &cli.Command{
 			return fmt.Errorf("encode example config for storage path: %w", err)
 		}
 
-		targetPath := util.SectorPath(util.SectorPathTypeSealed, abi.SectorID{})
-		if cctx.Bool("use-cache-dir") {
-			targetPath = util.SectorPath(util.SectorPathTypeCache, abi.SectorID{})
-		}
-
-		matchPattern := filepath.Join(abs, filepath.Dir(targetPath), "*")
-		if verbose {
-			logger.Infof("use match pattern %q", matchPattern)
-		}
-
-		matches, err := filepath.Glob(matchPattern)
-		if err != nil {
-			return fmt.Errorf("find matched files with glob pattern %q", matchPattern)
-		}
-
-		sids := make([]abi.SectorID, 0, len(matches))
-		for _, mat := range matches {
-			base := filepath.Base(mat)
-			sid, ok := util.ScanSectorID(base)
-			if ok {
-				sids = append(sids, sid)
-			}
-
-			if verbose {
-				logger.Infof("path %q matched=%v", base, ok)
-			}
-		}
-
 		var indexer api.SectorIndexer
 
 		stopper, err := dix.New(
@@ -142,18 +116,31 @@ var utilStorageAttachCmd = &cli.Command{
 
 		defer stopper(gctx) // nolint:errcheck
 
-		for _, sid := range sids {
-			err := indexer.Update(gctx, sid, name)
+		for _, upgrade := range []bool{false, true} {
+			logger.Infof("scan for sectors(upgrade=%v)", upgrade)
+			sids, err := scanForSectors(logger, abs, upgrade, useCacheDir, verbose)
 			if err != nil {
-				return fmt.Errorf("update sector index for %s: %w", util.FormatSectorID(sid), err)
+				return fmt.Errorf("scan sectors(upgrade=%v): %w", upgrade, err)
 			}
 
-			if verbose {
-				logger.Infof("sector indexer updated for %s", util.FormatSectorID(sid))
+			dest := indexer.Normal()
+			if upgrade {
+				dest = indexer.Upgrade()
 			}
+
+			for _, sid := range sids {
+				err := dest.Update(gctx, sid, name)
+				if err != nil {
+					return fmt.Errorf("update sector index for %s: %w", util.FormatSectorID(sid), err)
+				}
+
+				if verbose {
+					logger.Infof("sector indexer updated for %s", util.FormatSectorID(sid))
+				}
+			}
+
 		}
 
-		logger.Infof("%d sectors out of %d files have been indexed", len(sids), len(matches))
 		logger.Warn("add the section below into the config file:")
 		fmt.Println("")
 		fmt.Println(strings.TrimSpace(strings.ReplaceAll(buf.String(), "[Common]", "")))
@@ -162,8 +149,54 @@ var utilStorageAttachCmd = &cli.Command{
 	},
 }
 
+func scanForSectors(logger *logging.ZapLogger, abs string, upgrade bool, useCacheDir bool, verbose bool) ([]abi.SectorID, error) {
+	var targetPath string
+	if upgrade {
+		targetPath = util.SectorPath(util.SectorPathTypeUpdate, abi.SectorID{})
+		if useCacheDir {
+			targetPath = util.SectorPath(util.SectorPathTypeUpdateCache, abi.SectorID{})
+		}
+	} else {
+		targetPath = util.SectorPath(util.SectorPathTypeSealed, abi.SectorID{})
+		if useCacheDir {
+			targetPath = util.SectorPath(util.SectorPathTypeCache, abi.SectorID{})
+		}
+	}
+
+	matchPattern := filepath.Join(abs, filepath.Dir(targetPath), "*")
+	if verbose {
+		logger.Infof("use match pattern %q", matchPattern)
+	}
+
+	matches, err := filepath.Glob(matchPattern)
+	if err != nil {
+		return nil, fmt.Errorf("find matched files with glob pattern %q", matchPattern)
+	}
+
+	sids := make([]abi.SectorID, 0, len(matches))
+	for _, mat := range matches {
+		base := filepath.Base(mat)
+		sid, ok := util.ScanSectorID(base)
+		if ok {
+			sids = append(sids, sid)
+		}
+
+		if verbose {
+			logger.Infof("path %q matched=%v", base, ok)
+		}
+	}
+
+	logger.Infof("%d sectors out of %d files have been found", len(sids), len(matches))
+	return sids, nil
+}
+
 var utilStorageFindCmd = &cli.Command{
-	Name:      "find",
+	Name: "find",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name: "upgrade",
+		},
+	},
 	ArgsUsage: "<actor id> <number>",
 	Action: func(cctx *cli.Context) error {
 		gctx, gcancel := NewSigContext(cctx.Context)
@@ -205,7 +238,13 @@ var utilStorageFindCmd = &cli.Command{
 			Number: abi.SectorNumber(num),
 		}
 
-		instanceName, found, err := indexer.Find(gctx, sid)
+		upgrade := cctx.Bool("upgrade")
+		dest := indexer.Normal()
+		if upgrade {
+			dest = indexer.Upgrade()
+		}
+
+		instanceName, found, err := dest.Find(gctx, sid)
 		if err != nil {
 			return fmt.Errorf("find store instance for %s: %w", util.FormatSectorID(sid), err)
 		}

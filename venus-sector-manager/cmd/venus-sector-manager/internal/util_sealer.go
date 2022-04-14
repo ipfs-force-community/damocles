@@ -1,42 +1,15 @@
 package internal
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strconv"
 
-	"github.com/dtynn/dix"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 )
-
-func extractSealerClient(cctx *cli.Context) (api.SealerClient, context.Context, stopper, error) {
-	gctx, gcancel := NewSigContext(cctx.Context)
-
-	var sapi api.SealerClient
-
-	stopper, err := dix.New(
-		gctx,
-		DepsFromCLICtx(cctx),
-		dix.Override(new(dep.GlobalContext), gctx),
-		dix.Override(new(dep.ListenAddress), dep.ListenAddress(cctx.String(SealerListenFlag.Name))),
-		dep.SealerClient(&sapi),
-	)
-
-	if err != nil {
-		gcancel()
-		return sapi, nil, nil, fmt.Errorf("construct sealer api: %w", err)
-	}
-
-	return sapi, gctx, func() {
-		stopper(cctx.Context) // nolint: errcheck
-		gcancel()
-	}, nil
-}
 
 var utilSealerCmd = &cli.Command{
 	Name: "sealer",
@@ -47,6 +20,7 @@ var utilSealerCmd = &cli.Command{
 		utilSealerSectorsCmd,
 		utilSealerProvingCmd,
 		utilSealerActorCmd,
+		// utilSealerSnapCmd,
 	},
 }
 
@@ -63,14 +37,14 @@ var utilSealerSectorsCmd = &cli.Command{
 var utilSealerSectorsWorkerStatesCmd = &cli.Command{
 	Name: "worker-states",
 	Action: func(cctx *cli.Context) error {
-		cli, gctx, stop, err := extractSealerClient(cctx)
+		cli, gctx, stop, err := extractAPI(cctx)
 		if err != nil {
 			return err
 		}
 
 		defer stop()
 
-		states, err := cli.ListSectors(gctx, api.WorkerOnline)
+		states, err := cli.Sealer.ListSectors(gctx, api.WorkerOnline)
 		if err != nil {
 			return err
 		}
@@ -108,13 +82,14 @@ var utilSealerSectorsWorkerStatesCmd = &cli.Command{
 }
 
 var utilSealerSectorsAbortCmd = &cli.Command{
-	Name: "abort",
+	Name:      "abort",
+	ArgsUsage: "<miner actor> <sector number>",
 	Action: func(cctx *cli.Context) error {
 		if count := cctx.Args().Len(); count < 2 {
 			return fmt.Errorf("both miner actor id & sector number are required, only %d args provided", count)
 		}
 
-		miner, err := strconv.ParseUint(cctx.Args().Get(0), 10, 64)
+		miner, err := ShouldActor(cctx.Args().Get(0), true)
 		if err != nil {
 			return fmt.Errorf("invalid miner actor id: %w", err)
 		}
@@ -124,14 +99,14 @@ var utilSealerSectorsAbortCmd = &cli.Command{
 			return fmt.Errorf("invalid sector number: %w", err)
 		}
 
-		cli, gctx, stop, err := extractSealerClient(cctx)
+		cli, gctx, stop, err := extractAPI(cctx)
 		if err != nil {
 			return err
 		}
 
 		defer stop()
 
-		_, err = cli.ReportAborted(gctx, abi.SectorID{
+		_, err = cli.Sealer.ReportAborted(gctx, abi.SectorID{
 			Miner:  abi.ActorID(miner),
 			Number: abi.SectorNumber(sectorNum),
 		}, "aborted via CLI")
@@ -147,14 +122,14 @@ var utilSealerSectorsListCmd = &cli.Command{
 	Name:  "list",
 	Usage: "Print sector data in completed state",
 	Action: func(cctx *cli.Context) error {
-		cli, gctx, stop, err := extractSealerClient(cctx)
+		cli, gctx, stop, err := extractAPI(cctx)
 		if err != nil {
 			return err
 		}
 
 		defer stop()
 
-		states, err := cli.ListSectors(gctx, api.WorkerOffline)
+		states, err := cli.Sealer.ListSectors(gctx, api.WorkerOffline)
 		if err != nil {
 			return err
 		}
@@ -237,7 +212,7 @@ var utilSealerSectorsRestoreCmd = &cli.Command{
 			return fmt.Errorf("both miner actor id & sector number are required, only %d args provided", count)
 		}
 
-		miner, err := strconv.ParseUint(cctx.Args().Get(0), 10, 64)
+		miner, err := ShouldActor(cctx.Args().Get(0), true)
 		if err != nil {
 			return fmt.Errorf("invalid miner actor id: %w", err)
 		}
@@ -247,15 +222,15 @@ var utilSealerSectorsRestoreCmd = &cli.Command{
 			return fmt.Errorf("invalid sector number: %w", err)
 		}
 
-		cli, gctx, stop, err := extractSealerClient(cctx)
+		cli, gctx, stop, err := extractAPI(cctx)
 		if err != nil {
 			return err
 		}
 
 		defer stop()
 
-		_, err = cli.RestoreSector(gctx, abi.SectorID{
-			Miner:  abi.ActorID(miner),
+		_, err = cli.Sealer.RestoreSector(gctx, abi.SectorID{
+			Miner:  miner,
 			Number: abi.SectorNumber(sectorNum),
 		}, cctx.Bool("force"))
 		if err != nil {
