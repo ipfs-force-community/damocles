@@ -32,13 +32,23 @@ type DealManager struct {
 	acquireMu sync.Mutex
 }
 
-func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, maxDeals *uint) (api.Deals, error) {
+func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec api.AcquireDealsSpec, job api.SectorWorkerJob) (api.Deals, error) {
 	mcfg, err := dm.scfg.MinerConfig(sid.Miner)
 	if err != nil {
 		return nil, fmt.Errorf("get miner config: %w", err)
 	}
 
-	if !mcfg.Deal.Enabled {
+	enabled := false
+	switch job {
+	case api.SectorWorkerJobSealing:
+		enabled = mcfg.Deal.Enabled
+
+	case api.SectorWorkerJobSnapUp:
+		enabled = mcfg.SnapUp.Enabled
+
+	}
+
+	if !enabled {
 		return nil, nil
 	}
 
@@ -47,15 +57,15 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, maxDeals *
 		return nil, fmt.Errorf("get miner info: %w", err)
 	}
 
-	spec := &market.GetDealSpec{}
-	if maxDeals != nil {
-		spec.MaxPiece = int(*maxDeals)
+	mspec := &market.GetDealSpec{}
+	if spec.MaxDeals != nil {
+		mspec.MaxPiece = int(*spec.MaxDeals)
 	}
 
 	dm.acquireMu.Lock()
 	defer dm.acquireMu.Unlock()
 
-	dinfos, err := dm.market.AssignUnPackedDeals(ctx, sid, minfo.SectorSize, spec)
+	dinfos, err := dm.market.AssignUnPackedDeals(ctx, sid, minfo.SectorSize, mspec)
 	if err != nil {
 		return nil, fmt.Errorf("assign non-packed deals: %w", err)
 	}
@@ -63,6 +73,11 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, maxDeals *
 	deals := make(api.Deals, 0, len(dinfos))
 	for di := range dinfos {
 		dinfo := dinfos[di]
+		var proposal *api.DealProposal
+		if dinfo.DealID != 0 {
+			proposal = &dinfo.DealProposal
+		}
+
 		deals = append(deals, api.DealInfo{
 			ID:          dinfo.DealID,
 			PayloadSize: uint64(dinfo.PayloadSize),
@@ -70,6 +85,7 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, maxDeals *
 				Cid:  dinfo.PieceCID,
 				Size: dinfo.PieceSize,
 			},
+			Proposal: proposal,
 		})
 	}
 
