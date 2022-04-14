@@ -21,7 +21,9 @@ import (
 )
 
 type PreCommitProcessor struct {
-	api       SealingAPI
+	api  SealingAPI
+	mapi api.MinerInfoAPI
+
 	msgClient messager.API
 
 	smgr api.SectorStateManager
@@ -44,7 +46,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 
 			defer wg.Done()
 
-			params, deposit, _, err := preCommitParams(ctx, p.api, sectors[idx])
+			params, deposit, _, err := p.preCommitParams(ctx, sectors[idx])
 			if err != nil {
 				slog.Error("get pre-commit params failed: ", err)
 				return
@@ -69,6 +71,8 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 }
 
 func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
+	mcfg := p.config.MustMinerConfig(mid)
+
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "pre", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
@@ -84,7 +88,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	infos := []api.PreCommitEntry{}
 	failed := map[abi.SectorID]struct{}{}
 	for _, s := range sectors {
-		params, deposit, _, err := preCommitParams(ctx, p.api, s)
+		params, deposit, _, err := p.preCommitParams(ctx, s)
 		if err != nil {
 			plog.Errorf("get precommit params for %d failed: %s\n", s.ID.Number, err)
 			failed[s.ID] = struct{}{}
@@ -109,8 +113,6 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	if err := params.MarshalCBOR(enc); err != nil {
 		return fmt.Errorf("couldn't serialize PreCommitSectorBatchParams: %w", err)
 	}
-
-	mcfg := p.config.MustMinerConfig(mid)
 
 	var spec messager.MsgMeta
 	spec.GasOverEstimation = mcfg.Commitment.Pre.GasOverEstimation
