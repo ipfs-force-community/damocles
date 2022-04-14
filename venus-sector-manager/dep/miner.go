@@ -19,7 +19,7 @@ func Miner() dix.Option {
 	)
 }
 
-func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover api.Prover, cfg *modules.SafeConfig, indexer api.SectorIndexer) error {
+func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover api.Prover, cfg *modules.SafeConfig, tracker api.SectorTracker) error {
 	cfg.Lock()
 	urls, token, miners := cfg.Common.API.Gateway, cfg.Common.API.Token, cfg.Miners
 	cfg.Unlock()
@@ -57,7 +57,7 @@ func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover api.Prover, cfg
 		}
 
 		for _, actor := range actors {
-			proofEvent := miner.NewProofEvent(prover, client, actor, indexer)
+			proofEvent := miner.NewProofEvent(prover, client, actor, tracker)
 			go proofEvent.StartListening(gctx)
 		}
 	}

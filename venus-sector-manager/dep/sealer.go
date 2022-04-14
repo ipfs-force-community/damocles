@@ -62,6 +62,8 @@ func Product() dix.Option {
 		dix.Override(new(PersistedObjectStoreManager), BuildPersistedFileStoreMgr),
 		dix.Override(new(SectorIndexMetaStore), BuildSectorIndexMetaStore),
 		dix.Override(new(api.SectorIndexer), BuildSectorIndexer),
+		// dix.Override(new(*chain.EventBus), BuildChainEventBus),
+		// dix.Override(new(api.SnapUpSectorManager), BuildSnapUpManager),
 		dix.Override(ConstructMarketAPIRelated, BuildMarketAPIRelated),
 	)
 }
@@ -86,13 +88,7 @@ func API(target ...interface{}) dix.Option {
 		dix.Override(new(api.MinerInfoAPI), BuildMinerInfoAPI),
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.Override(new(market.API), BuildMarketAPI),
+		dix.Override(new(api.SealerCliClient), MaybeSealerCliClient),
 		dix.If(len(target) > 0, dix.Populate(InvokePopulate, target...)),
-	)
-}
-
-func SealerClient(s *api.SealerClient) dix.Option {
-	return dix.Options(
-		dix.Override(new(api.SealerClient), BuildSealerClient),
-		dix.Populate(InvokePopulate, s),
 	)
 }
