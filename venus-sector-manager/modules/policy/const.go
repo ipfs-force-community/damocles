@@ -39,6 +39,8 @@ func SetupNetwork(name string) error {
 }
 
 const (
+	EpochsInDay = builtin.EpochsInDay
+
 	ChainFinality                  = policy.ChainFinality
 	SealRandomnessLookback         = ChainFinality
 	MaxPreCommitRandomnessLookback = builtin.EpochsInDay + SealRandomnessLookback
