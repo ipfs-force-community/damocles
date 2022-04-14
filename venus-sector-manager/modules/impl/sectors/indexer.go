@@ -13,19 +13,37 @@ import (
 
 var _ api.SectorIndexer = (*Indexer)(nil)
 
-func NewIndexer(storeMgr objstore.Manager, kv kvstore.KVStore) (*Indexer, error) {
+func NewIndexer(storeMgr objstore.Manager, normal kvstore.KVStore, upgrade kvstore.KVStore) (*Indexer, error) {
 	return &Indexer{
 		storeMgr: storeMgr,
-		kv:       kv,
+		normal:   &innerIndexer{kv: normal},
+		upgrade:  &innerIndexer{kv: upgrade},
 	}, nil
 }
 
 type Indexer struct {
+	normal   *innerIndexer
+	upgrade  *innerIndexer
 	storeMgr objstore.Manager
-	kv       kvstore.KVStore
 }
 
-func (i *Indexer) Find(ctx context.Context, sid abi.SectorID) (string, bool, error) {
+func (i *Indexer) Normal() api.SectorTypedIndexer {
+	return i.normal
+}
+
+func (i *Indexer) Upgrade() api.SectorTypedIndexer {
+	return i.upgrade
+}
+
+func (i *Indexer) StoreMgr() objstore.Manager {
+	return i.storeMgr
+}
+
+type innerIndexer struct {
+	kv kvstore.KVStore
+}
+
+func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (string, bool, error) {
 	var s string
 	// string(b) will copy the underlying bytes, so we use View here
 	err := i.kv.View(ctx, makeSectorKey(sid), func(b []byte) error {
@@ -44,10 +62,6 @@ func (i *Indexer) Find(ctx context.Context, sid abi.SectorID) (string, bool, err
 	return s, true, nil
 }
 
-func (i *Indexer) Update(ctx context.Context, sid abi.SectorID, instance string) error {
+func (i *innerIndexer) Update(ctx context.Context, sid abi.SectorID, instance string) error {
 	return i.kv.Put(ctx, makeSectorKey(sid), []byte(instance))
-}
-
-func (i *Indexer) StoreMgr() objstore.Manager {
-	return i.storeMgr
 }
