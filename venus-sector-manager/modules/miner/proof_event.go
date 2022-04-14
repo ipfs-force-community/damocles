@@ -9,17 +9,12 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"golang.org/x/xerrors"
 
-	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/specs-storage/storage"
-
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	v1 "github.com/filecoin-project/venus/venus-shared/api/gateway/v1"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
 var log = logging.Logger("proof_event")
@@ -28,15 +23,15 @@ type ProofEvent struct {
 	prover  api.Prover
 	client  v1.IGateway
 	actor   api.ActorIdent
-	indexer api.SectorIndexer
+	tracker api.SectorTracker
 }
 
-func NewProofEvent(prover api.Prover, client v1.IGateway, actor api.ActorIdent, indexer api.SectorIndexer) *ProofEvent {
+func NewProofEvent(prover api.Prover, client v1.IGateway, actor api.ActorIdent, tracker api.SectorTracker) *ProofEvent {
 	pe := &ProofEvent{
 		prover:  prover,
 		client:  client,
 		actor:   actor,
-		indexer: indexer,
+		tracker: tracker,
 	}
 
 	return pe
@@ -146,65 +141,10 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqID vtypes.UUID
 }
 
 func (pe *ProofEvent) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.ExtendedSectorInfo) (api.SortedPrivateSectorInfo, error) {
-	out := make([]api.PrivateSectorInfo, 0, len(sectorInfo))
-	for _, sector := range sectorInfo {
-		sid := storage.SectorRef{
-			ID:        abi.SectorID{Miner: pe.actor.ID, Number: sector.SectorNumber},
-			ProofType: sector.SealProof,
-		}
-
-		postProofType, err := sid.ProofType.RegisteredWinningPoStProof()
-		if err != nil {
-			return api.SortedPrivateSectorInfo{}, fmt.Errorf("acquiring registered PoSt proof from sector info %+v: %w", sectorInfo, err)
-		}
-
-		objins, err := pe.getObjInstanceForSector(ctx, sid.ID)
-		if err != nil {
-			return api.SortedPrivateSectorInfo{}, fmt.Errorf("get objstore instance for %s: %w", util.FormatSectorID(sid.ID), err)
-		}
-
-		// TODO: Construct paths for snap deals ?
-		proveUpdate := sector.SectorKey != nil
-		var (
-			subCache, subSealed string
-		)
-		if proveUpdate {
-
-		} else {
-			subCache = util.SectorPath(util.SectorPathTypeCache, sid.ID)
-			subSealed = util.SectorPath(util.SectorPathTypeSealed, sid.ID)
-		}
-
-		ffiInfo := builtin.SectorInfo{
-			SealProof:    sector.SealProof,
-			SectorNumber: sector.SectorNumber,
-			SealedCID:    sector.SealedCID,
-		}
-		out = append(out, api.PrivateSectorInfo{
-			CacheDirPath:     objins.FullPath(ctx, subCache),
-			PoStProofType:    postProofType,
-			SealedSectorPath: objins.FullPath(ctx, subSealed),
-			SectorInfo:       ffiInfo,
-		})
+	out, err := pe.tracker.PubToPrivate(ctx, pe.actor.ID, sectorInfo, api.SectorWinningPoSt)
+	if err != nil {
+		return api.SortedPrivateSectorInfo{}, fmt.Errorf("convert to private infos: %w", err)
 	}
 
 	return api.NewSortedPrivateSectorInfo(out...), nil
-}
-
-func (pe *ProofEvent) getObjInstanceForSector(ctx context.Context, sid abi.SectorID) (objstore.Store, error) {
-	insname, has, err := pe.indexer.Find(ctx, sid)
-	if err != nil {
-		return nil, fmt.Errorf("find objstore instance: %w", err)
-	}
-
-	if !has {
-		return nil, fmt.Errorf("objstore instance not found")
-	}
-
-	instance, err := pe.indexer.StoreMgr().GetInstance(ctx, insname)
-	if err != nil {
-		return nil, fmt.Errorf("get objstore instance %s: %w", insname, err)
-	}
-
-	return instance, nil
 }
