@@ -5,12 +5,36 @@ import (
 
 	ffi "github.com/filecoin-project/filecoin-ffi"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/specs-storage/storage"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 )
 
+type SectorRef = storage.SectorRef
+
+type SectorOnChainInfo = miner.SectorOnChainInfo
+
+type PrivateSectorInfo struct {
+	AccessInstance   string
+	CacheDirPath     string
+	SealedSectorPath string
+
+	CacheDirURI     string
+	SealedSectorURI string
+}
+
+func (p PrivateSectorInfo) ToFFI(sector builtin.SectorInfo, proofType abi.RegisteredPoStProof) FFIPrivateSectorInfo {
+	return FFIPrivateSectorInfo{
+		SectorInfo:       sector,
+		CacheDirPath:     p.CacheDirPath,
+		PoStProofType:    proofType,
+		SealedSectorPath: p.SealedSectorPath,
+	}
+}
+
 type (
-	PrivateSectorInfo       = ffi.PrivateSectorInfo
+	FFIPrivateSectorInfo    = ffi.PrivateSectorInfo
 	SortedPrivateSectorInfo = ffi.SortedPrivateSectorInfo
 )
 

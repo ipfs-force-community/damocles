@@ -25,7 +25,10 @@ type sectorMgr struct {
 	sectorNum uint64
 }
 
-func (s *sectorMgr) Allocate(ctx context.Context, allowedMiners []abi.ActorID, allowedProofTypes []abi.RegisteredSealProof) (*api.AllocatedSector, error) {
+func (s *sectorMgr) Allocate(ctx context.Context, spec api.AllocateSectorSpec) (*api.AllocatedSector, error) {
+	allowedMiners := spec.AllowedMiners
+	allowedProofTypes := spec.AllowedProofTypes
+
 	minerFits := len(allowedMiners) == 0
 	for _, want := range allowedMiners {
 		if want == s.miner {

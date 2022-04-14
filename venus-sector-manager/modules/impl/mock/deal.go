@@ -17,7 +17,7 @@ func NewDealManager() api.DealManager {
 type nullDeal struct {
 }
 
-func (*nullDeal) Acquire(context.Context, abi.SectorID, *uint) (api.Deals, error) {
+func (*nullDeal) Acquire(context.Context, abi.SectorID, api.AcquireDealsSpec, api.SectorWorkerJob) (api.Deals, error) {
 	return nil, nil
 }
 

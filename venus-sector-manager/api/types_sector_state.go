@@ -1,10 +1,40 @@
 package api
 
 import (
+	"context"
+
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/ipfs/go-cid"
 )
 
-type Finalized bool
+// applies outside changes to the state, returns if it is ok to go on, and any error if exist
+type SectorStateChangeHook func(st *SectorState) (bool, error)
+
+// returns the persist instance name, existance
+type SectorLocator func(ctx context.Context, sid abi.SectorID) (string, bool, error)
+
+type SectorPoStTyper func(proofType abi.RegisteredSealProof) (abi.RegisteredPoStProof, error)
+
+func SectorWindowPoSt(proofType abi.RegisteredSealProof) (abi.RegisteredPoStProof, error) {
+	return proofType.RegisteredWindowPoStProof()
+}
+
+func SectorWinningPoSt(proofType abi.RegisteredSealProof) (abi.RegisteredPoStProof, error) {
+	return proofType.RegisteredWinningPoStProof()
+}
+
+type SectorFinalized bool
+type SectorUpgraded bool
+type SectorUpgradeLandedEpoch abi.ChainEpoch
+type SectorUpgradeMessageID string
+type SectorUpgradePublic SectorPublicInfo
+
+type SectorUpgradedInfo struct {
+	AccessInstance string
+	SealedCID      cid.Cid
+	UnsealedCID    cid.Cid
+	Proof          []byte
+}
 
 type SectorState struct {
 	ID         abi.SectorID
@@ -20,8 +50,15 @@ type SectorState struct {
 	MessageInfo MessageInfo
 
 	LatestState *ReportStateReq `json:",omitempty"`
-	Finalized   Finalized
+	Finalized   SectorFinalized
 	AbortReason string
+
+	// for snapup
+	Upgraded           SectorUpgraded
+	UpgradePublic      *SectorUpgradePublic
+	UpgradedInfo       *SectorUpgradedInfo
+	UpgradeMessageID   *SectorUpgradeMessageID
+	UpgradeLandedEpoch *SectorUpgradeLandedEpoch
 }
 
 func (s SectorState) DealIDs() []abi.DealID {
@@ -49,4 +86,12 @@ type SectorWorkerState string
 const (
 	WorkerOnline  SectorWorkerState = "online"
 	WorkerOffline SectorWorkerState = "offline"
+)
+
+type SectorWorkerJob int
+
+const (
+	SectorWorkerJobAll     SectorWorkerJob = 0
+	SectorWorkerJobSealing SectorWorkerJob = 1
+	SectorWorkerJobSnapUp  SectorWorkerJob = 2
 )

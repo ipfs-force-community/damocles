@@ -4,6 +4,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
@@ -12,6 +13,13 @@ import (
 type AllocateSectorSpec struct {
 	AllowedMiners     []abi.ActorID
 	AllowedProofTypes []abi.RegisteredSealProof
+}
+
+type SnapUpCandidate struct {
+	DeadlineIndex uint64
+	Sector        AllocatedSector
+	Public        SectorPublicInfo
+	Private       SectorPrivateInfo
 }
 
 type AllocatedSector struct {
@@ -28,6 +36,7 @@ type DealInfo struct {
 	ID          abi.DealID
 	PayloadSize uint64
 	Piece       PieceInfo
+	Proposal    *DealProposal
 }
 
 type Deals []DealInfo
@@ -51,6 +60,8 @@ const (
 	SubmitMismatchedSubmission
 	// worker should enter perm err
 	SubmitRejected
+	// worker should retry persisting files
+	SubmitFilesMissed
 )
 
 type OnChainState uint64
@@ -140,6 +151,8 @@ type MinerInfo struct {
 	SectorSize          abi.SectorSize
 	WindowPoStProofType abi.RegisteredPoStProof
 	SealProofType       abi.RegisteredSealProof
+
+	Deadline dline.Info
 }
 
 type TipSetToken []byte
@@ -200,4 +213,48 @@ type WindowPoStRandomness struct {
 type ActorIdent struct {
 	ID   abi.ActorID
 	Addr address.Address
+}
+
+type AllocateSnapUpSpec struct {
+	Sector AllocateSectorSpec
+	Deals  AcquireDealsSpec
+}
+
+type SectorPublicInfo struct {
+	CommR     [32]byte
+	SealedCID cid.Cid
+}
+
+type SectorPrivateInfo struct {
+	AccessInstance string
+}
+
+type AllocatedSnapUpSector struct {
+	Sector  AllocatedSector
+	Pieces  Deals
+	Public  SectorPublicInfo
+	Private SectorPrivateInfo
+}
+
+type SnapUpOnChainInfo struct {
+	CommR          [32]byte
+	CommD          [32]byte
+	AccessInstance string
+	Pieces         []cid.Cid
+	Proof          []byte
+}
+
+type SubmitSnapUpProofResp struct {
+	Res  SubmitResult
+	Desc *string
+}
+
+type SnapUpFetchResult struct {
+	Total uint64
+	Diff  uint64
+}
+
+type ProvingSectorInfo struct {
+	OnChain SectorOnChainInfo
+	Private PrivateSectorInfo
 }
