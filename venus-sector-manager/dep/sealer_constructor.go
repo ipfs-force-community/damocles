@@ -431,6 +431,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 
 func BuildChainEventBus(
 	gctx GlobalContext,
+	lc fx.Lifecycle,
 	capi chain.API,
 	scfg *modules.SafeConfig,
 ) (*chain.EventBus, error) {
@@ -442,6 +443,18 @@ func BuildChainEventBus(
 	if err != nil {
 		return nil, fmt.Errorf("construct chain eventbus: %w", err)
 	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			go bus.Run()
+			return nil
+		},
+
+		OnStop: func(ctx context.Context) error {
+			bus.Stop()
+			return nil
+		},
+	})
 
 	return bus, nil
 }

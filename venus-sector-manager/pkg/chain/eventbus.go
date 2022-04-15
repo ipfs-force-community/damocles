@@ -43,6 +43,9 @@ type EventBus struct {
 }
 
 func (e *EventBus) Run() {
+	eventLog.Info("loop start")
+	defer eventLog.Info("loop stop")
+
 	timer := time.NewTimer(e.interval)
 	defer timer.Stop()
 
