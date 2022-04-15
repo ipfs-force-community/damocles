@@ -149,7 +149,7 @@ type MinerSnapUpConfig struct {
 
 func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
 	cfg := MinerSnapUpConfig{
-		Enabled:             true,
+		Enabled:             false,
 		FeeConfig:           defaultFeeConfig(),
 		MessageConfidential: 15,
 		ReleaseCondidential: 30,
