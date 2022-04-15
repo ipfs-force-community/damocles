@@ -123,5 +123,5 @@ func (e *EventBus) trigger(ts *types.TipSet) {
 	}
 
 	e.cbs = e.cbs[:start]
-	eventLog.Debugw("events triggered", "count", count-start, "elapsed", time.Since(now).String())
+	eventLog.Debugw("events triggered", "height", tsh, "count", count-start, "elapsed", time.Since(now).String())
 }
