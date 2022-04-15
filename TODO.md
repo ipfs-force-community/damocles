@@ -54,3 +54,4 @@
 - [x] persist for snap: free space
 - [ ] unify: constructing wdpost inputs
 - [ ] cancellable snap committing
+- [ ] fetch snapup sectors based on persist store
