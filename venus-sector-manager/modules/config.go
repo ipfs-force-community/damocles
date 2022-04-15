@@ -298,7 +298,9 @@ func (c *Config) UnmarshalConfig(data []byte) error {
 	primitive := struct {
 		Common CommonConfig
 		Miners []toml.Primitive
-	}{}
+	}{
+		Common: defaultCommonConfig(false),
+	}
 
 	meta, err := toml.NewDecoder(bytes.NewReader(data)).Decode(&primitive)
 	if err != nil {
