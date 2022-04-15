@@ -86,6 +86,7 @@ func (e *EventBus) At(ctx context.Context, height abi.ChainEpoch, confidential a
 		return e.cbs[i].h > e.cbs[j].h
 	})
 	e.cbsMu.Unlock()
+	eventLog.Debugw("event registered", "h", height, "c", confidential)
 }
 
 func (e *EventBus) trigger(ts *types.TipSet) {
