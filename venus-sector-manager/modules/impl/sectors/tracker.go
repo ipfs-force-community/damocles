@@ -3,7 +3,6 @@ package sectors
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sync"
 
 	"github.com/filecoin-project/go-state-types/abi"
@@ -78,8 +77,7 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref api.SectorRef, upgrad
 	}
 
 	toCheck := map[string]int64{
-		privateInfo.SealedSectorURI:                     1,
-		filepath.Join(privateInfo.CacheDirURI, "p_aux"): 0,
+		privateInfo.SealedSectorURI: 1,
 	}
 
 	addCachePathsForSectorSize(toCheck, privateInfo.CacheDirURI, ssize)
