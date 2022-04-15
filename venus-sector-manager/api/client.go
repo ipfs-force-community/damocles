@@ -4,42 +4,60 @@ import (
 	"context"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/specs-storage/storage"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 )
 
-type SealerClient struct {
-	AllocateSector func(context.Context, AllocateSectorSpec) (*AllocatedSector, error)
+var UnavailableSealerCliClient = SealerCliClient{
+	ListSectors: func(context.Context, SectorWorkerState) ([]*SectorState, error) { panic("sealer client unavailable") },
 
-	AcquireDeals func(context.Context, abi.SectorID, AcquireDealsSpec) (Deals, error)
+	RestoreSector: func(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error) {
+		panic("sealer client unavailable")
+	},
 
-	AssignTicket func(context.Context, abi.SectorID) (Ticket, error)
+	ReportFinalized: func(context.Context, abi.SectorID) (Meta, error) { panic("sealer client unavailable") },
 
-	SubmitPreCommit func(context.Context, AllocatedSector, PreCommitOnChainInfo, bool) (SubmitPreCommitResp, error)
+	ReportAborted: func(context.Context, abi.SectorID, string) (Meta, error) { panic("sealer client unavailable") },
 
-	PollPreCommitState func(context.Context, abi.SectorID) (PollPreCommitStateResp, error)
+	CheckProvable: func(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
+		panic("sealer client unavailable")
+	},
 
-	SubmitPersisted func(context.Context, abi.SectorID, string) (bool, error)
+	SimulateWdPoSt: func(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
+		panic("sealer client unavailable")
+	},
 
-	WaitSeed func(context.Context, abi.SectorID) (WaitSeedResp, error)
+	SnapUpPreFetch: func(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error) {
+		panic("sealer client unavailable")
+	},
 
-	SubmitProof func(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error)
+	SnapUpCandidates: func(ctx context.Context, mid abi.ActorID) ([]*bitfield.BitField, error) {
+		panic("sealer client unavailable")
+	},
 
-	PollProofState func(context.Context, abi.SectorID) (PollProofStateResp, error)
+	ProvingSectorInfo: func(ctx context.Context, sid abi.SectorID) (ProvingSectorInfo, error) {
+		panic("sealer client unavailable")
+	},
+}
 
+type SealerCliClient struct {
 	ListSectors func(context.Context, SectorWorkerState) ([]*SectorState, error)
 
 	RestoreSector func(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
-
-	ReportState func(context.Context, abi.SectorID, ReportStateReq) (Meta, error)
 
 	ReportFinalized func(context.Context, abi.SectorID) (Meta, error)
 
 	ReportAborted func(context.Context, abi.SectorID, string) (Meta, error)
 
-	CheckProvable func(context.Context, abi.RegisteredPoStProof, []storage.SectorRef, bool) (map[abi.SectorNumber]string, error)
+	CheckProvable func(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error)
 
 	SimulateWdPoSt func(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
+
+	SnapUpPreFetch func(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error)
+
+	SnapUpCandidates func(ctx context.Context, mid abi.ActorID) ([]*bitfield.BitField, error)
+
+	ProvingSectorInfo func(ctx context.Context, sid abi.SectorID) (ProvingSectorInfo, error)
 }

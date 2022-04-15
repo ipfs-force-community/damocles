@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/specs-storage/storage"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 
@@ -28,70 +27,105 @@ type Tracker struct {
 	indexer api.SectorIndexer
 }
 
-func (t *Tracker) Provable(ctx context.Context, pp abi.RegisteredPoStProof, sectors []storage.SectorRef, strict bool) (map[abi.SectorNumber]string, error) {
+func (t *Tracker) SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, sector builtin.ExtendedSectorInfo, locator api.SectorLocator) (api.PrivateSectorInfo, error) {
+	sref := api.SectorRef{
+		ID:        abi.SectorID{Miner: mid, Number: sector.SectorNumber},
+		ProofType: sector.SealProof,
+	}
+
+	return t.SinglePrivateInfo(ctx, sref, sector.SectorKey != nil, locator)
+}
+
+func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref api.SectorRef, upgrade bool, locator api.SectorLocator) (api.PrivateSectorInfo, error) {
+	objins, err := t.getObjInstanceForSector(ctx, sref.ID, locator, upgrade)
+	if err != nil {
+		return api.PrivateSectorInfo{}, fmt.Errorf("get location for %s: %w", util.FormatSectorID(sref.ID), err)
+	}
+
+	var cache string
+	var sealed string
+	if upgrade {
+		cache = util.SectorPath(util.SectorPathTypeUpdateCache, sref.ID)
+		sealed = util.SectorPath(util.SectorPathTypeUpdate, sref.ID)
+	} else {
+		cache = util.SectorPath(util.SectorPathTypeCache, sref.ID)
+		sealed = util.SectorPath(util.SectorPathTypeSealed, sref.ID)
+	}
+
+	return api.PrivateSectorInfo{
+		AccessInstance:   objins.Instance(ctx),
+		CacheDirURI:      cache,
+		CacheDirPath:     objins.FullPath(ctx, cache),
+		SealedSectorURI:  sealed,
+		SealedSectorPath: objins.FullPath(ctx, sealed),
+	}, nil
+}
+
+func (t *Tracker) SingleProvable(ctx context.Context, sref api.SectorRef, upgrade bool, locator api.SectorLocator, strict bool) error {
+	ssize, err := sref.ProofType.SectorSize()
+	if err != nil {
+		return fmt.Errorf("get sector size: %w", err)
+	}
+
+	privateInfo, err := t.SinglePrivateInfo(ctx, sref, upgrade, locator)
+	if err != nil {
+		return fmt.Errorf("get private info: %w", err)
+	}
+
+	objins, err := t.indexer.StoreMgr().GetInstance(ctx, privateInfo.AccessInstance)
+	if err != nil {
+		return fmt.Errorf("get obj instance named %s: %w", privateInfo.AccessInstance, err)
+	}
+
+	toCheck := map[string]int64{
+		privateInfo.SealedSectorURI:                     1,
+		filepath.Join(privateInfo.CacheDirURI, "p_aux"): 0,
+	}
+
+	addCachePathsForSectorSize(toCheck, privateInfo.CacheDirURI, ssize)
+
+	for p, sz := range toCheck {
+		st, err := objins.Stat(ctx, p)
+		if err != nil {
+			return fmt.Errorf("stat object: %w", err)
+		}
+
+		if sz != 0 {
+			if st.Size != int64(ssize)*sz {
+				return fmt.Errorf("%s with wrong size (got %d, expect %d)", p, st.Size, int64(ssize)*sz)
+			}
+		}
+	}
+
+	if !strict {
+		return nil
+	}
+
+	// TODO strict check, winning post?
+	return nil
+}
+
+func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
 	results := make([]string, len(sectors))
 	var wg sync.WaitGroup
 	wg.Add(len(sectors))
 
-	ssize, err := pp.SectorSize()
-	if err != nil {
-		return nil, err
-	}
-
 	for ti := range sectors {
 		go func(i int) {
-			var reason string
-			defer func() {
-				if reason != "" {
-					results[i] = reason
-				}
+			defer wg.Done()
 
-				wg.Done()
-			}()
+			sector := sectors[i]
 
-			sid := sectors[i].ID
-			objins, err := t.getObjInstanceForSector(ctx, sid)
-			if err != nil {
-				reason = fmt.Sprintf("get objstore instance for %s: %s", util.FormatSectorID(sid), err)
+			sref := api.SectorRef{
+				ID:        abi.SectorID{Miner: mid, Number: sector.SectorNumber},
+				ProofType: sector.SealProof,
+			}
+			err := t.SingleProvable(ctx, sref, sector.SectorKey != nil, nil, strict)
+			if err == nil {
 				return
 			}
 
-			// todo: for snapdeals
-			subSealed := util.SectorPath(util.SectorPathTypeSealed, sid)
-			_, err = objins.Stat(ctx, subSealed)
-			if err != nil {
-				reason = fmt.Sprintf("get stat info for %s: %s", util.FormatSectorID(sid), err)
-				return
-			}
-
-			if !strict {
-				return
-			}
-
-			subCache := util.SectorPath(util.SectorPathTypeCache, sid)
-			toCheck := map[string]int64{
-				filepath.Join(subCache, "p_aux"): 0,
-			}
-			addCachePathsForSectorSize(toCheck, subCache, ssize)
-
-			for p, sz := range toCheck {
-				st, err := objins.Stat(ctx, p)
-				if err != nil {
-					reason = fmt.Sprintf("get %s stat info for %s: %s", p, util.FormatSectorID(sid), err)
-					return
-				}
-
-				if sz != 0 {
-					if st.Size != int64(ssize)*sz {
-						reason = fmt.Sprintf("%s is wrong size (got %d, expect %d)", p, st.Size, int64(ssize)*sz)
-						return
-					}
-				}
-			}
-
-			// TODO more strictly checks
-
-			return
+			results[i] = err.Error()
 
 		}(ti)
 	}
@@ -101,67 +135,51 @@ func (t *Tracker) Provable(ctx context.Context, pp abi.RegisteredPoStProof, sect
 	bad := map[abi.SectorNumber]string{}
 	for ri := range results {
 		if results[ri] != "" {
-			bad[sectors[ri].ID.Number] = results[ri]
+			bad[sectors[ri].SectorNumber] = results[ri]
 		}
 	}
 
 	return bad, nil
 }
 
-func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, sectorInfo []builtin.ExtendedSectorInfo) (api.SortedPrivateSectorInfo, error) {
-	out := make([]api.PrivateSectorInfo, 0, len(sectorInfo))
-	for _, sector := range sectorInfo {
-		sid := storage.SectorRef{
-			ID:        abi.SectorID{Miner: aid, Number: sector.SectorNumber},
-			ProofType: sector.SealProof,
-		}
-
-		postProofType, err := sid.ProofType.RegisteredWindowPoStProof()
-		if err != nil {
-			return api.SortedPrivateSectorInfo{}, fmt.Errorf("acquiring registered PoSt proof from sector info %+v: %w", sector, err)
-		}
-
-		objins, err := t.getObjInstanceForSector(ctx, sid.ID)
-		if err != nil {
-			return api.SortedPrivateSectorInfo{}, fmt.Errorf("get objstore instance for %s: %w", util.FormatSectorID(sid.ID), err)
-		}
-
-		// TODO: Construct paths for snap deals ?
-		proveUpdate := sector.SectorKey != nil
-		var (
-			subCache, subSealed string
-		)
-		if proveUpdate {
-
-		} else {
-			subCache = util.SectorPath(util.SectorPathTypeCache, sid.ID)
-			subSealed = util.SectorPath(util.SectorPathTypeSealed, sid.ID)
-		}
-
-		ffiInfo := builtin.SectorInfo{
-			SealProof:    sector.SealProof,
-			SectorNumber: sector.SectorNumber,
-			SealedCID:    sector.SealedCID,
-		}
-		out = append(out, api.PrivateSectorInfo{
-			CacheDirPath:     objins.FullPath(ctx, subCache),
-			PoStProofType:    postProofType,
-			SealedSectorPath: objins.FullPath(ctx, subSealed),
-			SectorInfo:       ffiInfo,
-		})
+func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, sectorInfo []builtin.ExtendedSectorInfo, typer api.SectorPoStTyper) ([]api.FFIPrivateSectorInfo, error) {
+	if len(sectorInfo) == 0 {
+		return []api.FFIPrivateSectorInfo{}, nil
 	}
 
-	return api.NewSortedPrivateSectorInfo(out...), nil
+	out := make([]api.FFIPrivateSectorInfo, 0, len(sectorInfo))
+	proofType, err := typer(sectorInfo[0].SealProof)
+	if err != nil {
+		return nil, fmt.Errorf("get PoSt proof type: %w", err)
+	}
+
+	for _, sector := range sectorInfo {
+		priv, err := t.SinglePubToPrivateInfo(ctx, aid, sector, nil)
+		if err != nil {
+			return nil, fmt.Errorf("construct private info for %d: %w", sector.SectorNumber, err)
+		}
+		out = append(out, priv.ToFFI(util.SectorExtendedToNormal(sector), proofType))
+	}
+
+	return out, nil
 }
 
-func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID) (objstore.Store, error) {
-	insname, has, err := t.indexer.Find(ctx, sid)
+func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID, locator api.SectorLocator, upgrade bool) (objstore.Store, error) {
+	if locator == nil {
+		if upgrade {
+			locator = t.indexer.Upgrade().Find
+		} else {
+			locator = t.indexer.Normal().Find
+		}
+	}
+
+	insname, has, err := locator(ctx, sid)
 	if err != nil {
 		return nil, fmt.Errorf("find objstore instance: %w", err)
 	}
 
 	if !has {
-		return nil, fmt.Errorf("objstore instance not found")
+		return nil, fmt.Errorf("object not found")
 	}
 
 	instance, err := t.indexer.StoreMgr().GetInstance(ctx, insname)
@@ -173,22 +191,8 @@ func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID)
 }
 
 func addCachePathsForSectorSize(chk map[string]int64, cacheDir string, ssize abi.SectorSize) {
-	switch ssize {
-	case 2 << 10:
-		fallthrough
-	case 8 << 20:
-		fallthrough
-	case 512 << 20:
-		chk[filepath.Join(cacheDir, "sc-02-data-tree-r-last.dat")] = 0
-	case 32 << 30:
-		for i := 0; i < 8; i++ {
-			chk[filepath.Join(cacheDir, fmt.Sprintf("sc-02-data-tree-r-last-%d.dat", i))] = 0
-		}
-	case 64 << 30:
-		for i := 0; i < 16; i++ {
-			chk[filepath.Join(cacheDir, fmt.Sprintf("sc-02-data-tree-r-last-%d.dat", i))] = 0
-		}
-	default:
-		log.Warnf("not checking cache files of %s sectors for faults", ssize)
+	files := util.CachedFilesForSectorSize(cacheDir, ssize)
+	for fi := range files {
+		chk[files[fi]] = 0
 	}
 }

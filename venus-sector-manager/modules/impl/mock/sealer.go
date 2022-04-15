@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/specs-storage/storage"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -32,11 +32,11 @@ type Sealer struct {
 }
 
 func (s *Sealer) AllocateSector(ctx context.Context, spec api.AllocateSectorSpec) (*api.AllocatedSector, error) {
-	return s.sector.Allocate(ctx, spec.AllowedMiners, spec.AllowedProofTypes)
+	return s.sector.Allocate(ctx, spec)
 }
 
 func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.AcquireDealsSpec) (api.Deals, error) {
-	return s.deal.Acquire(ctx, sid, spec.MaxDeals)
+	return s.deal.Acquire(ctx, sid, spec, api.SectorWorkerJobSealing)
 }
 
 func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket, error) {
@@ -105,10 +105,32 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 	return api.Empty, nil
 }
 
-func (s *Sealer) CheckProvable(context.Context, abi.RegisteredPoStProof, []storage.SectorRef, bool) (map[abi.SectorNumber]string, error) {
+func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
 	return nil, nil
 }
 
 func (s *Sealer) SimulateWdPoSt(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
 	return nil
+}
+
+func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec api.AllocateSnapUpSpec) (*api.AllocatedSnapUpSector, error) {
+	//TODO: impl
+	return nil, nil
+}
+
+func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapupInfo api.SnapUpOnChainInfo) (api.SubmitSnapUpProofResp, error) {
+	//TODO: impl
+	return api.SubmitSnapUpProofResp{Res: api.SubmitAccepted}, nil
+}
+
+func (s *Sealer) SnapUpPreFetch(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*api.SnapUpFetchResult, error) {
+	return &api.SnapUpFetchResult{}, nil
+}
+
+func (s *Sealer) SnapUpCandidates(ctx context.Context, mid abi.ActorID) ([]*bitfield.BitField, error) {
+	return nil, nil
+}
+
+func (s *Sealer) ProvingSectorInfo(ctx context.Context, sid abi.SectorID) (api.ProvingSectorInfo, error) {
+	return api.ProvingSectorInfo{}, nil
 }

@@ -134,7 +134,7 @@ func checkCommit(ctx context.Context, si apitypes.SectorState, proof []byte, tok
 		return &ErrNoPrecommit{fmt.Errorf("precommit info not found on-chain")}
 	}
 
-	seedEpoch := pci.PreCommitEpoch + policy.NetParams.Network.PreCommitChallengeDelay
+	seedEpoch := pci.PreCommitEpoch + policy.GetPreCommitChallengeDelay()
 
 	if seedEpoch != si.Seed.Epoch {
 		return &ErrBadSeed{fmt.Errorf("seed epoch doesn't match on chain info: %d != %d", seedEpoch, si.Seed.Epoch)}

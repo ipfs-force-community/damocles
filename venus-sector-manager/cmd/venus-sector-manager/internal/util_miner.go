@@ -1,10 +1,8 @@
 package internal
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/docker/go-units"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -235,71 +233,10 @@ var utilMinerCreateCmd = &cli.Command{
 			Value: big.Zero(),
 		}
 
-		mblk, err := msg.ToStorageBlock()
-		if err != nil {
-			return fmt.Errorf("failed to generate msg node: %w", err)
-		}
-
-		mid := mblk.Cid().String()
-		if exid := cctx.String("exid"); exid != "" {
-			mid = fmt.Sprintf("%s-%s", mid, exid)
-			mlog = mlog.With("extra-id", exid)
-			mlog.Warnf("use extra message id")
-		}
-
-		has, err := api.Messager.HasMessageByUid(gctx, mid)
-		if err != nil {
-			return RPCCallError("HasMessageByUid", err)
-		}
-
-		if !has {
-			rmid, err := api.Messager.PushMessageWithId(gctx, mid, msg, &messager.MsgMeta{})
-			if err != nil {
-				return RPCCallError("PushMessageWithId", err)
-			}
-
-			if rmid != mid {
-				mlog.Warnf("mcid not equal to recv id: %s != %s", mid, rmid)
-			}
-		}
-
-		mlog = mlog.With("mid", mid)
-		var mret *messager.Message
-	WAIT_RET:
-		for {
-			mlog.Info("wait for message receipt")
-			time.Sleep(30 * time.Second)
-
-			ret, err := api.Messager.GetMessageByUid(gctx, mid)
-			if err != nil {
-				mlog.Warnf("GetMessageByUid: %s", err)
-				continue
-			}
-
-			switch ret.State {
-			case messager.MessageState.OnChainMsg:
-				mret = ret
-				break WAIT_RET
-
-			case messager.MessageState.NoWalletMsg:
-				mlog.Warnf("no wallet available for the sender %s, please check", from)
-
-			default:
-				mlog.Infof("msg state: %s", messager.MessageStateToString(ret.State))
-			}
-		}
-
-		mlog = mlog.With("smcid", mret.SignedCid.String(), "height", mret.Height)
-
-		mlog.Infow("message landed on chain")
-		if mret.Receipt.ExitCode != 0 {
-			mlog.Warnf("message exec failed: %s(%d)", mret.Receipt.ExitCode, mret.Receipt.ExitCode)
-			return nil
-		}
-
 		var retval apitypes.CreateMinerReturn
-		if err := retval.UnmarshalCBOR(bytes.NewReader(mret.Receipt.Return)); err != nil {
-			return fmt.Errorf("unmarshal message return: %w", err)
+		err = waitMessage(gctx, api, msg, cctx.String("exid"), mlog, &retval)
+		if err != nil {
+			return err
 		}
 
 		mlog.Infof("miner actor: %s (%s)", retval.IDAddress, retval.RobustAddress)

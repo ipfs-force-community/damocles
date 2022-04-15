@@ -1,17 +1,24 @@
 package internal
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/dtynn/dix"
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/fx"
 
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
@@ -70,18 +77,21 @@ type API struct {
 	Chain    chain.API
 	Messager messager.API
 	Market   market.API
+	Sealer   api.SealerCliClient
 }
 
-func extractAPI(cctx *cli.Context) (*API, context.Context, stopper, error) {
+func extractAPI(cctx *cli.Context, target ...interface{}) (*API, context.Context, stopper, error) {
 	gctx, gcancel := NewSigContext(cctx.Context)
 
 	var a API
+	wants := append([]interface{}{&a}, target...)
 
 	stopper, err := dix.New(
 		gctx,
 		DepsFromCLICtx(cctx),
 		dix.Override(new(dep.GlobalContext), gctx),
-		dep.API(&a),
+		dix.Override(new(dep.ListenAddress), dep.ListenAddress(cctx.String(SealerListenFlag.Name))),
+		dep.API(wants...),
 	)
 
 	if err != nil {
@@ -114,4 +124,109 @@ func ShouldAddress(s string, checkEmpty bool, allowActor bool) (address.Address,
 	}
 
 	return address.NewFromString(s)
+}
+
+func ShouldActor(s string, checkEmpty bool) (abi.ActorID, error) {
+	addr, err := ShouldAddress(s, checkEmpty, true)
+	if err != nil {
+		return 0, err
+	}
+
+	actor, err := address.IDFromAddress(addr)
+	if err != nil {
+		return 0, fmt.Errorf("get actor id from addr: %w", err)
+	}
+
+	return abi.ActorID(actor), nil
+}
+
+func ShouldSectorNumber(s string) (abi.SectorNumber, error) {
+	num, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse sector number: %w", err)
+	}
+
+	return abi.SectorNumber(num), nil
+}
+
+func waitMessage(ctx context.Context, api *API, rawMsg *messager.UnsignedMessage, exid string, mlog *logging.ZapLogger, ret cbor.Unmarshaler) error {
+	if mlog == nil {
+		mlog = Log.With("action", "wait-message")
+	}
+
+	mblk, err := rawMsg.ToStorageBlock()
+	if err != nil {
+		return fmt.Errorf("failed to generate msg node: %w", err)
+	}
+
+	mid := mblk.Cid().String()
+	if exid != "" {
+		mid = fmt.Sprintf("%s-%s", mid, exid)
+		mlog = mlog.With("exid", exid)
+		mlog.Warnf("use extra message id")
+	}
+
+	has, err := api.Messager.HasMessageByUid(ctx, mid)
+	if err != nil {
+		return RPCCallError("HasMessageByUid", err)
+	}
+
+	if !has {
+		rmid, err := api.Messager.PushMessageWithId(ctx, mid, rawMsg, &messager.MsgMeta{})
+		if err != nil {
+			return RPCCallError("PushMessageWithId", err)
+		}
+
+		if rmid != mid {
+			mlog.Warnf("mcid not equal to recv id: %s != %s", mid, rmid)
+		}
+	}
+
+	mlog = mlog.With("mid", mid)
+	var mret *messager.Message
+WAIT_RET:
+	for {
+		mlog.Info("wait for message receipt")
+		time.Sleep(30 * time.Second)
+
+		ret, err := api.Messager.GetMessageByUid(ctx, mid)
+		if err != nil {
+			mlog.Warnf("GetMessageByUid: %s", err)
+			continue
+		}
+
+		switch ret.State {
+		case messager.MessageState.OnChainMsg:
+			mret = ret
+			break WAIT_RET
+
+		case messager.MessageState.NoWalletMsg:
+			mlog.Warnf("no wallet available for the sender %s, please check", rawMsg.From)
+
+		default:
+			mlog.Infof("msg state: %s", messager.MessageStateToString(ret.State))
+		}
+	}
+
+	mlog = mlog.With("smcid", mret.SignedCid.String(), "height", mret.Height)
+
+	mlog.Infow("message landed on chain")
+	if mret.Receipt.ExitCode != 0 {
+		mlog.Warnf("message exec failed: %s(%d)", mret.Receipt.ExitCode, mret.Receipt.ExitCode)
+		return nil
+	}
+
+	if ret != nil {
+		if err := ret.UnmarshalCBOR(bytes.NewReader(mret.Receipt.Return)); err != nil {
+			return fmt.Errorf("unmarshal message return: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func OuputJSON(w io.Writer, v interface{}) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "\t")
+	return enc.Encode(v)
 }

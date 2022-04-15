@@ -17,7 +17,7 @@ const (
 
 var ErrInvalidSectorSize = fmt.Errorf("invalid sector size")
 
-func SectorSize2SealProofType(size uint64) (abi.RegisteredSealProof, error) {
+func SectorSize2SealProofType(size abi.SectorSize) (abi.RegisteredSealProof, error) {
 	switch size {
 	case ss2KiB:
 		return abi.RegisteredSealProof_StackedDrg2KiBV1_1, nil
@@ -42,9 +42,10 @@ func SectorSize2SealProofType(size uint64) (abi.RegisteredSealProof, error) {
 type pathType string
 
 const (
-	SectorPathTypeCache    = "cache"
-	SectorPathTypeSealed   = "sealed"
-	SectorPathTypeUnsealed = "unsealed"
+	SectorPathTypeCache       pathType = "cache"
+	SectorPathTypeSealed      pathType = "sealed"
+	SectorPathTypeUpdate      pathType = "update"
+	SectorPathTypeUpdateCache pathType = "update-cache"
 )
 
 const sectorIDFormat = "s-t0%d-%d"
@@ -61,4 +62,23 @@ func ScanSectorID(s string) (abi.SectorID, bool) {
 	var sid abi.SectorID
 	read, err := fmt.Sscanf(s, sectorIDFormat, &sid.Miner, &sid.Number)
 	return sid, err == nil && read == 2
+}
+
+func CachedFilesForSectorSize(cacheDir string, ssize abi.SectorSize) []string {
+	var paths []string
+	switch ssize {
+	case ss2KiB, ss8MiB, ss512MiB:
+		paths = []string{filepath.Join(cacheDir, "sc-02-data-tree-r-last.dat")}
+	case ss32GiB:
+		for i := 0; i < 8; i++ {
+			paths = append(paths, filepath.Join(cacheDir, fmt.Sprintf("sc-02-data-tree-r-last-%d.dat", i)))
+		}
+	case ss64GiB:
+		for i := 0; i < 16; i++ {
+			paths = append(paths, filepath.Join(cacheDir, fmt.Sprintf("sc-02-data-tree-r-last-%d.dat", i)))
+		}
+	default:
+	}
+
+	return paths
 }

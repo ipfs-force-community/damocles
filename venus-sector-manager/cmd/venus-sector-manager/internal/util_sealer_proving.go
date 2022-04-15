@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -15,7 +16,6 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/specs-storage/storage"
 
 	"github.com/filecoin-project/venus/pkg/chain"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
@@ -23,6 +23,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	chain2 "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 )
 
@@ -41,19 +42,8 @@ var utilSealerProvingCmd = &cli.Command{
 		utilSealerProvingDeadlineInfoCmd,
 		utilSealerProvingCheckProvableCmd,
 		utilSealerProvingSimulateWdPoStCmd,
+		utilSealerProvingSectorInfoCmd,
 	},
-}
-
-func getMinerActorAddress(strMaddr string) (maddr address.Address, err error) {
-	if strMaddr != "" {
-		maddr, err = address.NewFromString(strMaddr)
-		if err != nil {
-			return maddr, err
-		}
-		return
-	}
-
-	return address.Undef, fmt.Errorf("`miner` param not set")
 }
 
 func EpochTime(curr, e abi.ChainEpoch, blockDelay uint64) string {
@@ -86,7 +76,7 @@ var utilSealerProvingInfoCmd = &cli.Command{
 		}
 		defer astop()
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -197,7 +187,7 @@ var utilSealerProvingFaultsCmd = &cli.Command{
 
 		stor := chain.ActorStore(ctx, chain2.NewAPIBlockstore(api.Chain))
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -262,7 +252,7 @@ var utilSealerProvingDeadlinesCmd = &cli.Command{
 			return err
 		}
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -355,7 +345,7 @@ var utilSealerProvingDeadlineInfoCmd = &cli.Command{
 			return err
 		}
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -456,7 +446,7 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -466,7 +456,7 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 			return err
 		}
 
-		info, err := api.Chain.StateMinerInfo(ctx, maddr, types.EmptyTSK)
+		_, err = api.Chain.StateMinerInfo(ctx, maddr, types.EmptyTSK)
 		if err != nil {
 			return err
 		}
@@ -479,12 +469,6 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		_, _ = fmt.Fprintln(tw, "deadline\tpartition\tsector\tstatus")
 
-		sapi, sctx, stop, err := extractSealerClient(cctx)
-		if err != nil {
-			return err
-		}
-		defer stop()
-
 		var filter map[abi.SectorID]struct{}
 		for parIdx, par := range partitions {
 			sectors := make(map[abi.SectorNumber]struct{})
@@ -494,7 +478,7 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 				return err
 			}
 
-			var tocheck []storage.SectorRef
+			var tocheck []builtin.ExtendedSectorInfo
 			for _, info := range sectorInfos {
 				si := abi.SectorID{
 					Miner:  abi.ActorID(mid),
@@ -508,13 +492,10 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 				}
 
 				sectors[info.SectorNumber] = struct{}{}
-				tocheck = append(tocheck, storage.SectorRef{
-					ProofType: info.SealProof,
-					ID:        si,
-				})
+				tocheck = append(tocheck, util.SectorOnChainInfoToExtended(info))
 			}
 
-			bad, err := sapi.CheckProvable(sctx, info.WindowPoStProofType, tocheck, cctx.Bool("slow"))
+			bad, err := api.Sealer.CheckProvable(ctx, abi.ActorID(mid), tocheck, cctx.Bool("slow"))
 			if err != nil {
 				return err
 			}
@@ -564,7 +545,7 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			return fmt.Errorf("get chain head failed: %w", err)
 		}
 
-		maddr, err := getMinerActorAddress(cctx.String("miner"))
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
@@ -598,19 +579,11 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			return fmt.Errorf("no lived sector in that partition")
 		}
 
-		substitute := builtin.ExtendedSectorInfo{
-			SectorNumber: sset[0].SectorNumber,
-			SealedCID:    sset[0].SealedCID,
-			SealProof:    sset[0].SealProof,
-		}
+		substitute := util.SectorOnChainInfoToExtended(sset[0])
 
 		sectorByID := make(map[uint64]builtin.ExtendedSectorInfo, len(sset))
 		for _, sector := range sset {
-			sectorByID[uint64(sector.SectorNumber)] = builtin.ExtendedSectorInfo{
-				SectorNumber: sector.SectorNumber,
-				SealedCID:    sector.SealedCID,
-				SealProof:    sector.SealProof,
-			}
+			sectorByID[uint64(sector.SectorNumber)] = util.SectorOnChainInfoToExtended(sector)
 		}
 
 		proofSectors := make([]builtin.ExtendedSectorInfo, 0, len(sset))
@@ -630,18 +603,62 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			rand = append(rand, 0)
 		}
 
-		sapi, sctx, stop, err := extractSealerClient(cctx)
-		if err != nil {
-			return err
-		}
-		defer stop()
-
-		err = sapi.SimulateWdPoSt(sctx, maddr, proofSectors, rand)
+		err = api.Sealer.SimulateWdPoSt(ctx, maddr, proofSectors, rand)
 		if err != nil {
 			return err
 		}
 
 		fmt.Printf("Simulate sectors %v wdpost start, please retrieve `mock generate window post` from the log to view execution info.\n", proofSectors)
+
+		return nil
+	},
+}
+
+var utilSealerProvingSectorInfoCmd = &cli.Command{
+	Name:      "sector-info",
+	ArgsUsage: "<sector number> ...",
+	Action: func(cctx *cli.Context) error {
+		api, actx, astop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer astop()
+
+		mid, err := ShouldActor(cctx.String("miner"), true)
+		if err != nil {
+			return err
+		}
+
+		mlog := Log.With("miner", mid)
+
+		args := cctx.Args()
+		for i := 0; i < args.Len(); i++ {
+			argStr := args.Get(i)
+			num, err := strconv.ParseUint(args.Get(i), 10, 64)
+			if err != nil {
+				mlog.Warnf("#%d %s is not a valid sector number", i, argStr)
+				continue
+			}
+
+			slog := mlog.With("num", num)
+
+			info, err := api.Sealer.ProvingSectorInfo(actx, abi.SectorID{
+				Miner:  mid,
+				Number: abi.SectorNumber(num),
+			})
+
+			if err != nil {
+				slog.Warnf("failed to get info: %w", err)
+				continue
+			}
+
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "\t")
+			if err := enc.Encode(info); err != nil {
+				slog.Warnf("failed to output info: %w", err)
+				continue
+			}
+		}
 
 		return nil
 	},

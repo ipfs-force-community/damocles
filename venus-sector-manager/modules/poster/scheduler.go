@@ -11,7 +11,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/network"
-	"github.com/filecoin-project/specs-storage/storage"
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/xerrors"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
@@ -285,12 +285,12 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 
 			tsStart := s.clock.Now()
 
-			privSectors, err := s.sectorTracker.PubToPrivate(ctx, s.actor.ID, xsinfos)
+			privSectors, err := s.sectorTracker.PubToPrivate(ctx, s.actor.ID, xsinfos, api.SectorWindowPoSt)
 			if err != nil {
 				return nil, fmt.Errorf("turn public sector infos into private: %w", err)
 			}
 
-			postOut, ps, err := s.prover.GenerateWindowPoSt(ctx, s.actor.ID, privSectors, append(abi.PoStRandomness{}, rand.Rand...))
+			postOut, ps, err := s.prover.GenerateWindowPoSt(ctx, s.actor.ID, api.NewSortedPrivateSectorInfo(privSectors...), append(abi.PoStRandomness{}, rand.Rand...))
 			elapsed := time.Since(tsStart)
 
 			s.log.Infow("computing window post", "batch", batchIdx, "elapsed", elapsed)
@@ -535,24 +535,19 @@ func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, t
 	}
 
 	sectors := make(map[abi.SectorNumber]struct{})
-	var tocheck []storage.SectorRef
+	var tocheck []builtin.ExtendedSectorInfo
 	for _, info := range sectorInfos {
 		sectors[info.SectorNumber] = struct{}{}
-		tocheck = append(tocheck, storage.SectorRef{
-			ProofType: info.SealProof,
-			ID: abi.SectorID{
-				Miner:  s.actor.ID,
-				Number: info.SectorNumber,
-			},
-		})
+		tocheck = append(tocheck, util.SectorOnChainInfoToExtended(info))
 	}
 
-	bad, err := s.sectorTracker.Provable(ctx, s.proofType, tocheck, mcfg.PoSt.StrictCheck)
+	bad, err := s.sectorTracker.Provable(ctx, s.actor.ID, tocheck, mcfg.PoSt.StrictCheck)
 	if err != nil {
 		return bitfield.BitField{}, fmt.Errorf("checking provable sectors: %w", err)
 	}
 
 	for num := range bad {
+		s.log.Warnf("bad sector %d: %s", num, bad[num])
 		delete(sectors, num)
 	}
 
@@ -576,21 +571,11 @@ func (s *scheduler) sectorsForProof(ctx context.Context, goodSectors, allSectors
 		return nil, nil
 	}
 
-	substitute := builtin.ExtendedSectorInfo{
-		SectorNumber: sset[0].SectorNumber,
-		SealedCID:    sset[0].SealedCID,
-		SealProof:    sset[0].SealProof,
-		SectorKey:    sset[0].SectorKeyCID,
-	}
+	substitute := util.SectorOnChainInfoToExtended(sset[0])
 
 	sectorByID := make(map[uint64]builtin.ExtendedSectorInfo, len(sset))
 	for _, sector := range sset {
-		sectorByID[uint64(sector.SectorNumber)] = builtin.ExtendedSectorInfo{
-			SectorNumber: sector.SectorNumber,
-			SealedCID:    sector.SealedCID,
-			SealProof:    sector.SealProof,
-			SectorKey:    sector.SectorKeyCID,
-		}
+		sectorByID[uint64(sector.SectorNumber)] = util.SectorOnChainInfoToExtended(sector)
 	}
 
 	proofSectors := make([]builtin.ExtendedSectorInfo, 0, len(sset))

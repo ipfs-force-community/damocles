@@ -8,48 +8,13 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 
-	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
-	"github.com/filecoin-project/venus/venus-shared/actors/policy"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 )
 
-func Expiration(ctx context.Context, api SealingAPI, ps api.Deals) (abi.ChainEpoch, error) {
-	tok, epoch, err := api.ChainHead(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	var end *abi.ChainEpoch
-
-	for _, p := range ps {
-		proposal, err := api.StateMarketStorageDealProposal(ctx, p.ID, tok)
-		if err != nil {
-			return 0, err
-		}
-
-		if proposal.EndEpoch < epoch {
-			log.Warnf("piece schedule %+v ended before current epoch %d", p, epoch)
-			continue
-		}
-
-		if end == nil || *end < proposal.EndEpoch {
-			tmp := proposal.EndEpoch
-			end = &tmp
-		}
-	}
-
-	// we will limit min expire outside
-	if end == nil {
-		tmp := epoch
-		end = &tmp
-	}
-
-	return *end, nil
-}
-
-func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.SectorState) (*miner.SectorPreCommitInfo, big.Int, api.TipSetToken, error) {
+func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector api.SectorState) (*miner.SectorPreCommitInfo, big.Int, api.TipSetToken, error) {
+	stateMgr := p.api
 	tok, _, err := stateMgr.ChainHead(ctx)
 	if err != nil {
 		log.Errorf("handlePreCommitting: api error, not proceeding: %+v", err)
@@ -88,27 +53,9 @@ func preCommitParams(ctx context.Context, stateMgr SealingAPI, sector api.Sector
 		}
 	}
 
-	expiration, err := Expiration(ctx, stateMgr, sector.Deals())
+	expiration, err := p.sectorExpiration(ctx, &sector)
 	if err != nil {
 		return nil, big.Zero(), nil, fmt.Errorf("handlePreCommitting: failed to compute pre-commit expiry: %w", err)
-	}
-
-	nv, err := stateMgr.StateNetworkVersion(ctx, tok)
-	if err != nil {
-		return nil, big.Zero(), nil, fmt.Errorf("failed to get network version: %w", err)
-	}
-
-	av, err := actors.VersionForNetwork(nv)
-	if err != nil {
-		return nil, big.Zero(), nil, fmt.Errorf("unsupported network vrsion: %w", err)
-	}
-	mpcd, err := policy.GetMaxProveCommitDuration(av, sector.SectorType)
-	if err != nil {
-		return nil, big.Zero(), nil, fmt.Errorf("getting max prove commit duration: %w", err)
-	}
-	// TODO: get costumer config
-	if minExpiration := sector.Ticket.Epoch + policy.MaxPreCommitRandomnessLookback + mpcd + miner.MinSectorExpiration; expiration < minExpiration {
-		expiration = minExpiration
 	}
 
 	params := &miner.SectorPreCommitInfo{

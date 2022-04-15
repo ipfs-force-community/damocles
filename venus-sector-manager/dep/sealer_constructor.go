@@ -39,8 +39,8 @@ type (
 	ListenAddress               string
 )
 
-func BuildLocalSectorManager(cfg *modules.Config, locker confmgr.RLocker, mapi api.MinerInfoAPI, numAlloc api.SectorNumberAllocator) (api.SectorManager, error) {
-	return sectors.NewManager(cfg, locker, mapi, numAlloc)
+func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi api.MinerInfoAPI, numAlloc api.SectorNumberAllocator) (api.SectorManager, error) {
+	return sectors.NewManager(scfg, mapi, numAlloc)
 }
 
 func BuildLocalConfigManager(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (confmgr.ConfigManager, error) {
@@ -179,8 +179,17 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Conf
 	return mcli, nil
 }
 
-func BuildSealerClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) (api.SealerClient, error) {
-	var scli api.SealerClient
+func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) api.SealerCliClient {
+	cli, err := BuildSealerCliClient(gctx, lc, listen)
+	if err != nil {
+		cli = api.UnavailableSealerCliClient
+	}
+
+	return cli
+}
+
+func BuildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) (api.SealerCliClient, error) {
+	var scli api.SealerCliClient
 
 	addr, err := net.ResolveTCPAddr("tcp", string(listen))
 	if err != nil {
@@ -280,6 +289,7 @@ func BuildCommitmentManager(
 	mapi messager.API,
 	rapi api.RandomnessAPI,
 	stmgr api.SectorStateManager,
+	minfoAPI api.MinerInfoAPI,
 	scfg *modules.SafeConfig,
 	verif api.Verifier,
 	prover api.Prover,
@@ -288,6 +298,7 @@ func BuildCommitmentManager(
 		gctx,
 		mapi,
 		commitmgr.NewSealingAPIImpl(capi, rapi),
+		minfoAPI,
 		stmgr,
 		scfg,
 		verif,
@@ -342,7 +353,12 @@ func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker) (P
 }
 
 func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (api.SectorIndexer, error) {
-	return sectors.NewIndexer(storeMgr, kv)
+	upgrade, err := kvstore.NewWrappedKVStore([]byte("sector-upgrade"), kv)
+	if err != nil {
+		return nil, fmt.Errorf("wrap kvstore for sector-upgrade: %w", err)
+	}
+
+	return sectors.NewIndexer(storeMgr, kv, upgrade)
 }
 
 func BuildSectorTracker(indexer api.SectorIndexer) (api.SectorTracker, error) {

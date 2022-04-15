@@ -7,12 +7,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ipfs/go-cid"
-	mh "github.com/multiformats/go-multihash"
-
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/exitcode"
+	"github.com/ipfs/go-cid"
+	mh "github.com/multiformats/go-multihash"
 
 	"github.com/filecoin-project/venus/venus-shared/types"
 
@@ -42,6 +41,7 @@ type CommitmentMgrImpl struct {
 	msgClient messager.API
 
 	stateMgr SealingAPI
+	minfoAPI api.MinerInfoAPI
 
 	smgr api.SectorStateManager
 
@@ -60,7 +60,7 @@ type CommitmentMgrImpl struct {
 	stop     chan struct{}
 }
 
-func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr SealingAPI, smgr api.SectorStateManager,
+func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr SealingAPI, minfoAPI api.MinerInfoAPI, smgr api.SectorStateManager,
 	cfg *modules.SafeConfig, verif api.Verifier, prover api.Prover,
 ) (*CommitmentMgrImpl, error) {
 	prePendingChan := make(chan api.SectorState, 1024)
@@ -70,6 +70,7 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 		ctx:       ctx,
 		msgClient: commitApi,
 		stateMgr:  stateMgr,
+		minfoAPI:  minfoAPI,
 		smgr:      smgr,
 		cfg:       cfg,
 
@@ -248,6 +249,7 @@ func (c *CommitmentMgrImpl) startPreLoop() {
 
 			c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, sender, PreCommitProcessor{
 				api:       c.stateMgr,
+				mapi:      c.minfoAPI,
 				msgClient: c.msgClient,
 				smgr:      c.smgr,
 				config:    c.cfg,
@@ -293,7 +295,7 @@ func (c *CommitmentMgrImpl) startProLoop() {
 }
 
 func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
-	sectors, err := c.smgr.All(ctx, api.WorkerOnline)
+	sectors, err := c.smgr.All(ctx, api.WorkerOnline, api.SectorWorkerJobSealing)
 	if err != nil {
 		log.Errorf("load all sector from db failed: %s", err)
 		return
@@ -538,7 +540,7 @@ func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, 
 	if msg.Receipt != nil && len(msg.Receipt.Return) > 0 {
 		msgRet := string(msg.Receipt.Return)
 		if msg.State != messager.MessageState.OnChainMsg {
-			mlog.Warnf("MAYBE WARN from off-chani msg recepit: %s", msgRet)
+			mlog.Warnf("MAYBE WARN from off-chain msg recepit: %s", msgRet)
 		}
 
 		maybeMsg = &msgRet

@@ -9,6 +9,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 )
 
@@ -24,6 +25,22 @@ func init() {
 	}
 
 	stateFields = fields
+}
+
+func WorkerJobMatcher(jobType api.SectorWorkerJob, state *api.SectorState) bool {
+	switch jobType {
+	case api.SectorWorkerJobAll:
+		return true
+
+	case api.SectorWorkerJobSealing:
+		return !bool(state.Upgraded)
+
+	case api.SectorWorkerJobSnapUp:
+		return bool(state.Upgraded)
+
+	default:
+		return false
+	}
 }
 
 var _ api.SectorStateManager = (*StateManager)(nil)
@@ -62,25 +79,27 @@ func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *api.Se
 	return nil
 }
 
-func (sm *StateManager) All(ctx context.Context, ws api.SectorWorkerState) ([]*api.SectorState, error) {
-	var (
-		iter kvstore.Iter
-		err  error
-	)
-
+func (sm *StateManager) getIter(ctx context.Context, ws api.SectorWorkerState) (kvstore.Iter, error) {
 	switch ws {
 	case api.WorkerOnline:
-		iter, err = sm.online.Scan(ctx, nil)
+		return sm.online.Scan(ctx, nil)
 	case api.WorkerOffline:
-		iter, err = sm.offline.Scan(ctx, nil)
+		return sm.offline.Scan(ctx, nil)
+
+	default:
+		return nil, fmt.Errorf("unexpected state store type %s", ws)
 	}
+}
+
+func (sm *StateManager) All(ctx context.Context, ws api.SectorWorkerState, job api.SectorWorkerJob) ([]*api.SectorState, error) {
+	iter, err := sm.getIter(ctx, ws)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get iter for All: %w", err)
 	}
 
 	defer iter.Close()
 
-	states := make([]*api.SectorState, 0, 32) // TODO 只返回了32个?
+	states := make([]*api.SectorState, 0, 32)
 	for iter.Next() {
 		var state api.SectorState
 		if err := iter.View(ctx, func(data []byte) error {
@@ -89,19 +108,53 @@ func (sm *StateManager) All(ctx context.Context, ws api.SectorWorkerState) ([]*a
 			return nil, fmt.Errorf("scan state item of key %s: %w", string(iter.Key()), err)
 		}
 
-		states = append(states, &state)
+		if WorkerJobMatcher(job, &state) {
+			states = append(states, &state)
+		}
 	}
 
 	return states, nil
 }
 
+func (sm *StateManager) ForEach(ctx context.Context, ws api.SectorWorkerState, job api.SectorWorkerJob, fn func(api.SectorState) error) error {
+	iter, err := sm.getIter(ctx, ws)
+	if err != nil {
+		return fmt.Errorf("get iter for ForEach: %w", err)
+	}
+
+	defer iter.Close()
+
+	for iter.Next() {
+		var state api.SectorState
+		if err := iter.View(ctx, func(data []byte) error {
+			return json.Unmarshal(data, &state)
+		}); err != nil {
+			return fmt.Errorf("scan state item of key %s: %w", string(iter.Key()), err)
+		}
+
+		if !WorkerJobMatcher(job, &state) {
+			continue
+		}
+
+		if err := fn(state); err != nil {
+			return fmt.Errorf("handle sector state for %s: %w", util.FormatSectorID(state.ID), err)
+		}
+	}
+
+	return nil
+}
+
 func (sm *StateManager) Init(ctx context.Context, sid abi.SectorID, st abi.RegisteredSealProof) error {
+	return sm.InitWith(ctx, sid, st)
+}
+
+func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, fieldvals ...interface{}) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
 	state := api.SectorState{
 		ID:         sid,
-		SectorType: st,
+		SectorType: proofType,
 	}
 
 	key := makeSectorKey(sid)
@@ -112,6 +165,13 @@ func (sm *StateManager) Init(ctx context.Context, sid abi.SectorID, st abi.Regis
 
 	if err != kvstore.ErrKeyNotFound {
 		return err
+	}
+
+	if len(fieldvals) > 0 {
+		err = apply(ctx, &state, fieldvals...)
+		if err != nil {
+			return fmt.Errorf("apply field vals: %w", err)
+		}
 	}
 
 	return save(ctx, sm.online, key, state)
@@ -140,18 +200,15 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals 
 		return err
 	}
 
-	statev := reflect.ValueOf(&state).Elem()
-	for fi := range fieldvals {
-		fieldval := fieldvals[fi]
-		if err := processStateField(statev, fieldval); err != nil {
-			return err
-		}
+	err := apply(ctx, &state, fieldvals...)
+	if err != nil {
+		return fmt.Errorf("apply field vals: %w", err)
 	}
 
 	return save(ctx, sm.online, key, state)
 }
 
-func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinalize func(*api.SectorState) error) error {
+func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinalize api.SectorStateChangeHook) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
@@ -162,9 +219,13 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 	}
 
 	if onFinalize != nil {
-		err := onFinalize(&state)
+		should, err := onFinalize(&state)
 		if err != nil {
 			return fmt.Errorf("callback falied before finalize: %w", err)
+		}
+
+		if !should {
+			return nil
 		}
 	}
 
@@ -180,7 +241,7 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 	return nil
 }
 
-func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore func(*api.SectorState) error) error {
+func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore api.SectorStateChangeHook) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
@@ -191,9 +252,13 @@ func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore
 	}
 
 	if onRestore != nil {
-		err := onRestore(&state)
+		should, err := onRestore(&state)
 		if err != nil {
 			return fmt.Errorf("callback falied before restore: %w", err)
+		}
+
+		if !should {
+			return nil
 		}
 	}
 
@@ -239,4 +304,16 @@ func save(ctx context.Context, store kvstore.KVStore, key kvstore.Key, state api
 	}
 
 	return store.Put(ctx, key, b)
+}
+
+func apply(ctx context.Context, state *api.SectorState, fieldvals ...interface{}) error {
+	statev := reflect.ValueOf(state).Elem()
+	for fi := range fieldvals {
+		fieldval := fieldvals[fi]
+		if err := processStateField(statev, fieldval); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

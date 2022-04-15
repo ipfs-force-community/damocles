@@ -8,9 +8,9 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 )
 
@@ -37,7 +37,7 @@ var mockCmd = &cli.Command{
 			return fmt.Errorf("invalid sector-size string %s: %w", sizeStr, err)
 		}
 
-		proofType, err := util.SectorSize2SealProofType(uint64(sectorSize))
+		proofType, err := util.SectorSize2SealProofType(abi.SectorSize(sectorSize))
 		if err != nil {
 			return fmt.Errorf("get seal proof type: %w", err)
 		}
