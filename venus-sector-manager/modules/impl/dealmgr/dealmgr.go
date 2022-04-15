@@ -41,7 +41,7 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec api.A
 	enabled := false
 	switch job {
 	case api.SectorWorkerJobSealing:
-		enabled = mcfg.Deal.Enabled
+		enabled = mcfg.Sector.EnableDeals
 
 	case api.SectorWorkerJobSnapUp:
 		enabled = mcfg.SnapUp.Enabled

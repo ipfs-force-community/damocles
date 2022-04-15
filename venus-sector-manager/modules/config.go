@@ -121,6 +121,7 @@ type MinerSectorConfig struct {
 	InitNumber   uint64
 	MaxNumber    *uint64
 	Enabled      bool
+	EnableDeals  bool
 	LifetimeDays uint64
 }
 
@@ -240,16 +241,6 @@ func defaultMinerPoStConfig(example bool) MinerPoStConfig {
 	return cfg
 }
 
-type MinerDealConfig struct {
-	Enabled bool
-}
-
-func defaultMinerDealConfig() MinerDealConfig {
-	return MinerDealConfig{
-		Enabled: false,
-	}
-}
-
 type MinerProofConfig struct {
 	Enabled bool
 }
@@ -267,7 +258,6 @@ type MinerConfig struct {
 	Commitment MinerCommitmentConfig
 	PoSt       MinerPoStConfig
 	Proof      MinerProofConfig
-	Deal       MinerDealConfig
 }
 
 func defaultMinerConfig(example bool) MinerConfig {
@@ -277,7 +267,6 @@ func defaultMinerConfig(example bool) MinerConfig {
 		Commitment: defaultMinerCommitmentConfig(example),
 		PoSt:       defaultMinerPoStConfig(example),
 		Proof:      defaultMinerProofConfig(),
-		Deal:       defaultMinerDealConfig(),
 	}
 
 	if example {
