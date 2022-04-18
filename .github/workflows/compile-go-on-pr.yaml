@@ -4,7 +4,7 @@ name: compile-go-on-pr
 # Controls when the workflow will run
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ main, release/** ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
