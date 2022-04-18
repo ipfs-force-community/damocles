@@ -207,9 +207,7 @@ impl Sealer for SimpleMockSealerRpc {
     fn submit_snapup_proof(
         &self,
         _id: SectorID,
-        _pieces: Vec<CidJson>,
-        _proof: B64Vec,
-        _instance: String,
+        _info: SnapUpOnChainInfo,
     ) -> Result<SubmitSnapUpProofResp> {
         unimplemented!();
     }

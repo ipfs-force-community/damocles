@@ -10,7 +10,10 @@ import (
 type ZapLogger = zap.SugaredLogger
 type WrappedLogger = logging.ZapEventLogger
 
-var New = logging.Logger
+var (
+	New         = logging.Logger
+	SetLogLevel = logging.SetLogLevel
+)
 
 func Setup() {
 	if _, set := os.LookupEnv("GOLOG_LOG_LEVEL"); !set {

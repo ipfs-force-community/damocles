@@ -57,8 +57,8 @@ impl Default for Sealing {
             max_deals: None,
             max_retries: 5,
             seal_interval: Duration::from_secs(30),
-            recover_interval: Duration::from_secs(30),
-            rpc_polling_interval: Duration::from_secs(30),
+            recover_interval: Duration::from_secs(60),
+            rpc_polling_interval: Duration::from_secs(180),
             ignore_proof_check: false,
         }
     }

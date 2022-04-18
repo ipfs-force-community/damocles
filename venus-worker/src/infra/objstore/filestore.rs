@@ -1,6 +1,6 @@
 //! ObjectStore implemented based on fs
 
-use std::fs::{create_dir_all, remove_file, File, OpenOptions};
+use std::fs::{create_dir_all, remove_dir_all, remove_file, File, OpenOptions};
 use std::io::{copy, BufReader, Read, Seek, SeekFrom};
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
@@ -144,10 +144,50 @@ impl ObjectStore for FileStore {
         Ok(iter)
     }
 
-    fn copy_to(&self, path: &Path, dst: &Path, allow_sym: bool) -> ObjResult<()> {
-        if allow_sym {
+    fn link_dir(&self, path: &Path, dst: &Path, sym_only: bool) -> ObjResult<()> {
+        let src_path = self.path(path)?;
+        if !src_path.is_dir() {
+            return Err(anyhow!("{:?} is not a dir", path).into());
+        }
+
+        if let Some(parent) = dst.parent() {
+            create_dir_all(parent)?;
+        }
+
+        if sym_only {
+            if dst.exists() {
+                remove_dir_all(dst)?;
+            }
+            symlink(src_path, dst)?;
+            return Ok(());
+        }
+
+        for entry_res in src_path.read_dir()? {
+            let entry = entry_res?;
+            let full_path = entry.path();
+            let rel_path = full_path.strip_prefix(&src_path).with_context(|| {
+                format!(
+                    "get rel path for {:?} with prefix {:?}",
+                    full_path, src_path
+                )
+            })?;
+
+            if full_path.is_file() {
+                self.link_object(&rel_path, &dst.join(rel_path), false)?;
+            } else {
+                self.link_dir(&rel_path, &dst.join(rel_path), false)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn link_object(&self, path: &Path, dst: &Path, sym_only: bool) -> ObjResult<()> {
+        if sym_only {
             let src_path = self.path(path)?;
-            remove_file(dst)?;
+            if dst.exists() {
+                remove_file(dst)?;
+            }
             symlink(src_path, dst)?;
             return Ok(());
         }

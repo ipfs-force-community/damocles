@@ -14,8 +14,8 @@ rpc_client.addr = "/ip4/127.0.0.1/tcp/1789"
 enable_deals = true
 max_retries = 3
 # seal_interval = "30s"
-# recover_interval = "30s"
-# rpc_polling_interval = "30s"
+# recover_interval = "60s"
+# rpc_polling_interval = "180s"
 # ignore_proof_check = false
 
 [[sealing_thread]]
@@ -25,8 +25,8 @@ location = "./mock-tmp/store1"
 # sealing.enable_deals = true
 # sealing.max_retries = 3
 # sealing.seal_interval = "30s"
-# sealing.recover_interval = "30s"
-# sealing.rpc_polling_interval = "30s"
+# sealing.recover_interval = "60s"
+# sealing.rpc_polling_interval = "180s"
 # sealing.ignore_proof_check = false
 
 [[sealing_thread]]

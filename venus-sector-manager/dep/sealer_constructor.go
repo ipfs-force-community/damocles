@@ -428,3 +428,81 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 		MarketAPI:   mapi,
 	}, nil
 }
+
+func BuildChainEventBus(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	capi chain.API,
+	scfg *modules.SafeConfig,
+) (*chain.EventBus, error) {
+	scfg.Lock()
+	interval := scfg.Common.API.ChainEventInterval
+	scfg.Unlock()
+
+	bus, err := chain.NewEventBus(gctx, capi, interval.Std())
+	if err != nil {
+		return nil, fmt.Errorf("construct chain eventbus: %w", err)
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			go bus.Run()
+			return nil
+		},
+
+		OnStop: func(ctx context.Context) error {
+			bus.Stop()
+			return nil
+		},
+	})
+
+	return bus, nil
+}
+
+func BuildSnapUpManager(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	home *homedir.Home,
+	scfg *modules.SafeConfig,
+	tracker api.SectorTracker,
+	indexer api.SectorIndexer,
+	chainAPI chain.API,
+	eventbus *chain.EventBus,
+	messagerAPI messager.API,
+	minerInfoAPI api.MinerInfoAPI,
+	stateMgr api.SectorStateManager,
+) (api.SnapUpSectorManager, error) {
+	dir := home.Sub("snapup")
+	kv, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return kv.Run(gctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return kv.Close(ctx)
+		},
+	})
+
+	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerInfoAPI, stateMgr, scfg, kv)
+	if err != nil {
+		return nil, fmt.Errorf("construct snapup manager: %w", err)
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return mgr.Start()
+		},
+
+		OnStop: func(ctx context.Context) error {
+			mgr.Stop()
+			return nil
+		},
+	})
+
+	return mgr, nil
+}

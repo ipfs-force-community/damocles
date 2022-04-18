@@ -382,12 +382,20 @@ fn start_processors(
 
     let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, locks, modules);
 
+    let snap_encode: processor::BoxedSnapEncodeProcessor =
+        construct_sub_processor!(snap_encode, cfg, locks, modules);
+
+    let snap_prove: processor::BoxedSnapProveProcessor =
+        construct_sub_processor!(snap_prove, cfg, locks, modules);
+
     Ok((
         GloablProcessors {
             tree_d: Arc::new(tree_d),
             pc1: Arc::new(pc1),
             pc2: Arc::new(pc2),
             c2: Arc::new(c2),
+            snap_encode: Arc::new(snap_encode),
+            snap_prove: Arc::new(snap_prove),
         },
         modules,
     ))

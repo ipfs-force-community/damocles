@@ -13,7 +13,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
-	// "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
@@ -40,7 +40,7 @@ func New(
 	sectorIdxer api.SectorIndexer,
 	sectorTracker api.SectorTracker,
 	prover api.Prover,
-	// snapup api.SnapUpSectorManager,
+	snapup api.SnapUpSectorManager,
 ) (*Sealer, error) {
 	return &Sealer{
 		capi:   capi,
@@ -49,7 +49,7 @@ func New(
 		state:  state,
 		deal:   deal,
 		commit: commit,
-		// snapup: snapup,
+		snapup: snapup,
 
 		sectorIdxer:   sectorIdxer,
 		sectorTracker: sectorTracker,
@@ -65,7 +65,7 @@ type Sealer struct {
 	state  api.SectorStateManager
 	deal   api.DealManager
 	commit api.CommitmentManager
-	// snapup api.SnapUpSectorManager
+	snapup api.SnapUpSectorManager
 
 	sectorIdxer   api.SectorIndexer
 	sectorTracker api.SectorTracker
@@ -319,14 +319,165 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 
 // snap
 func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec api.AllocateSnapUpSpec) (*api.AllocatedSnapUpSector, error) {
-	return nil, nil
+	candidateSector, err := s.snapup.Allocate(ctx, spec.Sector)
+	if err != nil {
+		return nil, fmt.Errorf("allocate snapup sector: %w", err)
+	}
+
+	if candidateSector == nil {
+		return nil, nil
+	}
+
+	alog := log.With("miner", candidateSector.Sector.ID.Miner, "sector", candidateSector.Sector.ID.Number)
+	success := false
+
+	defer func() {
+		if success {
+			return
+		}
+
+		alog.Debug("release allocated snapup sector")
+		if rerr := s.snapup.Release(ctx, candidateSector); rerr != nil {
+			alog.Errorf("release allocated snapup sector: %s", rerr)
+		}
+	}()
+
+	pieces, err := s.deal.Acquire(ctx, candidateSector.Sector.ID, spec.Deals, api.SectorWorkerJobSnapUp)
+	if err != nil {
+		return nil, fmt.Errorf("acquire deals: %w", err)
+	}
+
+	if len(pieces) == 0 {
+		return nil, nil
+	}
+
+	alog = alog.With("pieces", len(pieces))
+
+	defer func() {
+		if success {
+			return
+		}
+
+		alog.Debug("release acquired deals")
+		if rerr := s.deal.Release(ctx, candidateSector.Sector.ID, pieces); rerr != nil {
+			alog.Errorf("release acquired deals: %s", err)
+		}
+	}()
+
+	err = checkPieces(pieces)
+	if err != nil {
+		return nil, fmt.Errorf("check pieces: %w", err)
+	}
+
+	upgradePublic := api.SectorUpgradePublic(candidateSector.Public)
+
+	err = s.state.Restore(ctx, candidateSector.Sector.ID, func(ss *api.SectorState) (bool, error) {
+		// TODO more checks?
+		ss.Pieces = pieces
+		ss.Upgraded = true
+		ss.UpgradePublic = &upgradePublic
+		return true, nil
+	})
+
+	if err != nil && !errors.Is(err, kvstore.ErrKeyNotFound) {
+		return nil, fmt.Errorf("restore sector for snapup: %w", err)
+	}
+
+	if err != nil {
+		ierr := s.state.InitWith(ctx, candidateSector.Sector.ID, candidateSector.Sector.ProofType, api.SectorUpgraded(true), pieces, &upgradePublic)
+		if ierr != nil {
+			return nil, fmt.Errorf("init non-exist snapup sector: %w", err)
+		}
+	}
+
+	success = true
+	return &api.AllocatedSnapUpSector{
+		Sector:  candidateSector.Sector,
+		Pieces:  pieces,
+		Public:  candidateSector.Public,
+		Private: candidateSector.Private,
+	}, nil
 }
 
 func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapupInfo api.SnapUpOnChainInfo) (api.SubmitSnapUpProofResp, error) {
-	desc := "not implemented yet"
 	resp := api.SubmitSnapUpProofResp{}
-	resp.Res = api.SubmitRejected
-	resp.Desc = &desc
+	desc := ""
+
+	if len(snapupInfo.Proof) == 0 {
+		desc = "empty proof is invalid"
+		resp.Res = api.SubmitRejected
+		resp.Desc = &desc
+		return resp, nil
+	}
+
+	state, err := s.state.Load(ctx, sid)
+	if err != nil {
+		return resp, fmt.Errorf("load sector state: %w", err)
+	}
+
+	if len(state.Pieces) != len(snapupInfo.Pieces) {
+		desc = fmt.Sprintf("pieces count not match: %d != %d", len(state.Pieces), len(snapupInfo.Pieces))
+		resp.Res = api.SubmitRejected
+		resp.Desc = &desc
+		return resp, nil
+	}
+
+	for pi, pid := range snapupInfo.Pieces {
+		if localPID := state.Pieces[pi].Piece.Cid; !pid.Equals(state.Pieces[pi].Piece.Cid) {
+			desc = fmt.Sprintf("#%d piece cid not match: %s != %s", pi, localPID, pid)
+			resp.Res = api.SubmitRejected
+			resp.Desc = &desc
+			return resp, nil
+		}
+	}
+
+	newSealedCID, err := util.ReplicaCommitment2CID(snapupInfo.CommR)
+	if err != nil {
+		desc = fmt.Sprintf("convert comm_r to cid: %s", err)
+		resp.Res = api.SubmitRejected
+		resp.Desc = &desc
+		return resp, nil
+	}
+
+	newUnsealedCID, err := util.DataCommitment2CID(snapupInfo.CommD)
+	if err != nil {
+		desc = fmt.Sprintf("convert comm_d to cid: %s", err)
+		resp.Res = api.SubmitRejected
+		resp.Desc = &desc
+		return resp, nil
+	}
+
+	persisted, err := s.checkPersistedFiles(ctx, sid, state.SectorType, snapupInfo.AccessInstance, true)
+	if err != nil {
+		return resp, fmt.Errorf("check persisted files: %w", err)
+	}
+
+	if !persisted {
+		desc = "not all files persisted"
+		resp.Res = api.SubmitFilesMissed
+		resp.Desc = &desc
+		return resp, nil
+	}
+
+	upgradedInfo := api.SectorUpgradedInfo{
+		SealedCID:      newSealedCID,
+		UnsealedCID:    newUnsealedCID,
+		Proof:          snapupInfo.Proof,
+		AccessInstance: snapupInfo.AccessInstance,
+	}
+
+	err = s.state.Update(ctx, sid, &upgradedInfo)
+	if err != nil {
+		return resp, fmt.Errorf("update sector state: %w", err)
+	}
+
+	err = s.snapup.Commit(ctx, sid)
+	if err != nil {
+		return resp, fmt.Errorf("commit snapup sector: %w", err)
+	}
+
+	// TODO: start submitting
+	resp.Res = api.SubmitAccepted
 	return resp, nil
 }
 

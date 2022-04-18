@@ -2,6 +2,7 @@ package chain
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/filecoin-project/go-address"
@@ -48,6 +49,11 @@ func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*api.MinerInfo
 		return nil, err
 	}
 
+	dlinfo, err := m.chain.StateMinerProvingDeadline(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return nil, fmt.Errorf("get proving deadline info: %w", err)
+	}
+
 	sealProof, err := miner.SealProofTypeFromSectorSize(minfo.SectorSize, constants.NewestNetworkVersion)
 	if err != nil {
 		return nil, err
@@ -59,6 +65,7 @@ func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*api.MinerInfo
 		SectorSize:          minfo.SectorSize,
 		WindowPoStProofType: minfo.WindowPoStProofType,
 		SealProofType:       sealProof,
+		Deadline:            *dlinfo,
 	}
 
 	m.cacheMu.Lock()
