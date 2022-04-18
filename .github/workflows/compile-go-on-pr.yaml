@@ -32,6 +32,10 @@ jobs:
       - name: build venus-sector-manager
         run: make build-smgr
 
+      - name: show bins
+        run: ls -lha ./dist/bin/
+
+
       # - name: upload venus-sector-manager
       #   uses: actions/upload-artifact@v2
       #   with:

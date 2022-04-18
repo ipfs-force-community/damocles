@@ -27,10 +27,13 @@ jobs:
       - name: setup rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: '1.52.1'
+          toolchain: '1.60.0'
 
       - name: build venus-worker
         run: make build-worker
+
+      - name: show bins
+        run: ls -lha ./dist/bin/
 
       # - name: upload venus-worker
       #   uses: actions/upload-artifact@v2
