@@ -258,3 +258,8 @@ type ProvingSectorInfo struct {
 	OnChain SectorOnChainInfo
 	Private PrivateSectorInfo
 }
+
+type SectorAccessStores struct {
+	SealedFile string
+	CacheDir   string
+}
