@@ -129,9 +129,15 @@ var utilStorageAttachCmd = &cli.Command{
 			}
 
 			for _, sid := range sids {
-				err := dest.Update(gctx, sid, api.SectorAccessStores{
+				access := api.SectorAccessStores{
 					SealedFile: name,
-				})
+				}
+
+				if !allowSplitted {
+					access.CacheDir = name
+				}
+
+				err := dest.Update(gctx, sid, access)
 				if err != nil {
 					return fmt.Errorf("update sector index for %s: %w", util.FormatSectorID(sid), err)
 				}
