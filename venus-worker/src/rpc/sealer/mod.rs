@@ -15,8 +15,6 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use super::super::types::SealProof;
 
-pub mod mock;
-
 base64_serde_type! {B64SerDe, STANDARD}
 
 /// randomness with base64 ser & de

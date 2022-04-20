@@ -5,9 +5,7 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
-use fil_types::ActorID;
-use jsonrpc_core::IoHandler;
-use jsonrpc_core_client::transports::{http, local};
+use jsonrpc_core_client::transports::http;
 use reqwest::Url;
 use tokio::runtime::Builder;
 
@@ -17,161 +15,13 @@ use crate::{
         objstore::{attached::AttachedManager, filestore::FileStore, ObjectStore},
         piecestore::{proxy::ProxyPieceStore, PieceStore},
     },
-    logging::{debug_field, info},
-    rpc::sealer::{mock, Sealer, SealerClient},
+    logging::info,
     sealing::{processor, resource, service, store::StoreManager},
     signal::Signal,
     types::SealProof,
     util::net::{local_interface_ip, rpc_addr, socket_addr_from_url},
     watchdog::{GloablProcessors, GlobalModules, Module, WatchDog},
 };
-
-/// start a worker process with mock modules
-pub fn start_mock(miner: ActorID, sector_size: u64, cfg_path: String) -> Result<()> {
-    let runtime = Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .context("construct runtime")?;
-
-    let proof_type = SealProof::try_from(sector_size)?;
-
-    info!(
-        miner,
-        sector_size,
-        proof_type = debug_field(proof_type),
-        config = cfg_path.as_str(),
-        "start initializing mock impl"
-    );
-
-    let cfg = config::Config::load(&cfg_path)
-        .with_context(|| format!("load from config file {}", cfg_path))?;
-
-    info!("config loaded:\n {:?}", cfg);
-
-    let mut attached: Vec<Box<dyn ObjectStore>> = Vec::new();
-    let mut attached_writable = 0;
-    if let Some(remote_cfg) = cfg.remote_store.as_ref() {
-        let remote_store = Box::new(
-            FileStore::open(
-                remote_cfg.location.clone(),
-                remote_cfg.name.clone(),
-                remote_cfg.readonly.unwrap_or(false),
-            )
-            .with_context(|| format!("open remote filestore {}", remote_cfg.location))?,
-        );
-
-        if !remote_store.readonly() {
-            attached_writable += 1;
-        }
-
-        attached.push(remote_store);
-    }
-
-    if let Some(attach_cfgs) = cfg.attached.as_ref() {
-        for (sidx, scfg) in attach_cfgs.iter().enumerate() {
-            let attached_store = Box::new(
-                FileStore::open(
-                    scfg.location.clone(),
-                    scfg.name.clone(),
-                    scfg.readonly.unwrap_or(false),
-                )
-                .with_context(|| format!("open attached filestore #{}", sidx))?,
-            );
-
-            if !attached_store.readonly() {
-                attached_writable += 1;
-            }
-
-            attached.push(attached_store);
-        }
-    }
-
-    if attached.is_empty() {
-        return Err(anyhow!("no attached store available"));
-    }
-
-    if attached_writable == 0 {
-        return Err(anyhow!("no attached store available for writing"));
-    }
-
-    info!(
-        "{} stores attached, {} writable",
-        attached.len(),
-        attached_writable
-    );
-
-    let attached_mgr = AttachedManager::init(attached).context("init attached manager")?;
-
-    let mock_impl = mock::SimpleMockSealerRpc::new(miner, proof_type);
-    let mut io = IoHandler::new();
-    io.extend_with(mock_impl.to_delegate());
-
-    let (mock_client, _) = local::connect::<SealerClient, _, _>(io);
-
-    let ext_locks = Arc::new(resource::Pool::new(
-        cfg.processors
-            .ext_locks
-            .as_ref()
-            .cloned()
-            .unwrap_or_default()
-            .iter(),
-    ));
-
-    let (processors, modules) = start_processors(&cfg, &ext_locks).context("start processors")?;
-
-    let store_mgr =
-        StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
-    let workers = store_mgr.into_workers();
-
-    let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
-
-    let globl = GlobalModules {
-        rpc: Arc::new(mock_client),
-        attached: Arc::new(attached_mgr),
-        processors,
-        limit: Arc::new(resource::Pool::new(
-            cfg.processors
-                .limit
-                .as_ref()
-                .cloned()
-                .unwrap_or_default()
-                .iter(),
-        )),
-        ext_locks,
-        static_tree_d,
-        rt: Arc::new(runtime),
-        piece_store: None,
-    };
-
-    let instance = cfg
-        .worker
-        .as_ref()
-        .and_then(|s| s.name.as_ref())
-        .cloned()
-        .unwrap_or("mock".to_owned());
-
-    let mut dog = WatchDog::build(cfg, instance, globl);
-
-    let mut ctrls = Vec::new();
-    for (worker, ctrl) in workers {
-        ctrls.push(ctrl);
-        dog.start_module(worker);
-    }
-
-    let worker_server = service::Service::new(ctrls);
-    dog.start_module(worker_server);
-
-    for m in modules {
-        dog.start_module(m);
-    }
-
-    dog.start_module(Signal);
-
-    // TODO: handle result
-    let _ = dog.wait();
-
-    Ok(())
-}
 
 /// start a normal venus-worker daemon
 pub fn start_deamon(cfg_path: String) -> Result<()> {
