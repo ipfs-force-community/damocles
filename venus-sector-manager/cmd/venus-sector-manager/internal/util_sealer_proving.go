@@ -11,7 +11,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/hako/durafmt"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
@@ -83,7 +82,7 @@ var utilSealerProvingInfoCmd = &cli.Command{
 
 		head, err := api.Chain.ChainHead(actx)
 		if err != nil {
-			return xerrors.Errorf("getting chain head: %w", err)
+			return fmt.Errorf("getting chain head: %w", err)
 		}
 
 		mact, err := api.Chain.StateGetActor(actx, maddr, head.Key())
@@ -100,7 +99,7 @@ var utilSealerProvingInfoCmd = &cli.Command{
 
 		cd, err := api.Chain.StateMinerProvingDeadline(actx, maddr, head.Key())
 		if err != nil {
-			return xerrors.Errorf("getting miner info: %w", err)
+			return fmt.Errorf("getting miner info: %w", err)
 		}
 
 		color.NoColor = !cctx.Bool("color")
@@ -144,7 +143,7 @@ var utilSealerProvingInfoCmd = &cli.Command{
 				return nil
 			})
 		}); err != nil {
-			return xerrors.Errorf("walking miner deadlines and partitions: %w", err)
+			return fmt.Errorf("walking miner deadlines and partitions: %w", err)
 		}
 
 		var faultPerc float64
@@ -259,12 +258,12 @@ var utilSealerProvingDeadlinesCmd = &cli.Command{
 
 		deadlines, err := api.Chain.StateMinerDeadlines(ctx, maddr, types.EmptyTSK)
 		if err != nil {
-			return xerrors.Errorf("getting deadlines: %w", err)
+			return fmt.Errorf("getting deadlines: %w", err)
 		}
 
 		di, err := api.Chain.StateMinerProvingDeadline(ctx, maddr, types.EmptyTSK)
 		if err != nil {
-			return xerrors.Errorf("getting deadlines: %w", err)
+			return fmt.Errorf("getting deadlines: %w", err)
 		}
 
 		fmt.Printf("Sealer: %s\n", color.BlueString("%s", maddr))
@@ -275,7 +274,7 @@ var utilSealerProvingDeadlinesCmd = &cli.Command{
 		for dlIdx, deadline := range deadlines {
 			partitions, err := api.Chain.StateMinerPartitions(ctx, maddr, uint64(dlIdx), types.EmptyTSK)
 			if err != nil {
-				return xerrors.Errorf("getting partitions for deadline %d: %w", dlIdx, err)
+				return fmt.Errorf("getting partitions for deadline %d: %w", dlIdx, err)
 			}
 
 			provenPartitions, err := deadline.PostSubmissions.Count()
@@ -326,12 +325,12 @@ var utilSealerProvingDeadlineInfoCmd = &cli.Command{
 	Action: func(cctx *cli.Context) error {
 
 		if cctx.Args().Len() != 1 {
-			return xerrors.Errorf("must pass deadline index")
+			return fmt.Errorf("must pass deadline index")
 		}
 
 		dlIdx, err := strconv.ParseUint(cctx.Args().Get(0), 10, 64)
 		if err != nil {
-			return xerrors.Errorf("could not parse deadline index: %w", err)
+			return fmt.Errorf("could not parse deadline index: %w", err)
 		}
 
 		api, ctx, stop, err := extractAPI(cctx)
@@ -352,17 +351,17 @@ var utilSealerProvingDeadlineInfoCmd = &cli.Command{
 
 		deadlines, err := api.Chain.StateMinerDeadlines(ctx, maddr, types.EmptyTSK)
 		if err != nil {
-			return xerrors.Errorf("getting deadlines: %w", err)
+			return fmt.Errorf("getting deadlines: %w", err)
 		}
 
 		di, err := api.Chain.StateMinerProvingDeadline(ctx, maddr, types.EmptyTSK)
 		if err != nil {
-			return xerrors.Errorf("getting deadlines: %w", err)
+			return fmt.Errorf("getting deadlines: %w", err)
 		}
 
 		partitions, err := api.Chain.StateMinerPartitions(ctx, maddr, dlIdx, types.EmptyTSK)
 		if err != nil {
-			return xerrors.Errorf("getting partitions for deadline %d: %w", dlIdx, err)
+			return fmt.Errorf("getting partitions for deadline %d: %w", dlIdx, err)
 		}
 
 		provenPartitions, err := deadlines[dlIdx].PostSubmissions.Count()
@@ -432,12 +431,12 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 	},
 	Action: func(cctx *cli.Context) error {
 		if cctx.Args().Len() != 1 {
-			return xerrors.Errorf("must pass deadline index")
+			return fmt.Errorf("must pass deadline index")
 		}
 
 		dlIdx, err := strconv.ParseUint(cctx.Args().Get(0), 10, 64)
 		if err != nil {
-			return xerrors.Errorf("could not parse deadline index: %w", err)
+			return fmt.Errorf("could not parse deadline index: %w", err)
 		}
 
 		api, ctx, stop, err := extractAPI(cctx)

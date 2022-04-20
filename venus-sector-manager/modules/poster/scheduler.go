@@ -12,7 +12,6 @@ import (
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/hashicorp/go-multierror"
-	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/venus/pkg/clock"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
@@ -612,7 +611,7 @@ func (s *scheduler) batchPartitions(partitions []chain.Partition, nv network.Ver
 	// Also respect the AddressedPartitionsMax (which is the same as DeclarationsMax (which is all really just MaxPartitionsPerDeadline))
 	declMax, err := specpolicy.GetDeclarationsMax(nv)
 	if err != nil {
-		return nil, xerrors.Errorf("getting max declarations: %w", err)
+		return nil, fmt.Errorf("getting max declarations: %w", err)
 	}
 	if partitionsPerMsg > declMax {
 		partitionsPerMsg = declMax
