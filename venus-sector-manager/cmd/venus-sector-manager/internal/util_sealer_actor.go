@@ -7,7 +7,6 @@ import (
 
 	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
@@ -182,13 +181,13 @@ var utilSealerActorWithdrawCmd = &cli.Command{
 		if cctx.Args().Present() {
 			f, err := types.ParseFIL(cctx.Args().First())
 			if err != nil {
-				return xerrors.Errorf("parsing 'amount' argument: %w", err)
+				return fmt.Errorf("parsing 'amount' argument: %w", err)
 			}
 
 			amount = abi.TokenAmount(f)
 
 			if amount.GreaterThan(available) {
-				return xerrors.Errorf("can't withdraw more funds than available; requested: %s; available: %s", types.FIL(amount), types.FIL(available))
+				return fmt.Errorf("can't withdraw more funds than available; requested: %s; available: %s", types.FIL(amount), types.FIL(available))
 			}
 		}
 
@@ -278,7 +277,7 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 		if cctx.Args().Present() {
 			f, err := types.ParseFIL(cctx.Args().First())
 			if err != nil {
-				return xerrors.Errorf("parsing 'amount' argument: %w", err)
+				return fmt.Errorf("parsing 'amount' argument: %w", err)
 			}
 
 			amount = abi.TokenAmount(f)
@@ -316,7 +315,7 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 		}
 
 		if !mi.IsController(fromId) {
-			return xerrors.Errorf("sender isn't a controller of miner: %s", fromId)
+			return fmt.Errorf("sender isn't a controller of miner: %s", fromId)
 		}
 
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
@@ -435,7 +434,7 @@ var utilSealerActorControlSet = &cli.Command{
 		for i, as := range cctx.Args().Slice() {
 			a, err := address.NewFromString(as)
 			if err != nil {
-				return xerrors.Errorf("parsing address %d: %w", i, err)
+				return fmt.Errorf("parsing address %d: %w", i, err)
 			}
 
 			ka, err := api.Chain.StateAccountKey(ctx, a, types.EmptyTSK)
@@ -446,7 +445,7 @@ var utilSealerActorControlSet = &cli.Command{
 			// make sure the address exists on chain
 			_, err = api.Chain.StateLookupID(ctx, ka, types.EmptyTSK)
 			if err != nil {
-				return xerrors.Errorf("looking up %s: %w", ka, err)
+				return fmt.Errorf("looking up %s: %w", ka, err)
 			}
 
 			delete(del, ka)
@@ -474,7 +473,7 @@ var utilSealerActorControlSet = &cli.Command{
 
 		sp, err := actors.SerializeParams(cwp)
 		if err != nil {
-			return xerrors.Errorf("serializing params: %w", err)
+			return fmt.Errorf("serializing params: %w", err)
 		}
 
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
@@ -486,7 +485,7 @@ var utilSealerActorControlSet = &cli.Command{
 			Params: sp,
 		}, nil)
 		if err != nil {
-			return xerrors.Errorf("push message: %w", err)
+			return fmt.Errorf("push message: %w", err)
 		}
 
 		fmt.Println("Message ID:", mid)
@@ -553,12 +552,12 @@ var utilSealerActorSetOwnerCmd = &cli.Command{
 		}
 
 		if fromAddrId != mi.Owner && fromAddrId != newAddrId {
-			return xerrors.New("from address must either be the old owner or the new owner")
+			return fmt.Errorf("from address must either be the old owner or the new owner")
 		}
 
 		sp, err := actors.SerializeParams(&newAddrId)
 		if err != nil {
-			return xerrors.Errorf("serializing params: %w", err)
+			return fmt.Errorf("serializing params: %w", err)
 		}
 
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
@@ -569,7 +568,7 @@ var utilSealerActorSetOwnerCmd = &cli.Command{
 			Params: sp,
 		}, nil)
 		if err != nil {
-			return xerrors.Errorf("push message: %w", err)
+			return fmt.Errorf("push message: %w", err)
 		}
 
 		fmt.Println("Message ID:", mid)
@@ -656,7 +655,7 @@ var utilSealerActorProposeChangeWorker = &cli.Command{
 
 		sp, err := actors.SerializeParams(cwp)
 		if err != nil {
-			return xerrors.Errorf("serializing params: %w", err)
+			return fmt.Errorf("serializing params: %w", err)
 		}
 
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
@@ -667,7 +666,7 @@ var utilSealerActorProposeChangeWorker = &cli.Command{
 			Params: sp,
 		}, nil)
 		if err != nil {
-			return xerrors.Errorf("push message: %w", err)
+			return fmt.Errorf("push message: %w", err)
 		}
 
 		fmt.Println("Propose Message CID:", mid)
@@ -742,15 +741,15 @@ var utilSealerActorConfirmChangeWorker = &cli.Command{
 		}
 
 		if mi.NewWorker.Empty() {
-			return xerrors.Errorf("no worker key change proposed")
+			return fmt.Errorf("no worker key change proposed")
 		} else if mi.NewWorker != newAddr {
-			return xerrors.Errorf("worker key %s does not match current worker key proposal %s", newAddr, mi.NewWorker)
+			return fmt.Errorf("worker key %s does not match current worker key proposal %s", newAddr, mi.NewWorker)
 		}
 
 		if head, err := api.Chain.ChainHead(ctx); err != nil {
-			return xerrors.Errorf("failed to get the chain head: %w", err)
+			return fmt.Errorf("failed to get the chain head: %w", err)
 		} else if head.Height() < mi.WorkerChangeEpoch {
-			return xerrors.Errorf("worker key change cannot be confirmed until %d, current height is %d", mi.WorkerChangeEpoch, head.Height())
+			return fmt.Errorf("worker key change cannot be confirmed until %d, current height is %d", mi.WorkerChangeEpoch, head.Height())
 		}
 
 		if !cctx.Bool("really-do-it") {
@@ -765,7 +764,7 @@ var utilSealerActorConfirmChangeWorker = &cli.Command{
 			Value:  big.Zero(),
 		}, nil)
 		if err != nil {
-			return xerrors.Errorf("push message: %w", err)
+			return fmt.Errorf("push message: %w", err)
 		}
 
 		fmt.Println("Confirm Message ID:", mid)
@@ -857,7 +856,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 			hasFlag := false
 			for _, f := range exclusiveFlags {
 				if hasFlag && cctx.IsSet(f) {
-					return xerrors.Errorf("more than one 'mask` flag set")
+					return fmt.Errorf("more than one 'mask` flag set")
 				}
 				hasFlag = hasFlag || cctx.IsSet(f)
 			}
@@ -871,27 +870,27 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 
 			m := cctx.Uint64("mask-last-offset")
 			if last <= m+1 {
-				return xerrors.Errorf("highest allocated sector lower than mask offset %d: %d", m+1, last)
+				return fmt.Errorf("highest allocated sector lower than mask offset %d: %d", m+1, last)
 			}
 			// securty to not brick a miner
 			if last > 1<<60 {
-				return xerrors.Errorf("very high last sector number, refusing to mask: %d", last)
+				return fmt.Errorf("very high last sector number, refusing to mask: %d", last)
 			}
 
 			maskBf, err = bitfield.NewFromIter(&rlepluslazy.RunSliceIterator{
 				Runs: []rlepluslazy.Run{{Val: true, Len: last - m}}})
 			if err != nil {
-				return xerrors.Errorf("forming bitfield: %w", err)
+				return fmt.Errorf("forming bitfield: %w", err)
 			}
 		case cctx.IsSet("mask-upto-n"):
 			n := cctx.Uint64("mask-upto-n")
 			maskBf, err = bitfield.NewFromIter(&rlepluslazy.RunSliceIterator{
 				Runs: []rlepluslazy.Run{{Val: true, Len: n}}})
 			if err != nil {
-				return xerrors.Errorf("forming bitfield: %w", err)
+				return fmt.Errorf("forming bitfield: %w", err)
 			}
 		default:
-			return xerrors.Errorf("no 'mask' flags set")
+			return fmt.Errorf("no 'mask' flags set")
 		}
 
 		mi, err := api.Chain.StateMinerInfo(ctx, maddr, types.EmptyTSK)
@@ -905,7 +904,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 
 		sp, err := actors.SerializeParams(params)
 		if err != nil {
-			return xerrors.Errorf("serializing params: %w", err)
+			return fmt.Errorf("serializing params: %w", err)
 		}
 
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
@@ -916,7 +915,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 			Params: sp,
 		}, nil)
 		if err != nil {
-			return xerrors.Errorf("mpool push: %w", err)
+			return fmt.Errorf("mpool push: %w", err)
 		}
 
 		fmt.Println("CompactSectorNumbers Message ID:", mid)
