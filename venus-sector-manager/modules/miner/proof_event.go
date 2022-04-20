@@ -6,18 +6,16 @@ import (
 	"fmt"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
-	"golang.org/x/xerrors"
-
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	v1 "github.com/filecoin-project/venus/venus-shared/api/gateway/v1"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
-var log = logging.Logger("proof_event")
+var log = logging.New("proof_event")
 
 type ProofEvent struct {
 	prover  api.Prover
@@ -66,7 +64,7 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 	proofEventCh, err := pe.client.ListenProofEvent(ctx, policy)
 	if err != nil {
 		// Retry is handled by caller
-		return xerrors.Errorf("listenHeadChanges ChainNotify call failed: %w", err)
+		return fmt.Errorf("listenHeadChanges ChainNotify call failed: %w", err)
 	}
 
 	for proofEvent := range proofEventCh {
@@ -75,7 +73,7 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 			req := gtypes.ConnectedCompleted{}
 			err := json.Unmarshal(proofEvent.Payload, &req)
 			if err != nil {
-				return xerrors.Errorf("odd error in connect %v", err)
+				return fmt.Errorf("odd error in connect %v", err)
 			}
 			log.Infof("%s success to connect with proof %s", pe.actor.Addr, req.ChannelId)
 		case "ComputeProof":

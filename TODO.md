@@ -7,7 +7,7 @@
 - [ ] resource auto-dectection & config file generation
 - [ ] remote store via http
 - [ ] commitment mgr: get sender in runtime
-- [ ] remove pkg `xerrors`
+- [x] remove pkg `xerrors`
 - [ ] copy persisted files to local for snap up sectors
 - [ ] re-submission logic
 - [ ] handle submit error: FilesMissed
