@@ -1,10 +1,15 @@
 all: build-smgr build-worker
 
+check-all: check-smgr check-worker
+
 build-smgr:
 	mkdir -p ./dist/bin/
 	rm -rf ./dist/bin/venus-sector-manager
 	$(MAKE) -C ./venus-sector-manager/ build-all
 	mv ./venus-sector-manager/venus-sector-manager ./dist/bin/
+
+check-smgr:
+	$(MAKE) -C ./venus-sector-manager/ check-all
 
 build-worker:
 	mkdir -p ./dist/bin/

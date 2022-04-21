@@ -48,4 +48,7 @@ build-all: $(BUILD_DEPS) $(BUILDS)
 
 build-all-dev: $(MODULES) $(BUILDS)
 
-check-all:
+check-all: check-lint
+
+check-lint: $(BUILD_DEPS)
+	golangci-lint run
