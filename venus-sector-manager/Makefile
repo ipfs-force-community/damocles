@@ -47,3 +47,5 @@ build-all: GOTAGS+=prod
 build-all: $(BUILD_DEPS) $(BUILDS)
 
 build-all-dev: $(MODULES) $(BUILDS)
+
+check-all:
