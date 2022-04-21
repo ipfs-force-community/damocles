@@ -275,7 +275,7 @@ impl Input for SnapProveInput {
     fn process(self) -> Result<Self::Out> {
         snap_generate_sector_update_proof(
             self.registered_proof,
-            self.vannilla_proofs.into_iter().map(|p| PartitionProofBytes(p)).collect(),
+            self.vannilla_proofs.into_iter().map(PartitionProofBytes).collect(),
             self.comm_r_old,
             self.comm_r_new,
             self.comm_d_new,

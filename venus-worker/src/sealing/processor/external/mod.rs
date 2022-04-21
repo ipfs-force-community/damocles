@@ -51,7 +51,7 @@ where
         let input_tx = if available_size == 0 {
             self.txes.choose(&mut OsRng).context("no input tx from all chosen")?
         } else {
-            &available.choose(&mut OsRng).context("no input tx from availables chosen")?
+            available.choose(&mut OsRng).context("no input tx from availables chosen")?
         };
 
         let tokens = input_tx

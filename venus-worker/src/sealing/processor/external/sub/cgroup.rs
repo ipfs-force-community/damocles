@@ -38,7 +38,7 @@ impl CtrlGroup {
         }
 
         let mut subsystems = Vec::with_capacity(cgsubs.len());
-        for (sidx, sub) in cgsubs.into_iter().enumerate() {
+        for (sidx, sub) in cgsubs.iter().enumerate() {
             if wanted.contains(&sidx) {
                 subsystems.push(sub.clone());
             }

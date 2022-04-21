@@ -90,7 +90,7 @@ pub fn build_tree_d<'c, 't>(task: &'t Task<'c>, allow_static: bool) -> Result<()
         .processors
         .tree_d
         .process(TreeDInput {
-            registered_proof: proof_type.clone().into(),
+            registered_proof: (*proof_type).into(),
             staged_file: staged_file.into(),
             cache_dir: prepared_dir.into(),
         })

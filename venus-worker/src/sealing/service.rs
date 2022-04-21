@@ -23,7 +23,7 @@ impl ServiceImpl {
 
 impl Worker for ServiceImpl {
     fn worker_list(&self) -> Result<Vec<WorkerInfo>> {
-        Ok(self
+        self
             .ctrls
             .iter()
             .map(|(idx, ctrl)| {
@@ -52,7 +52,7 @@ impl Worker for ServiceImpl {
                     last_error,
                 })
             })
-            .collect::<Result<_>>()?)
+            .collect::<Result<_>>()
     }
 
     fn worker_pause(&self, index: usize) -> Result<bool> {

@@ -143,9 +143,9 @@ impl ObjectStore for FileStore {
                 .with_context(|| format!("get rel path for {:?} with prefix {:?}", full_path, src_path))?;
 
             if full_path.is_file() {
-                self.link_object(&rel_path, &dst.join(rel_path), false)?;
+                self.link_object(rel_path, &dst.join(rel_path), false)?;
             } else {
-                self.link_dir(&rel_path, &dst.join(rel_path), false)?;
+                self.link_dir(rel_path, &dst.join(rel_path), false)?;
             }
         }
 

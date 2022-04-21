@@ -131,7 +131,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         ext_locks,
         static_tree_d,
         rt: Arc::new(runtime),
-        piece_store: piece_store.map(|s| Arc::new(s)),
+        piece_store: piece_store.map(Arc::new),
     };
 
     let mut dog = WatchDog::build(cfg, instance, global);

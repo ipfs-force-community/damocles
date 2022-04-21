@@ -49,7 +49,7 @@ pub(super) fn start_sub_processes<I: Input>(
     Vec<(Sender<(I, Sender<Result<I::Out>>)>, Sender<()>, Vec<String>)>,
     Vec<SubProcess<I>>,
 )> {
-    if cfg.len() == 0 {
+    if cfg.is_empty() {
         return Err(anyhow!("no subs section found"));
     }
 
@@ -76,7 +76,7 @@ pub(super) fn start_sub_processes<I: Input>(
                 .with_context(|| format!("add task id {} into cgroup", pid))?;
         }
 
-        let (limit_tx, limit_rx) = match sub_cfg.concurrent.clone() {
+        let (limit_tx, limit_rx) = match sub_cfg.concurrent {
             Some(0) => return Err(anyhow!("invalid concurrent limit 0")),
             Some(size) => bounded(size),
             None => unbounded(),

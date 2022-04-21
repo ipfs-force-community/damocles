@@ -77,7 +77,7 @@ impl<'c> Task<'c> {
             .get(SECTOR_INFO_KEY)
             .or_else(|e| match e {
                 MetaError::NotFound => {
-                    let _ = get_planner(s.plan.as_ref().map(|s| s.as_str()))?;
+                    let _ = get_planner(s.plan.as_deref())?;
                     let empty = Sector::new(s.plan.as_ref().cloned());
                     sector_meta.set(SECTOR_INFO_KEY, &empty)?;
                     Ok(empty)
@@ -173,7 +173,7 @@ impl<'c> Task<'c> {
     }
 
     pub fn exec(mut self, state: Option<State>) -> Result<(), Failure> {
-        let mut event = state.map(|s| Event::SetState(s));
+        let mut event = state.map(Event::SetState);
         loop {
             let span = warn_span!(
                 "seal",
@@ -214,14 +214,12 @@ impl<'c> Task<'c> {
 
                     None => {}
                 };
-            } else {
-                if self.sector.base.is_none() {
-                    self.ctrl_ctx
-                        .update_state(|cst| {
-                            cst.job.id.take();
-                        })
-                        .crit()?;
-                }
+            } else if self.sector.base.is_none() {
+                self.ctrl_ctx
+                    .update_state(|cst| {
+                        cst.job.id.take();
+                    })
+                    .crit()?;
             }
 
             let fail = if let Err(eref) = handle_res.as_ref() {
@@ -347,7 +345,7 @@ impl<'c> Task<'c> {
         self.interruptted()?;
 
         let prev = self.sector.state;
-        let planner = get_planner(self.sector.plan.as_ref().map(|s| s.as_str())).perm()?;
+        let planner = get_planner(self.sector.plan.as_deref()).perm()?;
 
         if let Some(evt) = event {
             match evt {

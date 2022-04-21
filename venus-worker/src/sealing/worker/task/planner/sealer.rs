@@ -216,7 +216,7 @@ impl<'c, 't> Sealer<'c, 't> {
             .open(self.task.staged_file(sector_id))
             .perm()?;
 
-        let seal_proof_type = proof_type.clone().into();
+        let seal_proof_type = (*proof_type).into();
 
         let sector_size = proof_type.sector_size();
         let mut pieces = Vec::new();
@@ -306,13 +306,13 @@ impl<'c, 't> Sealer<'c, 't> {
             .processors
             .pc1
             .process(PC1Input {
-                registered_proof: proof_type.clone().into(),
+                registered_proof: (*proof_type).into(),
                 cache_path: cache_dir.into(),
                 in_path: staged_file.into(),
                 out_path: sealed_file.into(),
                 prover_id: prove_input.0,
                 sector_id: prove_input.1,
-                ticket: ticket.ticket.0.clone(),
+                ticket: ticket.ticket.0,
                 piece_infos,
             })
             .perm()?;
@@ -400,8 +400,7 @@ impl<'c, 't> Sealer<'c, 't> {
             .sector
             .deals
             .as_ref()
-            .map(|d| d.iter().map(|i| i.id).collect())
-            .unwrap_or(vec![]);
+            .map(|d| d.iter().map(|i| i.id).collect()).unwrap_or_default();
 
         let pinfo = PreCommitOnChainInfo {
             comm_r,

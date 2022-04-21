@@ -245,7 +245,7 @@ impl<'c, 't> SnapUp<'c, 't> {
         let update_cache_dir = self.task.update_cache_dir(sector_id);
 
         let vannilla_proofs = snap_generate_partition_proofs(
-            proof_type.clone().into(),
+            (*proof_type).into(),
             comm_r_old,
             encode_out.comm_r_new,
             encode_out.comm_d_new,
@@ -263,7 +263,7 @@ impl<'c, 't> SnapUp<'c, 't> {
             .processors
             .snap_prove
             .process(SnapProveInput {
-                registered_proof: proof_type.clone().into(),
+                registered_proof: (*proof_type).into(),
                 vannilla_proofs: vannilla_proofs.into_iter().map(|b| b.0).collect(),
                 comm_r_old,
                 comm_r_new: encode_out.comm_r_new,
