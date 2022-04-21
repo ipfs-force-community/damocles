@@ -77,7 +77,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	plog := log.With("proc", "pre", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
 	start := time.Now()
-	defer plog.Infof("finished process, elasped %s", time.Since(start))
+	defer plog.Infof("finished process, elapsed %s", time.Since(start))
 	defer updateSector(ctx, p.smgr, sectors, plog)
 
 	if !p.EnableBatch(mid) {

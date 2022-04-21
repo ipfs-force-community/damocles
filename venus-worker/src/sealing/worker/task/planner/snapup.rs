@@ -7,13 +7,10 @@ use super::{
     common, plan, Event, ExecResult, Planner, State, Task,
 };
 use crate::logging::{debug, warn};
-use crate::rpc::sealer::{
-    AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult,
-};
+use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir,
-    SnapEncodeInput, SnapProveInput,
+    snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir, SnapEncodeInput, SnapProveInput,
 };
 
 pub struct SnapUpPlanner;
@@ -57,7 +54,7 @@ impl Planner for SnapUpPlanner {
         Ok(next)
     }
 
-    fn exec<'c, 't>(&self, task: &'t mut Task<'c>) -> Result<Option<Event>, Failure> {
+    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
         let inner = SnapUp { task };
         match state {
@@ -161,11 +158,7 @@ impl<'c, 't> SnapUp<'c, 't> {
         let proof_type = self.task.sector_proof_type()?;
         field_required!(
             access_instance,
-            self.task
-                .sector
-                .finalized
-                .as_ref()
-                .map(|f| &f.private.access_instance)
+            self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
         );
         cloned_required!(piece_infos, self.task.sector.phases.pieces);
 
@@ -185,26 +178,14 @@ impl<'c, 't> SnapUp<'c, 't> {
         sealed_file.prepare().perm()?;
         access_store
             .link_object(sealed_file.rel(), sealed_file.as_ref(), true)
-            .with_context(|| {
-                format!(
-                    "link sealed file {:?} to {:?}",
-                    sealed_file.rel(),
-                    sealed_file.full()
-                )
-            })
+            .with_context(|| format!("link sealed file {:?} to {:?}", sealed_file.rel(), sealed_file.full()))
             .perm()?;
 
         let cache_dir = self.task.cache_dir(sector_id);
         debug!("trying to link cache dir");
         access_store
             .link_dir(cache_dir.rel(), cache_dir.as_ref(), true)
-            .with_context(|| {
-                format!(
-                    "link cache file {:?} to {:?}",
-                    cache_dir.rel(),
-                    cache_dir.full()
-                )
-            })
+            .with_context(|| format!("link cache file {:?} to {:?}", cache_dir.rel(), cache_dir.full()))
             .perm()?;
 
         // init update file
@@ -212,17 +193,12 @@ impl<'c, 't> SnapUp<'c, 't> {
         debug!(path=?update_file.full(),  "trying to init update file");
         {
             let file = update_file.init_file().perm()?;
-            file.set_len(proof_type.sector_size())
-                .context("fallocate for update file")
-                .perm()?;
+            file.set_len(proof_type.sector_size()).context("fallocate for update file").perm()?;
         }
 
         let update_cache_dir = self.task.update_cache_dir(sector_id);
         debug!(path=?update_cache_dir.full(),  "trying to init update cache dir");
-        update_cache_dir
-            .prepare()
-            .context("prepare update cache dir")
-            .perm()?;
+        update_cache_dir.prepare().context("prepare update cache dir").perm()?;
 
         // tree d
         debug!("trying to prepare tree_d");
@@ -261,10 +237,7 @@ impl<'c, 't> SnapUp<'c, 't> {
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
         field_required!(encode_out, self.task.sector.phases.snap_encode_out.as_ref());
-        field_required!(
-            comm_r_old,
-            self.task.sector.finalized.as_ref().map(|f| f.public.comm_r)
-        );
+        field_required!(comm_r_old, self.task.sector.finalized.as_ref().map(|f| f.public.comm_r));
 
         let sealed_file = self.task.sealed_file(sector_id);
         let cached_dir = self.task.cache_dir(sector_id);
@@ -272,7 +245,7 @@ impl<'c, 't> SnapUp<'c, 't> {
         let update_cache_dir = self.task.update_cache_dir(sector_id);
 
         let vannilla_proofs = snap_generate_partition_proofs(
-            proof_type.clone().into(),
+            (*proof_type).into(),
             comm_r_old,
             encode_out.comm_r_new,
             encode_out.comm_d_new,
@@ -290,7 +263,7 @@ impl<'c, 't> SnapUp<'c, 't> {
             .processors
             .snap_prove
             .process(SnapProveInput {
-                registered_proof: proof_type.clone().into(),
+                registered_proof: (*proof_type).into(),
                 vannilla_proofs: vannilla_proofs.into_iter().map(|b| b.0).collect(),
                 comm_r_old,
                 comm_r_new: encode_out.comm_r_new,
@@ -298,14 +271,8 @@ impl<'c, 't> SnapUp<'c, 't> {
             })
             .perm()?;
 
-        let verified = snap_verify_sector_update_proof(
-            proof_type.into(),
-            &proof,
-            comm_r_old,
-            encode_out.comm_r_new,
-            encode_out.comm_d_new,
-        )
-        .perm()?;
+        let verified =
+            snap_verify_sector_update_proof(proof_type.into(), &proof, comm_r_old, encode_out.comm_r_new, encode_out.comm_d_new).perm()?;
 
         if !verified {
             return Err(anyhow!("generated an invalid update proof").perm());

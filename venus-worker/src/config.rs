@@ -263,9 +263,9 @@ impl Config {
             .cloned()
             .unwrap_or(DEFAULT_WORKER_SERVER_PORT);
 
-        let addr = format!("{}:{}", host, port).parse().with_context(|| {
-            format!("parse connect address with host: {}, port: {}", host, port)
-        })?;
+        let addr = format!("{}:{}", host, port)
+            .parse()
+            .with_context(|| format!("parse connect address with host: {}, port: {}", host, port))?;
         Ok(addr)
     }
 }

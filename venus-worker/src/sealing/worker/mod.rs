@@ -24,14 +24,7 @@ pub struct Worker {
 impl Worker {
     pub fn new(idx: usize, s: Store) -> (Self, Ctrl) {
         let (ctrl, ctrl_ctx) = new_ctrl(s.location.clone());
-        (
-            Worker {
-                idx,
-                store: s,
-                ctrl_ctx,
-            },
-            ctrl,
-        )
+        (Worker { idx, store: s, ctrl_ctx }, ctrl)
     }
 
     fn seal_one(&mut self, ctx: &Ctx, state: Option<State>) -> Result<(), Failure> {
@@ -124,7 +117,7 @@ impl Module for Worker {
 
             self.ctrl_ctx.update_state(|cst| {
                 cst.job.id.take();
-                drop(std::mem::replace(&mut cst.job.state, State::Empty));
+                let _ = std::mem::replace(&mut cst.job.state, State::Empty);
             })?;
 
             select! {

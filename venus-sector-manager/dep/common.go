@@ -23,5 +23,5 @@ const (
 )
 
 const (
-	HttpEndpointPiecestore = "/piecestore/"
+	HTTPEndpointPiecestore = "/piecestore/"
 )

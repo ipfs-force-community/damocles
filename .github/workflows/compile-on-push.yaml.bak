@@ -1,9 +1,9 @@
 # This is a basic workflow to help you get started with Actions
-name: compile-go-on-pr
+name: compile-on-push
 
 # Controls when the workflow will run
 on:
-  pull_request:
+  push:
     branches: [ main, release/** ]
 
   # Allows you to run this workflow manually from the Actions tab
@@ -29,17 +29,20 @@ jobs:
         with:
           go-version: '1.16'
 
+      - name: setup rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: '1.60.0'
+
       - name: build venus-sector-manager
         run: make build-smgr
 
-      - name: show bins
-        run: ls -lha ./dist/bin/
+      - name: build venus-worker
+        run: make build-worker
 
-
-      # - name: upload venus-sector-manager
+      # - name: upload bins
       #   uses: actions/upload-artifact@v2
       #   with:
-      #     name: venus-sector-manager
+      #     name: venus-cluster-bins
       #     path: ./dist/bin/
       #     if-no-files-found: error
-      #     retention-days: 3

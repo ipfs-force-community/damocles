@@ -22,12 +22,12 @@ pub fn disk_usage<P: AsRef<Path>>(p: P) -> Result<u64> {
         }
     }
 
-    return Ok(size);
+    Ok(size)
 }
 
 /// load store paths from given file
 pub fn load_store_list<P: AsRef<Path>>(p: P) -> Result<Vec<String>> {
-    let reader = read(p).map(|b| Cursor::new(b))?;
+    let reader = read(p).map(Cursor::new)?;
     let lines: Result<Vec<_>, _> = reader.lines().collect();
     Ok(lines?)
 }

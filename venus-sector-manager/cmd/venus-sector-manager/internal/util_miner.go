@@ -38,9 +38,9 @@ var utilMinerInfoCmd = &cli.Command{
 		if err != nil {
 			if errors.Is(err, ErrEmptyAddressString) {
 				return ShowHelp(cctx, err)
-			} else {
-				return err
 			}
+
+			return err
 		}
 
 		api, gctx, stop, err := extractAPI(cctx)

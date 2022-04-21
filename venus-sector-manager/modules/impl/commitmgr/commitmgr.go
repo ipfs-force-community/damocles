@@ -29,10 +29,6 @@ var (
 	errMsgSectorInfoNotFound    = "sector info not found on chain"
 )
 
-var (
-	errNoControlAddrsAvailable = fmt.Errorf("no control address available")
-)
-
 var log = logging.New("commitmgr")
 
 type CommitmentMgrImpl struct {
@@ -60,7 +56,7 @@ type CommitmentMgrImpl struct {
 	stop     chan struct{}
 }
 
-func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr SealingAPI, minfoAPI api.MinerInfoAPI, smgr api.SectorStateManager,
+func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr SealingAPI, minfoAPI api.MinerInfoAPI, smgr api.SectorStateManager,
 	cfg *modules.SafeConfig, verif api.Verifier, prover api.Prover,
 ) (*CommitmentMgrImpl, error) {
 	prePendingChan := make(chan api.SectorState, 1024)
@@ -68,7 +64,7 @@ func NewCommitmentMgr(ctx context.Context, commitApi messager.API, stateMgr Seal
 
 	mgr := CommitmentMgrImpl{
 		ctx:       ctx,
-		msgClient: commitApi,
+		msgClient: commitAPI,
 		stateMgr:  stateMgr,
 		minfoAPI:  minfoAPI,
 		smgr:      smgr,
@@ -348,7 +344,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 	err = checkPrecommit(ctx, maddr, *sector, c.stateMgr)
 	if err != nil {
 		switch err.(type) {
-		case *ErrApi:
+		case *ErrAPI:
 			return api.SubmitPreCommitResp{}, err
 
 		case *ErrPrecommitOnChain:
@@ -453,7 +449,7 @@ func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, in
 
 	if err := checkCommit(ctx, *sector, info.Proof, nil, maddr, c.verif, c.stateMgr); err != nil {
 		switch err.(type) {
-		case *ErrApi:
+		case *ErrAPI:
 			return api.SubmitProofResp{}, err
 
 		case *ErrInvalidDeals,

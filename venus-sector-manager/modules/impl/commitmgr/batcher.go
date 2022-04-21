@@ -117,7 +117,7 @@ func (b *Batcher) run() {
 	}
 }
 
-func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, processer Processor, l *logging.ZapLogger) *Batcher {
+func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, processor Processor, l *logging.ZapLogger) *Batcher {
 	b := &Batcher{
 		ctx:       ctx,
 		mid:       mid,
@@ -125,7 +125,7 @@ func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, 
 		pendingCh: make(chan api.SectorState),
 		force:     make(chan struct{}),
 		stop:      make(chan struct{}),
-		processor: processer,
+		processor: processor,
 		log:       log.With("miner", mid),
 	}
 	go b.run()

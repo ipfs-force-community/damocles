@@ -111,8 +111,7 @@ impl<I: Input> Module for SubProcess<I> {
     }
 
     fn run(&mut self, ctx: Ctx) -> Result<()> {
-        let (read_tx, response_tx, stdout) =
-            self.read_ctx.take().context("read context required")?;
+        let (read_tx, response_tx, stdout) = self.read_ctx.take().context("read context required")?;
         let mod_id = self.id();
         let done = ctx.done.clone();
         let _ = std::thread::spawn(|| {
@@ -206,7 +205,7 @@ impl<I: Input> Module for SubProcess<I> {
                             }
 
                             send(out_tx, out_res) -> send_res => {
-                                if let Err(_) = send_res {
+                                if send_res.is_err() {
                                     error!(id = resp.id, "failed to send output through given chan");
                                 } else {
                                     debug!(id = resp.id, "responsed");

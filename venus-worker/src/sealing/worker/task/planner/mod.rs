@@ -46,7 +46,7 @@ pub(self) use plan;
 
 pub trait Planner {
     fn plan(&self, evt: &Event, st: &State) -> Result<State>;
-    fn exec<'c, 't>(&self, task: &'t mut Task<'c>) -> Result<Option<Event>, Failure>;
+    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure>;
 }
 
 impl Planner for Box<dyn Planner> {
@@ -54,7 +54,7 @@ impl Planner for Box<dyn Planner> {
         self.as_ref().plan(evt, st)
     }
 
-    fn exec<'c, 't>(&self, task: &'t mut Task<'c>) -> Result<Option<Event>, Failure> {
+    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure> {
         self.as_ref().exec(task)
     }
 }

@@ -31,14 +31,12 @@ impl<M: MetaDB> MetaDocumentDB<M> {
         self.0.set(key, data)
     }
 
-    pub fn get<'a, K, T>(&self, key: K) -> Result<T, MetaError>
+    pub fn get<K, T>(&self, key: K) -> Result<T, MetaError>
     where
         K: AsRef<str>,
         T: DeserializeOwned,
     {
-        self.0.view(key, |b: &[u8]| {
-            from_slice(b).map_err(|e| Error::new(e).into())
-        })
+        self.0.view(key, |b: &[u8]| from_slice(b).map_err(Error::new))
     }
 
     pub fn remove<K: AsRef<str>>(&self, key: K) -> Result<()> {

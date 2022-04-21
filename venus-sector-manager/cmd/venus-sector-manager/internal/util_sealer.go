@@ -107,7 +107,7 @@ var utilSealerSectorsAbortCmd = &cli.Command{
 		defer stop()
 
 		_, err = cli.Sealer.ReportAborted(gctx, abi.SectorID{
-			Miner:  abi.ActorID(miner),
+			Miner:  miner,
 			Number: abi.SectorNumber(sectorNum),
 		}, "aborted via CLI")
 		if err != nil {

@@ -31,7 +31,7 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
         .subcommand(filestore_init_cmd)
 }
 
-pub(crate) fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
+pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
     match subargs.subcommand() {
         ("sealing-init", Some(m)) => {
             let locs = values_t!(m, "location", String).context("get locations from flag")?;

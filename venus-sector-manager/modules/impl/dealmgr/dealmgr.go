@@ -80,7 +80,7 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec api.A
 
 		deals = append(deals, api.DealInfo{
 			ID:          dinfo.DealID,
-			PayloadSize: uint64(dinfo.PayloadSize),
+			PayloadSize: dinfo.PayloadSize,
 			Piece: api.PieceInfo{
 				Cid:  dinfo.PieceCID,
 				Size: dinfo.PieceSize,

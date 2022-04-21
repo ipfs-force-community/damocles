@@ -21,7 +21,7 @@ pub fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
         CtrlCtx {
             pause_rx,
             resume_rx,
-            state: state,
+            state,
         },
     )
 }
@@ -48,10 +48,7 @@ pub struct Ctrl {
 
 impl Ctrl {
     pub fn load_state<T, F: FnOnce(&CtrlState) -> T>(&self, f: F) -> Result<T> {
-        let ctrl_state = self
-            .state
-            .read()
-            .map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
+        let ctrl_state = self.state.read().map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
 
         let res = f(&ctrl_state);
         drop(ctrl_state);
@@ -67,10 +64,7 @@ pub struct CtrlCtx {
 
 impl CtrlCtx {
     pub fn update_state<F: FnOnce(&mut CtrlState)>(&self, f: F) -> Result<()> {
-        let mut ctrl_state = self
-            .state
-            .write()
-            .map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
+        let mut ctrl_state = self.state.write().map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
 
         f(&mut ctrl_state);
         drop(ctrl_state);

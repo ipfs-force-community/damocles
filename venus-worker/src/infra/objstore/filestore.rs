@@ -32,22 +32,13 @@ impl FileStore {
     /// open the file store at given path
     pub fn open<P: AsRef<Path>>(p: P, ins: Option<String>, readonly: bool) -> Result<Self> {
         let dir_path = p.as_ref().canonicalize().context("canonicalize dir path")?;
-        if !dir_path
-            .metadata()
-            .context("read dir metadata")
-            .map(|meta| meta.is_dir())?
-        {
+        if !dir_path.metadata().context("read dir metadata").map(|meta| meta.is_dir())? {
             return Err(anyhow!("base path of the file store should a dir"));
         };
 
-        let instance = match ins.or(dir_path.to_str().map(|s| s.to_owned())) {
+        let instance = match ins.or_else(|| dir_path.to_str().map(|s| s.to_owned())) {
             Some(i) => i,
-            None => {
-                return Err(anyhow!(
-                    "dir path {:?} may contain invalid utf8 chars",
-                    dir_path
-                ))
-            }
+            None => return Err(anyhow!("dir path {:?} may contain invalid utf8 chars", dir_path)),
         };
 
         Ok(FileStore {
@@ -103,12 +94,7 @@ impl ObjectStore for FileStore {
             }
         }
 
-        let mut f = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(dst)?;
+        let mut f = OpenOptions::new().read(true).write(true).create(true).truncate(true).open(dst)?;
 
         copy(&mut r, &mut f).map_err(From::from)
     }
@@ -118,17 +104,8 @@ impl ObjectStore for FileStore {
     }
 
     /// get specified pieces
-    fn get_chunks(
-        &self,
-        path: &Path,
-        ranges: &[Range],
-    ) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>> {
-        trace!(
-            target: LOG_TARGET,
-            ?path,
-            pieces = ranges.len(),
-            "get_chunks"
-        );
+    fn get_chunks(&self, path: &Path, ranges: &[Range]) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>> {
+        trace!(target: LOG_TARGET, ?path, pieces = ranges.len(), "get_chunks");
 
         let f = OpenOptions::new().read(true).open(self.path(path)?)?;
         let iter: Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>> = Box::new(ChunkReader {
@@ -161,17 +138,14 @@ impl ObjectStore for FileStore {
         for entry_res in src_path.read_dir()? {
             let entry = entry_res?;
             let full_path = entry.path();
-            let rel_path = full_path.strip_prefix(&src_path).with_context(|| {
-                format!(
-                    "get rel path for {:?} with prefix {:?}",
-                    full_path, src_path
-                )
-            })?;
+            let rel_path = full_path
+                .strip_prefix(&src_path)
+                .with_context(|| format!("get rel path for {:?} with prefix {:?}", full_path, src_path))?;
 
             if full_path.is_file() {
-                self.link_object(&rel_path, &dst.join(rel_path), false)?;
+                self.link_object(rel_path, &dst.join(rel_path), false)?;
             } else {
-                self.link_dir(&rel_path, &dst.join(rel_path), false)?;
+                self.link_dir(rel_path, &dst.join(rel_path), false)?;
             }
         }
 
@@ -189,12 +163,7 @@ impl ObjectStore for FileStore {
         }
 
         let mut r = self.get(path)?;
-        let mut f = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(dst)?;
+        let mut f = OpenOptions::new().read(true).write(true).create(true).truncate(true).open(dst)?;
 
         copy(&mut r, &mut f)?;
         Ok(())

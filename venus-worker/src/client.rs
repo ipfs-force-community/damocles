@@ -14,8 +14,7 @@ pub fn connect(cfg: &Config) -> Result<WorkerClient> {
     let addr = cfg.worker_server_connect_addr()?;
     let endpoint = format!("http://{}", addr);
 
-    let client = block_on(async move { http::connect(&endpoint).await })
-        .map_err(|e| anyhow!("http connect: {:?}", e))?;
+    let client = block_on(async move { http::connect(&endpoint).await }).map_err(|e| anyhow!("http connect: {:?}", e))?;
 
     Ok(client)
 }

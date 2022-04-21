@@ -2,7 +2,7 @@ package mock
 
 import (
 	"context"
-	"math/rand"
+	"crypto/rand"
 
 	"github.com/filecoin-project/go-state-types/abi"
 
@@ -15,10 +15,10 @@ var _ api.RandomnessAPI = (*random)(nil)
 
 func NewRandomness() api.RandomnessAPI {
 	var ticket, seed, wdchallenge, wdcommit [32]byte
-	rand.Read(ticket[:])
-	rand.Read(seed[:])
-	rand.Read(wdchallenge[:])
-	rand.Read(wdcommit[:])
+	_, _ = rand.Read(ticket[:])
+	_, _ = rand.Read(seed[:])
+	_, _ = rand.Read(wdchallenge[:])
+	_, _ = rand.Read(wdcommit[:])
 
 	return &random{
 		ticket:      ticket,
