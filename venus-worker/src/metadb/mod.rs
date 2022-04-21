@@ -36,9 +36,7 @@ impl<M: MetaDB> MetaDocumentDB<M> {
         K: AsRef<str>,
         T: DeserializeOwned,
     {
-        self.0.view(key, |b: &[u8]| {
-            from_slice(b).map_err(|e| Error::new(e).into())
-        })
+        self.0.view(key, |b: &[u8]| from_slice(b).map_err(|e| Error::new(e).into()))
     }
 
     pub fn remove<K: AsRef<str>>(&self, key: K) -> Result<()> {

@@ -73,11 +73,7 @@ pub trait ObjectStore: Send + Sync {
     fn put(&self, path: &Path, r: Box<dyn Read>) -> ObjResult<u64>;
 
     /// get specified pieces
-    fn get_chunks(
-        &self,
-        path: &Path,
-        ranges: &[Range],
-    ) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>>;
+    fn get_chunks(&self, path: &Path, ranges: &[Range]) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>>;
 
     /// link a dir or a batch of files with the same prefix to a local path
     fn link_dir(&self, path: &Path, dest: &Path, sym_only: bool) -> ObjResult<()>;

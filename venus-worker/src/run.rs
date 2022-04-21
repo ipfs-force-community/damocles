@@ -25,13 +25,9 @@ use crate::{
 
 /// start a normal venus-worker daemon
 pub fn start_deamon(cfg_path: String) -> Result<()> {
-    let runtime = Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .context("construct runtime")?;
+    let runtime = Builder::new_multi_thread().enable_all().build().context("construct runtime")?;
 
-    let cfg = config::Config::load(&cfg_path)
-        .with_context(|| format!("load from config file {}", cfg_path))?;
+    let cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path))?;
     info!("config loaded\n {:?}", cfg);
 
     let mut attached: Vec<Box<dyn ObjectStore>> = Vec::new();
@@ -56,12 +52,8 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     if let Some(attach_cfgs) = cfg.attached.as_ref() {
         for (sidx, scfg) in attach_cfgs.iter().enumerate() {
             let attached_store = Box::new(
-                FileStore::open(
-                    scfg.location.clone(),
-                    scfg.name.clone(),
-                    scfg.readonly.unwrap_or(false),
-                )
-                .with_context(|| format!("open attached filestore #{}", sidx))?,
+                FileStore::open(scfg.location.clone(), scfg.name.clone(), scfg.readonly.unwrap_or(false))
+                    .with_context(|| format!("open attached filestore #{}", sidx))?,
             );
 
             if !attached_store.readonly() {
@@ -80,16 +72,11 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         return Err(anyhow!("no attached store available for writing"));
     }
 
-    info!(
-        "{} stores attached, {} writable",
-        attached.len(),
-        attached_writable
-    );
+    info!("{} stores attached, {} writable", attached.len(), attached_writable);
 
     let attached_mgr = AttachedManager::init(attached).context("init attached manager")?;
 
-    let store_mgr =
-        StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
+    let store_mgr = StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
 
     let dial_addr = rpc_addr(&cfg.sector_manager.rpc_client.addr, 0)?;
     info!(
@@ -118,23 +105,14 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let piece_store: Option<Box<dyn PieceStore>> = if cfg.sealing.enable_deals.unwrap_or(false) {
         Some(Box::new(
-            ProxyPieceStore::new(
-                &rpc_origin,
-                cfg.sector_manager.piece_token.as_ref().cloned(),
-            )
-            .context("build proxy piece store")?,
+            ProxyPieceStore::new(&rpc_origin, cfg.sector_manager.piece_token.as_ref().cloned()).context("build proxy piece store")?,
         ))
     } else {
         None
     };
 
     let ext_locks = Arc::new(resource::Pool::new(
-        cfg.processors
-            .ext_locks
-            .as_ref()
-            .cloned()
-            .unwrap_or_default()
-            .iter(),
+        cfg.processors.ext_locks.as_ref().cloned().unwrap_or_default().iter(),
     ));
 
     let (processors, modules) = start_processors(&cfg, &ext_locks).context("start processors")?;
@@ -148,12 +126,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         attached: Arc::new(attached_mgr),
         processors,
         limit: Arc::new(resource::Pool::new(
-            cfg.processors
-                .limit
-                .as_ref()
-                .cloned()
-                .unwrap_or_default()
-                .iter(),
+            cfg.processors.limit.as_ref().cloned().unwrap_or_default().iter(),
         )),
         ext_locks,
         static_tree_d,
@@ -217,14 +190,10 @@ macro_rules! construct_sub_processor {
     };
 }
 
-fn start_processors(
-    cfg: &config::Config,
-    locks: &Arc<resource::Pool>,
-) -> Result<(GloablProcessors, Vec<Box<dyn Module>>)> {
+fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<(GloablProcessors, Vec<Box<dyn Module>>)> {
     let mut modules: Vec<Box<dyn Module>> = Vec::new();
 
-    let tree_d: processor::BoxedTreeDProcessor =
-        construct_sub_processor!(tree_d, cfg, locks, modules);
+    let tree_d: processor::BoxedTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks, modules);
 
     let pc1: processor::BoxedPC1Processor = construct_sub_processor!(pc1, cfg, locks, modules);
 
@@ -232,11 +201,9 @@ fn start_processors(
 
     let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, locks, modules);
 
-    let snap_encode: processor::BoxedSnapEncodeProcessor =
-        construct_sub_processor!(snap_encode, cfg, locks, modules);
+    let snap_encode: processor::BoxedSnapEncodeProcessor = construct_sub_processor!(snap_encode, cfg, locks, modules);
 
-    let snap_prove: processor::BoxedSnapProveProcessor =
-        construct_sub_processor!(snap_prove, cfg, locks, modules);
+    let snap_prove: processor::BoxedSnapProveProcessor = construct_sub_processor!(snap_prove, cfg, locks, modules);
 
     Ok((
         GloablProcessors {

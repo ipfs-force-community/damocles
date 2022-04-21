@@ -32,11 +32,7 @@ impl AttachedManager {
     }
 
     /// acquire an available store for sector persistence
-    pub fn acquire_persist(
-        &self,
-        size: u64,
-        prev_instance: Option<String>,
-    ) -> Option<&dyn ObjectStore> {
+    pub fn acquire_persist(&self, size: u64, prev_instance: Option<String>) -> Option<&dyn ObjectStore> {
         let picker = |s: &Box<dyn ObjectStore>| -> Option<u64> {
             if s.readonly() {
                 return None;

@@ -377,12 +377,7 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.SubmitPreCommit")]
-    fn submit_pre_commit(
-        &self,
-        sector: AllocatedSector,
-        info: PreCommitOnChainInfo,
-        reset: bool,
-    ) -> Result<SubmitPreCommitResp>;
+    fn submit_pre_commit(&self, sector: AllocatedSector, info: PreCommitOnChainInfo, reset: bool) -> Result<SubmitPreCommitResp>;
 
     /// api definition
     #[rpc(name = "Venus.PollPreCommitState")]
@@ -398,12 +393,7 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.SubmitProof")]
-    fn submit_proof(
-        &self,
-        id: SectorID,
-        proof: ProofOnChainInfo,
-        reset: bool,
-    ) -> Result<SubmitProofResp>;
+    fn submit_proof(&self, id: SectorID, proof: ProofOnChainInfo, reset: bool) -> Result<SubmitProofResp>;
 
     /// api definition
     #[rpc(name = "Venus.PollProofState")]
@@ -420,16 +410,9 @@ pub trait Sealer {
     // snap up
     /// api definition
     #[rpc(name = "Venus.AllocateSanpUpSector")]
-    fn allocate_snapup_sector(
-        &self,
-        spec: AllocateSnapUpSpec,
-    ) -> Result<Option<AllocatedSnapUpSector>>;
+    fn allocate_snapup_sector(&self, spec: AllocateSnapUpSpec) -> Result<Option<AllocatedSnapUpSector>>;
 
     /// api definition
     #[rpc(name = "Venus.SubmitSnapUpProof")]
-    fn submit_snapup_proof(
-        &self,
-        id: SectorID,
-        snapup_info: SnapUpOnChainInfo,
-    ) -> Result<SubmitSnapUpProofResp>;
+    fn submit_snapup_proof(&self, id: SectorID, snapup_info: SnapUpOnChainInfo) -> Result<SubmitSnapUpProofResp>;
 }

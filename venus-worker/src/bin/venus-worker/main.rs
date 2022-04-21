@@ -20,12 +20,7 @@ pub fn main() -> Result<()> {
     logging::init()?;
 
     let daemon_cmd = SubCommand::with_name("daemon")
-        .arg(
-            Arg::with_name("api")
-                .long("api")
-                .takes_value(true)
-                .help("sealer api addr"),
-        )
+        .arg(Arg::with_name("api").long("api").takes_value(true).help("sealer api addr"))
         .arg(
             Arg::with_name("config")
                 .long("config")

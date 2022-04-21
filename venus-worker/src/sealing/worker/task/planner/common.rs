@@ -11,8 +11,7 @@ use crate::logging::{debug, warn_span};
 use crate::rpc::sealer::Deals;
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TreeDInput,
-    UnpaddedBytesAmount,
+    tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TreeDInput, UnpaddedBytesAmount,
 };
 
 pub fn add_pieces<'c, 't>(
@@ -21,13 +20,7 @@ pub fn add_pieces<'c, 't>(
     mut staged_file: &mut File,
     deals: &Deals,
 ) -> Result<Vec<PieceInfo>, Failure> {
-    let piece_store = task
-        .ctx
-        .global
-        .piece_store
-        .as_ref()
-        .context("piece store is required")
-        .perm()?;
+    let piece_store = task.ctx.global.piece_store.as_ref().context("piece store is required").perm()?;
 
     let mut pieces = Vec::new();
 
@@ -47,9 +40,7 @@ pub fn add_pieces<'c, 't>(
             .with_context(|| format!("write pledge piece, size={}", unpadded_piece_size.0))
             .perm()?
         } else {
-            let mut piece_reader = piece_store
-                .get(deal.piece.cid.0, deal.payload_size, unpadded_piece_size)
-                .perm()?;
+            let mut piece_reader = piece_store.get(deal.piece.cid.0, deal.payload_size, unpadded_piece_size).perm()?;
 
             write_and_preprocess(
                 seal_proof_type,
@@ -57,12 +48,7 @@ pub fn add_pieces<'c, 't>(
                 &mut staged_file,
                 UnpaddedBytesAmount(unpadded_piece_size.0),
             )
-            .with_context(|| {
-                format!(
-                    "write deal piece, cid={}, size={}",
-                    deal.piece.cid.0, unpadded_piece_size.0
-                )
-            })
+            .with_context(|| format!("write deal piece, cid={}, size={}", deal.piece.cid.0, unpadded_piece_size.0))
             .perm()?
         };
 
@@ -91,8 +77,7 @@ pub fn build_tree_d<'c, 't>(task: &'t Task<'c>, allow_static: bool) -> Result<()
 
     // pledge sector
     if allow_static && task.sector.deals.as_ref().map(|d| d.len()).unwrap_or(0) == 0 {
-        if let Some(static_tree_path) = task.ctx.global.static_tree_d.get(&proof_type.sector_size())
-        {
+        if let Some(static_tree_path) = task.ctx.global.static_tree_d.get(&proof_type.sector_size()) {
             symlink(static_tree_path, tree_d_path_in_dir(prepared_dir.as_ref())).crit()?;
             return Ok(());
         }
@@ -117,11 +102,7 @@ pub fn build_tree_d<'c, 't>(task: &'t Task<'c>, allow_static: bool) -> Result<()
 
 // acquire a persist store for sector files, copy the files and return the instance name of the
 // acquired store
-pub fn persist_sector_files<'c, 't>(
-    task: &'t Task<'c>,
-    cache_dir: Entry,
-    sealed_file: Entry,
-) -> Result<String, Failure> {
+pub fn persist_sector_files<'c, 't>(task: &'t Task<'c>, cache_dir: Entry, sealed_file: Entry) -> Result<String, Failure> {
     let proof_type = task.sector_proof_type()?;
     let sector_size = proof_type.sector_size();
 
@@ -142,8 +123,7 @@ pub fn persist_sector_files<'c, 't>(
     for entry_res in cache_dir.read_dir().temp()? {
         let entry = entry_res.temp()?;
         if let Some(fname_str) = entry.rel().file_name().and_then(|name| name.to_str()) {
-            let should =
-                fname_str == "p_aux" || fname_str == "t_aux" || fname_str.contains("tree-r-last");
+            let should = fname_str == "p_aux" || fname_str == "t_aux" || fname_str.contains("tree-r-last");
 
             if !should {
                 continue;

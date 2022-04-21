@@ -90,9 +90,7 @@ impl Entry {
 
     pub fn read_dir(&self) -> Result<ReadDir> {
         let p = self.dir_path()?;
-        let inner = p
-            .read_dir()
-            .with_context(|| format!("read dir for {:?}", p))?;
+        let inner = p.read_dir().with_context(|| format!("read dir for {:?}", p))?;
 
         Ok(ReadDir {
             base: self.base().clone(),
@@ -102,15 +100,11 @@ impl Entry {
 
     pub fn prepare(&self) -> Result<()> {
         match self {
-            Entry::Dir(p, (_, _)) => {
-                create_dir_all(p).with_context(|| format!("create dir for {:?}", p))
-            }
+            Entry::Dir(p, (_, _)) => create_dir_all(p).with_context(|| format!("create dir for {:?}", p)),
 
             Entry::File(p, (_, _)) => {
                 p.parent()
-                    .map(|d| {
-                        create_dir_all(d).with_context(|| format!("create parent dir for {:?}", p))
-                    })
+                    .map(|d| create_dir_all(d).with_context(|| format!("create parent dir for {:?}", p)))
                     .transpose()?;
 
                 Ok(())

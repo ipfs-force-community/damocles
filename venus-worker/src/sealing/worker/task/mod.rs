@@ -8,9 +8,7 @@ use crossbeam_channel::select;
 use super::{super::failure::*, CtrlCtx};
 use crate::logging::{debug, error, info, warn, warn_span};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
-use crate::rpc::sealer::{
-    ReportStateReq, SectorFailure, SectorID, SectorStateChange, WorkerIdentifier,
-};
+use crate::rpc::sealer::{ReportStateReq, SectorFailure, SectorID, SectorStateChange, WorkerIdentifier};
 use crate::sealing::processor::Stage;
 use crate::store::Store;
 use crate::types::SealProof;
@@ -108,17 +106,8 @@ impl<'c> Task<'c> {
         })
     }
 
-    fn report_state(
-        &self,
-        state_change: SectorStateChange,
-        fail: Option<SectorFailure>,
-    ) -> Result<(), Failure> {
-        let sector_id = match self
-            .sector
-            .base
-            .as_ref()
-            .map(|base| base.allocated.id.clone())
-        {
+    fn report_state(&self, state_change: SectorStateChange, fail: Option<SectorFailure>) -> Result<(), Failure> {
+        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
             Some(sid) => sid,
             None => return Ok(()),
         };
@@ -201,10 +190,9 @@ impl<'c> Task<'c> {
                 Some(base) => {
                     self.ctrl_ctx
                         .update_state(|cst| {
-                            cst.job.id.replace(format!(
-                                "m-{}-s-{}",
-                                base.allocated.id.miner, base.allocated.id.number
-                            ));
+                            cst.job
+                                .id
+                                .replace(format!("m-{}-s-{}", base.allocated.id.miner, base.allocated.id.number));
                         })
                         .crit()?;
                     false
@@ -217,10 +205,9 @@ impl<'c> Task<'c> {
                     Some(base) => {
                         self.ctrl_ctx
                             .update_state(|cst| {
-                                cst.job.id.replace(format!(
-                                    "m-{}-s-{}",
-                                    base.allocated.id.miner, base.allocated.id.number
-                                ));
+                                cst.job
+                                    .id
+                                    .replace(format!("m-{}-s-{}", base.allocated.id.miner, base.allocated.id.number));
                             })
                             .crit()?;
                     }
@@ -330,38 +317,23 @@ impl<'c> Task<'c> {
     }
 
     fn prepared_dir(&self, sector_id: &SectorID) -> Entry {
-        Entry::dir(
-            &self.store.data_path,
-            PathBuf::from("prepared").join(self.sector_path(sector_id)),
-        )
+        Entry::dir(&self.store.data_path, PathBuf::from("prepared").join(self.sector_path(sector_id)))
     }
 
     fn cache_dir(&self, sector_id: &SectorID) -> Entry {
-        Entry::dir(
-            &self.store.data_path,
-            PathBuf::from("cache").join(self.sector_path(sector_id)),
-        )
+        Entry::dir(&self.store.data_path, PathBuf::from("cache").join(self.sector_path(sector_id)))
     }
 
     fn sealed_file(&self, sector_id: &SectorID) -> Entry {
-        Entry::file(
-            &self.store.data_path,
-            PathBuf::from("sealed").join(self.sector_path(sector_id)),
-        )
+        Entry::file(&self.store.data_path, PathBuf::from("sealed").join(self.sector_path(sector_id)))
     }
 
     fn staged_file(&self, sector_id: &SectorID) -> Entry {
-        Entry::file(
-            &self.store.data_path,
-            PathBuf::from("unsealed").join(self.sector_path(sector_id)),
-        )
+        Entry::file(&self.store.data_path, PathBuf::from("unsealed").join(self.sector_path(sector_id)))
     }
 
     fn update_file(&self, sector_id: &SectorID) -> Entry {
-        Entry::file(
-            &self.store.data_path,
-            PathBuf::from("update").join(self.sector_path(sector_id)),
-        )
+        Entry::file(&self.store.data_path, PathBuf::from("update").join(self.sector_path(sector_id)))
     }
 
     fn update_cache_dir(&self, sector_id: &SectorID) -> Entry {

@@ -59,8 +59,7 @@ pub(super) fn start_sub_processes<I: Input>(
 
     for (i, sub_cfg) in cfg.iter().enumerate() {
         let name = format!("sub-{}-{}-{}", stage.name(), std::process::id(), i);
-        let (child, stdin, stdout) = start_child(stage, sub_cfg)
-            .with_context(|| format!("start child with name {}", name))?;
+        let (child, stdin, stdout) = start_child(stage, sub_cfg).with_context(|| format!("start child with name {}", name))?;
 
         let mut cg = sub_cfg
             .cgroup
@@ -84,21 +83,8 @@ pub(super) fn start_sub_processes<I: Input>(
         };
 
         let (tx, rx) = bounded(0);
-        let proc: SubProcess<_> = SubProcess::new(
-            rx,
-            limit_tx.clone(),
-            limit_rx,
-            name,
-            child,
-            stdin,
-            stdout,
-            cg,
-        );
-        txes.push((
-            tx,
-            limit_tx,
-            sub_cfg.locks.as_ref().cloned().unwrap_or_default(),
-        ));
+        let proc: SubProcess<_> = SubProcess::new(rx, limit_tx.clone(), limit_rx, name, child, stdin, stdout, cg);
+        txes.push((tx, limit_tx, sub_cfg.locks.as_ref().cloned().unwrap_or_default()));
         processes.push(proc);
     }
 
@@ -119,10 +105,7 @@ fn start_child(stage: Stage, cfg: &config::Ext) -> Result<(Child, ChildStdin, Ch
 
     #[cfg(feature = "numa")]
     if let Some(preferred) = cfg.numa_preferred {
-        envs.insert(
-            crate::sys::numa::ENV_NUMA_PREFERRED.to_owned(),
-            preferred.to_string(),
-        );
+        envs.insert(crate::sys::numa::ENV_NUMA_PREFERRED.to_owned(), preferred.to_string());
     }
 
     let bin = cfg
@@ -149,19 +132,11 @@ fn start_child(stage: Stage, cfg: &config::Ext) -> Result<(Child, ChildStdin, Ch
 
     let stdin = child.stdin.take().ok_or(anyhow!("child stdin not found"))?;
 
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or(anyhow!("child stdout not found"))?;
+    let stdout = child.stdout.take().ok_or(anyhow!("child stdout not found"))?;
 
     let (res_tx, res_rx) = bounded(1);
     let hdl = wait_for_process_ready(res_tx, stage, stdout);
-    let wait = after(
-        cfg.stable_wait
-            .as_ref()
-            .cloned()
-            .unwrap_or(config::EXT_STABLE_WAIT),
-    );
+    let wait = after(cfg.stable_wait.as_ref().cloned().unwrap_or(config::EXT_STABLE_WAIT));
 
     select! {
         recv(res_rx) -> ready_res => {
@@ -181,26 +156,19 @@ fn start_child(stage: Stage, cfg: &config::Ext) -> Result<(Child, ChildStdin, Ch
     Ok((child, stdin, stdout))
 }
 
-fn wait_for_process_ready(
-    res_tx: Sender<Result<()>>,
-    stage: Stage,
-    stdout: ChildStdout,
-) -> thread::JoinHandle<ChildStdout> {
+fn wait_for_process_ready(res_tx: Sender<Result<()>>, stage: Stage, stdout: ChildStdout) -> thread::JoinHandle<ChildStdout> {
     std::thread::spawn(move || {
         let expected = ready_msg(stage.name());
         let mut line = String::with_capacity(expected.len() + 1);
 
         let mut buf = BufReader::new(stdout);
-        let res = buf
-            .read_line(&mut line)
-            .map_err(|e| e.into())
-            .and_then(|_| {
-                if line.as_str().trim() == expected.as_str() {
-                    Ok(())
-                } else {
-                    Err(anyhow!("unexpected first line: {}", line))
-                }
-            });
+        let res = buf.read_line(&mut line).map_err(|e| e.into()).and_then(|_| {
+            if line.as_str().trim() == expected.as_str() {
+                Ok(())
+            } else {
+                Err(anyhow!("unexpected first line: {}", line))
+            }
+        });
 
         let _ = res_tx.send(res);
         buf.into_inner()

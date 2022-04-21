@@ -14,11 +14,7 @@ pub struct CtrlGroup {
 
 impl CtrlGroup {
     pub fn new(name: &str, cfg: &config::Cgroup) -> Result<Self> {
-        let group_name = cfg
-            .group_name
-            .as_ref()
-            .cloned()
-            .unwrap_or(DEFAULT_CGROUP_GROUP_NAME.to_owned());
+        let group_name = cfg.group_name.as_ref().cloned().unwrap_or(DEFAULT_CGROUP_GROUP_NAME.to_owned());
 
         let mut wanted = HashSet::new();
 
@@ -31,8 +27,7 @@ impl CtrlGroup {
                 match sub {
                     Subsystem::CpuSet(ctrl) => {
                         ctrl.create();
-                        ctrl.set_cpus(cpuset)
-                            .with_context(|| format!("set cpuset to {}", cpuset))?;
+                        ctrl.set_cpus(cpuset).with_context(|| format!("set cpuset to {}", cpuset))?;
                         wanted.insert(sidx);
                         break;
                     }
@@ -65,10 +60,7 @@ impl CtrlGroup {
     pub fn delete(&mut self) {
         for sub in self.subsystems.iter() {
             if let Err(e) = sub.to_controller().delete() {
-                warn!(
-                    system = sub.controller_name().as_str(),
-                    "subsystem delete failed: {:?}", e
-                );
+                warn!(system = sub.controller_name().as_str(), "subsystem delete failed: {:?}", e);
             };
         }
     }

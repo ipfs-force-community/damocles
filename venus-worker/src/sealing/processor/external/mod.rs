@@ -26,12 +26,8 @@ impl<I> ExtProcessor<I>
 where
     I: Input,
 {
-    pub fn build(
-        cfg: &Vec<config::Ext>,
-        limit: Arc<Pool>,
-    ) -> Result<(Self, Vec<sub::SubProcess<I>>)> {
-        let (txes, subproc) = sub::start_sub_processes(cfg)
-            .with_context(|| format!("start sub process for stage {}", I::STAGE.name()))?;
+    pub fn build(cfg: &Vec<config::Ext>, limit: Arc<Pool>) -> Result<(Self, Vec<sub::SubProcess<I>>)> {
+        let (txes, subproc) = sub::start_sub_processes(cfg).with_context(|| format!("start sub process for stage {}", I::STAGE.name()))?;
 
         let proc = Self { limit, txes };
 
@@ -53,13 +49,9 @@ where
         let available_size = available.len();
 
         let input_tx = if available_size == 0 {
-            self.txes
-                .choose(&mut OsRng)
-                .context("no input tx from all chosen")?
+            self.txes.choose(&mut OsRng).context("no input tx from all chosen")?
         } else {
-            &available
-                .choose(&mut OsRng)
-                .context("no input tx from availables chosen")?
+            &available.choose(&mut OsRng).context("no input tx from availables chosen")?
         };
 
         let tokens = input_tx
@@ -83,13 +75,10 @@ where
             .collect::<Result<Vec<_>>>()?;
 
         let (res_tx, res_rx) = bounded(1);
-        input_tx.0.send((input, res_tx)).map_err(|e| {
-            anyhow!(
-                "failed to send input through chan for stage {}: {:?}",
-                I::STAGE.name(),
-                e
-            )
-        })?;
+        input_tx
+            .0
+            .send((input, res_tx))
+            .map_err(|e| anyhow!("failed to send input through chan for stage {}: {:?}", I::STAGE.name(), e))?;
 
         let res = res_rx
             .recv()

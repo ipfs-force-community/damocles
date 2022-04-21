@@ -113,9 +113,9 @@ impl Store {
                         Byte::from_str(size_str.as_str())
                             .with_context(|| format!("invalid size string {}", &size_str))
                             .and_then(|s| {
-                                (s.get_bytes() as u64).try_into().with_context(|| {
-                                    format!("invalid SealProof from {}", &size_str)
-                                })
+                                (s.get_bytes() as u64)
+                                    .try_into()
+                                    .with_context(|| format!("invalid SealProof from {}", &size_str))
                             })
                     })
                     .collect::<Result<Vec<_>>>()
@@ -124,19 +124,14 @@ impl Store {
 
         let location = Location(loc);
         let data_path = location.data_path();
-        if !data_path
-            .symlink_metadata()
-            .context("read file metadata")?
-            .is_dir()
-        {
+        if !data_path.symlink_metadata().context("read file metadata")?.is_dir() {
             return Err(anyhow!("{:?} is not a dir", data_path));
         }
 
         let _holder = PlaceHolder::open(&location).context("open placeholder")?;
 
         let meta_path = location.meta_path();
-        let meta =
-            RocksMeta::open(&meta_path).with_context(|| format!("open metadb {:?}", meta_path))?;
+        let meta = RocksMeta::open(&meta_path).with_context(|| format!("open metadb {:?}", meta_path))?;
 
         Ok(Store {
             location,
@@ -224,10 +219,7 @@ macro_rules! merge_fields {
     };
 }
 
-fn customized_sealing_config(
-    common: &SealingOptional,
-    customized: Option<&SealingOptional>,
-) -> Sealing {
+fn customized_sealing_config(common: &SealingOptional, customized: Option<&SealingOptional>) -> Sealing {
     let default_cfg = Sealing::default();
     merge_fields! {
         common,
@@ -270,12 +262,8 @@ impl StoreManager {
             }
 
             let sealing_config = customized_sealing_config(common, scfg.sealing.as_ref());
-            let store = Store::open(
-                store_path.clone(),
-                sealing_config,
-                scfg.plan.as_ref().cloned(),
-            )
-            .with_context(|| format!("open store {:?}", store_path))?;
+            let store = Store::open(store_path.clone(), sealing_config, scfg.plan.as_ref().cloned())
+                .with_context(|| format!("open store {:?}", store_path))?;
             stores.insert(store_path, store);
         }
 

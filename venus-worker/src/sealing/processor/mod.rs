@@ -124,12 +124,7 @@ impl Input for TreeDInput {
     type Out = bool;
 
     fn process(self) -> Result<Self::Out> {
-        create_tree_d(
-            self.registered_proof,
-            Some(self.staged_file),
-            self.cache_dir,
-        )
-        .map(|_| true)
+        create_tree_d(self.registered_proof, Some(self.staged_file), self.cache_dir).map(|_| true)
     }
 }
 
@@ -280,10 +275,7 @@ impl Input for SnapProveInput {
     fn process(self) -> Result<Self::Out> {
         snap_generate_sector_update_proof(
             self.registered_proof,
-            self.vannilla_proofs
-                .into_iter()
-                .map(|p| PartitionProofBytes(p))
-                .collect(),
+            self.vannilla_proofs.into_iter().map(|p| PartitionProofBytes(p)).collect(),
             self.comm_r_old,
             self.comm_r_new,
             self.comm_d_new,
@@ -308,9 +300,7 @@ pub mod internal {
         I: Input,
     {
         pub fn new() -> Self {
-            Proc {
-                _data: Default::default(),
-            }
+            Proc { _data: Default::default() }
         }
     }
 

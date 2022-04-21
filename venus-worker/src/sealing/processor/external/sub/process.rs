@@ -111,8 +111,7 @@ impl<I: Input> Module for SubProcess<I> {
     }
 
     fn run(&mut self, ctx: Ctx) -> Result<()> {
-        let (read_tx, response_tx, stdout) =
-            self.read_ctx.take().context("read context required")?;
+        let (read_tx, response_tx, stdout) = self.read_ctx.take().context("read context required")?;
         let mod_id = self.id();
         let done = ctx.done.clone();
         let _ = std::thread::spawn(|| {

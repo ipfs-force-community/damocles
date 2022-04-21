@@ -24,14 +24,7 @@ pub struct Worker {
 impl Worker {
     pub fn new(idx: usize, s: Store) -> (Self, Ctrl) {
         let (ctrl, ctrl_ctx) = new_ctrl(s.location.clone());
-        (
-            Worker {
-                idx,
-                store: s,
-                ctrl_ctx,
-            },
-            ctrl,
-        )
+        (Worker { idx, store: s, ctrl_ctx }, ctrl)
     }
 
     fn seal_one(&mut self, ctx: &Ctx, state: Option<State>) -> Result<(), Failure> {

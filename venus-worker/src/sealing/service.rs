@@ -17,10 +17,7 @@ impl ServiceImpl {
         self.ctrls
             .get(index)
             .map(|item| &item.1)
-            .ok_or(Error::invalid_params(format!(
-                "worker #{} not found",
-                index
-            )))
+            .ok_or(Error::invalid_params(format!("worker #{} not found", index)))
     }
 }
 
@@ -81,10 +78,7 @@ impl Worker for ServiceImpl {
         let ctrl = self.get_ctrl(index)?;
 
         let state = set_to
-            .map(|s| {
-                s.parse()
-                    .map_err(|e| Error::invalid_params(format!("{:?}", e)))
-            })
+            .map(|s| s.parse().map_err(|e| Error::invalid_params(format!("{:?}", e))))
             .transpose()?;
 
         select! {

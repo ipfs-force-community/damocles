@@ -63,7 +63,17 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
             let out = std::io::stdout();
             let mut hdl = out.lock();
             for wi in infos {
-                let _ = writeln!(&mut hdl, "#{}: {:?}; sector_id={:?}, paused={}, paused_elapsed={:?}, state={}, last_err={:?}", wi.index, wi.location, wi.sector_id, wi.paused, wi.paused_elapsed, wi.state.as_str(), wi.last_error);
+                let _ = writeln!(
+                    &mut hdl,
+                    "#{}: {:?}; sector_id={:?}, paused={}, paused_elapsed={:?}, state={}, last_err={:?}",
+                    wi.index,
+                    wi.location,
+                    wi.sector_id,
+                    wi.paused,
+                    wi.paused_elapsed,
+                    wi.state.as_str(),
+                    wi.last_error
+                );
             }
 
             Ok(())
@@ -72,8 +82,7 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
         ("pause", Some(m)) => {
             let index = value_t!(m, "index", usize)?;
             get_client(subargs).and_then(|wcli| {
-                let done = block_on(wcli.worker_pause(index))
-                    .map_err(|e| anyhow!("rpc error: {:?}", e))?;
+                let done = block_on(wcli.worker_pause(index)).map_err(|e| anyhow!("rpc error: {:?}", e))?;
 
                 info!(done, "#{} worker pause", index);
                 Ok(())
@@ -84,8 +93,7 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
             let index = value_t!(m, "index", usize)?;
             let state = m.value_of("state").map(|s| s.to_owned());
             get_client(subargs).and_then(|wcli| {
-                let done = block_on(wcli.worker_resume(index, state.clone()))
-                    .map_err(|e| anyhow!("rpc error: {:?}", e))?;
+                let done = block_on(wcli.worker_resume(index, state.clone())).map_err(|e| anyhow!("rpc error: {:?}", e))?;
 
                 info!(done, ?state, "#{} worker resume", index);
                 Ok(())

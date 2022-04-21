@@ -2,9 +2,8 @@ use anyhow::{anyhow, Result};
 use clap::{App, AppSettings, ArgMatches, SubCommand};
 
 use venus_worker::{
-    run, run_c2, run_pc1, run_pc2, run_tree_d, SnapEncodeInput, SnapProveInput, STAGE_NAME_C2,
-    STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE,
-    STAGE_NAME_TREED,
+    run, run_c2, run_pc1, run_pc2, run_tree_d, SnapEncodeInput, SnapProveInput, STAGE_NAME_C2, STAGE_NAME_PC1, STAGE_NAME_PC2,
+    STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE, STAGE_NAME_TREED,
 };
 
 pub const SUB_CMD_NAME: &str = "processor";
