@@ -30,3 +30,6 @@ dist-clean:
 	git clean -xdff
 	git submodule deinit --all -f
 .PHONY: dist-clean
+
+dev-env:
+	ln -s ../../.githooks/pre-push ./.git/hooks/pre-push
