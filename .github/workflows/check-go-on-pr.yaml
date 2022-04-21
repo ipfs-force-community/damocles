@@ -1,5 +1,5 @@
 # This is a basic workflow to help you get started with Actions
-name: compile-go-on-pr
+name: check-go-on-pr
 
 # Controls when the workflow will run
 on:
@@ -28,6 +28,9 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '1.16'
+
+      - name: install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1
 
       - name: check venus-sector-manager
         run: make check-smgr && make check-git
