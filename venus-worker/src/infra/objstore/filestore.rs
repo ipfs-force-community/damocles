@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use nix::sys::statvfs::statvfs;
 
 use super::{ObjResult, ObjectStore, Range};
-use crate::logging::{debug_field, trace};
+use crate::logging::trace;
 
 const LOG_TARGET: &str = "filestore";
 
@@ -74,7 +74,7 @@ impl FileStore {
         }
 
         let res = self.local_path.join(sub);
-        trace!(target: LOG_TARGET, res = debug_field(&res), "get full path");
+        trace!(target: LOG_TARGET, ?res, "get full path");
         Ok(res)
     }
 }
@@ -82,7 +82,7 @@ impl FileStore {
 impl ObjectStore for FileStore {
     /// get should return a reader for the given path
     fn get(&self, path: &Path) -> ObjResult<Box<dyn Read>> {
-        trace!(target: LOG_TARGET, path = debug_field(path), "get");
+        trace!(target: LOG_TARGET, ?path, "get");
 
         let f = OpenOptions::new().read(true).open(self.path(path)?)?;
         let r: Box<dyn Read> = Box::new(f);
@@ -91,17 +91,13 @@ impl ObjectStore for FileStore {
 
     /// put an object
     fn put(&self, path: &Path, mut r: Box<dyn Read>) -> ObjResult<u64> {
-        trace!(target: LOG_TARGET, path = debug_field(path), "put");
+        trace!(target: LOG_TARGET, ?path, "put");
 
         let dst = self.path(path)?;
 
         if let Some(parent) = dst.parent() {
             if !parent.exists() {
-                trace!(
-                    target: LOG_TARGET,
-                    parent = debug_field(parent),
-                    "create parent dir"
-                );
+                trace!(target: LOG_TARGET, ?parent, "create parent dir");
 
                 create_dir_all(parent)?;
             }
@@ -129,7 +125,7 @@ impl ObjectStore for FileStore {
     ) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>> {
         trace!(
             target: LOG_TARGET,
-            path = debug_field(path),
+            ?path,
             pieces = ranges.len(),
             "get_chunks"
         );
