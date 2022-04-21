@@ -10,7 +10,7 @@ use byte_unit::Byte;
 use fil_types::ActorID;
 
 use crate::infra::util::PlaceHolder;
-use crate::logging::{debug_field, warn};
+use crate::logging::warn;
 use crate::metadb::rocks::RocksMeta;
 use crate::sealing::worker::{Ctrl, Worker};
 use crate::types::SealProof;
@@ -265,7 +265,7 @@ impl StoreManager {
                 .with_context(|| format!("canonicalize store path {}", scfg.location))?;
 
             if stores.get(&store_path).is_some() {
-                warn!(path = debug_field(&store_path), "store already loaded");
+                warn!(path = ?store_path, "store already loaded");
                 continue;
             }
 

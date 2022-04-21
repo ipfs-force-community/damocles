@@ -9,10 +9,7 @@ use tracing_subscriber::{
     registry,
 };
 
-pub use tracing::{
-    debug, debug_span, error, error_span, field::debug as debug_field,
-    field::display as display_field, info, info_span, trace, trace_span, warn, warn_span, Span,
-};
+pub use tracing::{debug, error, error_span, info, trace, warn, warn_span, Span};
 
 /// initiate the global tracing subscriber
 pub fn init() -> Result<()> {

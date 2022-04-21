@@ -6,7 +6,7 @@ use clap::{value_t, App, AppSettings, Arg, ArgMatches, SubCommand};
 use venus_worker::{
     block_on,
     client::{connect, WorkerClient},
-    logging::{debug_field, info},
+    logging::info,
     Config,
 };
 
@@ -87,7 +87,7 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
                 let done = block_on(wcli.worker_resume(index, state.clone()))
                     .map_err(|e| anyhow!("rpc error: {:?}", e))?;
 
-                info!(done, state = debug_field(state), "#{} worker resume", index);
+                info!(done, ?state, "#{} worker resume", index);
                 Ok(())
             })
         }
