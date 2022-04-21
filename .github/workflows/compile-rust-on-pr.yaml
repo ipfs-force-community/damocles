@@ -29,12 +29,6 @@ jobs:
         with:
           toolchain: '1.60.0'
 
-      - name: install components
-        run: rustup component add --toolchain $(cat rust-toolchain) clippy rustfmt
-
-      - name: check venus-worker
-        run: make check-worker && make check-git
-
       - name: build venus-worker
         run: make build-worker
 
