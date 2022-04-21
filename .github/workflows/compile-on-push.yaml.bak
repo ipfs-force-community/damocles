@@ -4,7 +4,7 @@ name: compile-on-push
 # Controls when the workflow will run
 on:
   push:
-    branches: [ main ]
+    branches: [ main, release/** ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -32,7 +32,7 @@ jobs:
       - name: setup rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: '1.52.1'
+          toolchain: '1.60.0'
 
       - name: build venus-sector-manager
         run: make build-smgr
