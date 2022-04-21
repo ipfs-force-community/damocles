@@ -117,7 +117,7 @@ impl Module for Worker {
 
             self.ctrl_ctx.update_state(|cst| {
                 cst.job.id.take();
-                drop(std::mem::replace(&mut cst.job.state, State::Empty));
+                let _ = std::mem::replace(&mut cst.job.state, State::Empty);
             })?;
 
             select! {

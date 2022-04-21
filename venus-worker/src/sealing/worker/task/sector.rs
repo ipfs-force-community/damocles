@@ -33,9 +33,9 @@ macro_rules! def_state {
             }
         }
 
-        impl Into<&str> for State {
-            fn into(self) -> &'static str {
-                self.as_str()
+        impl From<State> for &str {
+            fn from(s: State) -> &'static str {
+                s.as_str()
             }
         }
 

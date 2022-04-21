@@ -14,7 +14,11 @@ pub struct CtrlGroup {
 
 impl CtrlGroup {
     pub fn new(name: &str, cfg: &config::Cgroup) -> Result<Self> {
-        let group_name = cfg.group_name.as_ref().cloned().unwrap_or(DEFAULT_CGROUP_GROUP_NAME.to_owned());
+        let group_name = cfg
+            .group_name
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(|| DEFAULT_CGROUP_GROUP_NAME.to_owned());
 
         let mut wanted = HashSet::new();
 
@@ -24,15 +28,11 @@ impl CtrlGroup {
 
         if let Some(cpuset) = cfg.cpuset.as_ref() {
             for (sidx, sub) in cgsubs.iter().enumerate() {
-                match sub {
-                    Subsystem::CpuSet(ctrl) => {
-                        ctrl.create();
-                        ctrl.set_cpus(cpuset).with_context(|| format!("set cpuset to {}", cpuset))?;
-                        wanted.insert(sidx);
-                        break;
-                    }
-
-                    _ => {}
+                if let Subsystem::CpuSet(ctrl) = sub {
+                    ctrl.create();
+                    ctrl.set_cpus(cpuset).with_context(|| format!("set cpuset to {}", cpuset))?;
+                    wanted.insert(sidx);
+                    break;
                 }
             }
         }

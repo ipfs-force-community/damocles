@@ -57,14 +57,14 @@ impl Entry {
         })
     }
 
-    pub fn dir(base: &PathBuf, rel: PathBuf) -> Self {
+    pub fn dir(base: &Path, rel: PathBuf) -> Self {
         let full = base.join(&rel);
-        Entry::Dir(full, (base.clone(), rel))
+        Entry::Dir(full, (base.to_path_buf(), rel))
     }
 
-    pub fn file(base: &PathBuf, rel: PathBuf) -> Self {
+    pub fn file(base: &Path, rel: PathBuf) -> Self {
         let full = base.join(&rel);
-        Entry::File(full, (base.clone(), rel))
+        Entry::File(full, (base.to_path_buf(), rel))
     }
 
     pub fn base(&self) -> &PathBuf {
@@ -139,9 +139,9 @@ impl fmt::Debug for Entry {
     }
 }
 
-impl Into<PathBuf> for Entry {
-    fn into(self) -> PathBuf {
-        match self {
+impl From<Entry> for PathBuf {
+    fn from(ent: Entry) -> Self {
+        match ent {
             Entry::Dir(p, (_, _)) => p,
             Entry::File(p, (_, _)) => p,
         }

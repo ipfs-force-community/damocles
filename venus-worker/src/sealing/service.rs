@@ -17,14 +17,13 @@ impl ServiceImpl {
         self.ctrls
             .get(index)
             .map(|item| &item.1)
-            .ok_or(Error::invalid_params(format!("worker #{} not found", index)))
+            .ok_or_else(|| Error::invalid_params(format!("worker #{} not found", index)))
     }
 }
 
 impl Worker for ServiceImpl {
     fn worker_list(&self) -> Result<Vec<WorkerInfo>> {
-        self
-            .ctrls
+        self.ctrls
             .iter()
             .map(|(idx, ctrl)| {
                 let (state, sector_id, last_error, paused_at) = ctrl

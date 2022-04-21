@@ -56,7 +56,7 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
         .subcommand(resume_cmd)
 }
 
-pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
+pub fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
     match subargs.subcommand() {
         ("list", _) => get_client(subargs).and_then(|wcli| {
             let infos = block_on(wcli.worker_list()).map_err(|e| anyhow!("rpc error: {:?}", e))?;
@@ -104,7 +104,7 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
     }
 }
 
-fn get_client<'a>(m: &ArgMatches<'a>) -> Result<WorkerClient> {
+fn get_client(m: &ArgMatches<'_>) -> Result<WorkerClient> {
     let cfg_path = value_t!(m, "config", String).context("get config path")?;
     let cfg = Config::load(&cfg_path)?;
     connect(&cfg)

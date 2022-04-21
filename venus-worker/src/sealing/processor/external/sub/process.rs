@@ -205,7 +205,7 @@ impl<I: Input> Module for SubProcess<I> {
                             }
 
                             send(out_tx, out_res) -> send_res => {
-                                if let Err(_) = send_res {
+                                if send_res.is_err() {
                                     error!(id = resp.id, "failed to send output through given chan");
                                 } else {
                                     debug!(id = resp.id, "responsed");

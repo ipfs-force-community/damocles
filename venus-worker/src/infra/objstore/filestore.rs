@@ -36,7 +36,7 @@ impl FileStore {
             return Err(anyhow!("base path of the file store should a dir"));
         };
 
-        let instance = match ins.or(dir_path.to_str().map(|s| s.to_owned())) {
+        let instance = match ins.or_else(|| dir_path.to_str().map(|s| s.to_owned())) {
             Some(i) => i,
             None => return Err(anyhow!("dir path {:?} may contain invalid utf8 chars", dir_path)),
         };

@@ -158,8 +158,7 @@ impl Store {
 
     /// cleanup cleans the store
     pub fn cleanup(&self) -> Result<()> {
-        let entries: Vec<_> = read_dir(&self.data_path)?.collect();
-        if !entries.is_empty() {
+        if read_dir(&self.data_path)?.next().is_some() {
             remove_dir_all(&self.data_path)?;
             create_dir_all(&self.data_path)?;
         }

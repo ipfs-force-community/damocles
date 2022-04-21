@@ -14,8 +14,8 @@ use crate::sealing::processor::{
     tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TreeDInput, UnpaddedBytesAmount,
 };
 
-pub fn add_pieces<'c, 't>(
-    task: &'t Task<'c>,
+pub fn add_pieces<'t>(
+    task: &'t Task<'_>,
     seal_proof_type: RegisteredSealProof,
     mut staged_file: &mut File,
     deals: &Deals,
@@ -59,7 +59,7 @@ pub fn add_pieces<'c, 't>(
 }
 
 // build tree_d inside `prepare_dir` if necessary
-pub fn build_tree_d<'c, 't>(task: &'t Task<'c>, allow_static: bool) -> Result<(), Failure> {
+pub fn build_tree_d(task: &'_ Task<'_>, allow_static: bool) -> Result<(), Failure> {
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
 
@@ -102,7 +102,7 @@ pub fn build_tree_d<'c, 't>(task: &'t Task<'c>, allow_static: bool) -> Result<()
 
 // acquire a persist store for sector files, copy the files and return the instance name of the
 // acquired store
-pub fn persist_sector_files<'c, 't>(task: &'t Task<'c>, cache_dir: Entry, sealed_file: Entry) -> Result<String, Failure> {
+pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: Entry) -> Result<String, Failure> {
     let proof_type = task.sector_proof_type()?;
     let sector_size = proof_type.sector_size();
 

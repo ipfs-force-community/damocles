@@ -54,7 +54,7 @@ impl Planner for SnapUpPlanner {
         Ok(next)
     }
 
-    fn exec<'c, 't>(&self, task: &'t mut Task<'c>) -> Result<Option<Event>, Failure> {
+    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
         let inner = SnapUp { task };
         match state {

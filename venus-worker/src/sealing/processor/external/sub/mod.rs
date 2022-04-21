@@ -43,12 +43,18 @@ pub(super) fn ready_msg(name: &str) -> String {
     format!("{} processor ready", name)
 }
 
-pub(super) fn start_sub_processes<I: Input>(
-    cfg: &Vec<config::Ext>,
-) -> Result<(
-    Vec<(Sender<(I, Sender<Result<I::Out>>)>, Sender<()>, Vec<String>)>,
-    Vec<SubProcess<I>>,
-)> {
+pub(super) struct SubProcessTx<I: Input> {
+    pub input_tx: Sender<(I, Sender<Result<I::Out>>)>,
+    pub limiter: Sender<()>,
+    pub locks: Vec<String>,
+}
+
+pub(super) struct SubProcessContext<I: Input> {
+    pub txes: Vec<SubProcessTx<I>>,
+    pub processes: Vec<SubProcess<I>>,
+}
+
+pub(super) fn start_sub_processes<I: Input>(cfg: &[config::Ext]) -> Result<SubProcessContext<I>> {
     if cfg.is_empty() {
         return Err(anyhow!("no subs section found"));
     }
@@ -84,11 +90,15 @@ pub(super) fn start_sub_processes<I: Input>(
 
         let (tx, rx) = bounded(0);
         let proc: SubProcess<_> = SubProcess::new(rx, limit_tx.clone(), limit_rx, name, child, stdin, stdout, cg);
-        txes.push((tx, limit_tx, sub_cfg.locks.as_ref().cloned().unwrap_or_default()));
+        txes.push(SubProcessTx {
+            input_tx: tx,
+            limiter: limit_tx,
+            locks: sub_cfg.locks.as_ref().cloned().unwrap_or_default(),
+        });
         processes.push(proc);
     }
 
-    Ok((txes, processes))
+    Ok(SubProcessContext { txes, processes })
 }
 
 fn start_child(stage: Stage, cfg: &config::Ext) -> Result<(Child, ChildStdin, ChildStdout)> {
@@ -113,13 +123,13 @@ fn start_child(stage: Stage, cfg: &config::Ext) -> Result<(Child, ChildStdin, Ch
         .as_ref()
         .cloned()
         .map(|s| Ok(PathBuf::from(s)))
-        .unwrap_or(current_exe().context("get current exe name"))?;
+        .unwrap_or_else(|| current_exe().context("get current exe name"))?;
 
     let args = cfg
         .args
         .as_ref()
         .cloned()
-        .unwrap_or(vec!["processor".to_owned(), stage.name().to_owned()]);
+        .unwrap_or_else(|| vec!["processor".to_owned(), stage.name().to_owned()]);
 
     let mut child = Command::new(bin)
         .args(args)
@@ -130,9 +140,9 @@ fn start_child(stage: Stage, cfg: &config::Ext) -> Result<(Child, ChildStdin, Ch
         .spawn()
         .context("spawn command")?;
 
-    let stdin = child.stdin.take().ok_or(anyhow!("child stdin not found"))?;
+    let stdin = child.stdin.take().ok_or_else(|| anyhow!("child stdin not found"))?;
 
-    let stdout = child.stdout.take().ok_or(anyhow!("child stdout not found"))?;
+    let stdout = child.stdout.take().ok_or_else(|| anyhow!("child stdout not found"))?;
 
     let (res_tx, res_rx) = bounded(1);
     let hdl = wait_for_process_ready(res_tx, stage, stdout);

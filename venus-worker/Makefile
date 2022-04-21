@@ -13,4 +13,4 @@ clippy:
 	cargo clippy --fix
 
 clippy-check:
-	cargo clippy
+	cargo clippy -- -D warnings

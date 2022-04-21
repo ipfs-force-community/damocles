@@ -1,6 +1,6 @@
 use std::fs::{create_dir_all, remove_dir_all, remove_file, OpenOptions};
 use std::os::unix::fs::symlink;
-use std::path::PathBuf;
+use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
@@ -95,7 +95,7 @@ impl Planner for SealerPlanner {
         Ok(next)
     }
 
-    fn exec<'c, 't>(&self, task: &'t mut Task<'c>) -> Result<Option<Event>, Failure> {
+    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
         let inner = Sealer { task };
         match state {
@@ -249,7 +249,7 @@ impl<'c, 't> Sealer<'c, 't> {
         Ok(Event::AssignTicket(None))
     }
 
-    fn cleanup_before_pc1(&self, cache_dir: &PathBuf, sealed_file: &PathBuf) -> Result<()> {
+    fn cleanup_before_pc1(&self, cache_dir: &Path, sealed_file: &Path) -> Result<()> {
         // TODO: see if we have more graceful ways to handle restarting pc1
         remove_dir_all(&cache_dir).and_then(|_| create_dir_all(&cache_dir))?;
         debug!("init cache dir {:?} before pc1", cache_dir);
@@ -321,7 +321,7 @@ impl<'c, 't> Sealer<'c, 't> {
         Ok(Event::PC1(ticket, out))
     }
 
-    fn cleanup_before_pc2(&self, cache_dir: &PathBuf) -> Result<()> {
+    fn cleanup_before_pc2(&self, cache_dir: &Path) -> Result<()> {
         for entry_res in cache_dir.read_dir()? {
             let entry = entry_res?;
             let fname = entry.file_name();
@@ -400,7 +400,8 @@ impl<'c, 't> Sealer<'c, 't> {
             .sector
             .deals
             .as_ref()
-            .map(|d| d.iter().map(|i| i.id).collect()).unwrap_or_default();
+            .map(|d| d.iter().map(|i| i.id).collect())
+            .unwrap_or_default();
 
         let pinfo = PreCommitOnChainInfo {
             comm_r,

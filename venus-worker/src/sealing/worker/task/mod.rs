@@ -371,7 +371,7 @@ impl<'c> Task<'c> {
 
         self.ctrl_ctx
             .update_state(|cst| {
-                drop(std::mem::replace(&mut cst.job.state, self.sector.state));
+                let _ = std::mem::replace(&mut cst.job.state, self.sector.state);
             })
             .crit()?;
 

@@ -125,7 +125,7 @@ impl WatchDog {
             return Ok(());
         }
 
-        let done_ctrl = self.done_ctrl.take().ok_or(anyhow!("no done controller provided"));
+        let done_ctrl = self.done_ctrl.take().ok_or_else(|| anyhow!("no done controller provided"));
 
         let mut indexes = HashMap::new();
         let mut selector = Select::new();

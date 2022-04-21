@@ -31,7 +31,7 @@ impl<M: MetaDB> MetaDocumentDB<M> {
         self.0.set(key, data)
     }
 
-    pub fn get<'a, K, T>(&self, key: K) -> Result<T, MetaError>
+    pub fn get<K, T>(&self, key: K) -> Result<T, MetaError>
     where
         K: AsRef<str>,
         T: DeserializeOwned,

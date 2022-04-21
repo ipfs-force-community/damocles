@@ -33,7 +33,7 @@ impl AttachedManager {
 
     /// acquire an available store for sector persistence
     pub fn acquire_persist(&self, size: u64, prev_instance: Option<String>) -> Option<&dyn ObjectStore> {
-        let picker = |s: &Box<dyn ObjectStore>| -> Option<u64> {
+        let picker = |s: &dyn ObjectStore| -> Option<u64> {
             if s.readonly() {
                 return None;
             }
@@ -56,7 +56,7 @@ impl AttachedManager {
         if let Some(ins) = prev_instance
             .as_ref()
             .and_then(|name| self.stores.get(name))
-            .and_then(|s| picker(s).map(|_| s))
+            .and_then(|s| picker(s.as_ref()).map(|_| s))
         {
             return Some(ins.as_ref());
         };
@@ -64,7 +64,7 @@ impl AttachedManager {
         let weighted_instances = self
             .stores
             .values()
-            .filter_map(|s| picker(s).map(|free| (s, free)))
+            .filter_map(|s| picker(s.as_ref()).map(|free| (s, free)))
             .collect::<Vec<_>>();
 
         match weighted_instances.choose_weighted(&mut OsRng, |ins| ins.1) {
