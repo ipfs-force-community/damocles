@@ -39,6 +39,7 @@ issues:
     - "string .* has .* occurrences, make it a constant"
     - "a blank import should be only in a main or test package, or have a comment justifying it"
     - "package comment should be of the form"
+    - "G404: Use of weak random number generator"
 
 linters-settings:
   goconst:

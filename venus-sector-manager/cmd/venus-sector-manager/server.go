@@ -43,7 +43,7 @@ func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node api.SealerAP
 		log.Warn("process signal captured")
 
 	case e := <-errCh:
-		log.Errorf("error occured: %s", e)
+		log.Errorf("error occurred: %s", e)
 	}
 
 	log.Info("stop application")

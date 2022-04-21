@@ -420,7 +420,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	}
 
 	proxy := piecestore.NewProxy(locals, mapi)
-	http.DefaultServeMux.Handle(HttpEndpointPiecestore, http.StripPrefix(HttpEndpointPiecestore, proxy))
+	http.DefaultServeMux.Handle(HTTPEndpointPiecestore, http.StripPrefix(HTTPEndpointPiecestore, proxy))
 	log.Info("piecestore proxy has been registered into default mux")
 
 	return MarketAPIRelatedComponets{

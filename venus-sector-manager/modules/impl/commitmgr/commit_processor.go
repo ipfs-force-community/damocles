@@ -89,7 +89,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	plog := log.With("proc", "prove", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
 	start := time.Now()
-	defer plog.Infof("finished process, elasped %s", time.Since(start))
+	defer plog.Infof("finished process, elapsed %s", time.Since(start))
 
 	defer updateSector(ctx, c.smgr, sectors, plog)
 

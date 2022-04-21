@@ -69,7 +69,7 @@ var utilChainPreCommitInfoCmd = &cli.Command{
 		}
 
 		if err := OuputJSON(os.Stdout, pci); err != nil {
-			return fmt.Errorf("ouput json: %w", err)
+			return fmt.Errorf("output json: %w", err)
 		}
 
 		return nil

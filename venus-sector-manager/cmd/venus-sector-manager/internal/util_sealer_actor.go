@@ -309,18 +309,18 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 			fromAddr = addr
 		}
 
-		fromId, err := api.Chain.StateLookupID(ctx, fromAddr, types.EmptyTSK)
+		fromID, err := api.Chain.StateLookupID(ctx, fromAddr, types.EmptyTSK)
 		if err != nil {
 			return err
 		}
 
-		if !mi.IsController(fromId) {
-			return fmt.Errorf("sender isn't a controller of miner: %s", fromId)
+		if !mi.IsController(fromID) {
+			return fmt.Errorf("sender isn't a controller of miner: %s", fromID)
 		}
 
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
 			To:     maddr,
-			From:   fromId,
+			From:   fromID,
 			Value:  amount,
 			Method: miner.Methods.RepayDebt,
 			Params: nil,
@@ -531,7 +531,7 @@ var utilSealerActorSetOwnerCmd = &cli.Command{
 			return err
 		}
 
-		newAddrId, err := api.Chain.StateLookupID(ctx, na, types.EmptyTSK)
+		newAddrID, err := api.Chain.StateLookupID(ctx, na, types.EmptyTSK)
 		if err != nil {
 			return err
 		}
@@ -541,7 +541,7 @@ var utilSealerActorSetOwnerCmd = &cli.Command{
 			return err
 		}
 
-		fromAddrId, err := api.Chain.StateLookupID(ctx, fa, types.EmptyTSK)
+		fromAddrID, err := api.Chain.StateLookupID(ctx, fa, types.EmptyTSK)
 		if err != nil {
 			return err
 		}
@@ -551,17 +551,17 @@ var utilSealerActorSetOwnerCmd = &cli.Command{
 			return err
 		}
 
-		if fromAddrId != mi.Owner && fromAddrId != newAddrId {
+		if fromAddrID != mi.Owner && fromAddrID != newAddrID {
 			return fmt.Errorf("from address must either be the old owner or the new owner")
 		}
 
-		sp, err := actors.SerializeParams(&newAddrId)
+		sp, err := actors.SerializeParams(&newAddrID)
 		if err != nil {
 			return fmt.Errorf("serializing params: %w", err)
 		}
 
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
-			From:   fromAddrId,
+			From:   fromAddrID,
 			To:     maddr,
 			Method: miner.Methods.ChangeOwnerAddress,
 			Value:  big.Zero(),

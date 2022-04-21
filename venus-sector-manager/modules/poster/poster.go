@@ -163,7 +163,9 @@ func (p *PoSter) Run(ctx context.Context) {
 
 			p.actors.RLock()
 			for _, hdl := range p.actors.handlers {
-				hdl.update(ctx, lowest, highest)
+				if err := hdl.update(ctx, lowest, highest); err != nil {
+					log.Warnf("failed to apply head change: %s", err)
+				}
 			}
 			p.actors.RUnlock()
 		}
