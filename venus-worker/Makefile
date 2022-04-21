@@ -12,7 +12,7 @@ check-fmt:
 	cargo fmt --all -- --check
 
 clippy:
-	cargo clippy --fix
+	cargo clippy --fix --no-deps
 
 check-clippy:
-	cargo clippy -- -D warnings
+	cargo clippy --no-deps -- -D warnings
