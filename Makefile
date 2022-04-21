@@ -1,6 +1,6 @@
 all: build-smgr build-worker
 
-check-all: check-smgr check-worker
+check-all: check-smgr check-worker check-git
 
 build-smgr:
 	mkdir -p ./dist/bin/
@@ -19,6 +19,9 @@ build-worker:
 
 check-worker:
 	$(MAKE) -C ./venus-worker/ check-all
+
+check-git:
+	./scripts/check-git-dirty.sh
 
 clean:
 	$(MAKE) -C ./venus-sector-manager/ clean
