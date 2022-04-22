@@ -9,14 +9,14 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/hashicorp/go-multierror"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
 )
 
-var _ api.DealManager = (*DealManager)(nil)
+var _ core.DealManager = (*DealManager)(nil)
 
-func New(marketAPI market.API, infoAPI api.MinerInfoAPI, scfg *modules.SafeConfig) *DealManager {
+func New(marketAPI market.API, infoAPI core.MinerInfoAPI, scfg *modules.SafeConfig) *DealManager {
 	return &DealManager{
 		market: marketAPI,
 		info:   infoAPI,
@@ -26,13 +26,13 @@ func New(marketAPI market.API, infoAPI api.MinerInfoAPI, scfg *modules.SafeConfi
 
 type DealManager struct {
 	market market.API
-	info   api.MinerInfoAPI
+	info   core.MinerInfoAPI
 	scfg   *modules.SafeConfig
 
 	acquireMu sync.Mutex
 }
 
-func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec api.AcquireDealsSpec, job api.SectorWorkerJob) (api.Deals, error) {
+func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec, job core.SectorWorkerJob) (core.Deals, error) {
 	mcfg, err := dm.scfg.MinerConfig(sid.Miner)
 	if err != nil {
 		return nil, fmt.Errorf("get miner config: %w", err)
@@ -40,10 +40,10 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec api.A
 
 	enabled := false
 	switch job {
-	case api.SectorWorkerJobSealing:
+	case core.SectorWorkerJobSealing:
 		enabled = mcfg.Sector.EnableDeals
 
-	case api.SectorWorkerJobSnapUp:
+	case core.SectorWorkerJobSnapUp:
 		enabled = mcfg.SnapUp.Enabled
 
 	}
@@ -70,18 +70,18 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec api.A
 		return nil, fmt.Errorf("assign non-packed deals: %w", err)
 	}
 
-	deals := make(api.Deals, 0, len(dinfos))
+	deals := make(core.Deals, 0, len(dinfos))
 	for di := range dinfos {
 		dinfo := dinfos[di]
-		var proposal *api.DealProposal
+		var proposal *core.DealProposal
 		if dinfo.DealID != 0 {
 			proposal = &dinfo.DealProposal
 		}
 
-		deals = append(deals, api.DealInfo{
+		deals = append(deals, core.DealInfo{
 			ID:          dinfo.DealID,
 			PayloadSize: dinfo.PayloadSize,
-			Piece: api.PieceInfo{
+			Piece: core.PieceInfo{
 				Cid:  dinfo.PieceCID,
 				Size: dinfo.PieceSize,
 			},
@@ -92,7 +92,7 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec api.A
 	return deals, nil
 }
 
-func (dm *DealManager) Release(ctx context.Context, sid abi.SectorID, deals api.Deals) error {
+func (dm *DealManager) Release(ctx context.Context, sid abi.SectorID, deals core.Deals) error {
 	maddr, err := address.NewIDAddress(uint64(sid.Miner))
 	if err != nil {
 		return fmt.Errorf("invalid miner id %d: %w", sid.Miner, err)

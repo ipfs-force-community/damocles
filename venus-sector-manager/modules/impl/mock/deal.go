@@ -5,22 +5,22 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
-var _ api.DealManager = (*nullDeal)(nil)
+var _ core.DealManager = (*nullDeal)(nil)
 
-func NewDealManager() api.DealManager {
+func NewDealManager() core.DealManager {
 	return &nullDeal{}
 }
 
 type nullDeal struct {
 }
 
-func (*nullDeal) Acquire(context.Context, abi.SectorID, api.AcquireDealsSpec, api.SectorWorkerJob) (api.Deals, error) {
+func (*nullDeal) Acquire(context.Context, abi.SectorID, core.AcquireDealsSpec, core.SectorWorkerJob) (core.Deals, error) {
 	return nil, nil
 }
 
-func (*nullDeal) Release(context.Context, abi.SectorID, api.Deals) error {
+func (*nullDeal) Release(context.Context, abi.SectorID, core.Deals) error {
 	return nil
 }

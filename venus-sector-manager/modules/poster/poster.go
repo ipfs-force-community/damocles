@@ -10,7 +10,7 @@ import (
 
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
@@ -22,12 +22,12 @@ var log = logging.New("poster")
 func NewPoSter(
 	ctx context.Context,
 	cfg *modules.SafeConfig,
-	verifier api.Verifier,
-	prover api.Prover,
-	indexer api.SectorIndexer,
-	sectorTracker api.SectorTracker,
+	verifier core.Verifier,
+	prover core.Prover,
+	indexer core.SectorIndexer,
+	sectorTracker core.SectorTracker,
 	capi chain.API,
-	rand api.RandomnessAPI,
+	rand core.RandomnessAPI,
 	mapi messager.API,
 ) (*PoSter, error) {
 	p := &PoSter{
@@ -65,12 +65,12 @@ func NewPoSter(
 
 type PoSter struct {
 	cfg           *modules.SafeConfig
-	verifier      api.Verifier
-	prover        api.Prover
-	indexer       api.SectorIndexer
-	sectorTracker api.SectorTracker
+	verifier      core.Verifier
+	prover        core.Prover
+	indexer       core.SectorIndexer
+	sectorTracker core.SectorTracker
 	chain         chain.API
-	rand          api.RandomnessAPI
+	rand          core.RandomnessAPI
 	msg           messager.API
 
 	actors struct {

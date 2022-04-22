@@ -21,7 +21,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	apitypes "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
@@ -191,7 +191,7 @@ var utilSealerActorWithdrawCmd = &cli.Command{
 			}
 		}
 
-		params, err := actors.SerializeParams(&apitypes.WithdrawBalanceParams{
+		params, err := actors.SerializeParams(&core.WithdrawBalanceParams{
 			AmountRequested: amount, // Default to attempting to withdraw all the extra funds in the miner actor
 		})
 		if err != nil {
@@ -466,7 +466,7 @@ var utilSealerActorControlSet = &cli.Command{
 			return nil
 		}
 
-		cwp := &apitypes.ChangeWorkerAddressParams{
+		cwp := &core.ChangeWorkerAddressParams{
 			NewWorker:       mi.Worker,
 			NewControlAddrs: toSet,
 		}
@@ -648,7 +648,7 @@ var utilSealerActorProposeChangeWorker = &cli.Command{
 			return nil
 		}
 
-		cwp := &apitypes.ChangeWorkerAddressParams{
+		cwp := &core.ChangeWorkerAddressParams{
 			NewWorker:       newAddr,
 			NewControlAddrs: mi.ControlAddresses,
 		}
@@ -898,7 +898,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 			return err
 		}
 
-		params := &apitypes.CompactSectorNumbersParams{
+		params := &core.CompactSectorNumbersParams{
 			MaskSectorNumbers: maskBf,
 		}
 

@@ -7,8 +7,8 @@ import (
 	"github.com/dtynn/dix"
 	"github.com/urfave/cli/v2"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
@@ -65,7 +65,7 @@ var daemonRunCmd = &cli.Command{
 		gctx, gcancel := internal.NewSigContext(context.Background())
 		defer gcancel()
 
-		var node api.SealerAPI
+		var node core.SealerAPI
 		stopper, err := dix.New(
 			gctx,
 			internal.DepsFromCLICtx(cctx),

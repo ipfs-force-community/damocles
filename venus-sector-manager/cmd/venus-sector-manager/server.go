@@ -9,10 +9,10 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"github.com/dtynn/dix"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
-func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node api.SealerAPI, addr string) error {
+func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node core.SealerAPI, addr string) error {
 	mux, err := buildRPCServer(node)
 	if err != nil {
 		return fmt.Errorf("construct rpc server: %w", err)

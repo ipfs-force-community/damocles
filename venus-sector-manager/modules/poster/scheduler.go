@@ -19,7 +19,7 @@ import (
 	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
@@ -32,12 +32,12 @@ func newScheduler(
 	ctx context.Context,
 	mid abi.ActorID,
 	cfg *modules.SafeConfig,
-	verifier api.Verifier,
-	prover api.Prover,
-	indexer api.SectorIndexer,
-	sectorTracker api.SectorTracker,
+	verifier core.Verifier,
+	prover core.Prover,
+	indexer core.SectorIndexer,
+	sectorTracker core.SectorTracker,
 	capi chain.API,
-	rand api.RandomnessAPI,
+	rand core.RandomnessAPI,
 	mapi messager.API,
 ) (*scheduler, error) {
 	maddr, err := address.NewIDAddress(uint64(mid))
@@ -45,7 +45,7 @@ func newScheduler(
 		return nil, err
 	}
 
-	actor := api.ActorIdent{
+	actor := core.ActorIdent{
 		Addr: maddr,
 		ID:   mid,
 	}
@@ -74,16 +74,16 @@ func newScheduler(
 
 type scheduler struct {
 	gctx      context.Context
-	actor     api.ActorIdent
+	actor     core.ActorIdent
 	proofType abi.RegisteredPoStProof
 
 	cfg           *modules.SafeConfig
-	verifier      api.Verifier
-	prover        api.Prover
-	indexer       api.SectorIndexer
-	sectorTracker api.SectorTracker
+	verifier      core.Verifier
+	prover        core.Prover
+	indexer       core.SectorIndexer
+	sectorTracker core.SectorTracker
 	chain         chain.API
-	rand          api.RandomnessAPI
+	rand          core.RandomnessAPI
 	msg           messager.API
 
 	clock clock.Clock
@@ -284,12 +284,12 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 
 			tsStart := s.clock.Now()
 
-			privSectors, err := s.sectorTracker.PubToPrivate(ctx, s.actor.ID, xsinfos, api.SectorWindowPoSt)
+			privSectors, err := s.sectorTracker.PubToPrivate(ctx, s.actor.ID, xsinfos, core.SectorWindowPoSt)
 			if err != nil {
 				return nil, fmt.Errorf("turn public sector infos into private: %w", err)
 			}
 
-			postOut, ps, err := s.prover.GenerateWindowPoSt(ctx, s.actor.ID, api.NewSortedPrivateSectorInfo(privSectors...), append(abi.PoStRandomness{}, rand.Rand...))
+			postOut, ps, err := s.prover.GenerateWindowPoSt(ctx, s.actor.ID, core.NewSortedPrivateSectorInfo(privSectors...), append(abi.PoStRandomness{}, rand.Rand...))
 			elapsed := time.Since(tsStart)
 
 			s.log.Infow("computing window post", "batch", batchIdx, "elapsed", elapsed)
@@ -324,7 +324,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 						SealedCID:    xsi.SealedCID,
 					}
 				}
-				if correct, err := s.verifier.VerifyWindowPoSt(ctx, api.WindowPoStVerifyInfo{
+				if correct, err := s.verifier.VerifyWindowPoSt(ctx, core.WindowPoStVerifyInfo{
 					Randomness:        abi.PoStRandomness(checkRand.Rand),
 					Proofs:            postOut,
 					ChallengedSectors: sinfos,

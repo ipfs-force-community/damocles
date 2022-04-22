@@ -7,21 +7,21 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
 var log = logging.New("sectors")
 
-var _ api.SectorManager = (*Manager)(nil)
+var _ core.SectorManager = (*Manager)(nil)
 
 var errMinerDisabled = fmt.Errorf("miner disblaed")
 
 func NewManager(
 	scfg *modules.SafeConfig,
-	mapi api.MinerInfoAPI,
-	numAlloc api.SectorNumberAllocator,
+	mapi core.MinerInfoAPI,
+	numAlloc core.SectorNumberAllocator,
 ) (*Manager, error) {
 	mgr := &Manager{
 		msel:     newMinerSelector(scfg, mapi),
@@ -33,10 +33,10 @@ func NewManager(
 
 type Manager struct {
 	msel     *minerSelector
-	numAlloc api.SectorNumberAllocator
+	numAlloc core.SectorNumberAllocator
 }
 
-func (m *Manager) Allocate(ctx context.Context, spec api.AllocateSectorSpec) (*api.AllocatedSector, error) {
+func (m *Manager) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*core.AllocatedSector, error) {
 	allowedMiners := spec.AllowedMiners
 	allowedProofs := spec.AllowedProofTypes
 
@@ -73,7 +73,7 @@ func (m *Manager) Allocate(ctx context.Context, spec api.AllocateSectorSpec) (*a
 		}
 
 		if available {
-			return &api.AllocatedSector{
+			return &core.AllocatedSector{
 				ID: abi.SectorID{
 					Miner:  selected.info.ID,
 					Number: abi.SectorNumber(next),

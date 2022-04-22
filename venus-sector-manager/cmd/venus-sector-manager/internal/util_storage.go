@@ -11,7 +11,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/dtynn/dix"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
@@ -100,7 +100,7 @@ var utilStorageAttachCmd = &cli.Command{
 			return fmt.Errorf("encode example config for storage path: %w", err)
 		}
 
-		var indexer api.SectorIndexer
+		var indexer core.SectorIndexer
 
 		stopper, err := dix.New(
 			gctx,
@@ -218,7 +218,7 @@ var utilStorageFindCmd = &cli.Command{
 			return fmt.Errorf("parse sector number: %w", err)
 		}
 
-		var indexer api.SectorIndexer
+		var indexer core.SectorIndexer
 
 		stopper, err := dix.New(
 			gctx,

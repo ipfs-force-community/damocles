@@ -7,11 +7,11 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 )
 
-var _ api.SectorNumberAllocator = (*NumberAllocator)(nil)
+var _ core.SectorNumberAllocator = (*NumberAllocator)(nil)
 
 func NewNumerAllocator(store kvstore.KVStore) (*NumberAllocator, error) {
 	return &NumberAllocator{

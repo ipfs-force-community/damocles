@@ -6,7 +6,7 @@ import (
 	"github.com/dtynn/dix"
 	"go.uber.org/fx"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/poster"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
@@ -23,12 +23,12 @@ func RunPoSter(
 	gctx GlobalContext,
 	lc fx.Lifecycle,
 	scfg *modules.SafeConfig,
-	verifier api.Verifier,
-	prover api.Prover,
-	indexer api.SectorIndexer,
-	sectorTracker api.SectorTracker,
+	verifier core.Verifier,
+	prover core.Prover,
+	indexer core.SectorIndexer,
+	sectorTracker core.SectorTracker,
 	capi chain.API,
-	rapi api.RandomnessAPI,
+	rapi core.RandomnessAPI,
 	mapi messager.API,
 ) error {
 	p, err := poster.NewPoSter(gctx, scfg, verifier, prover, indexer, sectorTracker, capi, rapi, mapi)

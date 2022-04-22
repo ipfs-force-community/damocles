@@ -8,7 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-address"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/miner"
 )
@@ -19,7 +19,7 @@ func Miner() dix.Option {
 	)
 }
 
-func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover api.Prover, cfg *modules.SafeConfig, tracker api.SectorTracker) error {
+func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover core.Prover, cfg *modules.SafeConfig, tracker core.SectorTracker) error {
 	cfg.Lock()
 	urls, token, miners := cfg.Common.API.Gateway, cfg.Common.API.Token, cfg.Miners
 	cfg.Unlock()
@@ -28,7 +28,7 @@ func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover api.Prover, cfg
 		return fmt.Errorf("no gateway api addr provided")
 	}
 
-	actors := make([]api.ActorIdent, 0, len(miners))
+	actors := make([]core.ActorIdent, 0, len(miners))
 
 	for _, mcfg := range miners {
 		if !mcfg.Proof.Enabled {
@@ -40,7 +40,7 @@ func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover api.Prover, cfg
 			return err
 		}
 
-		actors = append(actors, api.ActorIdent{
+		actors = append(actors, core.ActorIdent{
 			Addr: maddr,
 			ID:   mcfg.Actor,
 		})

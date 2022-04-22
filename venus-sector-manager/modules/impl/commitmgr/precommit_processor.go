@@ -14,7 +14,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
@@ -22,16 +22,16 @@ import (
 
 type PreCommitProcessor struct {
 	api  SealingAPI
-	mapi api.MinerInfoAPI
+	mapi core.MinerInfoAPI
 
 	msgClient messager.API
 
-	smgr api.SectorStateManager
+	smgr core.SectorStateManager
 
 	config *modules.SafeConfig
 }
 
-func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []api.SectorState, from address.Address, mid abi.ActorID, l *logging.ZapLogger) {
+func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []core.SectorState, from address.Address, mid abi.ActorID, l *logging.ZapLogger) {
 	mcfg := p.config.MustMinerConfig(mid)
 
 	var spec messager.MsgMeta
@@ -70,7 +70,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []a
 	wg.Wait()
 }
 
-func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
+func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
 	mcfg := p.config.MustMinerConfig(mid)
 
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
@@ -85,7 +85,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 		return nil
 	}
 
-	infos := []api.PreCommitEntry{}
+	infos := []core.PreCommitEntry{}
 	failed := map[abi.SectorID]struct{}{}
 	for _, s := range sectors {
 		params, deposit, _, err := p.preCommitParams(ctx, s)
@@ -95,13 +95,13 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 			continue
 		}
 
-		infos = append(infos, api.PreCommitEntry{
+		infos = append(infos, core.PreCommitEntry{
 			Deposit: deposit,
 			Pci:     params,
 		})
 	}
 
-	params := api.PreCommitSectorBatchParams{}
+	params := core.PreCommitSectorBatchParams{}
 
 	deposit := big.Zero()
 	for i := range infos {
@@ -131,7 +131,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []api.SectorSta
 	return nil
 }
 
-func (p PreCommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
+func (p PreCommitProcessor) Expire(ctx context.Context, sectors []core.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
 	maxWait := p.config.MustMinerConfig(mid).Commitment.Pre.Batch.MaxWait.Std()
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := p.api.ChainHead(ctx)

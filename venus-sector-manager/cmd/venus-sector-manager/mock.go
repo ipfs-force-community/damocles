@@ -8,8 +8,8 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 )
@@ -45,7 +45,7 @@ var mockCmd = &cli.Command{
 		gctx, gcancel := internal.NewSigContext(cctx.Context)
 		defer gcancel()
 
-		var node api.SealerAPI
+		var node core.SealerAPI
 		stopper, err := dix.New(
 			gctx,
 			dix.Override(new(dep.GlobalContext), gctx),

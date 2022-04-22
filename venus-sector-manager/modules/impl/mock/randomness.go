@@ -8,12 +8,12 @@ import (
 
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
-var _ api.RandomnessAPI = (*random)(nil)
+var _ core.RandomnessAPI = (*random)(nil)
 
-func NewRandomness() api.RandomnessAPI {
+func NewRandomness() core.RandomnessAPI {
 	var ticket, seed, wdchallenge, wdcommit [32]byte
 	_, _ = rand.Read(ticket[:])
 	_, _ = rand.Read(seed[:])
@@ -35,29 +35,29 @@ type random struct {
 	wdcommit    [32]byte
 }
 
-func (r *random) GetTicket(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (api.Ticket, error) {
-	return api.Ticket{
+func (r *random) GetTicket(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (core.Ticket, error) {
+	return core.Ticket{
 		Ticket: r.ticket[:],
 		Epoch:  epoch,
 	}, nil
 }
 
-func (r *random) GetSeed(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (api.Seed, error) {
-	return api.Seed{
+func (r *random) GetSeed(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (core.Seed, error) {
+	return core.Seed{
 		Seed:  r.seed[:],
 		Epoch: epoch,
 	}, nil
 }
 
-func (r *random) GetWindowPoStChanlleengeRand(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (api.WindowPoStRandomness, error) {
-	return api.WindowPoStRandomness{
+func (r *random) GetWindowPoStChanlleengeRand(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (core.WindowPoStRandomness, error) {
+	return core.WindowPoStRandomness{
 		Rand:  r.wdchallenge[:],
 		Epoch: epoch,
 	}, nil
 }
 
-func (r *random) GetWindowPoStCommitRand(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch) (api.WindowPoStRandomness, error) {
-	return api.WindowPoStRandomness{
+func (r *random) GetWindowPoStCommitRand(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch) (core.WindowPoStRandomness, error) {
+	return core.WindowPoStRandomness{
 		Rand:  r.wdcommit[:],
 		Epoch: epoch,
 	}, nil

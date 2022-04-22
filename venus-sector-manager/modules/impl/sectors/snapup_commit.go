@@ -16,7 +16,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 	"github.com/hashicorp/go-multierror"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
@@ -26,12 +26,12 @@ import (
 
 func NewSnapUpCommitter(
 	ctx context.Context,
-	tracker api.SectorTracker,
-	indexer api.SectorIndexer,
+	tracker core.SectorTracker,
+	indexer core.SectorIndexer,
 	chainAPI chain.API,
 	eventbus *chain.EventBus,
 	messagerAPI messager.API,
-	stateMgr api.SectorStateManager,
+	stateMgr core.SectorStateManager,
 	scfg *modules.SafeConfig,
 ) (*SnapUpCommitter, error) {
 	ctx, cancel := context.WithCancel(ctx)
@@ -55,12 +55,12 @@ type SnapUpCommitter struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	tracker  api.SectorTracker
-	indexer  api.SectorIndexer
+	tracker  core.SectorTracker
+	indexer  core.SectorIndexer
 	chain    chain.API
 	eventbus *chain.EventBus
 	messager messager.API
-	state    api.SectorStateManager
+	state    core.SectorStateManager
 	scfg     *modules.SafeConfig
 
 	jobs     map[abi.SectorID]struct{}
@@ -75,7 +75,7 @@ func (sc *SnapUpCommitter) Start() error {
 		sc.jobsMu.Lock()
 		defer sc.jobsMu.Unlock()
 
-		err = sc.state.ForEach(sc.ctx, api.WorkerOnline, api.SectorWorkerJobSnapUp, func(state api.SectorState) error {
+		err = sc.state.ForEach(sc.ctx, core.WorkerOnline, core.SectorWorkerJobSnapUp, func(state core.SectorState) error {
 			if !state.Upgraded {
 				return nil
 			}
@@ -122,7 +122,7 @@ func (sc *SnapUpCommitter) Commit(ctx context.Context, sid abi.SectorID) error {
 	return nil
 }
 
-func (sc *SnapUpCommitter) commitSector(state api.SectorState) {
+func (sc *SnapUpCommitter) commitSector(state core.SectorState) {
 	defer func() {
 		sc.jobsMu.Lock()
 		delete(sc.jobs, state.ID)
@@ -221,7 +221,7 @@ func (e snapupCommitTempError) Unwrap() error {
 
 type snapupCommitHandler struct {
 	maddr     address.Address
-	state     api.SectorState
+	state     core.SectorState
 	ssize     abi.SectorSize
 	committer *SnapUpCommitter
 }
@@ -337,7 +337,7 @@ func (h *snapupCommitHandler) submitMessage() error {
 		mcid = uid
 	}
 
-	msgID := api.SectorUpgradeMessageID(mcid)
+	msgID := core.SectorUpgradeMessageID(mcid)
 	if err := h.committer.state.Update(h.committer.ctx, h.state.ID, &msgID); err != nil {
 		return newTempErr(fmt.Errorf("update UpgradeMessageID: %w", err), time.Minute)
 	}
@@ -394,7 +394,7 @@ func (h *snapupCommitHandler) waitForMessage() error {
 		return newTempErr(fmt.Errorf("get tipset %q: %w", msg.TipSetKey.String(), err), time.Minute)
 	}
 
-	landedEpoch := api.SectorUpgradeLandedEpoch(ts.Height())
+	landedEpoch := core.SectorUpgradeLandedEpoch(ts.Height())
 	err = h.committer.state.Update(h.committer.ctx, h.state.ID, &landedEpoch)
 	if err != nil {
 		return newTempErr(fmt.Errorf("update sector state: %w", err), time.Minute)
@@ -439,7 +439,7 @@ func (h *snapupCommitHandler) landed() error {
 }
 
 func (h *snapupCommitHandler) cleanupForSector() error {
-	sref := api.SectorRef{
+	sref := core.SectorRef{
 		ID:        h.state.ID,
 		ProofType: h.state.SectorType,
 	}
