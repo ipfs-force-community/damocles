@@ -18,7 +18,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/power"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	apitypes "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
@@ -211,7 +211,7 @@ var utilMinerCreateCmd = &cli.Command{
 			multiaddrs = append(multiaddrs, maddrNop2p.Bytes())
 		}
 
-		params, err := actors.SerializeParams(&apitypes.CreateMinerParams{
+		params, err := actors.SerializeParams(&core.CreateMinerParams{
 			Owner:               owner,
 			Worker:              worker,
 			WindowPoStProofType: postProof,
@@ -233,7 +233,7 @@ var utilMinerCreateCmd = &cli.Command{
 			Value: big.Zero(),
 		}
 
-		var retval apitypes.CreateMinerReturn
+		var retval core.CreateMinerReturn
 		err = waitMessage(gctx, api, msg, cctx.String("exid"), mlog, &retval)
 		if err != nil {
 			return err

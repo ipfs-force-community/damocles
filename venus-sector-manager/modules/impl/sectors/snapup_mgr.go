@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
@@ -14,17 +14,17 @@ import (
 
 var snapupLog = logging.New("sector-snapup")
 
-var _ api.SnapUpSectorManager = (*SnapUpMgr)(nil)
+var _ core.SnapUpSectorManager = (*SnapUpMgr)(nil)
 
 func NewSnapUpMgr(
 	ctx context.Context,
-	tracker api.SectorTracker,
-	indexer api.SectorIndexer,
+	tracker core.SectorTracker,
+	indexer core.SectorIndexer,
 	chainAPI chain.API,
 	eventbus *chain.EventBus,
 	messagerAPI messager.API,
-	minerInfoAPI api.MinerInfoAPI,
-	stateMgr api.SectorStateManager,
+	minerInfoAPI core.MinerInfoAPI,
+	stateMgr core.SectorStateManager,
 	scfg *modules.SafeConfig,
 	allocKVStore kvstore.KVStore,
 ) (*SnapUpMgr, error) {

@@ -8,7 +8,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
 var utilSealerCmd = &cli.Command{
@@ -44,7 +44,7 @@ var utilSealerSectorsWorkerStatesCmd = &cli.Command{
 
 		defer stop()
 
-		states, err := cli.Sealer.ListSectors(gctx, api.WorkerOnline)
+		states, err := cli.Sealer.ListSectors(gctx, core.WorkerOnline)
 		if err != nil {
 			return err
 		}
@@ -129,7 +129,7 @@ var utilSealerSectorsListCmd = &cli.Command{
 
 		defer stop()
 
-		states, err := cli.Sealer.ListSectors(gctx, api.WorkerOffline)
+		states, err := cli.Sealer.ListSectors(gctx, core.WorkerOffline)
 		if err != nil {
 			return err
 		}

@@ -10,7 +10,7 @@ import (
 
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	apitypes "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 )
 
@@ -33,7 +33,7 @@ type ErrCommitWaitFailed struct{ error }
 
 // checkPrecommit checks that data commitment generated in the sealing process
 //  matches pieces, and that the seal ticket isn't expired
-func checkPrecommit(ctx context.Context, maddr address.Address, si apitypes.SectorState, api SealingAPI) (err error) {
+func checkPrecommit(ctx context.Context, maddr address.Address, si core.SectorState, api SealingAPI) (err error) {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
 		return &ErrAPI{fmt.Errorf("get chain head failed %w", err)}
@@ -81,7 +81,7 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si apitypes.Sect
 	return nil
 }
 
-func checkPieces(ctx context.Context, maddr address.Address, si apitypes.SectorState, api SealingAPI) error {
+func checkPieces(ctx context.Context, maddr address.Address, si core.SectorState, api SealingAPI) error {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
 		return &ErrAPI{fmt.Errorf("getting chain head: %w", err)}
@@ -117,7 +117,7 @@ func checkPieces(ctx context.Context, maddr address.Address, si apitypes.SectorS
 	return nil
 }
 
-func checkCommit(ctx context.Context, si apitypes.SectorState, proof []byte, tok apitypes.TipSetToken, maddr address.Address, verif apitypes.Verifier, api SealingAPI) (err error) {
+func checkCommit(ctx context.Context, si core.SectorState, proof []byte, tok core.TipSetToken, maddr address.Address, verif core.Verifier, api SealingAPI) (err error) {
 	if si.Seed == nil {
 		return &ErrBadSeed{fmt.Errorf("seed epoch was not set")}
 	}
@@ -154,7 +154,7 @@ func checkCommit(ctx context.Context, si apitypes.SectorState, proof []byte, tok
 		return &ErrBadSeed{fmt.Errorf("seed has changed")}
 	}
 
-	ok, err := verif.VerifySeal(ctx, apitypes.SealVerifyInfo{
+	ok, err := verif.VerifySeal(ctx, core.SealVerifyInfo{
 		SectorID:              si.ID,
 		SealedCID:             pci.Info.SealedCID,
 		SealProof:             pci.Info.SealProof,

@@ -5,16 +5,16 @@ import (
 	"sync"
 
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 )
 
 type minerCandidate struct {
-	info *api.MinerInfo
+	info *core.MinerInfo
 	cfg  *modules.MinerSectorConfig
 }
 
-func newMinerSelector(scfg *modules.SafeConfig, minfo api.MinerInfoAPI) *minerSelector {
+func newMinerSelector(scfg *modules.SafeConfig, minfo core.MinerInfoAPI) *minerSelector {
 	return &minerSelector{
 		scfg:  scfg,
 		minfo: minfo,
@@ -23,7 +23,7 @@ func newMinerSelector(scfg *modules.SafeConfig, minfo api.MinerInfoAPI) *minerSe
 
 type minerSelector struct {
 	scfg  *modules.SafeConfig
-	minfo api.MinerInfoAPI
+	minfo core.MinerInfoAPI
 }
 
 func (m *minerSelector) candidates(ctx context.Context, allowedMiners []abi.ActorID, allowedProofs []abi.RegisteredSealProof, check func(mcfg modules.MinerConfig) bool) []*minerCandidate {

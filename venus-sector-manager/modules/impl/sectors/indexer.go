@@ -6,12 +6,12 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
-var _ api.SectorIndexer = (*Indexer)(nil)
+var _ core.SectorIndexer = (*Indexer)(nil)
 
 func NewIndexer(storeMgr objstore.Manager, normal kvstore.KVStore, upgrade kvstore.KVStore) (*Indexer, error) {
 	return &Indexer{
@@ -27,11 +27,11 @@ type Indexer struct {
 	storeMgr objstore.Manager
 }
 
-func (i *Indexer) Normal() api.SectorTypedIndexer {
+func (i *Indexer) Normal() core.SectorTypedIndexer {
 	return i.normal
 }
 
-func (i *Indexer) Upgrade() api.SectorTypedIndexer {
+func (i *Indexer) Upgrade() core.SectorTypedIndexer {
 	return i.upgrade
 }
 

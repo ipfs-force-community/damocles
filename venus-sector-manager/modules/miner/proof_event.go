@@ -11,20 +11,20 @@ import (
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
 var log = logging.New("proof_event")
 
 type ProofEvent struct {
-	prover  api.Prover
+	prover  core.Prover
 	client  v1.IGateway
-	actor   api.ActorIdent
-	tracker api.SectorTracker
+	actor   core.ActorIdent
+	tracker core.SectorTracker
 }
 
-func NewProofEvent(prover api.Prover, client v1.IGateway, actor api.ActorIdent, tracker api.SectorTracker) *ProofEvent {
+func NewProofEvent(prover core.Prover, client v1.IGateway, actor core.ActorIdent, tracker core.SectorTracker) *ProofEvent {
 	pe := &ProofEvent{
 		prover:  prover,
 		client:  client,
@@ -138,11 +138,11 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqID vtypes.UUID
 	}
 }
 
-func (pe *ProofEvent) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.ExtendedSectorInfo) (api.SortedPrivateSectorInfo, error) {
-	out, err := pe.tracker.PubToPrivate(ctx, pe.actor.ID, sectorInfo, api.SectorWinningPoSt)
+func (pe *ProofEvent) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.ExtendedSectorInfo) (core.SortedPrivateSectorInfo, error) {
+	out, err := pe.tracker.PubToPrivate(ctx, pe.actor.ID, sectorInfo, core.SectorWinningPoSt)
 	if err != nil {
-		return api.SortedPrivateSectorInfo{}, fmt.Errorf("convert to private infos: %w", err)
+		return core.SortedPrivateSectorInfo{}, fmt.Errorf("convert to private infos: %w", err)
 	}
 
-	return api.NewSortedPrivateSectorInfo(out...), nil
+	return core.NewSortedPrivateSectorInfo(out...), nil
 }

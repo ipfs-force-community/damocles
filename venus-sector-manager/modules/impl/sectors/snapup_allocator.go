@@ -15,7 +15,7 @@ import (
 	market7 "github.com/filecoin-project/specs-actors/v7/actors/builtin/market"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
@@ -30,7 +30,7 @@ func kvKeyForMinerActorID(mid abi.ActorID) kvstore.Key {
 	return kvstore.Key(strconv.FormatUint(uint64(mid), 10))
 }
 
-func NewSnapUpAllocator(chainAPI chain.API, minerAPI api.MinerInfoAPI, allocStore kvstore.KVStore, indexer api.SectorIndexer, scfg *modules.SafeConfig) (*SnapUpAllocator, error) {
+func NewSnapUpAllocator(chainAPI chain.API, minerAPI core.MinerInfoAPI, allocStore kvstore.KVStore, indexer core.SectorIndexer, scfg *modules.SafeConfig) (*SnapUpAllocator, error) {
 	allocator := &SnapUpAllocator{
 		chain: chainAPI,
 
@@ -52,7 +52,7 @@ type SnapUpAllocator struct {
 	kvMu sync.Mutex
 	kv   kvstore.KVStore
 
-	indexer api.SectorIndexer
+	indexer core.SectorIndexer
 }
 
 func (s *SnapUpAllocator) PreFetch(ctx context.Context, mid abi.ActorID, dlindex *uint64) (uint64, uint64, error) {
@@ -131,7 +131,7 @@ func (s *SnapUpAllocator) Candidates(ctx context.Context, mid abi.ActorID) ([]*b
 	return exists, nil
 }
 
-func (s *SnapUpAllocator) Allocate(ctx context.Context, spec api.AllocateSectorSpec) (*api.SnapUpCandidate, error) {
+func (s *SnapUpAllocator) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*core.SnapUpCandidate, error) {
 	mcandidates := s.msel.candidates(ctx, spec.AllowedMiners, spec.AllowedProofTypes, func(mcfg modules.MinerConfig) bool {
 		return mcfg.SnapUp.Enabled
 	})
@@ -154,7 +154,7 @@ type deadlineCandidate struct {
 	count uint64
 }
 
-func (s *SnapUpAllocator) allocateForMiner(ctx context.Context, mcandidate *minerCandidate) (*api.SnapUpCandidate, error) {
+func (s *SnapUpAllocator) allocateForMiner(ctx context.Context, mcandidate *minerCandidate) (*core.SnapUpCandidate, error) {
 	mid := mcandidate.info.ID
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
@@ -283,24 +283,24 @@ func (s *SnapUpAllocator) allocateForMiner(ctx context.Context, mcandidate *mine
 		return nil, fmt.Errorf("persist store instance not found for %s", util.FormatSectorID(sid))
 	}
 
-	return &api.SnapUpCandidate{
+	return &core.SnapUpCandidate{
 		DeadlineIndex: uint64(selectedDeadline.dlidx),
-		Sector: api.AllocatedSector{
+		Sector: core.AllocatedSector{
 			ID:        sid,
 			ProofType: mcandidate.info.SealProofType,
 		},
-		Public: api.SectorPublicInfo{
+		Public: core.SectorPublicInfo{
 			CommR:     commR,
 			SealedCID: sinfo.SealedCID,
 		},
-		Private: api.SectorPrivateInfo{
+		Private: core.SectorPrivateInfo{
 			AccessInstance: instance,
 		},
 	}, nil
 
 }
 
-func (s *SnapUpAllocator) Release(ctx context.Context, candidate *api.SnapUpCandidate) error {
+func (s *SnapUpAllocator) Release(ctx context.Context, candidate *core.SnapUpCandidate) error {
 	key := kvKeyForMinerActorID(candidate.Sector.ID.Miner)
 
 	s.kvMu.Lock()

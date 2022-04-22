@@ -14,7 +14,7 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	vapi "github.com/filecoin-project/venus/venus-shared/api"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/commitmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/dealmgr"
@@ -39,7 +39,7 @@ type (
 	ListenAddress               string
 )
 
-func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi api.MinerInfoAPI, numAlloc api.SectorNumberAllocator) (api.SectorManager, error) {
+func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerInfoAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
 	return sectors.NewManager(scfg, mapi, numAlloc)
 }
 
@@ -136,7 +136,7 @@ func BuildOfflineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Ho
 	return store, nil
 }
 
-func BuildSectorNumberAllocator(meta OnlineMetaStore) (api.SectorNumberAllocator, error) {
+func BuildSectorNumberAllocator(meta OnlineMetaStore) (core.SectorNumberAllocator, error) {
 	store, err := kvstore.NewWrappedKVStore([]byte("sector-number"), meta)
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func BuildSectorNumberAllocator(meta OnlineMetaStore) (api.SectorNumberAllocator
 	return sectors.NewNumerAllocator(store)
 }
 
-func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaStore) (api.SectorStateManager, error) {
+func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaStore) (core.SectorStateManager, error) {
 	onlineStore, err := kvstore.NewWrappedKVStore([]byte("sector-states"), online)
 	if err != nil {
 		return nil, err
@@ -179,17 +179,17 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Conf
 	return mcli, nil
 }
 
-func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) api.SealerCliClient {
+func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) core.SealerCliClient {
 	cli, err := BuildSealerCliClient(gctx, lc, listen)
 	if err != nil {
-		cli = api.UnavailableSealerCliClient
+		cli = core.UnavailableSealerCliClient
 	}
 
 	return cli
 }
 
-func BuildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) (api.SealerCliClient, error) {
-	var scli api.SealerCliClient
+func BuildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) (core.SealerCliClient, error) {
+	var scli core.SealerCliClient
 
 	addr, err := net.ResolveTCPAddr("tcp", string(listen))
 	if err != nil {
@@ -204,7 +204,7 @@ func BuildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddr
 	maddr := fmt.Sprintf("/ip4/%s/tcp/%d", ip, addr.Port)
 
 	ainfo := vapi.NewAPIInfo(maddr, "")
-	apiAddr, err := ainfo.DialArgs(vapi.VerString(api.MajorVersion))
+	apiAddr, err := ainfo.DialArgs(vapi.VerString(core.MajorVersion))
 	if err != nil {
 		return scli, err
 	}
@@ -244,7 +244,7 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config,
 	return ccli, nil
 }
 
-func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.Config, locker confmgr.RLocker) (api.MinerInfoAPI, error) {
+func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.Config, locker confmgr.RLocker) (core.MinerInfoAPI, error) {
 	mapi := chain.NewMinerInfoAPI(capi)
 
 	locker.Lock()
@@ -287,13 +287,13 @@ func BuildCommitmentManager(
 	lc fx.Lifecycle,
 	capi chain.API,
 	mapi messager.API,
-	rapi api.RandomnessAPI,
-	stmgr api.SectorStateManager,
-	minfoAPI api.MinerInfoAPI,
+	rapi core.RandomnessAPI,
+	stmgr core.SectorStateManager,
+	minfoAPI core.MinerInfoAPI,
 	scfg *modules.SafeConfig,
-	verif api.Verifier,
-	prover api.Prover,
-) (api.CommitmentManager, error) {
+	verif core.Verifier,
+	prover core.Prover,
+) (core.CommitmentManager, error) {
 	mgr, err := commitmgr.NewCommitmentMgr(
 		gctx,
 		mapi,
@@ -352,7 +352,7 @@ func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker) (P
 	return filestore.NewManager(persistCfg)
 }
 
-func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (api.SectorIndexer, error) {
+func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (core.SectorIndexer, error) {
 	upgrade, err := kvstore.NewWrappedKVStore([]byte("sector-upgrade"), kv)
 	if err != nil {
 		return nil, fmt.Errorf("wrap kvstore for sector-upgrade: %w", err)
@@ -361,18 +361,18 @@ func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMeta
 	return sectors.NewIndexer(storeMgr, kv, upgrade)
 }
 
-func BuildSectorTracker(indexer api.SectorIndexer) (api.SectorTracker, error) {
+func BuildSectorTracker(indexer core.SectorIndexer) (core.SectorTracker, error) {
 	return sectors.NewTracker(indexer)
 }
 
 type MarketAPIRelatedComponets struct {
 	fx.Out
 
-	DealManager api.DealManager
+	DealManager core.DealManager
 	MarketAPI   market.API
 }
 
-func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI api.MinerInfoAPI) (market.API, error) {
+func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI) (market.API, error) {
 	scfg.Lock()
 	api, token := scfg.Common.API.Market, scfg.Common.API.Token
 	defer scfg.Unlock()
@@ -396,7 +396,7 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 	return mapi, nil
 }
 
-func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI api.MinerInfoAPI) (MarketAPIRelatedComponets, error) {
+func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI) (MarketAPIRelatedComponets, error) {
 	mapi, err := BuildMarketAPI(gctx, lc, scfg, infoAPI)
 	if err != nil {
 		return MarketAPIRelatedComponets{}, fmt.Errorf("build market api: %w", err)
@@ -464,14 +464,14 @@ func BuildSnapUpManager(
 	lc fx.Lifecycle,
 	home *homedir.Home,
 	scfg *modules.SafeConfig,
-	tracker api.SectorTracker,
-	indexer api.SectorIndexer,
+	tracker core.SectorTracker,
+	indexer core.SectorIndexer,
 	chainAPI chain.API,
 	eventbus *chain.EventBus,
 	messagerAPI messager.API,
-	minerInfoAPI api.MinerInfoAPI,
-	stateMgr api.SectorStateManager,
-) (api.SnapUpSectorManager, error) {
+	minerInfoAPI core.MinerInfoAPI,
+	stateMgr core.SectorStateManager,
+) (core.SnapUpSectorManager, error) {
 	dir := home.Sub("snapup")
 	kv, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
 	if err != nil {

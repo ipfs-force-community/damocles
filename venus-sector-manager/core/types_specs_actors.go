@@ -1,4 +1,4 @@
-package api
+package core
 
 import (
 	market7 "github.com/filecoin-project/specs-actors/v7/actors/builtin/market"

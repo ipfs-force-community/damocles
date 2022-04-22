@@ -6,12 +6,12 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
-var _ api.SectorManager = (*sectorMgr)(nil)
+var _ core.SectorManager = (*sectorMgr)(nil)
 
-func NewSectorManager(miner abi.ActorID, proofType abi.RegisteredSealProof) api.SectorManager {
+func NewSectorManager(miner abi.ActorID, proofType abi.RegisteredSealProof) core.SectorManager {
 	return &sectorMgr{
 		miner:     miner,
 		proofType: proofType,
@@ -25,7 +25,7 @@ type sectorMgr struct {
 	sectorNum uint64
 }
 
-func (s *sectorMgr) Allocate(ctx context.Context, spec api.AllocateSectorSpec) (*api.AllocatedSector, error) {
+func (s *sectorMgr) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*core.AllocatedSector, error) {
 	allowedMiners := spec.AllowedMiners
 	allowedProofTypes := spec.AllowedProofTypes
 
@@ -55,7 +55,7 @@ func (s *sectorMgr) Allocate(ctx context.Context, spec api.AllocateSectorSpec) (
 
 	next := atomic.AddUint64(&s.sectorNum, 1)
 	log.Infow("sector allocated", "next", next)
-	return &api.AllocatedSector{
+	return &core.AllocatedSector{
 		ID: abi.SectorID{
 			Miner:  s.miner,
 			Number: abi.SectorNumber(next),

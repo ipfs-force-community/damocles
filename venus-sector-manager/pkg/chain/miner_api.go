@@ -12,15 +12,15 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
-var _ api.MinerInfoAPI = (*MinerInfoAPI)(nil)
+var _ core.MinerInfoAPI = (*MinerInfoAPI)(nil)
 
 func NewMinerInfoAPI(capi API) *MinerInfoAPI {
 	return &MinerInfoAPI{
 		chain: capi,
-		cache: map[abi.ActorID]*api.MinerInfo{},
+		cache: map[abi.ActorID]*core.MinerInfo{},
 	}
 }
 
@@ -28,10 +28,10 @@ type MinerInfoAPI struct {
 	// TODO: miner info cache
 	chain   API
 	cacheMu sync.RWMutex
-	cache   map[abi.ActorID]*api.MinerInfo
+	cache   map[abi.ActorID]*core.MinerInfo
 }
 
-func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*api.MinerInfo, error) {
+func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
 	m.cacheMu.RLock()
 	mi, ok := m.cache[mid]
 	m.cacheMu.RUnlock()
@@ -59,7 +59,7 @@ func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*api.MinerInfo
 		return nil, err
 	}
 
-	mi = &api.MinerInfo{
+	mi = &core.MinerInfo{
 		ID:                  mid,
 		Addr:                maddr,
 		SectorSize:          minfo.SectorSize,

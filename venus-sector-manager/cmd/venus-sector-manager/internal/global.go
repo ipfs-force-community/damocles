@@ -18,7 +18,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.uber.org/fx"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
@@ -77,7 +77,7 @@ type API struct {
 	Chain    chain.API
 	Messager messager.API
 	Market   market.API
-	Sealer   api.SealerCliClient
+	Sealer   core.SealerCliClient
 }
 
 func extractAPI(cctx *cli.Context, target ...interface{}) (*API, context.Context, stopper, error) {

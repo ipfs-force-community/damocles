@@ -9,7 +9,7 @@ import (
 	"github.com/filecoin-project/go-commp-utils/zerocomm"
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
@@ -22,7 +22,7 @@ var (
 	ErrSectorAllocated = fmt.Errorf("sector allocated")
 )
 
-var _ api.SealerAPI = (*Sealer)(nil)
+var _ core.SealerAPI = (*Sealer)(nil)
 
 var log = logging.New("sealing")
 
@@ -32,15 +32,15 @@ func sectorLogger(sid abi.SectorID) *logging.ZapLogger {
 
 func New(
 	capi chain.API,
-	rand api.RandomnessAPI,
-	sector api.SectorManager,
-	state api.SectorStateManager,
-	deal api.DealManager,
-	commit api.CommitmentManager,
-	sectorIdxer api.SectorIndexer,
-	sectorTracker api.SectorTracker,
-	prover api.Prover,
-	snapup api.SnapUpSectorManager,
+	rand core.RandomnessAPI,
+	sector core.SectorManager,
+	state core.SectorStateManager,
+	deal core.DealManager,
+	commit core.CommitmentManager,
+	sectorIdxer core.SectorIndexer,
+	sectorTracker core.SectorTracker,
+	prover core.Prover,
+	snapup core.SnapUpSectorManager,
 ) (*Sealer, error) {
 	return &Sealer{
 		capi:   capi,
@@ -60,17 +60,17 @@ func New(
 
 type Sealer struct {
 	capi   chain.API
-	rand   api.RandomnessAPI
-	sector api.SectorManager
-	state  api.SectorStateManager
-	deal   api.DealManager
-	commit api.CommitmentManager
-	snapup api.SnapUpSectorManager
+	rand   core.RandomnessAPI
+	sector core.SectorManager
+	state  core.SectorStateManager
+	deal   core.DealManager
+	commit core.CommitmentManager
+	snapup core.SnapUpSectorManager
 
-	sectorIdxer   api.SectorIndexer
-	sectorTracker api.SectorTracker
+	sectorIdxer   core.SectorIndexer
+	sectorTracker core.SectorTracker
 
-	prover api.Prover
+	prover core.Prover
 }
 
 func (s *Sealer) checkSectorNumber(ctx context.Context, sid abi.SectorID) (bool, error) {
@@ -92,7 +92,7 @@ func (s *Sealer) checkSectorNumber(ctx context.Context, sid abi.SectorID) (bool,
 	return allocated, err
 }
 
-func (s *Sealer) AllocateSector(ctx context.Context, spec api.AllocateSectorSpec) (*api.AllocatedSector, error) {
+func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.AllocatedSector, error) {
 	sector, err := s.sector.Allocate(ctx, spec)
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec api.AllocateSectorSpec
 	return sector, nil
 }
 
-func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.AcquireDealsSpec) (api.Deals, error) {
+func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.Deals, error) {
 	state, err := s.state.Load(ctx, sid)
 	if err != nil {
 		return nil, fmt.Errorf("load sector state: %w", err)
@@ -128,7 +128,7 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.Ac
 		return state.Pieces, nil
 	}
 
-	pieces, err := s.deal.Acquire(ctx, sid, spec, api.SectorWorkerJobSealing)
+	pieces, err := s.deal.Acquire(ctx, sid, spec, core.SectorWorkerJobSealing)
 	if err != nil {
 		return nil, err
 	}
@@ -163,34 +163,34 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec api.Ac
 	return pieces, nil
 }
 
-func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (api.Ticket, error) {
+func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (core.Ticket, error) {
 	ts, err := s.capi.ChainHead(ctx)
 	if err != nil {
-		return api.Ticket{}, err
+		return core.Ticket{}, err
 	}
 
 	ticketEpoch := ts.Height() - policy.SealRandomnessLookback
 	ticket, err := s.rand.GetTicket(ctx, ts.Key(), ticketEpoch, sid.Miner)
 	if err != nil {
-		return api.Ticket{}, err
+		return core.Ticket{}, err
 	}
 
 	if err := s.state.Update(ctx, sid, &ticket); err != nil {
-		return api.Ticket{}, err
+		return core.Ticket{}, err
 	}
 
 	return ticket, nil
 }
 
-func (s *Sealer) SubmitPreCommit(ctx context.Context, sector api.AllocatedSector, info api.PreCommitOnChainInfo, hardReset bool) (api.SubmitPreCommitResp, error) {
+func (s *Sealer) SubmitPreCommit(ctx context.Context, sector core.AllocatedSector, info core.PreCommitOnChainInfo, hardReset bool) (core.SubmitPreCommitResp, error) {
 	pinfo, err := info.IntoPreCommitInfo()
 	if err != nil {
-		return api.SubmitPreCommitResp{}, err
+		return core.SubmitPreCommitResp{}, err
 	}
 	return s.commit.SubmitPreCommit(ctx, sector.ID, pinfo, hardReset)
 }
 
-func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (api.PollPreCommitStateResp, error) {
+func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (core.PollPreCommitStateResp, error) {
 	return s.commit.PreCommitState(ctx, sid)
 }
 
@@ -217,21 +217,21 @@ func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance
 	return true, nil
 }
 
-func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedResp, error) {
+func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedResp, error) {
 	maddr, err := address.NewIDAddress(uint64(sid.Miner))
 	if err != nil {
-		return api.WaitSeedResp{}, err
+		return core.WaitSeedResp{}, err
 	}
 
 	ts, err := s.capi.ChainHead(ctx)
 	if err != nil {
-		return api.WaitSeedResp{}, err
+		return core.WaitSeedResp{}, err
 	}
 
 	tsk := ts.Key()
 	pci, err := s.capi.StateSectorPreCommitInfo(ctx, maddr, sid.Number, tsk)
 	if err != nil {
-		return api.WaitSeedResp{}, err
+		return core.WaitSeedResp{}, err
 	}
 
 	curEpoch := ts.Height()
@@ -240,7 +240,7 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedRe
 	seedEpoch := pci.PreCommitEpoch + policy.GetPreCommitChallengeDelay()
 	confEpoch := seedEpoch + policy.InteractivePoRepConfidence
 	if curEpoch < confEpoch {
-		return api.WaitSeedResp{
+		return core.WaitSeedResp{
 			ShouldWait: true,
 			Delay:      int(confEpoch-curEpoch) * int(policy.NetParams.Network.BlockDelay),
 			Seed:       nil,
@@ -249,39 +249,39 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (api.WaitSeedRe
 
 	seed, err := s.rand.GetSeed(ctx, tsk, seedEpoch, sid.Miner)
 	if err != nil {
-		return api.WaitSeedResp{}, err
+		return core.WaitSeedResp{}, err
 	}
 
 	if err := s.state.Update(ctx, sid, &seed); err != nil {
-		return api.WaitSeedResp{}, err
+		return core.WaitSeedResp{}, err
 	}
 
-	return api.WaitSeedResp{
+	return core.WaitSeedResp{
 		ShouldWait: false,
 		Delay:      0,
 		Seed:       &seed,
 	}, nil
 }
 
-func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info api.ProofOnChainInfo, hardReset bool) (api.SubmitProofResp, error) {
+func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info core.ProofOnChainInfo, hardReset bool) (core.SubmitProofResp, error) {
 	return s.commit.SubmitProof(ctx, sid, info, hardReset)
 }
 
-func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (api.PollProofStateResp, error) {
+func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (core.PollProofStateResp, error) {
 	return s.commit.ProofState(ctx, sid)
 }
 
-func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req api.ReportStateReq) (api.Meta, error) {
+func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.ReportStateReq) (core.Meta, error) {
 	if err := s.state.Update(ctx, sid, &req); err != nil {
-		return api.Empty, err
+		return core.Empty, err
 	}
 
-	return api.Empty, nil
+	return core.Empty, nil
 }
 
-func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (api.Meta, error) {
+func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Meta, error) {
 	sectorLogger(sid).Debug("sector finalized")
-	if err := s.state.Finalize(ctx, sid, func(st *api.SectorState) (bool, error) {
+	if err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
 		// upgrading sectors are not finalized via api calls
 		if st.Upgraded {
 			return false, nil
@@ -289,14 +289,14 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (api.Met
 
 		return true, nil
 	}); err != nil {
-		return api.Empty, err
+		return core.Empty, err
 	}
 
-	return api.Empty, nil
+	return core.Empty, nil
 }
 
-func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason string) (api.Meta, error) {
-	err := s.state.Finalize(ctx, sid, func(st *api.SectorState) (bool, error) {
+func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason string) (core.Meta, error) {
+	err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
 		if dealCount := len(st.Pieces); dealCount > 0 {
 			err := s.deal.Release(ctx, sid, st.Pieces)
 			if err != nil {
@@ -311,14 +311,14 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 	})
 
 	if err != nil {
-		return api.Empty, err
+		return core.Empty, err
 	}
 
-	return api.Empty, nil
+	return core.Empty, nil
 }
 
 // snap
-func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec api.AllocateSnapUpSpec) (*api.AllocatedSnapUpSector, error) {
+func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSnapUpSpec) (*core.AllocatedSnapUpSector, error) {
 	candidateSector, err := s.snapup.Allocate(ctx, spec.Sector)
 	if err != nil {
 		return nil, fmt.Errorf("allocate snapup sector: %w", err)
@@ -342,7 +342,7 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec api.AllocateSnap
 		}
 	}()
 
-	pieces, err := s.deal.Acquire(ctx, candidateSector.Sector.ID, spec.Deals, api.SectorWorkerJobSnapUp)
+	pieces, err := s.deal.Acquire(ctx, candidateSector.Sector.ID, spec.Deals, core.SectorWorkerJobSnapUp)
 	if err != nil {
 		return nil, fmt.Errorf("acquire deals: %w", err)
 	}
@@ -369,9 +369,9 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec api.AllocateSnap
 		return nil, fmt.Errorf("check pieces: %w", err)
 	}
 
-	upgradePublic := api.SectorUpgradePublic(candidateSector.Public)
+	upgradePublic := core.SectorUpgradePublic(candidateSector.Public)
 
-	err = s.state.Restore(ctx, candidateSector.Sector.ID, func(ss *api.SectorState) (bool, error) {
+	err = s.state.Restore(ctx, candidateSector.Sector.ID, func(ss *core.SectorState) (bool, error) {
 		// TODO more checks?
 		ss.Pieces = pieces
 		ss.Upgraded = true
@@ -384,14 +384,14 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec api.AllocateSnap
 	}
 
 	if err != nil {
-		ierr := s.state.InitWith(ctx, candidateSector.Sector.ID, candidateSector.Sector.ProofType, api.SectorUpgraded(true), pieces, &upgradePublic)
+		ierr := s.state.InitWith(ctx, candidateSector.Sector.ID, candidateSector.Sector.ProofType, core.SectorUpgraded(true), pieces, &upgradePublic)
 		if ierr != nil {
 			return nil, fmt.Errorf("init non-exist snapup sector: %w", err)
 		}
 	}
 
 	success = true
-	return &api.AllocatedSnapUpSector{
+	return &core.AllocatedSnapUpSector{
 		Sector:  candidateSector.Sector,
 		Pieces:  pieces,
 		Public:  candidateSector.Public,
@@ -399,13 +399,13 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec api.AllocateSnap
 	}, nil
 }
 
-func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapupInfo api.SnapUpOnChainInfo) (api.SubmitSnapUpProofResp, error) {
-	resp := api.SubmitSnapUpProofResp{}
+func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapupInfo core.SnapUpOnChainInfo) (core.SubmitSnapUpProofResp, error) {
+	resp := core.SubmitSnapUpProofResp{}
 	desc := ""
 
 	if len(snapupInfo.Proof) == 0 {
 		desc = "empty proof is invalid"
-		resp.Res = api.SubmitRejected
+		resp.Res = core.SubmitRejected
 		resp.Desc = &desc
 		return resp, nil
 	}
@@ -417,7 +417,7 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 
 	if len(state.Pieces) != len(snapupInfo.Pieces) {
 		desc = fmt.Sprintf("pieces count not match: %d != %d", len(state.Pieces), len(snapupInfo.Pieces))
-		resp.Res = api.SubmitRejected
+		resp.Res = core.SubmitRejected
 		resp.Desc = &desc
 		return resp, nil
 	}
@@ -425,7 +425,7 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 	for pi, pid := range snapupInfo.Pieces {
 		if localPID := state.Pieces[pi].Piece.Cid; !pid.Equals(state.Pieces[pi].Piece.Cid) {
 			desc = fmt.Sprintf("#%d piece cid not match: %s != %s", pi, localPID, pid)
-			resp.Res = api.SubmitRejected
+			resp.Res = core.SubmitRejected
 			resp.Desc = &desc
 			return resp, nil
 		}
@@ -434,7 +434,7 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 	newSealedCID, err := util.ReplicaCommitment2CID(snapupInfo.CommR)
 	if err != nil {
 		desc = fmt.Sprintf("convert comm_r to cid: %s", err)
-		resp.Res = api.SubmitRejected
+		resp.Res = core.SubmitRejected
 		resp.Desc = &desc
 		return resp, nil
 	}
@@ -442,7 +442,7 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 	newUnsealedCID, err := util.DataCommitment2CID(snapupInfo.CommD)
 	if err != nil {
 		desc = fmt.Sprintf("convert comm_d to cid: %s", err)
-		resp.Res = api.SubmitRejected
+		resp.Res = core.SubmitRejected
 		resp.Desc = &desc
 		return resp, nil
 	}
@@ -454,12 +454,12 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 
 	if !persisted {
 		desc = "not all files persisted"
-		resp.Res = api.SubmitFilesMissed
+		resp.Res = core.SubmitFilesMissed
 		resp.Desc = &desc
 		return resp, nil
 	}
 
-	upgradedInfo := api.SectorUpgradedInfo{
+	upgradedInfo := core.SectorUpgradedInfo{
 		SealedCID:      newSealedCID,
 		UnsealedCID:    newUnsealedCID,
 		Proof:          snapupInfo.Proof,
@@ -477,12 +477,12 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 	}
 
 	// TODO: start submitting
-	resp.Res = api.SubmitAccepted
+	resp.Res = core.SubmitAccepted
 	return resp, nil
 }
 
 func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, instance string, upgrade bool) (bool, error) {
-	locator := api.SectorLocator(func(lctx context.Context, lsid abi.SectorID) (string, bool, error) {
+	locator := core.SectorLocator(func(lctx context.Context, lsid abi.SectorID) (string, bool, error) {
 		if lsid != sid {
 			return "", false, nil
 		}
@@ -490,7 +490,7 @@ func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proo
 		return instance, true, nil
 	})
 
-	err := s.sectorTracker.SingleProvable(ctx, api.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false)
+	err := s.sectorTracker.SingleProvable(ctx, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false)
 	if err != nil {
 		if errors.Is(err, objstore.ErrObjectNotFound) {
 			return false, nil
@@ -502,7 +502,7 @@ func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proo
 	return true, nil
 }
 
-func checkPieces(pieces api.Deals) error {
+func checkPieces(pieces core.Deals) error {
 	// validate deals
 	for pi := range pieces {
 		// should be a pledge piece

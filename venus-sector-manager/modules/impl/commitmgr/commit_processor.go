@@ -16,7 +16,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
@@ -26,14 +26,14 @@ type CommitProcessor struct {
 	api       SealingAPI
 	msgClient messager.API
 
-	smgr api.SectorStateManager
+	smgr core.SectorStateManager
 
 	config *modules.SafeConfig
 
-	prover api.Prover
+	prover core.Prover
 }
 
-func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.SectorState, from address.Address, mid abi.ActorID, plog *logging.ZapLogger) {
+func (c CommitProcessor) processIndividually(ctx context.Context, sectors []core.SectorState, from address.Address, mid abi.ActorID, plog *logging.ZapLogger) {
 	mcfg := c.config.MustMinerConfig(mid)
 
 	var spec messager.MsgMeta
@@ -84,7 +84,7 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []api.
 	wg.Wait()
 }
 
-func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
+func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "prove", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
@@ -93,7 +93,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 
 	defer updateSector(ctx, c.smgr, sectors, plog)
 
-	if !c.EnableBatch(mid) || len(sectors) < api.MinAggregatedSectors {
+	if !c.EnableBatch(mid) || len(sectors) < core.MinAggregatedSectors {
 		c.processIndividually(ctx, sectors, ctrlAddr, mid, plog)
 		return nil
 	}
@@ -103,8 +103,8 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 		return fmt.Errorf("get chain head failed: %w", err)
 	}
 
-	infos := []api.AggregateSealVerifyInfo{}
-	sectorsMap := map[abi.SectorNumber]api.SectorState{}
+	infos := []core.AggregateSealVerifyInfo{}
+	sectorsMap := map[abi.SectorNumber]core.SectorState{}
 	failed := map[abi.SectorID]struct{}{}
 
 	collateral := big.Zero()
@@ -119,7 +119,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 
 		collateral = big.Add(collateral, sc)
 
-		infos = append(infos, api.AggregateSealVerifyInfo{
+		infos = append(infos, core.AggregateSealVerifyInfo{
 			Number:                p.ID.Number,
 			Randomness:            abi.SealRandomness(p.Ticket.Ticket),
 			InteractiveRandomness: abi.InteractiveSealRandomness(p.Seed.Seed),
@@ -143,7 +143,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 		proofs = append(proofs, sectorsMap[infos[i].Number].Proof.Proof)
 	}
 
-	params.AggregateProof, err = c.prover.AggregateSealProofs(ctx, api.AggregateSealVerifyProofAndInfos{
+	params.AggregateProof, err = c.prover.AggregateSealProofs(ctx, core.AggregateSealVerifyProofAndInfos{
 		Miner:          mid,
 		SealProof:      sectorsMap[infos[0].Number].SectorType,
 		AggregateProof: abi.RegisteredAggregationProof_SnarkPackV1,
@@ -180,7 +180,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []api.SectorState,
 	return nil
 }
 
-func (c CommitProcessor) Expire(ctx context.Context, sectors []api.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
+func (c CommitProcessor) Expire(ctx context.Context, sectors []core.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
 	maxWait := c.config.MustMinerConfig(mid).Commitment.Prove.Batch.MaxWait.Std()
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := c.api.ChainHead(ctx)
