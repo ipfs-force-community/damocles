@@ -142,6 +142,11 @@ func (sc *SnapUpCommitter) commitSector(state api.SectorState) {
 		return
 	}
 
+	if state.UpgradedInfo == nil {
+		slog.Debug("not completed yet")
+		return
+	}
+
 	if err := sc.indexer.Upgrade().Update(sc.ctx, state.ID, state.UpgradedInfo.AccessInstance); err != nil {
 		slog.Errorf("failed to update upgrade indexer: %s", err)
 		return
