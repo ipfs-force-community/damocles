@@ -193,9 +193,7 @@ impl<'c> Task<'c> {
                 Some(base) => {
                     self.ctrl_ctx
                         .update_state(|cst| {
-                            cst.job
-                                .id
-                                .replace(format!("m-{}-s-{}", base.allocated.id.miner, base.allocated.id.number));
+                            cst.job.id.replace(base.allocated.id.clone());
                         })
                         .crit()?;
                     false
@@ -208,9 +206,7 @@ impl<'c> Task<'c> {
                     Some(base) => {
                         self.ctrl_ctx
                             .update_state(|cst| {
-                                cst.job
-                                    .id
-                                    .replace(format!("m-{}-s-{}", base.allocated.id.miner, base.allocated.id.number));
+                                cst.job.id.replace(base.allocated.id.clone());
                             })
                             .crit()?;
                     }

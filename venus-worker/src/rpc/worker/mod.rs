@@ -4,13 +4,15 @@ use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 
+use crate::rpc::sealer::SectorID;
+
 /// information about each worker thread
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorkerInfo {
     /// store location
     pub location: PathBuf,
 
-    pub sector_id: Option<String>,
+    pub sector_id: Option<SectorID>,
 
     /// index for other control operations
     pub index: usize,

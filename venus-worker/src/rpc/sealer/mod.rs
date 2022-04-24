@@ -76,7 +76,7 @@ impl From<&Vec<u8>> for B64Vec {
 pub type DealID = u64;
 
 /// contains miner actor id & sector number
-#[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorID {
     /// miner actor id
@@ -84,6 +84,12 @@ pub struct SectorID {
 
     /// sector number
     pub number: SectorNumber,
+}
+
+impl std::fmt::Debug for SectorID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "s-t0{}-{}", self.miner, self.number)
+    }
 }
 
 /// rules for allocating sector bases

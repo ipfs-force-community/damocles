@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver, Sender};
 
 use super::{super::store::Location, State};
+use crate::rpc::sealer::SectorID;
 
 pub fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
     let (pause_tx, pause_rx) = bounded(1);
@@ -28,7 +29,7 @@ pub fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
 
 #[derive(Default)]
 pub struct CtrlJobState {
-    pub id: Option<String>,
+    pub id: Option<SectorID>,
     pub state: State,
     pub last_error: Option<String>,
 }
