@@ -127,12 +127,15 @@ impl<'c> Task<'c> {
     }
 
     fn report_finalized(&self) -> Result<(), Failure> {
-        let sector_id = self.sector_id()?;
+        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
+            Some(sid) => sid,
+            None => return Ok(()),
+        };
 
         let _ = call_rpc! {
             self.ctx.global.rpc,
             report_finalized,
-            sector_id.clone(),
+            sector_id,
         }?;
 
         Ok(())
