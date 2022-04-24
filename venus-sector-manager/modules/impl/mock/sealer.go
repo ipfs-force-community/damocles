@@ -1,7 +1,10 @@
 package mock
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
@@ -133,4 +136,25 @@ func (s *Sealer) SnapUpCandidates(ctx context.Context, mid abi.ActorID) ([]*bitf
 
 func (s *Sealer) ProvingSectorInfo(ctx context.Context, sid abi.SectorID) (core.ProvingSectorInfo, error) {
 	return core.ProvingSectorInfo{}, nil
+}
+
+func (s *Sealer) WorkerPing(ctx context.Context, winfo core.WorkerInfo) (core.Meta, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "\t")
+	err := enc.Encode(winfo)
+	if err != nil {
+		return core.Empty, fmt.Errorf("marshal worker info: %w", err)
+	}
+
+	log.Warnf("worker ping: \n%s", buf.String())
+	return core.Empty, nil
+}
+
+func (s *Sealer) WorkerGetPingInfo(ctx context.Context, name string) (*core.WorkerPingInfo, error) {
+	return nil, nil
+}
+
+func (s *Sealer) WorkerPingInfoList(ctx context.Context) ([]core.WorkerPingInfo, error) {
+	return nil, nil
 }
