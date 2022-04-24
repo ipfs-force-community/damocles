@@ -18,7 +18,7 @@ pub struct WorkerInfo {
     /// if the worker is paused
     pub paused: bool,
 
-    pub paused_elapsed: Option<String>,
+    pub paused_elapsed: Option<u64>,
 
     /// current sealing state of the worker
     pub state: String,

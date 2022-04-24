@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use clap::{value_t, App, AppSettings, Arg, ArgMatches, SubCommand};
@@ -70,7 +71,7 @@ pub fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
                     wi.location,
                     wi.sector_id,
                     wi.paused,
-                    wi.paused_elapsed,
+                    wi.paused_elapsed.map(Duration::from_secs),
                     wi.state.as_str(),
                     wi.last_error
                 );

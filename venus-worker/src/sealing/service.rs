@@ -46,7 +46,7 @@ impl Worker for ServiceImpl {
                     sector_id,
                     index: *idx,
                     paused: paused_at.is_some(),
-                    paused_elapsed: paused_at.map(|ins| format!("{:?}", ins.elapsed())),
+                    paused_elapsed: paused_at.map(|ins| ins.elapsed().as_secs()),
                     state: state.as_str().to_owned(),
                     last_error,
                 })
