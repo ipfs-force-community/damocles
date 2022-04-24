@@ -16,6 +16,7 @@ use crate::sealing::processor::external::config::Ext;
 pub const DEFAULT_WORKER_SERVER_PORT: u16 = 17890;
 pub const DEFAULT_WORKER_SERVER_HOST: &str = "0.0.0.0";
 pub const LOCAL_HOST: &str = "127.0.0.1";
+pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(180);
 
 /// configurations for sealing sectors
 #[derive(Debug, Clone)]
@@ -169,6 +170,10 @@ pub struct Processors {
 pub struct WorkerInstanceConfig {
     pub name: Option<String>,
     pub rpc_server: Option<RPCServer>,
+
+    #[serde(default)]
+    #[serde(with = "humantime_serde")]
+    pub ping_interval: Option<Duration>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -231,13 +236,7 @@ impl Config {
             .map(|s| s.as_str())
             .unwrap_or(DEFAULT_WORKER_SERVER_HOST);
 
-        let port = self
-            .worker
-            .as_ref()
-            .and_then(|w| w.rpc_server.as_ref())
-            .and_then(|c| c.port.as_ref())
-            .cloned()
-            .unwrap_or(DEFAULT_WORKER_SERVER_PORT);
+        let port = self.worker_server_listen_port();
 
         let addr = format!("{}:{}", host, port)
             .parse()
@@ -255,17 +254,29 @@ impl Config {
             .map(|s| s.as_str())
             .unwrap_or(LOCAL_HOST);
 
-        let port = self
-            .worker
-            .as_ref()
-            .and_then(|w| w.rpc_server.as_ref())
-            .and_then(|c| c.port.as_ref())
-            .cloned()
-            .unwrap_or(DEFAULT_WORKER_SERVER_PORT);
-
+        let port = self.worker_server_listen_port();
         let addr = format!("{}:{}", host, port)
             .parse()
             .with_context(|| format!("parse connect address with host: {}, port: {}", host, port))?;
         Ok(addr)
+    }
+
+    /// get listen port for worker server
+    pub fn worker_server_listen_port(&self) -> u16 {
+        self.worker
+            .as_ref()
+            .and_then(|w| w.rpc_server.as_ref())
+            .and_then(|c| c.port.as_ref())
+            .cloned()
+            .unwrap_or(DEFAULT_WORKER_SERVER_PORT)
+    }
+
+    /// get worker ping interval
+    pub fn worker_ping_interval(&self) -> Duration {
+        self.worker
+            .as_ref()
+            .and_then(|w| w.ping_interval.as_ref())
+            .cloned()
+            .unwrap_or(DEFAULT_WORKER_PING_INTERVAL)
     }
 }

@@ -16,7 +16,7 @@ use crate::{
         piecestore::{proxy::ProxyPieceStore, PieceStore},
     },
     logging::info,
-    sealing::{processor, resource, service, store::StoreManager},
+    sealing::{ping, processor, resource, service, store::StoreManager},
     signal::Signal,
     types::SealProof,
     util::net::{local_interface_ip, rpc_addr, socket_addr_from_url},
@@ -89,15 +89,19 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .block_on(async { http::connect(&dial_addr).await })
         .map_err(|e| anyhow!("jsonrpc connect to {}: {:?}", &dial_addr, e))?;
 
+    let local_ip = socket_addr_from_url(&dial_addr)
+        .with_context(|| format!("attempt to connect to sealer rpc service {}", &dial_addr))
+        .and_then(local_interface_ip)
+        .context("get local ip")?;
+
     let instance = if let Some(name) = cfg.worker.as_ref().and_then(|s| s.name.as_ref()).cloned() {
         name
     } else {
-        let local_ip = socket_addr_from_url(&dial_addr)
-            .with_context(|| format!("attempt to connect to sealer rpc service {}", &dial_addr))
-            .and_then(local_interface_ip)
-            .context("get local ip")?;
         format!("{}", local_ip)
     };
+
+    let dest = format!("{}:{}", local_ip, cfg.worker_server_listen_port());
+    info!(?instance, ?dest, "worker info inited");
 
     let rpc_origin = Url::parse(&dial_addr)
         .map(|u| u.origin().ascii_serialization())
@@ -134,7 +138,9 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         piece_store: piece_store.map(Arc::new),
     };
 
-    let mut dog = WatchDog::build(cfg, instance, global);
+    let worker_ping_interval = cfg.worker_ping_interval();
+
+    let mut dog = WatchDog::build(cfg, instance, dest, global);
 
     let mut ctrls = Vec::new();
     for (worker, ctrl) in workers {
@@ -142,8 +148,13 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         dog.start_module(worker);
     }
 
-    let worker_server = service::Service::new(ctrls);
+    let worker_ctrls = Arc::new(ctrls);
+
+    let worker_server = service::Service::new(worker_ctrls.clone());
     dog.start_module(worker_server);
+
+    let worker_ping = ping::Ping::new(worker_ping_interval, worker_ctrls);
+    dog.start_module(worker_ping);
 
     for m in modules {
         dog.start_module(m);

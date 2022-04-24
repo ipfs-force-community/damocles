@@ -366,6 +366,23 @@ pub struct SubmitSnapUpProofResp {
     pub desc: Option<String>,
 }
 
+#[derive(Deserialize, Serialize, Default)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorkerInfoSummary {
+    pub threads: usize,
+    pub empty: usize,
+    pub paused: usize,
+    pub errors: usize,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorkerInfo {
+    pub name: String,
+    pub dest: String,
+    pub summary: WorkerInfoSummary,
+}
+
 /// defines the SealerRpc service
 #[rpc]
 pub trait Sealer {
@@ -421,4 +438,7 @@ pub trait Sealer {
     /// api definition
     #[rpc(name = "Venus.SubmitSnapUpProof")]
     fn submit_snapup_proof(&self, id: SectorID, snapup_info: SnapUpOnChainInfo) -> Result<SubmitSnapUpProofResp>;
+
+    #[rpc(name = "Venus.WorkerPing")]
+    fn worker_ping(&self, winfo: WorkerInfo) -> Result<()>;
 }
