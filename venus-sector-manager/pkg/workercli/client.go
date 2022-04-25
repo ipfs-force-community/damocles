@@ -9,10 +9,11 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
+// no context to avoid span info
 type Client struct {
-	WorkerList   func(ctx context.Context) ([]core.WorkerThreadInfo, error)
-	WorkerPause  func(ctx context.Context, index int) (bool, error)
-	WorkerResume func(ctx context.Context, index int, setToState *string) (bool, error)
+	WorkerList   func() ([]core.WorkerThreadInfo, error)
+	WorkerPause  func(index uint64) (bool, error)
+	WorkerResume func(index uint64, setToState *string) (bool, error)
 }
 
 func Connect(ctx context.Context, endpoint string, opts ...jsonrpc.Option) (*Client, jsonrpc.ClientCloser, error) {

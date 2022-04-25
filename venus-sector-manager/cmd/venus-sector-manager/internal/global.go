@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/signal"
+	"reflect"
 	"strconv"
 	"syscall"
 	"time"
@@ -229,4 +230,19 @@ func OuputJSON(w io.Writer, v interface{}) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "\t")
 	return enc.Encode(v)
+}
+
+func FormatOrNull(arg interface{}, f func() string) string {
+	if arg == nil {
+		return "NULL"
+	}
+
+	rv := reflect.ValueOf(arg)
+	rt := rv.Type()
+	if rt.Kind() == reflect.Ptr && rv.IsNil() {
+		return "NULL"
+
+	}
+
+	return f()
 }

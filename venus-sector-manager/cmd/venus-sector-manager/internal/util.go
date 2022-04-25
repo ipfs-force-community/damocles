@@ -14,6 +14,10 @@ var UtilCmd = &cli.Command{
 		utilSealerCmd,
 		utilMarketCmd,
 		utilStorageCmd,
+		utilWorkerCmd,
+	},
+	Flags: []cli.Flag{
+		SealerListenFlag,
 	},
 	Before: func(cctx *cli.Context) error {
 		logging.SetupForSub(logSubSystem)

@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -288,7 +287,8 @@ impl<'c> Task<'c> {
                         interval = ?self.store.config.recover_interval,
                         "wait before recovering"
                     );
-                    sleep(self.store.config.recover_interval)
+
+                    self.wait_or_interruptted(self.store.config.recover_interval)?;
                 }
 
                 Err(f) => return Err(f),
@@ -355,7 +355,7 @@ impl<'c> Task<'c> {
                         "Event::Retry captured"
                     );
 
-                    sleep(self.store.config.recover_interval);
+                    self.wait_or_interruptted(self.store.config.recover_interval)?;
                 }
 
                 other => {
