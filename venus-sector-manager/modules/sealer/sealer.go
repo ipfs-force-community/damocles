@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-commp-utils/zerocomm"
@@ -41,15 +42,17 @@ func New(
 	sectorTracker core.SectorTracker,
 	prover core.Prover,
 	snapup core.SnapUpSectorManager,
+	workerMgr core.WorkerManager,
 ) (*Sealer, error) {
 	return &Sealer{
-		capi:   capi,
-		rand:   rand,
-		sector: sector,
-		state:  state,
-		deal:   deal,
-		commit: commit,
-		snapup: snapup,
+		capi:      capi,
+		rand:      rand,
+		sector:    sector,
+		state:     state,
+		deal:      deal,
+		commit:    commit,
+		snapup:    snapup,
+		workerMgr: workerMgr,
 
 		sectorIdxer:   sectorIdxer,
 		sectorTracker: sectorTracker,
@@ -59,13 +62,14 @@ func New(
 }
 
 type Sealer struct {
-	capi   chain.API
-	rand   core.RandomnessAPI
-	sector core.SectorManager
-	state  core.SectorStateManager
-	deal   core.DealManager
-	commit core.CommitmentManager
-	snapup core.SnapUpSectorManager
+	capi      chain.API
+	rand      core.RandomnessAPI
+	sector    core.SectorManager
+	state     core.SectorStateManager
+	deal      core.DealManager
+	commit    core.CommitmentManager
+	snapup    core.SnapUpSectorManager
+	workerMgr core.WorkerManager
 
 	sectorIdxer   core.SectorIndexer
 	sectorTracker core.SectorTracker
@@ -516,4 +520,26 @@ func checkPieces(pieces core.Deals) error {
 	}
 
 	return nil
+}
+
+func (s *Sealer) WorkerPing(ctx context.Context, winfo core.WorkerInfo) (core.Meta, error) {
+	if winfo.Name == "" {
+		return core.Empty, fmt.Errorf("worker name is required")
+	}
+
+	if winfo.Dest == "" {
+		return core.Empty, fmt.Errorf("worker dest is required")
+	}
+
+	pingInfo := core.WorkerPingInfo{
+		Info:     winfo,
+		LastPing: time.Now().Unix(),
+	}
+
+	err := s.workerMgr.Update(ctx, pingInfo)
+	if err != nil {
+		return core.Empty, fmt.Errorf("update worker info: %w", err)
+	}
+
+	return core.Empty, nil
 }

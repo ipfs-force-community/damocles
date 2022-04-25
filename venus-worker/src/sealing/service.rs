@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crossbeam_channel::select;
 use jsonrpc_core::{Error, IoHandler, Result};
 use jsonrpc_http_server::ServerBuilder;
@@ -9,7 +11,7 @@ use crate::rpc::worker::{Worker, WorkerInfo};
 use crate::watchdog::{Ctx, Module};
 
 struct ServiceImpl {
-    ctrls: Vec<(usize, Ctrl)>,
+    ctrls: Arc<Vec<(usize, Ctrl)>>,
 }
 
 impl ServiceImpl {
@@ -46,7 +48,7 @@ impl Worker for ServiceImpl {
                     sector_id,
                     index: *idx,
                     paused: paused_at.is_some(),
-                    paused_elapsed: paused_at.map(|ins| format!("{:?}", ins.elapsed())),
+                    paused_elapsed: paused_at.map(|ins| ins.elapsed().as_secs()),
                     state: state.as_str().to_owned(),
                     last_error,
                 })
@@ -97,11 +99,11 @@ impl Worker for ServiceImpl {
 }
 
 pub struct Service {
-    ctrls: Vec<(usize, Ctrl)>,
+    ctrls: Arc<Vec<(usize, Ctrl)>>,
 }
 
 impl Service {
-    pub fn new(ctrls: Vec<(usize, Ctrl)>) -> Self {
+    pub fn new(ctrls: Arc<Vec<(usize, Ctrl)>>) -> Self {
         Service { ctrls }
     }
 }
@@ -118,9 +120,7 @@ impl Module for Service {
     fn run(&mut self, ctx: Ctx) -> anyhow::Result<()> {
         let addr = ctx.cfg.worker_server_listen_addr()?;
 
-        let srv_impl = ServiceImpl {
-            ctrls: std::mem::take(&mut self.ctrls),
-        };
+        let srv_impl = ServiceImpl { ctrls: self.ctrls.clone() };
 
         let mut io = IoHandler::new();
         io.extend_with(srv_impl.to_delegate());

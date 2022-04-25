@@ -65,6 +65,9 @@ func Product() dix.Option {
 		dix.Override(new(*chain.EventBus), BuildChainEventBus),
 		dix.Override(new(core.SnapUpSectorManager), BuildSnapUpManager),
 		dix.Override(ConstructMarketAPIRelated, BuildMarketAPIRelated),
+
+		dix.Override(new(WorkerMetaStore), BuildWorkerMetaStore),
+		dix.Override(new(core.WorkerManager), BuildWorkerManager),
 	)
 }
 

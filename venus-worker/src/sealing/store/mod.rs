@@ -1,6 +1,6 @@
 //! definition of the sealing store
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fs::{create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
@@ -243,19 +243,20 @@ fn customized_sealing_config(common: &SealingOptional, customized: Option<&Seali
 /// manages the sealing stores
 #[derive(Default)]
 pub struct StoreManager {
-    stores: HashMap<PathBuf, Store>,
+    stores: Vec<(PathBuf, Store)>,
 }
 
 impl StoreManager {
     /// loads specific
     pub fn load(list: &[SealingThread], common: &SealingOptional) -> Result<Self> {
-        let mut stores = HashMap::new();
+        let mut stores = Vec::new();
+        let mut path_set = HashSet::new();
         for scfg in list {
             let store_path = Path::new(&scfg.location)
                 .canonicalize()
                 .with_context(|| format!("canonicalize store path {}", scfg.location))?;
 
-            if stores.get(&store_path).is_some() {
+            if path_set.get(&store_path).is_some() {
                 warn!(path = ?store_path, "store already loaded");
                 continue;
             }
@@ -263,7 +264,8 @@ impl StoreManager {
             let sealing_config = customized_sealing_config(common, scfg.sealing.as_ref());
             let store = Store::open(store_path.clone(), sealing_config, scfg.plan.as_ref().cloned())
                 .with_context(|| format!("open store {:?}", store_path))?;
-            stores.insert(store_path, store);
+            path_set.insert(store_path.clone());
+            stores.push((store_path, store));
         }
 
         Ok(StoreManager { stores })

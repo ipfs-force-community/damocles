@@ -2,6 +2,7 @@ package sealer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 )
 
 func (s *Sealer) ListSectors(ctx context.Context, ws core.SectorWorkerState) ([]*core.SectorState, error) {
@@ -117,4 +119,26 @@ func (s *Sealer) ProvingSectorInfo(ctx context.Context, sid abi.SectorID) (core.
 		Private: private,
 	}, nil
 
+}
+
+func (s *Sealer) WorkerGetPingInfo(ctx context.Context, name string) (*core.WorkerPingInfo, error) {
+	winfo, err := s.workerMgr.Load(ctx, name)
+	if err != nil {
+		if errors.Is(err, kvstore.ErrKeyNotFound) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("load worker info: %w", err)
+	}
+
+	return &winfo, nil
+}
+
+func (s *Sealer) WorkerPingInfoList(ctx context.Context) ([]core.WorkerPingInfo, error) {
+	winfos, err := s.workerMgr.All(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("load all worker infos: %w", err)
+	}
+
+	return winfos, nil
 }

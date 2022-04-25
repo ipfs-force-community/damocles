@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -127,12 +126,15 @@ impl<'c> Task<'c> {
     }
 
     fn report_finalized(&self) -> Result<(), Failure> {
-        let sector_id = self.sector_id()?;
+        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
+            Some(sid) => sid,
+            None => return Ok(()),
+        };
 
         let _ = call_rpc! {
             self.ctx.global.rpc,
             report_finalized,
-            sector_id.clone(),
+            sector_id,
         }?;
 
         Ok(())
@@ -190,9 +192,7 @@ impl<'c> Task<'c> {
                 Some(base) => {
                     self.ctrl_ctx
                         .update_state(|cst| {
-                            cst.job
-                                .id
-                                .replace(format!("m-{}-s-{}", base.allocated.id.miner, base.allocated.id.number));
+                            cst.job.id.replace(base.allocated.id.clone());
                         })
                         .crit()?;
                     false
@@ -205,9 +205,7 @@ impl<'c> Task<'c> {
                     Some(base) => {
                         self.ctrl_ctx
                             .update_state(|cst| {
-                                cst.job
-                                    .id
-                                    .replace(format!("m-{}-s-{}", base.allocated.id.miner, base.allocated.id.number));
+                                cst.job.id.replace(base.allocated.id.clone());
                             })
                             .crit()?;
                     }
@@ -289,7 +287,8 @@ impl<'c> Task<'c> {
                         interval = ?self.store.config.recover_interval,
                         "wait before recovering"
                     );
-                    sleep(self.store.config.recover_interval)
+
+                    self.wait_or_interruptted(self.store.config.recover_interval)?;
                 }
 
                 Err(f) => return Err(f),
@@ -356,7 +355,7 @@ impl<'c> Task<'c> {
                         "Event::Retry captured"
                     );
 
-                    sleep(self.store.config.recover_interval);
+                    self.wait_or_interruptted(self.store.config.recover_interval)?;
                 }
 
                 other => {

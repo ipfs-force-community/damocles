@@ -12,10 +12,8 @@ import (
 )
 
 var utilSealerCmd = &cli.Command{
-	Name: "sealer",
-	Flags: []cli.Flag{
-		SealerListenFlag,
-	},
+	Name:  "sealer",
+	Flags: []cli.Flag{},
 	Subcommands: []*cli.Command{
 		utilSealerSectorsCmd,
 		utilSealerProvingCmd,

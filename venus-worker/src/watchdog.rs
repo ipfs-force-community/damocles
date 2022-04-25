@@ -32,6 +32,7 @@ pub struct Ctx {
     pub done: Done,
     pub cfg: Arc<Config>,
     pub instance: String,
+    pub dest: String,
     pub global: GlobalModules,
 }
 
@@ -84,15 +85,16 @@ pub struct WatchDog {
 }
 
 impl WatchDog {
-    pub fn build(cfg: Config, instance: String, global: GlobalModules) -> Self {
-        Self::build_with_done(cfg, instance, global, dones())
+    pub fn build(cfg: Config, instance: String, dest: String, global: GlobalModules) -> Self {
+        Self::build_with_done(cfg, instance, dest, global, dones())
     }
 
-    pub fn build_with_done(cfg: Config, instance: String, global: GlobalModules, done: (Sender<()>, Receiver<()>)) -> Self {
+    pub fn build_with_done(cfg: Config, instance: String, dest: String, global: GlobalModules, done: (Sender<()>, Receiver<()>)) -> Self {
         Self {
             ctx: Ctx {
                 done: done.1,
                 instance,
+                dest,
                 cfg: Arc::new(cfg),
                 global,
             },

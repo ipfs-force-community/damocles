@@ -76,7 +76,7 @@ impl From<&Vec<u8>> for B64Vec {
 pub type DealID = u64;
 
 /// contains miner actor id & sector number
-#[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorID {
     /// miner actor id
@@ -84,6 +84,12 @@ pub struct SectorID {
 
     /// sector number
     pub number: SectorNumber,
+}
+
+impl std::fmt::Debug for SectorID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "s-t0{}-{}", self.miner, self.number)
+    }
 }
 
 /// rules for allocating sector bases
@@ -360,6 +366,23 @@ pub struct SubmitSnapUpProofResp {
     pub desc: Option<String>,
 }
 
+#[derive(Deserialize, Serialize, Default)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorkerInfoSummary {
+    pub threads: usize,
+    pub empty: usize,
+    pub paused: usize,
+    pub errors: usize,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorkerInfo {
+    pub name: String,
+    pub dest: String,
+    pub summary: WorkerInfoSummary,
+}
+
 /// defines the SealerRpc service
 #[rpc]
 pub trait Sealer {
@@ -415,4 +438,7 @@ pub trait Sealer {
     /// api definition
     #[rpc(name = "Venus.SubmitSnapUpProof")]
     fn submit_snapup_proof(&self, id: SectorID, snapup_info: SnapUpOnChainInfo) -> Result<SubmitSnapUpProofResp>;
+
+    #[rpc(name = "Venus.WorkerPing")]
+    fn worker_ping(&self, winfo: WorkerInfo) -> Result<()>;
 }
