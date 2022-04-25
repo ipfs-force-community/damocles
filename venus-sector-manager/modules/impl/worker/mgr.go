@@ -15,6 +15,12 @@ func makeWorkerKey(name string) kvstore.Key {
 	return kvstore.Key(name)
 }
 
+func NewManager(kv kvstore.KVStore) (*Manager, error) {
+	return &Manager{
+		kv: kv,
+	}, nil
+}
+
 type Manager struct {
 	kv kvstore.KVStore
 }

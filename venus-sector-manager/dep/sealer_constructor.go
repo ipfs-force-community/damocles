@@ -20,6 +20,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/dealmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/mock"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/sectors"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/worker"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
@@ -37,6 +38,7 @@ type (
 	PersistedObjectStoreManager objstore.Manager
 	SectorIndexMetaStore        kvstore.KVStore
 	ListenAddress               string
+	WorkerMetaStore             kvstore.KVStore
 )
 
 func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerInfoAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
@@ -505,4 +507,28 @@ func BuildSnapUpManager(
 	})
 
 	return mgr, nil
+}
+
+func BuildWorkerMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (WorkerMetaStore, error) {
+	dir := home.Sub("worker")
+	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return store.Run(gctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return store.Close(ctx)
+		},
+	})
+
+	return store, nil
+}
+
+func BuildWorkerManager(meta WorkerMetaStore) (core.WorkerManager, error) {
+	return worker.NewManager(meta)
 }
