@@ -62,6 +62,7 @@ var daemonRunCmd = &cli.Command{
 	Name: "run",
 	Flags: []cli.Flag{
 		internal.SealerListenFlag,
+		internal.ConfDirFlag,
 		&cli.BoolFlag{
 			Name:  "poster",
 			Value: false,
@@ -87,9 +88,9 @@ var daemonRunCmd = &cli.Command{
 		var node core.SealerAPI
 		stopper, err := dix.New(
 			gctx,
+			dep.Product(),
 			internal.DepsFromCLICtx(cctx),
 			dix.Override(new(dep.GlobalContext), gctx),
-			dep.Product(),
 			dix.If(proxy != "", dep.Proxy(proxy, proxyOpt)),
 			dix.If(
 				cctx.Bool("poster"),

@@ -40,14 +40,19 @@ type (
 	ListenAddress               string
 	ProxyAddress                string
 	WorkerMetaStore             kvstore.KVStore
+	ConfDirPath                 string
 )
 
 func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerInfoAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
 	return sectors.NewManager(scfg, mapi, numAlloc)
 }
 
-func BuildLocalConfigManager(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (confmgr.ConfigManager, error) {
-	cfgmgr, err := confmgr.NewLocal(home.Dir())
+func BuildConfDirPath(home *homedir.Home) ConfDirPath {
+	return ConfDirPath(home.Dir())
+}
+
+func BuildLocalConfigManager(gctx GlobalContext, lc fx.Lifecycle, confDir ConfDirPath) (confmgr.ConfigManager, error) {
+	cfgmgr, err := confmgr.NewLocal(string(confDir))
 	if err != nil {
 		return nil, err
 	}
