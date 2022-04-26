@@ -48,6 +48,10 @@ var UnavailableSealerCliClient = SealerCliClient{
 	WorkerPingInfoList: func(ctx context.Context) ([]WorkerPingInfo, error) {
 		panic("sealer client unavailable")
 	},
+
+	SectorIndexerFind: func(ctx context.Context, indexType SectorIndexType, sid abi.SectorID) (SectorIndexLocation, error) {
+		panic("sealer client unavailable")
+	},
 }
 
 type SealerCliClient struct {
@@ -72,4 +76,6 @@ type SealerCliClient struct {
 	WorkerGetPingInfo func(ctx context.Context, name string) (*WorkerPingInfo, error)
 
 	WorkerPingInfoList func(ctx context.Context) ([]WorkerPingInfo, error)
+
+	SectorIndexerFind func(ctx context.Context, indexType SectorIndexType, sid abi.SectorID) (SectorIndexLocation, error)
 }

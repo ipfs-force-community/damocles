@@ -46,6 +46,18 @@ var daemonInitCmd = &cli.Command{
 	},
 }
 
+var (
+	daemonRunProxyFlag = &cli.StringFlag{
+		Name:  "proxy",
+		Usage: "set a remote sector manager instance address as proxy",
+	}
+
+	daemonRunProxySectorIndexerOffFlag = &cli.BoolFlag{
+		Name:  "proxy-sector-indexer-off",
+		Usage: "disable proxied sector-indexer",
+	}
+)
+
 var daemonRunCmd = &cli.Command{
 	Name: "run",
 	Flags: []cli.Flag{
@@ -60,10 +72,17 @@ var daemonRunCmd = &cli.Command{
 			Value: false,
 			Usage: "enable miner module",
 		},
+		daemonRunProxyFlag,
+		daemonRunProxySectorIndexerOffFlag,
 	},
 	Action: func(cctx *cli.Context) error {
 		gctx, gcancel := internal.NewSigContext(context.Background())
 		defer gcancel()
+
+		proxy := cctx.String(daemonRunProxyFlag.Name)
+		proxyOpt := dep.ProxyOptions{
+			EnableSectorIndexer: !cctx.Bool(daemonRunProxySectorIndexerOffFlag.Name),
+		}
 
 		var node core.SealerAPI
 		stopper, err := dix.New(
@@ -71,6 +90,7 @@ var daemonRunCmd = &cli.Command{
 			internal.DepsFromCLICtx(cctx),
 			dix.Override(new(dep.GlobalContext), gctx),
 			dep.Product(),
+			dix.If(proxy != "", dep.Proxy(proxy, proxyOpt)),
 			dix.If(
 				cctx.Bool("poster"),
 				dep.PoSter(),

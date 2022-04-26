@@ -71,6 +71,20 @@ func Product() dix.Option {
 	)
 }
 
+type ProxyOptions struct {
+	EnableSectorIndexer bool
+}
+
+func Proxy(dest string, opt ProxyOptions) dix.Option {
+	return dix.Options(
+		dix.Override(new(ProxyAddress), ProxyAddress(dest)),
+		dix.Override(new(core.SealerCliClient), BuildSealerProxyClient),
+		dix.If(opt.EnableSectorIndexer,
+			dix.Override(new(core.SectorIndexer), BuildProxiedSectorIndex),
+		),
+	)
+}
+
 func Sealer(target ...interface{}) dix.Option {
 	return dix.Options(
 		dix.Override(new(*sealer.Sealer), sealer.New),

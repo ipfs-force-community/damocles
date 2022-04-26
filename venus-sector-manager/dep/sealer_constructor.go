@@ -38,6 +38,7 @@ type (
 	PersistedObjectStoreManager objstore.Manager
 	SectorIndexMetaStore        kvstore.KVStore
 	ListenAddress               string
+	ProxyAddress                string
 	WorkerMetaStore             kvstore.KVStore
 )
 
@@ -181,8 +182,9 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Conf
 	return mcli, nil
 }
 
+// used for cli commands
 func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) core.SealerCliClient {
-	cli, err := BuildSealerCliClient(gctx, lc, listen)
+	cli, err := buildSealerCliClient(gctx, lc, string(listen), false)
 	if err != nil {
 		cli = core.UnavailableSealerCliClient
 	}
@@ -190,10 +192,15 @@ func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddr
 	return cli
 }
 
-func BuildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) (core.SealerCliClient, error) {
+// used for proxy
+func BuildSealerProxyClient(gctx GlobalContext, lc fx.Lifecycle, proxy ProxyAddress) (core.SealerCliClient, error) {
+	return buildSealerCliClient(gctx, lc, string(proxy), true)
+}
+
+func buildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, serverAddr string, useHTTP bool) (core.SealerCliClient, error) {
 	var scli core.SealerCliClient
 
-	addr, err := net.ResolveTCPAddr("tcp", string(listen))
+	addr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
 		return scli, err
 	}
@@ -204,6 +211,9 @@ func BuildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddr
 	}
 
 	maddr := fmt.Sprintf("/ip4/%s/tcp/%d", ip, addr.Port)
+	if useHTTP {
+		maddr += "/http"
+	}
 
 	ainfo := vapi.NewAPIInfo(maddr, "")
 	apiAddr, err := ainfo.DialArgs(vapi.VerString(core.MajorVersion))
@@ -531,4 +541,9 @@ func BuildWorkerMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Hom
 
 func BuildWorkerManager(meta WorkerMetaStore) (core.WorkerManager, error) {
 	return worker.NewManager(meta)
+}
+
+func BuildProxiedSectorIndex(client core.SealerCliClient, storeMgr PersistedObjectStoreManager) (core.SectorIndexer, error) {
+	log.Debug("build proxied sector indexer")
+	return sectors.NewProxiedIndexer(client, storeMgr)
 }

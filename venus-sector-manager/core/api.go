@@ -72,6 +72,8 @@ type SealerCliAPI interface {
 	WorkerGetPingInfo(ctx context.Context, name string) (*WorkerPingInfo, error)
 
 	WorkerPingInfoList(ctx context.Context) ([]WorkerPingInfo, error)
+
+	SectorIndexerFind(ctx context.Context, indexType SectorIndexType, sid abi.SectorID) (SectorIndexLocation, error)
 }
 
 type RandomnessAPI interface {

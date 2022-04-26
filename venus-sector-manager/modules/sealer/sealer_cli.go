@@ -142,3 +142,28 @@ func (s *Sealer) WorkerPingInfoList(ctx context.Context) ([]core.WorkerPingInfo,
 
 	return winfos, nil
 }
+
+func (s *Sealer) SectorIndexerFind(ctx context.Context, indexType core.SectorIndexType, sid abi.SectorID) (core.SectorIndexLocation, error) {
+	var indexer core.SectorTypedIndexer
+
+	switch indexType {
+	case core.SectorIndexTypeNormal:
+		indexer = s.sectorIdxer.Normal()
+
+	case core.SectorIndexTypeUpgrade:
+		indexer = s.sectorIdxer.Upgrade()
+
+	default:
+		return core.SectorIndexLocation{}, fmt.Errorf("sector indexer of type %s is not supported", indexType)
+	}
+
+	instance, found, err := indexer.Find(ctx, sid)
+	if err != nil {
+		return core.SectorIndexLocation{}, fmt.Errorf("find in indexer of type %s: %w", indexType, err)
+	}
+
+	return core.SectorIndexLocation{
+		Found:    found,
+		Instance: instance,
+	}, nil
+}
