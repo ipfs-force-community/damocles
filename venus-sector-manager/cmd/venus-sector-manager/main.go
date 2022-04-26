@@ -6,6 +6,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/processor"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
@@ -21,6 +22,7 @@ func main() {
 			mockCmd,
 			daemonCmd,
 			internal.UtilCmd,
+			processor.ProcessorCmd,
 		},
 		Flags: []cli.Flag{
 			internal.HomeFlag,
