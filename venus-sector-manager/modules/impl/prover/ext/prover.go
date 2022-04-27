@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -127,13 +126,14 @@ func (sp *subProcessor) handleResponse(ctx context.Context) {
 
 	for scanner.Scan() {
 		var resp Response
-		err := json.Unmarshal(scanner.Bytes(), &resp)
+		b := scanner.Bytes()
+		err := json.Unmarshal(b, &resp)
 		if err != nil {
-			splog.Warnf("decode response from stdout of sub: %w", err)
+			splog.Warnf("decode response from stdout of sub: %s", err)
 			continue
 		}
 
-		splog.Debugw("response received", "id", resp.ID)
+		splog.Debugw("response received", "id", resp.ID, "bytes", len(b))
 
 		select {
 		case <-ctx.Done():
@@ -144,8 +144,8 @@ func (sp *subProcessor) handleResponse(ctx context.Context) {
 		}
 	}
 
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
-		splog.Warnf("stdout scanner error: %w", err)
+	if err := scanner.Err(); err != nil {
+		splog.Warnf("sub stdout scanner error: %s", err)
 	}
 
 }
@@ -167,7 +167,7 @@ LOOP:
 
 		case req := <-sp.reqCh:
 			splog.Debugw("request received", "id", req.req.ID)
-			err := WriteData(writer, req.req)
+			n, err := WriteData(writer, req.req)
 			if err != nil {
 				errMsg := err.Error()
 				req.response(ctx, Response{
@@ -178,7 +178,7 @@ LOOP:
 				continue LOOP
 			}
 
-			splog.Debugw("request sent", "id", req.req.ID)
+			splog.Debugw("request sent", "id", req.req.ID, "bytes", n)
 			requests[req.req.ID] = req
 
 		case resp := <-sp.respCh:

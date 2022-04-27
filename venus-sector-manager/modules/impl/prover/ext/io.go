@@ -6,26 +6,30 @@ import (
 	"fmt"
 )
 
-func WriteData(w *bufio.Writer, data interface{}) error {
+func WriteData(w *bufio.Writer, data interface{}) (int, error) {
 	b, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("marshal data object: %w", err)
+		return 0, fmt.Errorf("marshal data object: %w", err)
 	}
 
-	_, err = w.Write(b)
+	n, err := w.Write(b)
 	if err != nil {
-		return fmt.Errorf("write bytes: %w", err)
+		return 0, fmt.Errorf("write bytes: %w", err)
 	}
 
 	err = w.WriteByte('\n')
 	if err != nil {
-		return fmt.Errorf("write newline: %w", err)
+		return 0, fmt.Errorf("write newline: %w", err)
 	}
 
 	err = w.Flush()
 	if err != nil {
-		return fmt.Errorf("flush: %w", err)
+		return 0, fmt.Errorf("flush: %w", err)
 	}
 
-	return nil
+	if n != len(b) {
+		log.Warnf("unexpected written bytes, expected %d, written %d", len(b), n)
+	}
+
+	return n, nil
 }

@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
-	"io"
 	"os"
 	"sync"
 	"time"
@@ -46,14 +44,15 @@ var processorWdPostCmd = &cli.Command{
 			}
 
 			var req ext.Request
-			err := json.Unmarshal(in.Bytes(), &req)
+			b := in.Bytes()
+			err := json.Unmarshal(b, &req)
 			if err != nil {
 				plog.Warnf("decode incoming request: %s", err)
 				continue
 			}
 
 			go func() {
-				rlog := plog.With("id", req.ID, "data-size", len(req.Data))
+				rlog := plog.With("id", req.ID, "req-bytes", len(b), "data-bytes", len(req.Data))
 				rlog.Debug("request arrived")
 
 				resp := handleWdPoStReq(req)
@@ -61,17 +60,18 @@ var processorWdPostCmd = &cli.Command{
 				defer outMu.Unlock()
 
 				start := time.Now()
-				err := ext.WriteData(out, resp)
-				rlog.Debugw("request done", "elapsed", time.Since(start).String())
+				n, err := ext.WriteData(out, resp)
 				if err != nil {
 					rlog.Warnf("encode response: %s", err)
 				}
 
+				rlog.Debugw("request done", "elapsed", time.Since(start).String(), "res-bytes", len(resp.Result), "resp-bytes", n)
+
 			}()
 		}
 
-		if err := in.Err(); err != nil && !errors.Is(err, io.EOF) {
-			plog.Errorf("stdin broken: %w", err)
+		if err := in.Err(); err != nil {
+			plog.Warnf("stdin broken: %s", err)
 		}
 
 		return nil
