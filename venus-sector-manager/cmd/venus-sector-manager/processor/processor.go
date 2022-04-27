@@ -1,8 +1,11 @@
 package processor
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -10,6 +13,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover/ext"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
@@ -24,21 +28,25 @@ var ProcessorCmd = &cli.Command{
 }
 
 var processorWdPostCmd = &cli.Command{
-	Name: prover.ExtProcessorNameWindostPoSt,
+	Name: ext.ProcessorNameWindostPoSt,
 	Action: func(cctx *cli.Context) error {
 		pid := os.Getpid()
 		ppid := os.Getppid()
-		plog := log.With("pid", pid, "ppid", ppid, "proc", prover.ExtProcessorNameWindostPoSt)
+		plog := log.With("pid", pid, "ppid", ppid, "proc", ext.ProcessorNameWindostPoSt)
 
 		plog.Info("ready")
 
-		in := json.NewDecoder(os.Stdin)
-		out := json.NewEncoder(os.Stdout)
+		in := bufio.NewScanner(os.Stdin)
+		out := bufio.NewWriter(os.Stdout)
 		var outMu = &sync.Mutex{}
 
 		for {
-			var req prover.ExtRequest
-			err := in.Decode(&req)
+			if !in.Scan() {
+				break
+			}
+
+			var req ext.Request
+			err := json.Unmarshal(in.Bytes(), &req)
 			if err != nil {
 				plog.Warnf("decode incoming request: %s", err)
 				continue
@@ -53,7 +61,7 @@ var processorWdPostCmd = &cli.Command{
 				defer outMu.Unlock()
 
 				start := time.Now()
-				err := out.Encode(resp)
+				err := ext.WriteData(out, resp)
 				rlog.Debugw("request done", "elapsed", time.Since(start).String())
 				if err != nil {
 					rlog.Warnf("encode response: %s", err)
@@ -61,16 +69,22 @@ var processorWdPostCmd = &cli.Command{
 
 			}()
 		}
+
+		if err := in.Err(); err != nil && !errors.Is(err, io.EOF) {
+			plog.Errorf("stdin broken: %w", err)
+		}
+
+		return nil
 	},
 }
 
-func handleWdPoStReq(req prover.ExtRequest) prover.ExtResponse {
-	resp := prover.ExtResponse{
+func handleWdPoStReq(req ext.Request) ext.Response {
+	resp := ext.Response{
 		ID: req.ID,
 	}
 
-	var data prover.WindowPoStData
-	err := json.Unmarshal(req.Data, &data)
+	var data ext.WindowPoStData
+	err := req.DecodeInto(&data)
 	if err != nil {
 		errMsg := err.Error()
 		resp.ErrMsg = &errMsg
@@ -84,7 +98,7 @@ func handleWdPoStReq(req prover.ExtRequest) prover.ExtResponse {
 		return resp
 	}
 
-	resp.SetResult(prover.WindowPoStResult{
+	resp.SetResult(ext.WindowPoStResult{
 		Proof:   proof,
 		Skipped: skipped,
 	})

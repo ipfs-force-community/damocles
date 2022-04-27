@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover/ext"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 )
 
@@ -39,6 +40,11 @@ var daemonInitCmd = &cli.Command{
 		cfg := modules.DefaultConfig(true)
 		if err := cfgmgr.SetDefault(cctx.Context, modules.ConfigKey, cfg); err != nil {
 			return fmt.Errorf("init sealer config: %w", err)
+		}
+
+		extCfg := ext.DefaultConfig(true)
+		if err := cfgmgr.SetDefault(cctx.Context, ext.ConfigKey, extCfg); err != nil {
+			return fmt.Errorf("init ext prover config: %w", err)
 		}
 
 		log.Info("initialized")
@@ -73,6 +79,11 @@ var daemonRunCmd = &cli.Command{
 			Value: false,
 			Usage: "enable miner module",
 		},
+		&cli.BoolFlag{
+			Name:  "ext-prover",
+			Value: false,
+			Usage: "enable external prover (wdpost only for now)",
+		},
 		daemonRunProxyFlag,
 		daemonRunProxySectorIndexerOffFlag,
 	},
@@ -100,6 +111,7 @@ var daemonRunCmd = &cli.Command{
 				cctx.Bool("miner"),
 				dep.Miner(),
 			),
+			dix.If(cctx.Bool("ext-prover"), dep.ExtProver()),
 			dep.Sealer(&node),
 		)
 		if err != nil {
