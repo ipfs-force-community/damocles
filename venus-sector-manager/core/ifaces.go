@@ -44,8 +44,8 @@ type SectorStateManager interface {
 }
 
 type SectorTypedIndexer interface {
-	Find(ctx context.Context, sid abi.SectorID) (string, bool, error)
-	Update(ctx context.Context, sid abi.SectorID, instance string) error
+	Find(ctx context.Context, sid abi.SectorID) (SectorAccessStores, bool, error)
+	Update(ctx context.Context, sid abi.SectorID, stores SectorAccessStores) error
 }
 
 type SectorIndexer interface {

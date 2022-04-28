@@ -11,7 +11,7 @@ import (
 type SectorStateChangeHook func(st *SectorState) (bool, error)
 
 // returns the persist instance name, existence
-type SectorLocator func(ctx context.Context, sid abi.SectorID) (string, bool, error)
+type SectorLocator func(ctx context.Context, sid abi.SectorID) (SectorAccessStores, bool, error)
 
 type SectorPoStTyper func(proofType abi.RegisteredSealProof) (abi.RegisteredPoStProof, error)
 

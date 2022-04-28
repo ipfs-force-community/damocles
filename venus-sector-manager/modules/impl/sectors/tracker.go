@@ -16,6 +16,12 @@ import (
 
 var _ core.SectorTracker = (*Tracker)(nil)
 
+type sectorStoreInstances struct {
+	info       core.SectorAccessStores
+	sealedFile objstore.Store
+	cacheDir   objstore.Store
+}
+
 func NewTracker(indexer core.SectorIndexer) (*Tracker, error) {
 	return &Tracker{
 		indexer: indexer,
@@ -35,10 +41,10 @@ func (t *Tracker) SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, s
 	return t.SinglePrivateInfo(ctx, sref, sector.SectorKey != nil, locator)
 }
 
-func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator) (core.PrivateSectorInfo, error) {
+func (t *Tracker) getPrivateInfo(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator) (*sectorStoreInstances, core.PrivateSectorInfo, error) {
 	objins, err := t.getObjInstanceForSector(ctx, sref.ID, locator, upgrade)
 	if err != nil {
-		return core.PrivateSectorInfo{}, fmt.Errorf("get location for %s: %w", util.FormatSectorID(sref.ID), err)
+		return nil, api.PrivateSectorInfo{}, fmt.Errorf("get location for %s: %w", util.FormatSectorID(sref.ID), err)
 	}
 
 	var cache string
@@ -51,13 +57,22 @@ func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref core.SectorRef, up
 		sealed = util.SectorPath(util.SectorPathTypeSealed, sref.ID)
 	}
 
-	return core.PrivateSectorInfo{
-		AccessInstance:   objins.Instance(ctx),
+	return objins, core.PrivateSectorInfo{
+		Accesses:         objins.info,
 		CacheDirURI:      cache,
-		CacheDirPath:     objins.FullPath(ctx, cache),
+		CacheDirPath:     objins.cacheDir.FullPath(ctx, cache),
 		SealedSectorURI:  sealed,
-		SealedSectorPath: objins.FullPath(ctx, sealed),
+		SealedSectorPath: objins.sealedFile.FullPath(ctx, sealed),
 	}, nil
+}
+
+func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator) (core.PrivateSectorInfo, error) {
+	_, privateInfo, err := t.getPrivateInfo(ctx, sref, upgrade, locator)
+	if err != nil {
+		return api.PrivateSectorInfo{}, fmt.Errorf("get private info: %w", err)
+	}
+
+	return privateInfo, nil
 }
 
 func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator, strict bool) error {
@@ -66,31 +81,44 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgra
 		return fmt.Errorf("get sector size: %w", err)
 	}
 
-	privateInfo, err := t.SinglePrivateInfo(ctx, sref, upgrade, locator)
+	instances, privateInfo, err := t.getPrivateInfo(ctx, sref, upgrade, locator)
 	if err != nil {
 		return fmt.Errorf("get private info: %w", err)
 	}
 
-	objins, err := t.indexer.StoreMgr().GetInstance(ctx, privateInfo.AccessInstance)
-	if err != nil {
-		return fmt.Errorf("get obj instance named %s: %w", privateInfo.AccessInstance, err)
+	targetsInCacheDir := map[string]int64{}
+	addCachePathsForSectorSize(targetsInCacheDir, privateInfo.CacheDirURI, ssize)
+
+	checks := []struct {
+		title   string
+		store   objstore.Store
+		targets map[string]int64
+	}{
+		{
+			title: "sealed file",
+			store: instances.sealedFile,
+			targets: map[string]int64{
+				privateInfo.SealedSectorURI: 1,
+			},
+		},
+		{
+			title:   "cache dir",
+			store:   instances.cacheDir,
+			targets: targetsInCacheDir,
+		},
 	}
 
-	toCheck := map[string]int64{
-		privateInfo.SealedSectorURI: 1,
-	}
+	for _, check := range checks {
+		for p, sz := range check.targets {
+			st, err := check.store.Stat(ctx, p)
+			if err != nil {
+				return fmt.Errorf("stat object %s for %s: %w", p, check.title, err)
+			}
 
-	addCachePathsForSectorSize(toCheck, privateInfo.CacheDirURI, ssize)
-
-	for p, sz := range toCheck {
-		st, err := objins.Stat(ctx, p)
-		if err != nil {
-			return fmt.Errorf("stat object: %w", err)
-		}
-
-		if sz != 0 {
-			if st.Size != int64(ssize)*sz {
-				return fmt.Errorf("%s with wrong size (got %d, expect %d)", p, st.Size, int64(ssize)*sz)
+			if sz != 0 {
+				if st.Size != int64(ssize)*sz {
+					return fmt.Errorf("%s for %s with wrong size (got %d, expect %d)", p, check.title, st.Size, int64(ssize)*sz)
+				}
 			}
 		}
 	}
@@ -162,7 +190,7 @@ func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, sectorInfo 
 	return out, nil
 }
 
-func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID, locator core.SectorLocator, upgrade bool) (objstore.Store, error) {
+func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID, locator core.SectorLocator, upgrade bool) (*sectorStoreInstances, error) {
 	if locator == nil {
 		if upgrade {
 			locator = t.indexer.Upgrade().Find
@@ -171,7 +199,7 @@ func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID,
 		}
 	}
 
-	insname, has, err := locator(ctx, sid)
+	access, has, err := locator(ctx, sid)
 	if err != nil {
 		return nil, fmt.Errorf("find objstore instance: %w", err)
 	}
@@ -180,12 +208,20 @@ func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID,
 		return nil, fmt.Errorf("object not found")
 	}
 
-	instance, err := t.indexer.StoreMgr().GetInstance(ctx, insname)
+	instances := sectorStoreInstances{
+		info: access,
+	}
+	instances.sealedFile, err = t.indexer.StoreMgr().GetInstance(ctx, access.SealedFile)
 	if err != nil {
-		return nil, fmt.Errorf("get objstore instance %s: %w", insname, err)
+		return nil, fmt.Errorf("get objstore instance %s for sealed file: %w", access.SealedFile, err)
 	}
 
-	return instance, nil
+	instances.cacheDir, err = t.indexer.StoreMgr().GetInstance(ctx, access.CacheDir)
+	if err != nil {
+		return nil, fmt.Errorf("get objstore instance %s for cache dir: %w", access.CacheDir, err)
+	}
+
+	return &instances, nil
 }
 
 func addCachePathsForSectorSize(chk map[string]int64, cacheDir string, ssize abi.SectorSize) {

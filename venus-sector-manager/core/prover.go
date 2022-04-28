@@ -16,7 +16,7 @@ type SectorRef = storage.SectorRef
 type SectorOnChainInfo = miner.SectorOnChainInfo
 
 type PrivateSectorInfo struct {
-	AccessInstance   string
+	Accesses         SectorAccessStores
 	CacheDirPath     string
 	SealedSectorPath string
 

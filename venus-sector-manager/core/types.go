@@ -270,3 +270,8 @@ type SectorIndexLocation struct {
 	Found    bool
 	Instance string
 }
+
+type SectorAccessStores struct {
+	SealedFile string
+	CacheDir   string
+}
