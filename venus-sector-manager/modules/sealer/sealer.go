@@ -213,7 +213,10 @@ func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance
 		return false, nil
 	}
 
-	err = s.sectorIdxer.Normal().Update(ctx, sid, instance)
+	err = s.sectorIdxer.Normal().Update(ctx, sid, core.SectorAccessStores{
+		SealedFile: instance,
+		CacheDir:   instance,
+	})
 	if err != nil {
 		return false, fmt.Errorf("unable to update sector indexer for sector id %d instance %s %w", sid, instance, err)
 	}
@@ -486,12 +489,15 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 }
 
 func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, instance string, upgrade bool) (bool, error) {
-	locator := core.SectorLocator(func(lctx context.Context, lsid abi.SectorID) (string, bool, error) {
+	locator := core.SectorLocator(func(lctx context.Context, lsid abi.SectorID) (core.SectorAccessStores, bool, error) {
 		if lsid != sid {
-			return "", false, nil
+			return core.SectorAccessStores{}, false, nil
 		}
 
-		return instance, true, nil
+		return core.SectorAccessStores{
+			SealedFile: instance,
+			CacheDir:   instance,
+		}, true, nil
 	})
 
 	err := s.sectorTracker.SingleProvable(ctx, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false)

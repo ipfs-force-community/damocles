@@ -18,16 +18,16 @@ type proxiedTypeIndexer struct {
 	client    core.SealerCliClient
 }
 
-func (p *proxiedTypeIndexer) Find(ctx context.Context, sid abi.SectorID) (string, bool, error) {
+func (p *proxiedTypeIndexer) Find(ctx context.Context, sid abi.SectorID) (core.SectorAccessStores, bool, error) {
 	found, err := p.client.SectorIndexerFind(ctx, p.indexType, sid)
 	if err != nil {
-		return "", false, fmt.Errorf("call rpc method SectorIndexerFind: %w", err)
+		return core.SectorAccessStores{}, false, fmt.Errorf("call rpc method SectorIndexerFind: %w", err)
 	}
 
 	return found.Instance, found.Found, nil
 }
 
-func (p *proxiedTypeIndexer) Update(ctx context.Context, sid abi.SectorID, instance string) error {
+func (p *proxiedTypeIndexer) Update(ctx context.Context, sid abi.SectorID, stores core.SectorAccessStores) error {
 	return ErrProxiedTypedIndexerUnableForUpdating
 }
 

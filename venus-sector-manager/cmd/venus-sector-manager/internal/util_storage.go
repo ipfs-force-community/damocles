@@ -41,11 +41,11 @@ var utilStorageAttachCmd = &cli.Command{
 			Name: "read-only",
 		},
 		&cli.BoolFlag{
-			Name: "use-cache-dir",
-		},
-		&cli.BoolFlag{
 			Name:    "verbose",
 			Aliases: []string{"v"},
+		},
+		&cli.BoolFlag{
+			Name: "allow-splitted",
 		},
 	},
 	ArgsUsage: "<storage path>",
@@ -67,7 +67,7 @@ var utilStorageAttachCmd = &cli.Command{
 		name := cctx.String("name")
 		strict := cctx.Bool("strict")
 		readOnly := cctx.Bool("read-only")
-		useCacheDir := cctx.Bool("use-cache-dir")
+		allowSplitted := cctx.Bool("allow-splitted")
 
 		scfg := filestore.Config{
 			Name:     name,
@@ -82,7 +82,7 @@ var utilStorageAttachCmd = &cli.Command{
 		}
 
 		name = store.Instance(gctx)
-		logger := Log.With("name", name, "strict", strict, "read-only", readOnly)
+		logger := Log.With("name", name, "strict", strict, "read-only", readOnly, "splitted", allowSplitted)
 
 		cfgExample := struct {
 			Common struct {
@@ -118,7 +118,7 @@ var utilStorageAttachCmd = &cli.Command{
 
 		for _, upgrade := range []bool{false, true} {
 			logger.Infof("scan for sectors(upgrade=%v)", upgrade)
-			sids, err := scanForSectors(logger, abs, upgrade, useCacheDir, verbose)
+			sids, err := scanForSectors(logger, abs, upgrade, false, verbose)
 			if err != nil {
 				return fmt.Errorf("scan sectors(upgrade=%v): %w", upgrade, err)
 			}
@@ -129,7 +129,15 @@ var utilStorageAttachCmd = &cli.Command{
 			}
 
 			for _, sid := range sids {
-				err := dest.Update(gctx, sid, name)
+				access := core.SectorAccessStores{
+					SealedFile: name,
+				}
+
+				if !allowSplitted {
+					access.CacheDir = name
+				}
+
+				err := dest.Update(gctx, sid, access)
 				if err != nil {
 					return fmt.Errorf("update sector index for %s: %w", util.FormatSectorID(sid), err)
 				}
@@ -139,6 +147,26 @@ var utilStorageAttachCmd = &cli.Command{
 				}
 			}
 
+			if allowSplitted {
+				logger.Infof("scan for splitted cache dirs(upgrade=%v)", upgrade)
+				cachedSIDs, err := scanForSectors(logger, abs, upgrade, true, verbose)
+				if err != nil {
+					return fmt.Errorf("scan splitted cache dirs(upgrade=%v): %w", upgrade, err)
+				}
+
+				for _, sid := range cachedSIDs {
+					err := dest.Update(gctx, sid, core.SectorAccessStores{
+						CacheDir: name,
+					})
+					if err != nil {
+						return fmt.Errorf("update sector index for cache dir of %s: %w", util.FormatSectorID(sid), err)
+					}
+
+					if verbose {
+						logger.Infof("sector indexer updated for cache dir of %s", util.FormatSectorID(sid))
+					}
+				}
+			}
 		}
 
 		logger.Warn("add the section below into the config file:")
@@ -244,7 +272,7 @@ var utilStorageFindCmd = &cli.Command{
 			dest = indexer.Upgrade()
 		}
 
-		instanceName, found, err := dest.Find(gctx, sid)
+		stores, found, err := dest.Find(gctx, sid)
 		if err != nil {
 			return fmt.Errorf("find store instance for %s: %w", util.FormatSectorID(sid), err)
 		}
@@ -254,21 +282,23 @@ var utilStorageFindCmd = &cli.Command{
 			return nil
 		}
 
-		Log.Infof("found %s in %q", util.FormatSectorID(sid), instanceName)
+		Log.Infof("sector %s located, sealed file in %q, cache dir in %q", util.FormatSectorID(sid), stores.SealedFile, stores.CacheDir)
 
-		_, err = indexer.StoreMgr().GetInstance(gctx, instanceName)
-		if err == nil {
-			Log.Infof("store instance exists")
-			return nil
-		}
+		for _, instanceName := range []string{stores.SealedFile, stores.CacheDir} {
+			iLog := Log.With("instance", instanceName)
+			_, err = indexer.StoreMgr().GetInstance(gctx, instanceName)
+			if err == nil {
+				iLog.Info("store instance exists")
+				continue
+			}
 
-		if errors.Is(err, objstore.ErrObjectStoreInstanceNotFound) {
-			Log.Warnf("store instance not found, check your config file")
-			return nil
-		}
+			if errors.Is(err, objstore.ErrObjectStoreInstanceNotFound) {
+				iLog.Warn("store instance not found, check your config file")
+				continue
+			}
 
-		if err != nil {
-			return fmt.Errorf("attempt to find store instance: %w", err)
+			iLog.Error("failed to get store instance")
+
 		}
 
 		return nil

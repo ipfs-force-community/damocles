@@ -274,9 +274,14 @@ func (s *SnapUpAllocator) allocateForMiner(ctx context.Context, mcandidate *mine
 		Number: abi.SectorNumber(selectedNum),
 	}
 
-	instance, found, err := s.indexer.Normal().Find(ctx, sid)
+	instances, found, err := s.indexer.Normal().Find(ctx, sid)
 	if err != nil {
 		return nil, fmt.Errorf("find persist store instance for %s: %w", util.FormatSectorID(sid), err)
+	}
+
+	// TODO: if we should allow splitted sectors
+	if instances.SealedFile != instances.CacheDir {
+		return nil, nil
 	}
 
 	if !found {
@@ -294,7 +299,7 @@ func (s *SnapUpAllocator) allocateForMiner(ctx context.Context, mcandidate *mine
 			SealedCID: sinfo.SealedCID,
 		},
 		Private: core.SectorPrivateInfo{
-			AccessInstance: instance,
+			AccessInstance: instances.SealedFile,
 		},
 	}, nil
 

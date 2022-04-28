@@ -268,5 +268,10 @@ const (
 
 type SectorIndexLocation struct {
 	Found    bool
-	Instance string
+	Instance SectorAccessStores
+}
+
+type SectorAccessStores struct {
+	SealedFile string
+	CacheDir   string
 }

@@ -3,6 +3,7 @@ package sectors
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/filecoin-project/go-state-types/abi"
 
@@ -39,29 +40,64 @@ func (i *Indexer) StoreMgr() objstore.Manager {
 	return i.storeMgr
 }
 
+func makeSectorKeySealedFile(sid abi.SectorID) kvstore.Key {
+	return makeSectorKey(sid)
+}
+
+func makeSectorKeyForCacheDir(sid abi.SectorID) kvstore.Key {
+	return []byte(fmt.Sprintf("cache/m-%d-n-%d", sid.Miner, sid.Number))
+}
+
 type innerIndexer struct {
 	kv kvstore.KVStore
 }
 
-func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (string, bool, error) {
-	var s string
+func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (core.SectorAccessStores, bool, error) {
+	var stores core.SectorAccessStores
 	// string(b) will copy the underlying bytes, so we use View here
-	err := i.kv.View(ctx, makeSectorKey(sid), func(b []byte) error {
-		s = string(b)
+	err := i.kv.View(ctx, makeSectorKeySealedFile(sid), func(b []byte) error {
+		stores.SealedFile = string(b)
 		return nil
 	})
 
 	if err != nil {
 		if errors.Is(err, kvstore.ErrKeyNotFound) {
-			return "", false, nil
+			return stores, false, nil
 		}
 
-		return "", false, err
+		return stores, false, fmt.Errorf("locate sealed file: %w", err)
 	}
 
-	return s, true, nil
+	err = i.kv.View(ctx, makeSectorKeyForCacheDir(sid), func(b []byte) error {
+		stores.CacheDir = string(b)
+		return nil
+	})
+
+	if err != nil && !errors.Is(err, kvstore.ErrKeyNotFound) {
+		return stores, false, fmt.Errorf("locate cache dir: %w", err)
+	}
+
+	if stores.CacheDir == "" {
+		stores.CacheDir = stores.SealedFile
+	}
+
+	return stores, true, nil
 }
 
-func (i *innerIndexer) Update(ctx context.Context, sid abi.SectorID, instance string) error {
-	return i.kv.Put(ctx, makeSectorKey(sid), []byte(instance))
+func (i *innerIndexer) Update(ctx context.Context, sid abi.SectorID, access core.SectorAccessStores) error {
+	if instance := access.SealedFile; instance != "" {
+		err := i.kv.Put(ctx, makeSectorKeySealedFile(sid), []byte(instance))
+		if err != nil {
+			return fmt.Errorf("set sealed file location: %w", err)
+		}
+	}
+
+	if instance := access.CacheDir; instance != "" {
+		err := i.kv.Put(ctx, makeSectorKeyForCacheDir(sid), []byte(instance))
+		if err != nil {
+			return fmt.Errorf("set cache dir location: %w", err)
+		}
+	}
+
+	return nil
 }
