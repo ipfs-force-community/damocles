@@ -9,7 +9,7 @@ build-smgr:
 build-worker:
 	mkdir -p ./dist/bin/
 	rm -rf ./dist/bin/venus-worker
-	cargo build --release --manifest-path=./venus-worker/Cargo.toml
+	$(MAKE) -C ./venus-worker/ build-all
 	cp $(shell cargo metadata --format-version=1 --manifest-path=./venus-worker/Cargo.toml | jq -r ".target_directory")/release/venus-worker ./dist/bin/
 
 clean:
