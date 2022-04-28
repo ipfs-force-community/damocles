@@ -10,6 +10,8 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 )
 
+var Expand = homedir.Expand
+
 func Open(path string) (*Home, error) {
 	dir, err := homedir.Expand(path)
 	if err != nil {

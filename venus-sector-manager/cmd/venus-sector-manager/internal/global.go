@@ -47,6 +47,11 @@ var SealerListenFlag = &cli.StringFlag{
 	Value: ":1789",
 }
 
+var ConfDirFlag = &cli.StringFlag{
+	Name:  "conf-dir",
+	Usage: "the dir path in which the sector-manager.cfg file exists, set this only if you don't want to use the config file inside home dir",
+}
+
 type stopper = func()
 
 func NewSigContext(parent context.Context) (context.Context, context.CancelFunc) {
@@ -54,9 +59,20 @@ func NewSigContext(parent context.Context) (context.Context, context.CancelFunc)
 }
 
 func DepsFromCLICtx(cctx *cli.Context) dix.Option {
+	confDir := cctx.String(ConfDirFlag.Name)
 	return dix.Options(
 		dix.Override(new(*cli.Context), cctx),
 		dix.Override(new(*homedir.Home), HomeFromCLICtx),
+		dix.If(confDir != "",
+			dix.Override(new(dep.ConfDirPath), func() (dep.ConfDirPath, error) {
+				dir, err := homedir.Expand(confDir)
+				if err != nil {
+					return "", fmt.Errorf("expand conf dir path: %w", err)
+				}
+
+				return dep.ConfDirPath(dir), nil
+			}),
+		),
 	)
 }
 
@@ -89,10 +105,10 @@ func extractAPI(cctx *cli.Context, target ...interface{}) (*API, context.Context
 
 	stopper, err := dix.New(
 		gctx,
+		dep.API(wants...),
 		DepsFromCLICtx(cctx),
 		dix.Override(new(dep.GlobalContext), gctx),
 		dix.Override(new(dep.ListenAddress), dep.ListenAddress(cctx.String(SealerListenFlag.Name))),
-		dep.API(wants...),
 	)
 
 	if err != nil {

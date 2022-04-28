@@ -43,6 +43,7 @@ func Product() dix.Option {
 		dix.Override(new(confmgr.WLocker), cfgmu),
 		dix.Override(new(confmgr.RLocker), cfgmu.RLocker()),
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
+		dix.Override(new(ConfDirPath), BuildConfDirPath),
 		dix.Override(new(*modules.Config), ProvideConfig),
 		dix.Override(new(*modules.SafeConfig), ProvideSafeConfig),
 		dix.Override(new(core.SectorManager), BuildLocalSectorManager),
@@ -71,6 +72,20 @@ func Product() dix.Option {
 	)
 }
 
+type ProxyOptions struct {
+	EnableSectorIndexer bool
+}
+
+func Proxy(dest string, opt ProxyOptions) dix.Option {
+	return dix.Options(
+		dix.Override(new(ProxyAddress), ProxyAddress(dest)),
+		dix.Override(new(core.SealerCliClient), BuildSealerProxyClient),
+		dix.If(opt.EnableSectorIndexer,
+			dix.Override(new(core.SectorIndexer), BuildProxiedSectorIndex),
+		),
+	)
+}
+
 func Sealer(target ...interface{}) dix.Option {
 	return dix.Options(
 		dix.Override(new(*sealer.Sealer), sealer.New),
@@ -85,6 +100,7 @@ func API(target ...interface{}) dix.Option {
 		dix.Override(new(confmgr.WLocker), cfgmu),
 		dix.Override(new(confmgr.RLocker), cfgmu.RLocker()),
 		dix.Override(new(confmgr.ConfigManager), BuildLocalConfigManager),
+		dix.Override(new(ConfDirPath), BuildConfDirPath),
 		dix.Override(new(*modules.Config), ProvideConfig),
 		dix.Override(new(*modules.SafeConfig), ProvideSafeConfig),
 		dix.Override(new(chain.API), BuildChainClient),

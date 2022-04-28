@@ -158,3 +158,10 @@ func (s *Sealer) WorkerGetPingInfo(ctx context.Context, name string) (*core.Work
 func (s *Sealer) WorkerPingInfoList(ctx context.Context) ([]core.WorkerPingInfo, error) {
 	return nil, nil
 }
+
+func (s *Sealer) SectorIndexerFind(ctx context.Context, indexType core.SectorIndexType, sid abi.SectorID) (core.SectorIndexLocation, error) {
+	return core.SectorIndexLocation{
+		Found:    false,
+		Instance: "",
+	}, nil
+}

@@ -258,3 +258,15 @@ type ProvingSectorInfo struct {
 	OnChain SectorOnChainInfo
 	Private PrivateSectorInfo
 }
+
+type SectorIndexType string
+
+const (
+	SectorIndexTypeNormal  SectorIndexType = "normal"
+	SectorIndexTypeUpgrade SectorIndexType = "upgrade"
+)
+
+type SectorIndexLocation struct {
+	Found    bool
+	Instance string
+}

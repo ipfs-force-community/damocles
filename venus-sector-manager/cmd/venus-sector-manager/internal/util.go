@@ -18,6 +18,7 @@ var UtilCmd = &cli.Command{
 	},
 	Flags: []cli.Flag{
 		SealerListenFlag,
+		ConfDirFlag,
 	},
 	Before: func(cctx *cli.Context) error {
 		logging.SetupForSub(logSubSystem)

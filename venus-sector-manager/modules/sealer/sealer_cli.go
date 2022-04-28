@@ -63,20 +63,22 @@ func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, sis 
 		return fmt.Errorf("turn public sector infos into private: %w", err)
 	}
 
+	slog := log.With("miner", mid, "sectors", len(privSectors))
+
 	go func() {
 		tCtx := context.TODO()
 
 		tsStart := clock.NewSystemClock().Now()
 
-		log.Info("mock generate window post start")
-		_, _, err = s.prover.GenerateWindowPoSt(tCtx, abi.ActorID(mid), core.NewSortedPrivateSectorInfo(privSectors...), append(abi.PoStRandomness{}, rand...))
+		slog.Info("mock generate window post start")
+		proof, skipped, err := s.prover.GenerateWindowPoSt(tCtx, abi.ActorID(mid), core.NewSortedPrivateSectorInfo(privSectors...), append(abi.PoStRandomness{}, rand...))
 		if err != nil {
-			log.Warnf("generate window post failed: %v", err.Error())
+			slog.Warnf("generate window post failed: %v", err.Error())
 			return
 		}
 
 		elapsed := time.Since(tsStart)
-		log.Infow("mock generate window post", "elapsed", elapsed)
+		slog.Infow("mock generate window post", "elapsed", elapsed, "proof-size", len(proof), "skipped", len(skipped))
 	}()
 
 	return nil
@@ -141,4 +143,29 @@ func (s *Sealer) WorkerPingInfoList(ctx context.Context) ([]core.WorkerPingInfo,
 	}
 
 	return winfos, nil
+}
+
+func (s *Sealer) SectorIndexerFind(ctx context.Context, indexType core.SectorIndexType, sid abi.SectorID) (core.SectorIndexLocation, error) {
+	var indexer core.SectorTypedIndexer
+
+	switch indexType {
+	case core.SectorIndexTypeNormal:
+		indexer = s.sectorIdxer.Normal()
+
+	case core.SectorIndexTypeUpgrade:
+		indexer = s.sectorIdxer.Upgrade()
+
+	default:
+		return core.SectorIndexLocation{}, fmt.Errorf("sector indexer of type %s is not supported", indexType)
+	}
+
+	instance, found, err := indexer.Find(ctx, sid)
+	if err != nil {
+		return core.SectorIndexLocation{}, fmt.Errorf("find in indexer of type %s: %w", indexType, err)
+	}
+
+	return core.SectorIndexLocation{
+		Found:    found,
+		Instance: instance,
+	}, nil
 }
