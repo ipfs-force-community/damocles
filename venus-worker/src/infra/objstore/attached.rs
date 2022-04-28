@@ -10,12 +10,13 @@ use crate::logging::{debug, warn};
 
 /// manages all attached stores
 pub struct AttachedManager {
+    enable_space_weighted: bool,
     stores: HashMap<String, Box<dyn ObjectStore>>,
 }
 
 impl AttachedManager {
     /// init AttachedManager with given stores
-    pub fn init(attached: Vec<Box<dyn ObjectStore>>) -> Result<Self> {
+    pub fn init(enable_space_weighted: bool, attached: Vec<Box<dyn ObjectStore>>) -> Result<Self> {
         let mut stores = HashMap::new();
         for astore in attached {
             if let Some(prev) = stores.insert(astore.instance(), astore) {
@@ -23,7 +24,10 @@ impl AttachedManager {
             };
         }
 
-        Ok(AttachedManager { stores })
+        Ok(AttachedManager {
+            enable_space_weighted,
+            stores,
+        })
     }
 
     /// get a named store instance
@@ -67,16 +71,16 @@ impl AttachedManager {
             .filter_map(|s| picker(s.as_ref()).map(|free| (s, free)))
             .collect::<Vec<_>>();
 
-        match weighted_instances.choose_weighted(&mut OsRng, |ins| ins.1) {
-            Ok(ins) => {
-                let space = byte_unit::Byte::from(ins.1).get_appropriate_unit(true);
-                debug!(free = %space.to_string(), instance = %ins.0.instance(), "store selected");
-                Some(ins.0.as_ref())
-            }
-            Err(e) => {
-                warn!("failed to get one instance from candidates: {:?}", e);
-                None
-            }
-        }
+        let selected = if self.enable_space_weighted {
+            weighted_instances.choose_weighted(&mut OsRng, |ins| ins.1).ok()
+        } else {
+            weighted_instances.choose(&mut OsRng)
+        };
+
+        selected.map(|ins| {
+            let space = byte_unit::Byte::from(ins.1).get_appropriate_unit(true);
+            debug!(free = %space.to_string(), instance = %ins.0.instance(), "store selected");
+            ins.0.as_ref()
+        })
     }
 }

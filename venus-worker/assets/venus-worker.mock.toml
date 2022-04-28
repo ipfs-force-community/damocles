@@ -44,6 +44,9 @@ location = "./mock-tmp/store3"
 # name = "persist-store1"
 location = "./mock-tmp/remote"
 
+[attached_selection]
+# enable_space_weighted = true
+
 [processors.limit]
 pc1 = 3
 pc2 = 2
