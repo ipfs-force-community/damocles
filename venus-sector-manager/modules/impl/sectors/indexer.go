@@ -52,8 +52,8 @@ type innerIndexer struct {
 	kv kvstore.KVStore
 }
 
-func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (api.SectorAccessStores, bool, error) {
-	var stores api.SectorAccessStores
+func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (core.SectorAccessStores, bool, error) {
+	var stores core.SectorAccessStores
 	// string(b) will copy the underlying bytes, so we use View here
 	err := i.kv.View(ctx, makeSectorKeySealedFile(sid), func(b []byte) error {
 		stores.SealedFile = string(b)
@@ -84,7 +84,7 @@ func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (api.SectorAc
 	return stores, true, nil
 }
 
-func (i *innerIndexer) Update(ctx context.Context, sid abi.SectorID, access api.SectorAccessStores) error {
+func (i *innerIndexer) Update(ctx context.Context, sid abi.SectorID, access core.SectorAccessStores) error {
 	if instance := access.SealedFile; instance != "" {
 		err := i.kv.Put(ctx, makeSectorKeySealedFile(sid), []byte(instance))
 		if err != nil {

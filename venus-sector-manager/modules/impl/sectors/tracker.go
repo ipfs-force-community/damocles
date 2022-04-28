@@ -44,7 +44,7 @@ func (t *Tracker) SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, s
 func (t *Tracker) getPrivateInfo(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator) (*sectorStoreInstances, core.PrivateSectorInfo, error) {
 	objins, err := t.getObjInstanceForSector(ctx, sref.ID, locator, upgrade)
 	if err != nil {
-		return nil, api.PrivateSectorInfo{}, fmt.Errorf("get location for %s: %w", util.FormatSectorID(sref.ID), err)
+		return nil, core.PrivateSectorInfo{}, fmt.Errorf("get location for %s: %w", util.FormatSectorID(sref.ID), err)
 	}
 
 	var cache string
@@ -69,7 +69,7 @@ func (t *Tracker) getPrivateInfo(ctx context.Context, sref core.SectorRef, upgra
 func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator) (core.PrivateSectorInfo, error) {
 	_, privateInfo, err := t.getPrivateInfo(ctx, sref, upgrade, locator)
 	if err != nil {
-		return api.PrivateSectorInfo{}, fmt.Errorf("get private info: %w", err)
+		return core.PrivateSectorInfo{}, fmt.Errorf("get private info: %w", err)
 	}
 
 	return privateInfo, nil

@@ -129,7 +129,7 @@ var utilStorageAttachCmd = &cli.Command{
 			}
 
 			for _, sid := range sids {
-				access := api.SectorAccessStores{
+				access := core.SectorAccessStores{
 					SealedFile: name,
 				}
 
@@ -155,7 +155,7 @@ var utilStorageAttachCmd = &cli.Command{
 				}
 
 				for _, sid := range cachedSIDs {
-					err := dest.Update(gctx, sid, api.SectorAccessStores{
+					err := dest.Update(gctx, sid, core.SectorAccessStores{
 						CacheDir: name,
 					})
 					if err != nil {

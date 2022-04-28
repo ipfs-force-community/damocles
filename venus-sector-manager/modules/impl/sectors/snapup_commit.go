@@ -147,7 +147,10 @@ func (sc *SnapUpCommitter) commitSector(state core.SectorState) {
 		return
 	}
 
-	if err := sc.indexer.Upgrade().Update(sc.ctx, state.ID, state.UpgradedInfo.AccessInstance); err != nil {
+	if err := sc.indexer.Upgrade().Update(sc.ctx, state.ID, core.SectorAccessStores{
+		SealedFile: state.UpgradedInfo.AccessInstance,
+		CacheDir:   state.UpgradedInfo.AccessInstance,
+	}); err != nil {
 		slog.Errorf("failed to update upgrade indexer: %s", err)
 		return
 	}
@@ -449,34 +452,49 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 		return fmt.Errorf("get private info from tracker: %w", err)
 	}
 
-	fileURIs := util.CachedFilesForSectorSize(privateInfo.CacheDirURI, h.ssize)
-	fileURIs = append(fileURIs, privateInfo.SealedSectorURI)
-
-	store, err := h.committer.indexer.StoreMgr().GetInstance(h.committer.ctx, privateInfo.AccessInstance)
-	if err != nil {
-		return fmt.Errorf("get store instance %s: %w", privateInfo.AccessInstance, err)
+	cleanupTargets := []struct {
+		storeInstance string
+		fileURIs      []string
+	}{
+		{
+			storeInstance: privateInfo.Accesses.SealedFile,
+			fileURIs:      []string{privateInfo.SealedSectorURI},
+		},
+		{
+			storeInstance: privateInfo.Accesses.CacheDir,
+			fileURIs:      util.CachedFilesForSectorSize(privateInfo.CacheDirURI, h.ssize),
+		},
 	}
 
-	var errwg multierror.Group
-	for fi := range fileURIs {
-		uri := fileURIs[fi]
-		errwg.Go(func() error {
-			delErr := store.Del(h.committer.ctx, uri)
-			if delErr == nil {
-				return nil
-			}
+	for ti := range cleanupTargets {
+		storeInstance := cleanupTargets[ti].storeInstance
+		store, err := h.committer.indexer.StoreMgr().GetInstance(h.committer.ctx, storeInstance)
+		if err != nil {
+			return fmt.Errorf("get store instance %s: %w", storeInstance, err)
+		}
 
-			if errors.Is(delErr, objstore.ErrObjectNotFound) {
-				return nil
-			}
+		fileURIs := cleanupTargets[ti].fileURIs
+		var errwg multierror.Group
+		for fi := range fileURIs {
+			uri := fileURIs[fi]
+			errwg.Go(func() error {
+				delErr := store.Del(h.committer.ctx, uri)
+				if delErr == nil {
+					return nil
+				}
 
-			return fmt.Errorf("attempt to del obj %q: %w", uri, err)
-		})
-	}
+				if errors.Is(delErr, objstore.ErrObjectNotFound) {
+					return nil
+				}
 
-	merr := errwg.Wait().ErrorOrNil()
-	if merr != nil {
-		return newTempErr(merr, time.Minute)
+				return fmt.Errorf("attempt to del obj %q: %w", uri, err)
+			})
+		}
+
+		merr := errwg.Wait().ErrorOrNil()
+		if merr != nil {
+			return newTempErr(merr, time.Minute)
+		}
 	}
 
 	return nil
