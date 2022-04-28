@@ -1,4 +1,5 @@
 unexport GOTAGS
+unexport GOFLAGS
 
 FFI_PATH:=extern/filecoin-ffi/
 FFI_DEPS:=.install-filcrypto
@@ -34,10 +35,17 @@ clean:
 	-$(MAKE) -C $(FFI_PATH) clean
 .PHONY: clean
 
+ldflags=-X=github.com/ipfs-force-community/venus-cluster/venus-sector-manager/ver.Commit=git.$(subst -,.,$(shell git describe --always --match=NeVeRmAtCh --dirty 2>/dev/null || git rev-parse --short HEAD 2>/dev/null))
+ifneq ($(strip $(LDFLAGS)),)
+	ldflags+=-extldflags=$(LDFLAGS)
+endif
+
+GOFLAGS+=-ldflags="$(ldflags)"
+
 
 build-venus-sector-manager:
 	rm -rf ./venus-sector-manager
-	go build -tags "$(GOTAGS)" -o venus-sector-manager ./cmd/venus-sector-manager
+	go build -tags="$(GOTAGS)" $(GOFLAGS) -o venus-sector-manager ./cmd/venus-sector-manager
 
 .PHONY: venus-sector-manager
 BINS+=venus-sector-manager

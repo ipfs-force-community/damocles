@@ -34,8 +34,10 @@ pub fn main() -> Result<()> {
     let store_cmd = store::subcommand();
     let worker_cmd = worker::subcommand();
 
+    let ver_string = format!("v{}-{}", env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT"));
+
     let app = App::new("vc-worker")
-        .version(env!("CARGO_PKG_VERSION"))
+        .version(ver_string.as_str())
         .setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(daemon_cmd)
         .subcommand(generator_cmd)
