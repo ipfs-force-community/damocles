@@ -182,6 +182,11 @@ pub struct SectorManagerConfig {
     pub piece_token: Option<String>,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct AttachedSelectionConfig {
+    pub enable_space_weighted: Option<bool>,
+}
+
 /// global configuration
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -202,6 +207,9 @@ pub struct Config {
 
     /// section for attached store
     pub attached: Option<Vec<Attached>>,
+
+    /// sectin for selection policy
+    pub attached_selection: Option<AttachedSelectionConfig>,
 
     /// section for processors
     pub processors: Processors,

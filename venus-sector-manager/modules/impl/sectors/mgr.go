@@ -60,7 +60,7 @@ func (m *Manager) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*
 			max := *selected.cfg.MaxNumber
 			check = func(next uint64) bool {
 				ok := next <= max
-				if !ok {
+				if !ok && selected.cfg.Verbose {
 					log.Warnw("max number exceeded", "max", max, "miner", selected.info.ID)
 				}
 				return ok

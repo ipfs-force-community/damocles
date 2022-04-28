@@ -123,6 +123,7 @@ type MinerSectorConfig struct {
 	Enabled      bool
 	EnableDeals  bool
 	LifetimeDays uint64
+	Verbose      bool
 }
 
 func defaultMinerSectorConfig(example bool) MinerSectorConfig {
@@ -130,6 +131,7 @@ func defaultMinerSectorConfig(example bool) MinerSectorConfig {
 		InitNumber:   0,
 		Enabled:      true,
 		LifetimeDays: 540,
+		Verbose:      false,
 	}
 
 	if example {
