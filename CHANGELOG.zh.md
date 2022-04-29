@@ -7,7 +7,7 @@
   - venus-sector-manager 新增 `snapup` 相关的命令行工具：
     - `util sealer snap fetch` 用于按 `deadline` 将可用于升级的候选扇区添加到本地
 	- `util sealer snap candidates` 用于按 `deadline` 展示可用于升级的本地候选扇区数量
-  - 参考文档：[08.snapdeal的支持](https://github.com/ipfs-force-community/venus-cluster/blob/449275f35e28c46882eef0f1175de0f2a64eaa50/docs/zh/08.snapdeal%E7%9A%84%E6%94%AF%E6%8C%81.md)
+  - 参考文档：[08.snapdeal的支持](https://github.com/ipfs-force-community/venus-cluster/blob/9be393761645f5fbd3a415b5ff1f50ec9254943c/docs/zh/08.snapdeal%E7%9A%84%E6%94%AF%E6%8C%81.md)
 
 - 增强 venus-sector-manager 管理 venus-worker 实例的能力：
   - 新增 venus-worker 定期向 venus-secotr-manager 上报一些统计数据的机制
@@ -17,7 +17,7 @@
   - 新增数据代理模式
   - venus-sector-manager 的 `util daemon run` 新增 `--conf-dir` 参数，可以指定配置目录
   - 新增外部证明计算器 (external prover) 的支持
-  - 参考文档：[09.独立运行的poster节点](https://github.com/ipfs-force-community/venus-cluster/blob/449275f35e28c46882eef0f1175de0f2a64eaa50/docs/zh/09.%E7%8B%AC%E7%AB%8B%E8%BF%90%E8%A1%8C%E7%9A%84poster%E8%8A%82%E7%82%B9.md)
+  - 参考文档：[09.独立运行的poster节点](https://github.com/ipfs-force-community/venus-cluster/blob/9be393761645f5fbd3a415b5ff1f50ec9254943c/docs/zh/09.%E7%8B%AC%E7%AB%8B%E8%BF%90%E8%A1%8C%E7%9A%84poster%E8%8A%82%E7%82%B9.md)
 
 - 其他调整
   - venus-worker 的配置调整
