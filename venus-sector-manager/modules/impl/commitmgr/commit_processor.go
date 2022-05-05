@@ -162,8 +162,8 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 	mcfg := c.config.MustMinerConfig(mid)
 
 	var spec messager.MsgMeta
-	spec.GasOverEstimation = mcfg.Commitment.Prove.GasOverEstimation
-	spec.MaxFeeCap = mcfg.Commitment.Prove.MaxFeeCap.Std()
+	spec.GasOverEstimation = mcfg.Commitment.Prove.Batch.GasOverEstimation
+	spec.MaxFeeCap = mcfg.Commitment.Prove.Batch.MaxFeeCap.Std()
 
 	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, miner.Methods.ProveCommitAggregate,
 		c.msgClient, spec, enc.Bytes(), plog)
