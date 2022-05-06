@@ -115,8 +115,8 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	}
 
 	var spec messager.MsgMeta
-	spec.GasOverEstimation = mcfg.Commitment.Pre.GasOverEstimation
-	spec.MaxFeeCap = mcfg.Commitment.Pre.MaxFeeCap.Std()
+	spec.GasOverEstimation = mcfg.Commitment.Pre.Batch.GasOverEstimation
+	spec.MaxFeeCap = mcfg.Commitment.Pre.Batch.MaxFeeCap.Std()
 
 	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, miner.Methods.PreCommitSectorBatch,
 		p.msgClient, spec, enc.Bytes(), plog)
