@@ -56,17 +56,18 @@ func New(ctx context.Context, addr, token string) (API, jsonrpc.ClientCloser, er
 		u.Scheme = "https"
 	}
 
-	return &wrappedAPI{
+	return &WrappedAPI{
 		IMarket:          cli,
-		resourceEndpoint: fmt.Sprintf("%s://%s/resource", u.Scheme, u.Host),
+		ResourceEndpoint: fmt.Sprintf("%s://%s/resource", u.Scheme, u.Host),
 	}, closer, nil
 }
 
-type wrappedAPI struct {
+type WrappedAPI struct {
 	market.IMarket
-	resourceEndpoint string
+	ResourceEndpoint string
 }
 
-func (w *wrappedAPI) PieceResourceURL(c cid.Cid) string {
-	return fmt.Sprintf("%s?resource-id=%s", w.resourceEndpoint, c.String())
+
+func (w *WrappedAPI) PieceResourceURL(c cid.Cid) string {
+	return fmt.Sprintf("%s?resource-id=%s", w.ResourceEndpoint, c.String())
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/ipfs/go-cid"
 
@@ -18,12 +19,14 @@ func NewProxy(locals []*filestore.Store, mapi market.API) *Proxy {
 	return &Proxy{
 		locals: locals,
 		market: mapi,
+		client: new (http.Client),
 	}
 }
 
 type Proxy struct {
 	locals []*filestore.Store
 	market market.API
+	client *http.Client
 }
 
 func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -32,7 +35,7 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	path := req.URL.Path
+	path := strings.Trim(req.URL.Path, "/ ")
 	c, err := cid.Decode(path)
 	if err != nil {
 		http.Error(rw, fmt.Sprintf("cast %s to cid: %s", path, err), http.StatusBadRequest)
@@ -50,5 +53,7 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	http.Redirect(rw, req, p.market.PieceResourceURL(c), http.StatusFound)
+	redirectLocation := p.market.PieceResourceURL(c)
+	rw.Header().Set("Content-Type", "application/octet-stream")
+	http.Redirect(rw, req, redirectLocation, http.StatusNotFound)
 }
