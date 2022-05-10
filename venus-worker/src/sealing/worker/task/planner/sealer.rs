@@ -453,6 +453,8 @@ impl<'c, 't> Sealer<'c, 't> {
 
                 OnChainState::PermFailed => return Err(anyhow!("pre commit on-chain info permanent failed: {:?}", state.desc).perm()),
 
+                OnChainState::ShouldAbort => return Err(anyhow!("pre commit info will not get on-chain: {:?}", state.desc).abort()),
+
                 OnChainState::Pending | OnChainState::Packed => {}
             }
 
@@ -674,6 +676,8 @@ impl<'c, 't> Sealer<'c, 't> {
                     }
 
                     OnChainState::PermFailed => return Err(anyhow!("proof on-chain info permanent failed: {:?}", state.desc).perm()),
+
+                    OnChainState::ShouldAbort => return Err(anyhow!("sector will not get on-chain: {:?}", state.desc).abort()),
 
                     OnChainState::Pending | OnChainState::Packed => {}
                 }
