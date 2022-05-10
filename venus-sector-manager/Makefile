@@ -63,3 +63,6 @@ check-lint: $(BUILD_DEPS)
 
 check-go-mod:
 	go mod tidy
+
+dev-env:
+	go install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1
