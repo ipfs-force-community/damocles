@@ -33,3 +33,5 @@ dist-clean:
 
 dev-env:
 	ln -s ../../.githooks/pre-push ./.git/hooks/pre-push
+	$(MAKE) -C ./venus-sector-manager/ dev-env
+	$(MAKE) -C ./venus-worker/ dev-env

@@ -18,3 +18,6 @@ clippy:
 
 check-clippy:
 	cargo clippy --no-deps -- -D warnings
+
+dev-env:
+	rustup component add --toolchain $(shell cat rust-toolchain) rls rust-analysis rust-src rustc-dev clippy rustfmt
