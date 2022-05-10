@@ -424,7 +424,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
             SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort()),
 
             SubmitResult::FilesMissed => Err(anyhow!("FilesMissed should not happen for pc2 submission: {:?}", res.desc).perm()),
         }
@@ -640,7 +640,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
             SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort()),
 
             SubmitResult::FilesMissed => Err(anyhow!("FilesMissed is not handled currently: {:?}", res.desc).perm()),
         }
