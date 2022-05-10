@@ -76,6 +76,7 @@ const (
 	OnChainStateFailed
 	// worker should enter perm err
 	OnChainStatePermFailed
+	OnChainStateShouldAbort
 )
 
 type PreCommitOnChainInfo struct {
