@@ -112,6 +112,10 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 		})
 	}
 
+	if len(infos) == 0 {
+		return fmt.Errorf("no available sector infos for pre commit batching")
+	}
+
 	params := core.PreCommitSectorBatchParams{}
 
 	deposit := big.Zero()

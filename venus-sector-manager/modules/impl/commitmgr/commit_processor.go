@@ -143,7 +143,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 	}
 
 	if len(infos) == 0 {
-		return fmt.Errorf("no available sectors for aggregating")
+		return fmt.Errorf("no available sector infos for aggregating")
 	}
 
 	sort.Slice(infos, func(i, j int) bool {
