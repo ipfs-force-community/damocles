@@ -102,6 +102,7 @@ func (p *PoSter) Run(ctx context.Context) {
 	reconnectWait := 10 * time.Second
 
 	// not fine to panic after this point
+CHAIN_HEAD_LOOP:
 	for {
 		if notifs == nil {
 			if !firstTime {
@@ -120,14 +121,16 @@ func (p *PoSter) Run(ctx context.Context) {
 
 			ch, err := p.chain.ChainNotify(ctx)
 			if err != nil {
-				log.Errorf("get ChainNotify error: %w", err)
-				continue
-			}
-			if ch == nil {
-				log.Error("get nil ChainNotify receiver")
-				continue
+				log.Errorf("get ChainNotify error: %s", err)
+				continue CHAIN_HEAD_LOOP
 			}
 
+			if ch == nil {
+				log.Error("get nil ChainNotify receiver")
+				continue CHAIN_HEAD_LOOP
+			}
+
+			log.Debug("ChainNotify channel established")
 			notifs = ch
 		}
 
@@ -139,7 +142,7 @@ func (p *PoSter) Run(ctx context.Context) {
 			if !ok {
 				log.Warn("window post scheduler notifs channel closed")
 				notifs = nil
-				continue
+				continue CHAIN_HEAD_LOOP
 			}
 
 			var lowest, highest *types.TipSet = nil, nil
@@ -148,7 +151,7 @@ func (p *PoSter) Run(ctx context.Context) {
 			} else {
 				for _, change := range changes {
 					if change.Val == nil {
-						log.Errorf("change.Val was nil")
+						log.Warnw("change with nil Val", "type", change.Type)
 						continue
 					}
 
@@ -159,6 +162,10 @@ func (p *PoSter) Run(ctx context.Context) {
 						highest = change.Val
 					}
 				}
+			}
+
+			if lowest == nil && highest == nil {
+				continue CHAIN_HEAD_LOOP
 			}
 
 			p.actors.RLock()
