@@ -166,8 +166,9 @@ func defaultMinerSnapUpRetryConfig(example bool) MinerSnapUpRetryConfig {
 }
 
 type MinerSnapUpConfig struct {
-	Enabled bool
-	Sender  MustAddress
+	Enabled  bool
+	Sender   MustAddress
+	SendFund bool
 	FeeConfig
 	MessageConfidential abi.ChainEpoch
 	ReleaseCondidential abi.ChainEpoch
@@ -177,6 +178,7 @@ type MinerSnapUpConfig struct {
 func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
 	cfg := MinerSnapUpConfig{
 		Enabled:             false,
+		SendFund:            true,
 		FeeConfig:           defaultFeeConfig(),
 		MessageConfidential: 15,
 		ReleaseCondidential: 30,

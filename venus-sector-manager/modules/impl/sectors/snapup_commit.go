@@ -10,6 +10,7 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors/policy"
@@ -328,12 +329,27 @@ func (h *snapupCommitHandler) submitMessage() error {
 		return fmt.Errorf("serialize params: %w", err)
 	}
 
+	msgValue := types.NewInt(0)
+	if mcfg.SnapUp.SendFund {
+		proofType, err := h.state.SectorType.RegisteredWindowPoStProof()
+		if err != nil {
+			return fmt.Errorf("get registered window post proof type: %w", err)
+		}
+
+		collateral, err := h.calcCollateral(tsk, proofType)
+		if err != nil {
+			return newTempErr(err, mcfg.SnapUp.Retry.APIFailureWait.Std())
+		}
+
+		msgValue = collateral
+	}
+
 	msg := types.Message{
 		From:   mcfg.SnapUp.Sender.Std(),
 		To:     h.maddr,
 		Method: miner.Methods.ProveReplicaUpdates,
 		Params: enc.Bytes(),
-		Value:  types.NewInt(0),
+		Value:  msgValue,
 	}
 
 	spec := messager.MsgMeta{
@@ -364,6 +380,48 @@ func (h *snapupCommitHandler) submitMessage() error {
 	h.state.UpgradeMessageID = &msgID
 
 	return nil
+}
+
+func (h *snapupCommitHandler) calcCollateral(tsk types.TipSetKey, proofType abi.RegisteredPoStProof) (big.Int, error) {
+	onChainInfo, err := h.committer.chain.StateSectorGetInfo(h.committer.ctx, h.maddr, h.state.ID.Number, tsk)
+	if err != nil {
+		return big.Int{}, fmt.Errorf("StateSectorGetInfo: %w", err)
+	}
+
+	nv, err := h.committer.chain.StateNetworkVersion(h.committer.ctx, tsk)
+	if err != nil {
+		return big.Int{}, fmt.Errorf("StateNetworkVersion: %w", err)
+	}
+
+	sealType, err := miner.PreferredSealProofTypeFromWindowPoStType(nv, proofType)
+	if err != nil {
+		return big.Int{}, fmt.Errorf("get seal proof type: %w", err)
+	}
+
+	virtualPCI := miner.SectorPreCommitInfo{
+		SealProof:    sealType,
+		SectorNumber: h.state.ID.Number,
+		SealedCID:    h.state.UpgradedInfo.SealedCID,
+		//SealRandEpoch: 0,
+		DealIDs:    h.state.DealIDs(),
+		Expiration: onChainInfo.Expiration,
+		//ReplaceCapacity: false,
+		//ReplaceSectorDeadline: 0,
+		//ReplaceSectorPartition: 0,
+		//ReplaceSectorNumber: 0,
+	}
+
+	collateral, err := h.committer.chain.StateMinerInitialPledgeCollateral(h.committer.ctx, h.maddr, virtualPCI, tsk)
+	if err != nil {
+		return big.Int{}, fmt.Errorf("getting initial pledge collateral: %w", err)
+	}
+
+	collateral = big.Sub(collateral, onChainInfo.InitialPledge)
+	if collateral.LessThan(big.Zero()) {
+		collateral = big.Zero()
+	}
+
+	return collateral, nil
 }
 
 func (h *snapupCommitHandler) waitForMessage() error {
