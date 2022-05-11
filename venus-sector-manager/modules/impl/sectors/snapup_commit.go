@@ -10,6 +10,7 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors/policy"
@@ -163,6 +164,7 @@ func (sc *SnapUpCommitter) commitSector(state core.SectorState) {
 	}
 
 	timer := time.NewTimer(time.Second)
+	retried := 0
 	for {
 		wait := 30 * time.Second
 		select {
@@ -176,6 +178,8 @@ func (sc *SnapUpCommitter) commitSector(state core.SectorState) {
 				if finished {
 					return
 				}
+
+				retried = 0
 			} else {
 				var tempErr snapupCommitTempError
 				isTemp := errors.As(err, &tempErr)
@@ -188,7 +192,20 @@ func (sc *SnapUpCommitter) commitSector(state core.SectorState) {
 					wait = tempErr.retry
 				}
 
-				slog.Warnf("temporary error: %s, retry after %s", tempErr.err, wait)
+				slog.Warnf("temporary error: %s, %d attempts done, retry after %s", tempErr.err, retried, wait)
+
+				mcfg, err := sc.scfg.MinerConfig(state.ID.Miner)
+				if err != nil {
+					slog.Errorf("get miner config for %d: %s", state.ID.Miner, err)
+					return
+				}
+
+				if max := mcfg.SnapUp.Retry.MaxAttempts; max != nil && retried >= *max {
+					slog.Warn("max retry attempts exceeded, abort current submit")
+					return
+				}
+
+				retried++
 			}
 
 			timer.Reset(wait)
@@ -278,7 +295,7 @@ func (h *snapupCommitHandler) submitMessage() error {
 
 	ts, err := h.committer.chain.ChainHead(h.committer.ctx)
 	if err != nil {
-		return newTempErr(fmt.Errorf("get chain head: %w", err), time.Minute)
+		return newTempErr(fmt.Errorf("get chain head: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
 	}
 
 	tsk := ts.Key()
@@ -312,12 +329,27 @@ func (h *snapupCommitHandler) submitMessage() error {
 		return fmt.Errorf("serialize params: %w", err)
 	}
 
+	msgValue := types.NewInt(0)
+	if mcfg.SnapUp.SendFund {
+		proofType, err := h.state.SectorType.RegisteredWindowPoStProof()
+		if err != nil {
+			return fmt.Errorf("get registered window post proof type: %w", err)
+		}
+
+		collateral, err := h.calcCollateral(tsk, proofType)
+		if err != nil {
+			return newTempErr(err, mcfg.SnapUp.Retry.APIFailureWait.Std())
+		}
+
+		msgValue = collateral
+	}
+
 	msg := types.Message{
 		From:   mcfg.SnapUp.Sender.Std(),
 		To:     h.maddr,
 		Method: miner.Methods.ProveReplicaUpdates,
 		Params: enc.Bytes(),
-		Value:  types.NewInt(0),
+		Value:  msgValue,
 	}
 
 	spec := messager.MsgMeta{
@@ -328,13 +360,13 @@ func (h *snapupCommitHandler) submitMessage() error {
 	mcid := msg.Cid().String()
 	has, err := h.committer.messager.HasMessageByUid(h.committer.ctx, mcid)
 	if err != nil {
-		return newTempErr(fmt.Errorf("check if message exists: %w", err), time.Minute)
+		return newTempErr(fmt.Errorf("check if message exists: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
 	}
 
 	if !has {
 		uid, err := h.committer.messager.PushMessageWithId(h.committer.ctx, mcid, &msg, &spec)
 		if err != nil {
-			return newTempErr(fmt.Errorf("push ProveReplicaUpdates message: %w", err), time.Minute)
+			return newTempErr(fmt.Errorf("push ProveReplicaUpdates message: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
 		}
 
 		mcid = uid
@@ -342,12 +374,54 @@ func (h *snapupCommitHandler) submitMessage() error {
 
 	msgID := core.SectorUpgradeMessageID(mcid)
 	if err := h.committer.state.Update(h.committer.ctx, h.state.ID, &msgID); err != nil {
-		return newTempErr(fmt.Errorf("update UpgradeMessageID: %w", err), time.Minute)
+		return newTempErr(fmt.Errorf("update UpgradeMessageID: %w", err), mcfg.SnapUp.Retry.LocalFailureWait.Std())
 	}
 
 	h.state.UpgradeMessageID = &msgID
 
 	return nil
+}
+
+func (h *snapupCommitHandler) calcCollateral(tsk types.TipSetKey, proofType abi.RegisteredPoStProof) (big.Int, error) {
+	onChainInfo, err := h.committer.chain.StateSectorGetInfo(h.committer.ctx, h.maddr, h.state.ID.Number, tsk)
+	if err != nil {
+		return big.Int{}, fmt.Errorf("StateSectorGetInfo: %w", err)
+	}
+
+	nv, err := h.committer.chain.StateNetworkVersion(h.committer.ctx, tsk)
+	if err != nil {
+		return big.Int{}, fmt.Errorf("StateNetworkVersion: %w", err)
+	}
+
+	sealType, err := miner.PreferredSealProofTypeFromWindowPoStType(nv, proofType)
+	if err != nil {
+		return big.Int{}, fmt.Errorf("get seal proof type: %w", err)
+	}
+
+	virtualPCI := miner.SectorPreCommitInfo{
+		SealProof:    sealType,
+		SectorNumber: h.state.ID.Number,
+		SealedCID:    h.state.UpgradedInfo.SealedCID,
+		//SealRandEpoch: 0,
+		DealIDs:    h.state.DealIDs(),
+		Expiration: onChainInfo.Expiration,
+		//ReplaceCapacity: false,
+		//ReplaceSectorDeadline: 0,
+		//ReplaceSectorPartition: 0,
+		//ReplaceSectorNumber: 0,
+	}
+
+	collateral, err := h.committer.chain.StateMinerInitialPledgeCollateral(h.committer.ctx, h.maddr, virtualPCI, tsk)
+	if err != nil {
+		return big.Int{}, fmt.Errorf("getting initial pledge collateral: %w", err)
+	}
+
+	collateral = big.Sub(collateral, onChainInfo.InitialPledge)
+	if collateral.LessThan(big.Zero()) {
+		collateral = big.Zero()
+	}
+
+	return collateral, nil
 }
 
 func (h *snapupCommitHandler) waitForMessage() error {
@@ -357,9 +431,10 @@ func (h *snapupCommitHandler) waitForMessage() error {
 	}
 
 	// TODO: similar handling in commitmgr
-	msg, err := h.committer.messager.GetMessageByUid(h.committer.ctx, string(*h.state.UpgradeMessageID))
+	msgID := string(*h.state.UpgradeMessageID)
+	msg, err := h.committer.messager.GetMessageByUid(h.committer.ctx, msgID)
 	if err != nil {
-		return newTempErr(err, time.Minute)
+		return newTempErr(err, mcfg.SnapUp.Retry.APIFailureWait.Std())
 	}
 
 	var maybeMsg string
@@ -370,11 +445,11 @@ func (h *snapupCommitHandler) waitForMessage() error {
 	switch msg.State {
 	case messager.MessageState.OnChainMsg:
 		if msg.Confidence < int64(mcfg.SnapUp.MessageConfidential) {
-			return newTempErr(errMsgNotLanded, time.Minute)
+			return newTempErr(errMsgNotLanded, mcfg.SnapUp.Retry.PollInterval.Std())
 		}
 
 		if msg.Receipt == nil {
-			return newTempErr(errMsgNoReceipt, time.Minute)
+			return newTempErr(errMsgNoReceipt, mcfg.SnapUp.Retry.PollInterval.Std())
 		}
 
 		if msg.Receipt.ExitCode != exitcode.Ok {
@@ -382,25 +457,25 @@ func (h *snapupCommitHandler) waitForMessage() error {
 		}
 
 		if msg.TipSetKey.IsEmpty() {
-			return newTempErr(fmt.Errorf("get empty tipset key"), time.Minute)
+			return newTempErr(fmt.Errorf("get empty tipset key"), mcfg.SnapUp.Retry.PollInterval.Std())
 		}
 
 	case messager.MessageState.FailedMsg:
 		return fmt.Errorf("failed off-chain message with error=%q", maybeMsg)
 
 	default:
-		return newTempErr(errMsgPending, time.Minute)
+		return newTempErr(errMsgPending, mcfg.SnapUp.Retry.PollInterval.Std())
 	}
 
 	ts, err := h.committer.chain.ChainGetTipSet(h.committer.ctx, msg.TipSetKey)
 	if err != nil {
-		return newTempErr(fmt.Errorf("get tipset %q: %w", msg.TipSetKey.String(), err), time.Minute)
+		return newTempErr(fmt.Errorf("get tipset %q: %w", msg.TipSetKey.String(), err), mcfg.SnapUp.Retry.APIFailureWait.Std())
 	}
 
 	landedEpoch := core.SectorUpgradeLandedEpoch(ts.Height())
 	err = h.committer.state.Update(h.committer.ctx, h.state.ID, &landedEpoch)
 	if err != nil {
-		return newTempErr(fmt.Errorf("update sector state: %w", err), time.Minute)
+		return newTempErr(fmt.Errorf("update sector state: %w", err), mcfg.SnapUp.Retry.LocalFailureWait.Std())
 	}
 
 	h.state.UpgradeLandedEpoch = &landedEpoch
@@ -442,6 +517,10 @@ func (h *snapupCommitHandler) landed() error {
 }
 
 func (h *snapupCommitHandler) cleanupForSector() error {
+	mcfg, err := h.committer.scfg.MinerConfig(h.state.ID.Miner)
+	if err != nil {
+		return fmt.Errorf("get miner config: %w", err)
+	}
 	sref := core.SectorRef{
 		ID:        h.state.ID,
 		ProofType: h.state.SectorType,
@@ -493,7 +572,7 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 
 		merr := errwg.Wait().ErrorOrNil()
 		if merr != nil {
-			return newTempErr(merr, time.Minute)
+			return newTempErr(merr, mcfg.SnapUp.Retry.LocalFailureWait.Std())
 		}
 	}
 
