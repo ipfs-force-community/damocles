@@ -424,7 +424,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
             SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort()),
 
             SubmitResult::FilesMissed => Err(anyhow!("FilesMissed should not happen for pc2 submission: {:?}", res.desc).perm()),
         }
@@ -452,6 +452,8 @@ impl<'c, 't> Sealer<'c, 't> {
                 }
 
                 OnChainState::PermFailed => return Err(anyhow!("pre commit on-chain info permanent failed: {:?}", state.desc).perm()),
+
+                OnChainState::ShouldAbort => return Err(anyhow!("pre commit info will not get on-chain: {:?}", state.desc).abort()),
 
                 OnChainState::Pending | OnChainState::Packed => {}
             }
@@ -640,7 +642,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
             SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort()),
 
             SubmitResult::FilesMissed => Err(anyhow!("FilesMissed is not handled currently: {:?}", res.desc).perm()),
         }
@@ -674,6 +676,8 @@ impl<'c, 't> Sealer<'c, 't> {
                     }
 
                     OnChainState::PermFailed => return Err(anyhow!("proof on-chain info permanent failed: {:?}", state.desc).perm()),
+
+                    OnChainState::ShouldAbort => return Err(anyhow!("sector will not get on-chain: {:?}", state.desc).abort()),
 
                     OnChainState::Pending | OnChainState::Packed => {}
                 }

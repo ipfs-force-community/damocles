@@ -401,13 +401,17 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 
 	state, maybe := c.handleMessage(ctx, id.Miner, msg, mlog)
 	if state == core.OnChainStateLanded {
-		_, err := c.stateMgr.StateSectorPreCommitInfo(ctx, maddr, id.Number, nil)
+		pci, err := c.stateMgr.StateSectorPreCommitInfo(ctx, maddr, id.Number, nil)
 		if err == ErrSectorAllocated {
-			return core.PollPreCommitStateResp{State: core.OnChainStatePermFailed, Desc: &errMsgSectorAllocated}, nil
+			return core.PollPreCommitStateResp{State: core.OnChainStateShouldAbort, Desc: &errMsgSectorAllocated}, nil
 		}
 
 		if err != nil {
 			return core.PollPreCommitStateResp{}, err
+		}
+
+		if pci == nil {
+			return core.PollPreCommitStateResp{State: core.OnChainStateShouldAbort, Desc: &errMsgPreCommitInfoNotFound}, nil
 		}
 	}
 
@@ -517,7 +521,7 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (co
 		}
 
 		if si == nil {
-			return core.PollProofStateResp{State: core.OnChainStateFailed, Desc: &errMsgSectorInfoNotFound}, nil
+			return core.PollProofStateResp{State: core.OnChainStateShouldAbort, Desc: &errMsgSectorInfoNotFound}, nil
 		}
 	}
 
@@ -554,7 +558,7 @@ func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, 
 		}
 
 		if msg.Receipt.ExitCode != exitcode.Ok {
-			return core.OnChainStateFailed, maybeMsg
+			return core.OnChainStateShouldAbort, maybeMsg
 		}
 
 		return core.OnChainStateLanded, maybeMsg

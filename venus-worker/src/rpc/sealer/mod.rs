@@ -201,6 +201,9 @@ pub enum OnChainState {
 
     /// permanent failed
     PermFailed = 6,
+
+    /// the sector is not going to get on-chain
+    ShouldAbort = 7,
 }
 
 /// required infos for pre commint
