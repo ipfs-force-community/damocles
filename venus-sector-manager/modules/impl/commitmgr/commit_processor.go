@@ -34,7 +34,11 @@ type CommitProcessor struct {
 }
 
 func (c CommitProcessor) processIndividually(ctx context.Context, sectors []core.SectorState, from address.Address, mid abi.ActorID, plog *logging.ZapLogger) {
-	mcfg := c.config.MustMinerConfig(mid)
+	mcfg, err := c.config.MinerConfig(mid)
+	if err != nil {
+		plog.Errorf("get miner config for %d: %s", mid, err)
+		return
+	}
 
 	var spec messager.MsgMeta
 	spec.GasOverEstimation = mcfg.Commitment.Prove.GasOverEstimation
@@ -65,10 +69,13 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []core
 				return
 			}
 
-			collateral, err := getSectorCollateral(ctx, c.api, mid, sectors[idx].ID.Number, tok)
-			if err != nil {
-				slog.Error("get sector collateral failed: ", err)
-				return
+			collateral := big.Zero()
+			if mcfg.Commitment.Prove.SendFund {
+				collateral, err = getSectorCollateral(ctx, c.api, mid, sectors[idx].ID.Number, tok)
+				if err != nil {
+					slog.Error("get sector collateral failed: ", err)
+					return
+				}
 			}
 
 			mcid, err := pushMessage(ctx, from, mid, collateral, miner.Methods.ProveCommitSector, c.msgClient, spec, enc.Bytes(), slog)
@@ -98,6 +105,11 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 		return nil
 	}
 
+	mcfg, err := c.config.MinerConfig(mid)
+	if err != nil {
+		return fmt.Errorf("get miner config for %d: %w", mid, err)
+	}
+
 	tok, _, err := c.api.ChainHead(ctx)
 	if err != nil {
 		return fmt.Errorf("get chain head failed: %w", err)
@@ -110,14 +122,16 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 	collateral := big.Zero()
 	for i, p := range sectors {
 		sectorsMap[p.ID.Number] = sectors[i]
-		sc, err := getSectorCollateral(ctx, c.api, mid, p.ID.Number, tok)
-		if err != nil {
-			plog.Errorf("get sector collateral for %d failed: %s\n", p.ID.Number, err)
-			failed[sectors[i].ID] = struct{}{}
-			continue
-		}
+		if mcfg.Commitment.Prove.SendFund {
+			sc, err := getSectorCollateral(ctx, c.api, mid, p.ID.Number, tok)
+			if err != nil {
+				plog.Errorf("get sector collateral for %d failed: %s\n", p.ID.Number, err)
+				failed[sectors[i].ID] = struct{}{}
+				continue
+			}
 
-		collateral = big.Add(collateral, sc)
+			collateral = big.Add(collateral, sc)
+		}
 
 		infos = append(infos, core.AggregateSealVerifyInfo{
 			Number:                p.ID.Number,
@@ -126,6 +140,10 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 			SealedCID:             p.Pre.CommR,
 			UnsealedCID:           p.Pre.CommD,
 		})
+	}
+
+	if len(infos) == 0 {
+		return fmt.Errorf("no available sectors for aggregating")
 	}
 
 	sort.Slice(infos, func(i, j int) bool {
@@ -158,8 +176,6 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 	if err := params.MarshalCBOR(enc); err != nil {
 		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %w", err)
 	}
-
-	mcfg := c.config.MustMinerConfig(mid)
 
 	var spec messager.MsgMeta
 	spec.GasOverEstimation = mcfg.Commitment.Prove.Batch.GasOverEstimation

@@ -209,13 +209,15 @@ func defaultMinerCommitmentConfig(example bool) MinerCommitmentConfig {
 }
 
 type MinerCommitmentPolicyConfig struct {
-	Sender MustAddress
+	Sender   MustAddress
+	SendFund bool
 	FeeConfig
 	Batch MinerCommitmentBatchPolicyConfig
 }
 
 func defaultMinerCommitmentPolicyConfig(example bool) MinerCommitmentPolicyConfig {
 	cfg := MinerCommitmentPolicyConfig{
+		SendFund:  true,
 		FeeConfig: defaultFeeConfig(),
 		Batch:     defaultMinerCommitmentBatchPolicyConfig(),
 	}
