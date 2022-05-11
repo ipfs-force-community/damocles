@@ -142,12 +142,36 @@ func defaultMinerSectorConfig(example bool) MinerSectorConfig {
 	return cfg
 }
 
+type MinerSnapUpRetryConfig struct {
+	MaxAttempts      *int
+	PollInterval     Duration
+	APIFailureWait   Duration
+	LocalFailureWait Duration
+}
+
+func defaultMinerSnapUpRetryConfig(example bool) MinerSnapUpRetryConfig {
+	cfg := MinerSnapUpRetryConfig{
+		MaxAttempts:      nil,
+		PollInterval:     Duration(3 * time.Minute),
+		APIFailureWait:   Duration(3 * time.Minute),
+		LocalFailureWait: Duration(3 * time.Minute),
+	}
+
+	if example {
+		maxAttempts := 10
+		cfg.MaxAttempts = &maxAttempts
+	}
+
+	return cfg
+}
+
 type MinerSnapUpConfig struct {
 	Enabled bool
 	Sender  MustAddress
 	FeeConfig
 	MessageConfidential abi.ChainEpoch
 	ReleaseCondidential abi.ChainEpoch
+	Retry               MinerSnapUpRetryConfig
 }
 
 func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
@@ -156,6 +180,7 @@ func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
 		FeeConfig:           defaultFeeConfig(),
 		MessageConfidential: 15,
 		ReleaseCondidential: 30,
+		Retry:               defaultMinerSnapUpRetryConfig(example),
 	}
 
 	if example {
