@@ -22,7 +22,7 @@ fil_clock = "0.1"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8.5"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "time"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "time", "local-time"] }
 crossterm = "0.20"
 jsonrpc-core = "18"
 jsonrpc-derive = "18"
