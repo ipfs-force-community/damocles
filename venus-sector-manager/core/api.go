@@ -11,7 +11,10 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 )
 
-const MajorVersion = 0
+const (
+	APINamespace = "Venus"
+	MajorVersion = 0
+)
 
 var Empty Meta
 
