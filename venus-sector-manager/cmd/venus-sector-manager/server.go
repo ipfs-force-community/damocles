@@ -60,7 +60,7 @@ func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node core.SealerA
 
 func buildRPCServer(hdl interface{}, opts ...jsonrpc.ServerOption) (*http.ServeMux, error) {
 	server := jsonrpc.NewServer(opts...)
-	server.Register("Venus", hdl)
-	http.Handle("/rpc/v0", server)
+	server.Register(core.APINamespace, hdl)
+	http.Handle(fmt.Sprintf("/rpc/v%d", core.MajorVersion), server)
 	return http.DefaultServeMux, nil
 }
