@@ -8,7 +8,8 @@ check-all: check-fmt check-clippy
 # Add `--cfg unsound_local_offset` flag to allow time crate to get the local time zone. \
 See: https://docs.rs/time/0.3.9/time/index.html#feature-flags and \
 https://github.com/time-rs/time/issues/293#issuecomment-1005002386
-build-all: RUSTFLAGS+=--cfg unsound_local_offset
+RUSTFLAGS+=--cfg unsound_local_offset
+
 build-all:
 	cargo build --release
 
