@@ -1,6 +1,6 @@
 //! definition of the sealing store
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fs::{create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use byte_unit::Byte;
 use fil_types::ActorID;
 
 use crate::infra::util::PlaceHolder;
-use crate::logging::{debug_field, warn};
+use crate::logging::warn;
 use crate::metadb::rocks::RocksMeta;
 use crate::sealing::worker::{Ctrl, Worker};
 use crate::types::SealProof;
@@ -113,9 +113,9 @@ impl Store {
                         Byte::from_str(size_str.as_str())
                             .with_context(|| format!("invalid size string {}", &size_str))
                             .and_then(|s| {
-                                (s.get_bytes() as u64).try_into().with_context(|| {
-                                    format!("invalid SealProof from {}", &size_str)
-                                })
+                                (s.get_bytes() as u64)
+                                    .try_into()
+                                    .with_context(|| format!("invalid SealProof from {}", &size_str))
                             })
                     })
                     .collect::<Result<Vec<_>>>()
@@ -124,19 +124,14 @@ impl Store {
 
         let location = Location(loc);
         let data_path = location.data_path();
-        if !data_path
-            .symlink_metadata()
-            .context("read file metadata")?
-            .is_dir()
-        {
+        if !data_path.symlink_metadata().context("read file metadata")?.is_dir() {
             return Err(anyhow!("{:?} is not a dir", data_path));
         }
 
         let _holder = PlaceHolder::open(&location).context("open placeholder")?;
 
         let meta_path = location.meta_path();
-        let meta =
-            RocksMeta::open(&meta_path).with_context(|| format!("open metadb {:?}", meta_path))?;
+        let meta = RocksMeta::open(&meta_path).with_context(|| format!("open metadb {:?}", meta_path))?;
 
         Ok(Store {
             location,
@@ -163,8 +158,7 @@ impl Store {
 
     /// cleanup cleans the store
     pub fn cleanup(&self) -> Result<()> {
-        let entries: Vec<_> = read_dir(&self.data_path)?.collect();
-        if !entries.is_empty() {
+        if read_dir(&self.data_path)?.next().is_some() {
             remove_dir_all(&self.data_path)?;
             create_dir_all(&self.data_path)?;
         }
@@ -224,10 +218,7 @@ macro_rules! merge_fields {
     };
 }
 
-fn customized_sealing_config(
-    common: &SealingOptional,
-    customized: Option<&SealingOptional>,
-) -> Sealing {
+fn customized_sealing_config(common: &SealingOptional, customized: Option<&SealingOptional>) -> Sealing {
     let default_cfg = Sealing::default();
     merge_fields! {
         common,
@@ -252,31 +243,29 @@ fn customized_sealing_config(
 /// manages the sealing stores
 #[derive(Default)]
 pub struct StoreManager {
-    stores: HashMap<PathBuf, Store>,
+    stores: Vec<(PathBuf, Store)>,
 }
 
 impl StoreManager {
     /// loads specific
     pub fn load(list: &[SealingThread], common: &SealingOptional) -> Result<Self> {
-        let mut stores = HashMap::new();
+        let mut stores = Vec::new();
+        let mut path_set = HashSet::new();
         for scfg in list {
             let store_path = Path::new(&scfg.location)
                 .canonicalize()
                 .with_context(|| format!("canonicalize store path {}", scfg.location))?;
 
-            if stores.get(&store_path).is_some() {
-                warn!(path = debug_field(&store_path), "store already loaded");
+            if path_set.get(&store_path).is_some() {
+                warn!(path = ?store_path, "store already loaded");
                 continue;
             }
 
             let sealing_config = customized_sealing_config(common, scfg.sealing.as_ref());
-            let store = Store::open(
-                store_path.clone(),
-                sealing_config,
-                scfg.plan.as_ref().cloned(),
-            )
-            .with_context(|| format!("open store {:?}", store_path))?;
-            stores.insert(store_path, store);
+            let store = Store::open(store_path.clone(), sealing_config, scfg.plan.as_ref().cloned())
+                .with_context(|| format!("open store {:?}", store_path))?;
+            path_set.insert(store_path.clone());
+            stores.push((store_path, store));
         }
 
         Ok(StoreManager { stores })

@@ -1,4 +1,4 @@
-package api
+package core
 
 import (
 	"github.com/filecoin-project/go-address"
@@ -257,6 +257,18 @@ type SnapUpFetchResult struct {
 type ProvingSectorInfo struct {
 	OnChain SectorOnChainInfo
 	Private PrivateSectorInfo
+}
+
+type SectorIndexType string
+
+const (
+	SectorIndexTypeNormal  SectorIndexType = "normal"
+	SectorIndexTypeUpgrade SectorIndexType = "upgrade"
+)
+
+type SectorIndexLocation struct {
+	Found    bool
+	Instance SectorAccessStores
 }
 
 type SectorAccessStores struct {

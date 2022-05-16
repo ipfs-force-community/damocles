@@ -10,10 +10,10 @@ import (
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
-func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector api.SectorState) (*miner.SectorPreCommitInfo, big.Int, api.TipSetToken, error) {
+func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector core.SectorState) (*miner.SectorPreCommitInfo, big.Int, core.TipSetToken, error) {
 	stateMgr := p.api
 	tok, _, err := stateMgr.ChainHead(ctx)
 	if err != nil {
@@ -28,7 +28,7 @@ func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector api.Sect
 
 	if err := checkPrecommit(ctx, maddr, sector, stateMgr); err != nil {
 		switch err := err.(type) {
-		case *ErrApi:
+		case *ErrAPI:
 			log.Errorf("handlePreCommitting: api error, not proceeding: %s", err)
 			return nil, big.Zero(), nil, fmt.Errorf("call api failed %w", err)
 		case *ErrBadCommD: // TODO: Should this just back to packing? (not really needed since handlePreCommit1 will do that too)
@@ -78,7 +78,7 @@ func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector api.Sect
 	return params, deposit, tok, nil
 }
 
-func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, mid abi.ActorID, sn abi.SectorNumber, tok api.TipSetToken) (abi.TokenAmount, error) {
+func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, mid abi.ActorID, sn abi.SectorNumber, tok core.TipSetToken) (abi.TokenAmount, error) {
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
 		return big.Zero(), fmt.Errorf("invalid miner actor id: %w", err)

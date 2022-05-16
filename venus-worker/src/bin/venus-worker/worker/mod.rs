@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use clap::{value_t, App, AppSettings, Arg, ArgMatches, SubCommand};
@@ -6,7 +7,7 @@ use clap::{value_t, App, AppSettings, Arg, ArgMatches, SubCommand};
 use venus_worker::{
     block_on,
     client::{connect, WorkerClient},
-    logging::{debug_field, info},
+    logging::info,
     Config,
 };
 
@@ -56,14 +57,24 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
         .subcommand(resume_cmd)
 }
 
-pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
+pub fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
     match subargs.subcommand() {
         ("list", _) => get_client(subargs).and_then(|wcli| {
             let infos = block_on(wcli.worker_list()).map_err(|e| anyhow!("rpc error: {:?}", e))?;
             let out = std::io::stdout();
             let mut hdl = out.lock();
             for wi in infos {
-                let _ = writeln!(&mut hdl, "#{}: {:?}; sector_id={:?}, paused={}, paused_elapsed={:?}, state={}, last_err={:?}", wi.index, wi.location, wi.sector_id, wi.paused, wi.paused_elapsed, wi.state.as_str(), wi.last_error);
+                let _ = writeln!(
+                    &mut hdl,
+                    "#{}: {:?}; sector_id={:?}, paused={}, paused_elapsed={:?}, state={}, last_err={:?}",
+                    wi.index,
+                    wi.location,
+                    wi.sector_id,
+                    wi.paused,
+                    wi.paused_elapsed.map(Duration::from_secs),
+                    wi.state.as_str(),
+                    wi.last_error
+                );
             }
 
             Ok(())
@@ -72,8 +83,7 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
         ("pause", Some(m)) => {
             let index = value_t!(m, "index", usize)?;
             get_client(subargs).and_then(|wcli| {
-                let done = block_on(wcli.worker_pause(index))
-                    .map_err(|e| anyhow!("rpc error: {:?}", e))?;
+                let done = block_on(wcli.worker_pause(index)).map_err(|e| anyhow!("rpc error: {:?}", e))?;
 
                 info!(done, "#{} worker pause", index);
                 Ok(())
@@ -84,10 +94,9 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
             let index = value_t!(m, "index", usize)?;
             let state = m.value_of("state").map(|s| s.to_owned());
             get_client(subargs).and_then(|wcli| {
-                let done = block_on(wcli.worker_resume(index, state.clone()))
-                    .map_err(|e| anyhow!("rpc error: {:?}", e))?;
+                let done = block_on(wcli.worker_resume(index, state.clone())).map_err(|e| anyhow!("rpc error: {:?}", e))?;
 
-                info!(done, state = debug_field(state), "#{} worker resume", index);
+                info!(done, ?state, "#{} worker resume", index);
                 Ok(())
             })
         }
@@ -96,7 +105,7 @@ pub fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
     }
 }
 
-fn get_client<'a>(m: &ArgMatches<'a>) -> Result<WorkerClient> {
+fn get_client(m: &ArgMatches<'_>) -> Result<WorkerClient> {
     let cfg_path = value_t!(m, "config", String).context("get config path")?;
     let cfg = Config::load(&cfg_path)?;
     connect(&cfg)

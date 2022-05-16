@@ -10,8 +10,8 @@ use super::{
 use crate::logging::trace;
 use crate::rpc::sealer::{AllocatedSector, Deals, Seed, Ticket};
 use crate::sealing::processor::{
-    PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
-    SealPreCommitPhase2Output, SectorId, SnapEncodeOutput,
+    PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
+    SnapEncodeOutput,
 };
 
 pub enum Event {

@@ -4,7 +4,7 @@ name: compile-rust-on-pr
 # Controls when the workflow will run
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ main, release/** ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -12,7 +12,7 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
-  complie:
+  compile:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
@@ -27,10 +27,13 @@ jobs:
       - name: setup rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: '1.52.1'
+          toolchain: '1.60.0'
 
       - name: build venus-worker
         run: make build-worker
+
+      - name: show bins
+        run: ls -lha ./dist/bin/
 
       # - name: upload venus-worker
       #   uses: actions/upload-artifact@v2

@@ -12,9 +12,7 @@ pub fn local_interface_ip(dest: SocketAddr) -> Result<IpAddr> {
 
 pub fn socket_addr_from_url(u: &str) -> Result<SocketAddr> {
     let url = Url::parse(u)?;
-    let host = url
-        .host_str()
-        .ok_or(anyhow!("host is required in the target url"))?;
+    let host = url.host_str().ok_or_else(|| anyhow!("host is required in the target url"))?;
 
     let port = match url.port_or_known_default() {
         Some(p) => p,

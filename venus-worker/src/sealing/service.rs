@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crossbeam_channel::select;
 use jsonrpc_core::{Error, IoHandler, Result};
 use jsonrpc_http_server::ServerBuilder;
@@ -9,7 +11,7 @@ use crate::rpc::worker::{Worker, WorkerInfo};
 use crate::watchdog::{Ctx, Module};
 
 struct ServiceImpl {
-    ctrls: Vec<(usize, Ctrl)>,
+    ctrls: Arc<Vec<(usize, Ctrl)>>,
 }
 
 impl ServiceImpl {
@@ -17,17 +19,13 @@ impl ServiceImpl {
         self.ctrls
             .get(index)
             .map(|item| &item.1)
-            .ok_or(Error::invalid_params(format!(
-                "worker #{} not found",
-                index
-            )))
+            .ok_or_else(|| Error::invalid_params(format!("worker #{} not found", index)))
     }
 }
 
 impl Worker for ServiceImpl {
     fn worker_list(&self) -> Result<Vec<WorkerInfo>> {
-        Ok(self
-            .ctrls
+        self.ctrls
             .iter()
             .map(|(idx, ctrl)| {
                 let (state, sector_id, last_error, paused_at) = ctrl
@@ -50,12 +48,12 @@ impl Worker for ServiceImpl {
                     sector_id,
                     index: *idx,
                     paused: paused_at.is_some(),
-                    paused_elapsed: paused_at.map(|ins| format!("{:?}", ins.elapsed())),
+                    paused_elapsed: paused_at.map(|ins| ins.elapsed().as_secs()),
                     state: state.as_str().to_owned(),
                     last_error,
                 })
             })
-            .collect::<Result<_>>()?)
+            .collect::<Result<_>>()
     }
 
     fn worker_pause(&self, index: usize) -> Result<bool> {
@@ -81,10 +79,7 @@ impl Worker for ServiceImpl {
         let ctrl = self.get_ctrl(index)?;
 
         let state = set_to
-            .map(|s| {
-                s.parse()
-                    .map_err(|e| Error::invalid_params(format!("{:?}", e)))
-            })
+            .map(|s| s.parse().map_err(|e| Error::invalid_params(format!("{:?}", e))))
             .transpose()?;
 
         select! {
@@ -104,11 +99,11 @@ impl Worker for ServiceImpl {
 }
 
 pub struct Service {
-    ctrls: Vec<(usize, Ctrl)>,
+    ctrls: Arc<Vec<(usize, Ctrl)>>,
 }
 
 impl Service {
-    pub fn new(ctrls: Vec<(usize, Ctrl)>) -> Self {
+    pub fn new(ctrls: Arc<Vec<(usize, Ctrl)>>) -> Self {
         Service { ctrls }
     }
 }
@@ -125,9 +120,7 @@ impl Module for Service {
     fn run(&mut self, ctx: Ctx) -> anyhow::Result<()> {
         let addr = ctx.cfg.worker_server_listen_addr()?;
 
-        let srv_impl = ServiceImpl {
-            ctrls: std::mem::take(&mut self.ctrls),
-        };
+        let srv_impl = ServiceImpl { ctrls: self.ctrls.clone() };
 
         let mut io = IoHandler::new();
         io.extend_with(srv_impl.to_delegate());

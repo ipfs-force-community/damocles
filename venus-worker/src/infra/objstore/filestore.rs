@@ -1,6 +1,6 @@
 //! ObjectStore implemented based on fs
 
-use std::fs::{create_dir_all, remove_file, File, OpenOptions};
+use std::fs::{create_dir_all, remove_dir_all, remove_file, File, OpenOptions};
 use std::io::{copy, BufReader, Read, Seek, SeekFrom};
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use nix::sys::statvfs::statvfs;
 
 use super::{ObjResult, ObjectStore, Range};
-use crate::logging::{debug_field, trace};
+use crate::logging::trace;
 
 const LOG_TARGET: &str = "filestore";
 
@@ -32,22 +32,13 @@ impl FileStore {
     /// open the file store at given path
     pub fn open<P: AsRef<Path>>(p: P, ins: Option<String>, readonly: bool) -> Result<Self> {
         let dir_path = p.as_ref().canonicalize().context("canonicalize dir path")?;
-        if !dir_path
-            .metadata()
-            .context("read dir metadata")
-            .map(|meta| meta.is_dir())?
-        {
+        if !dir_path.metadata().context("read dir metadata").map(|meta| meta.is_dir())? {
             return Err(anyhow!("base path of the file store should a dir"));
         };
 
-        let instance = match ins.or(dir_path.to_str().map(|s| s.to_owned())) {
+        let instance = match ins.or_else(|| dir_path.to_str().map(|s| s.to_owned())) {
             Some(i) => i,
-            None => {
-                return Err(anyhow!(
-                    "dir path {:?} may contain invalid utf8 chars",
-                    dir_path
-                ))
-            }
+            None => return Err(anyhow!("dir path {:?} may contain invalid utf8 chars", dir_path)),
         };
 
         Ok(FileStore {
@@ -74,7 +65,7 @@ impl FileStore {
         }
 
         let res = self.local_path.join(sub);
-        trace!(target: LOG_TARGET, res = debug_field(&res), "get full path");
+        trace!(target: LOG_TARGET, ?res, "get full path");
         Ok(res)
     }
 }
@@ -82,7 +73,7 @@ impl FileStore {
 impl ObjectStore for FileStore {
     /// get should return a reader for the given path
     fn get(&self, path: &Path) -> ObjResult<Box<dyn Read>> {
-        trace!(target: LOG_TARGET, path = debug_field(path), "get");
+        trace!(target: LOG_TARGET, ?path, "get");
 
         let f = OpenOptions::new().read(true).open(self.path(path)?)?;
         let r: Box<dyn Read> = Box::new(f);
@@ -91,28 +82,19 @@ impl ObjectStore for FileStore {
 
     /// put an object
     fn put(&self, path: &Path, mut r: Box<dyn Read>) -> ObjResult<u64> {
-        trace!(target: LOG_TARGET, path = debug_field(path), "put");
+        trace!(target: LOG_TARGET, ?path, "put");
 
         let dst = self.path(path)?;
 
         if let Some(parent) = dst.parent() {
             if !parent.exists() {
-                trace!(
-                    target: LOG_TARGET,
-                    parent = debug_field(parent),
-                    "create parent dir"
-                );
+                trace!(target: LOG_TARGET, ?parent, "create parent dir");
 
                 create_dir_all(parent)?;
             }
         }
 
-        let mut f = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(dst)?;
+        let mut f = OpenOptions::new().read(true).write(true).create(true).truncate(true).open(dst)?;
 
         copy(&mut r, &mut f).map_err(From::from)
     }
@@ -122,17 +104,8 @@ impl ObjectStore for FileStore {
     }
 
     /// get specified pieces
-    fn get_chunks(
-        &self,
-        path: &Path,
-        ranges: &[Range],
-    ) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>> {
-        trace!(
-            target: LOG_TARGET,
-            path = debug_field(path),
-            pieces = ranges.len(),
-            "get_chunks"
-        );
+    fn get_chunks(&self, path: &Path, ranges: &[Range]) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>> {
+        trace!(target: LOG_TARGET, ?path, pieces = ranges.len(), "get_chunks");
 
         let f = OpenOptions::new().read(true).open(self.path(path)?)?;
         let iter: Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>> = Box::new(ChunkReader {
@@ -144,21 +117,53 @@ impl ObjectStore for FileStore {
         Ok(iter)
     }
 
-    fn copy_to(&self, path: &Path, dst: &Path, allow_sym: bool) -> ObjResult<()> {
-        if allow_sym {
+    fn link_dir(&self, path: &Path, dst: &Path, sym_only: bool) -> ObjResult<()> {
+        let src_path = self.path(path)?;
+        if !src_path.is_dir() {
+            return Err(anyhow!("{:?} is not a dir", path).into());
+        }
+
+        if let Some(parent) = dst.parent() {
+            create_dir_all(parent)?;
+        }
+
+        if sym_only {
+            if dst.exists() {
+                remove_dir_all(dst)?;
+            }
+            symlink(src_path, dst)?;
+            return Ok(());
+        }
+
+        for entry_res in src_path.read_dir()? {
+            let entry = entry_res?;
+            let full_path = entry.path();
+            let rel_path = full_path
+                .strip_prefix(&src_path)
+                .with_context(|| format!("get rel path for {:?} with prefix {:?}", full_path, src_path))?;
+
+            if full_path.is_file() {
+                self.link_object(rel_path, &dst.join(rel_path), false)?;
+            } else {
+                self.link_dir(rel_path, &dst.join(rel_path), false)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn link_object(&self, path: &Path, dst: &Path, sym_only: bool) -> ObjResult<()> {
+        if sym_only {
             let src_path = self.path(path)?;
-            remove_file(dst)?;
+            if dst.exists() {
+                remove_file(dst)?;
+            }
             symlink(src_path, dst)?;
             return Ok(());
         }
 
         let mut r = self.get(path)?;
-        let mut f = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(dst)?;
+        let mut f = OpenOptions::new().read(true).write(true).create(true).truncate(true).open(dst)?;
 
         copy(&mut r, &mut f)?;
         Ok(())

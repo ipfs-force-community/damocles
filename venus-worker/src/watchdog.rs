@@ -13,7 +13,9 @@ use crate::{
     logging::{error, error_span, info, warn},
     rpc::sealer::SealerClient,
     sealing::{
-        processor::{BoxedC2Processor, BoxedPC1Processor, BoxedPC2Processor, BoxedTreeDProcessor},
+        processor::{
+            BoxedC2Processor, BoxedPC1Processor, BoxedPC2Processor, BoxedSnapEncodeProcessor, BoxedSnapProveProcessor, BoxedTreeDProcessor,
+        },
         resource::Pool,
     },
 };
@@ -30,6 +32,7 @@ pub struct Ctx {
     pub done: Done,
     pub cfg: Arc<Config>,
     pub instance: String,
+    pub dest: String,
     pub global: GlobalModules,
 }
 
@@ -51,6 +54,8 @@ pub struct GloablProcessors {
     pub pc1: Arc<BoxedPC1Processor>,
     pub pc2: Arc<BoxedPC2Processor>,
     pub c2: Arc<BoxedC2Processor>,
+    pub snap_encode: Arc<BoxedSnapEncodeProcessor>,
+    pub snap_prove: Arc<BoxedSnapProveProcessor>,
 }
 
 impl Module for Box<dyn Module> {
@@ -80,20 +85,16 @@ pub struct WatchDog {
 }
 
 impl WatchDog {
-    pub fn build(cfg: Config, instance: String, global: GlobalModules) -> Self {
-        Self::build_with_done(cfg, instance, global, dones())
+    pub fn build(cfg: Config, instance: String, dest: String, global: GlobalModules) -> Self {
+        Self::build_with_done(cfg, instance, dest, global, dones())
     }
 
-    pub fn build_with_done(
-        cfg: Config,
-        instance: String,
-        global: GlobalModules,
-        done: (Sender<()>, Receiver<()>),
-    ) -> Self {
+    pub fn build_with_done(cfg: Config, instance: String, dest: String, global: GlobalModules, done: (Sender<()>, Receiver<()>)) -> Self {
         Self {
             ctx: Ctx {
                 done: done.1,
                 instance,
+                dest,
                 cfg: Arc::new(cfg),
                 global,
             },
@@ -126,10 +127,7 @@ impl WatchDog {
             return Ok(());
         }
 
-        let done_ctrl = self
-            .done_ctrl
-            .take()
-            .ok_or(anyhow!("no done controller provided"));
+        let done_ctrl = self.done_ctrl.take().ok_or_else(|| anyhow!("no done controller provided"));
 
         let mut indexes = HashMap::new();
         let mut selector = Select::new();
@@ -148,13 +146,7 @@ impl WatchDog {
         let mname = (self.modules[midx].0).as_str();
         let res = match op.recv(&self.modules[midx].3) {
             Ok(r) => r,
-            Err(e) => {
-                return Err(anyhow!(
-                    "unable to recv run result from module {} from chan: {}",
-                    mname,
-                    e
-                ))
-            }
+            Err(e) => return Err(anyhow!("unable to recv run result from module {} from chan: {}", mname, e)),
         };
 
         match res {

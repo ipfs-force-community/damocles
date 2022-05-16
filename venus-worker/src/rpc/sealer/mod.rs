@@ -15,8 +15,6 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use super::super::types::SealProof;
 
-pub mod mock;
-
 base64_serde_type! {B64SerDe, STANDARD}
 
 /// randomness with base64 ser & de
@@ -78,7 +76,7 @@ impl From<&Vec<u8>> for B64Vec {
 pub type DealID = u64;
 
 /// contains miner actor id & sector number
-#[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorID {
     /// miner actor id
@@ -86,6 +84,12 @@ pub struct SectorID {
 
     /// sector number
     pub number: SectorNumber,
+}
+
+impl std::fmt::Debug for SectorID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "s-t0{}-{}", self.miner, self.number)
+    }
 }
 
 /// rules for allocating sector bases
@@ -347,9 +351,36 @@ pub struct AllocatedSnapUpSector {
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
+pub struct SnapUpOnChainInfo {
+    pub comm_r: [u8; 32],
+    pub comm_d: [u8; 32],
+    pub access_instance: String,
+    pub pieces: Vec<CidJson>,
+    pub proof: B64Vec,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct SubmitSnapUpProofResp {
     pub res: SubmitResult,
     pub desc: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Default)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorkerInfoSummary {
+    pub threads: usize,
+    pub empty: usize,
+    pub paused: usize,
+    pub errors: usize,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorkerInfo {
+    pub name: String,
+    pub dest: String,
+    pub summary: WorkerInfoSummary,
 }
 
 /// defines the SealerRpc service
@@ -369,12 +400,7 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.SubmitPreCommit")]
-    fn submit_pre_commit(
-        &self,
-        sector: AllocatedSector,
-        info: PreCommitOnChainInfo,
-        reset: bool,
-    ) -> Result<SubmitPreCommitResp>;
+    fn submit_pre_commit(&self, sector: AllocatedSector, info: PreCommitOnChainInfo, reset: bool) -> Result<SubmitPreCommitResp>;
 
     /// api definition
     #[rpc(name = "Venus.PollPreCommitState")]
@@ -390,12 +416,7 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.SubmitProof")]
-    fn submit_proof(
-        &self,
-        id: SectorID,
-        proof: ProofOnChainInfo,
-        reset: bool,
-    ) -> Result<SubmitProofResp>;
+    fn submit_proof(&self, id: SectorID, proof: ProofOnChainInfo, reset: bool) -> Result<SubmitProofResp>;
 
     /// api definition
     #[rpc(name = "Venus.PollProofState")]
@@ -412,18 +433,12 @@ pub trait Sealer {
     // snap up
     /// api definition
     #[rpc(name = "Venus.AllocateSanpUpSector")]
-    fn allocate_snapup_sector(
-        &self,
-        spec: AllocateSnapUpSpec,
-    ) -> Result<Option<AllocatedSnapUpSector>>;
+    fn allocate_snapup_sector(&self, spec: AllocateSnapUpSpec) -> Result<Option<AllocatedSnapUpSector>>;
 
     /// api definition
     #[rpc(name = "Venus.SubmitSnapUpProof")]
-    fn submit_snapup_proof(
-        &self,
-        id: SectorID,
-        pieces: Vec<CidJson>,
-        proof: B64Vec,
-        instance: String,
-    ) -> Result<SubmitSnapUpProofResp>;
+    fn submit_snapup_proof(&self, id: SectorID, snapup_info: SnapUpOnChainInfo) -> Result<SubmitSnapUpProofResp>;
+
+    #[rpc(name = "Venus.WorkerPing")]
+    fn worker_ping(&self, winfo: WorkerInfo) -> Result<()>;
 }

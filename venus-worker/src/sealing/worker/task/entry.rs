@@ -57,14 +57,14 @@ impl Entry {
         })
     }
 
-    pub fn dir(base: &PathBuf, rel: PathBuf) -> Self {
+    pub fn dir(base: &Path, rel: PathBuf) -> Self {
         let full = base.join(&rel);
-        Entry::Dir(full, (base.clone(), rel))
+        Entry::Dir(full, (base.to_path_buf(), rel))
     }
 
-    pub fn file(base: &PathBuf, rel: PathBuf) -> Self {
+    pub fn file(base: &Path, rel: PathBuf) -> Self {
         let full = base.join(&rel);
-        Entry::File(full, (base.clone(), rel))
+        Entry::File(full, (base.to_path_buf(), rel))
     }
 
     pub fn base(&self) -> &PathBuf {
@@ -90,9 +90,7 @@ impl Entry {
 
     pub fn read_dir(&self) -> Result<ReadDir> {
         let p = self.dir_path()?;
-        let inner = p
-            .read_dir()
-            .with_context(|| format!("read dir for {:?}", p))?;
+        let inner = p.read_dir().with_context(|| format!("read dir for {:?}", p))?;
 
         Ok(ReadDir {
             base: self.base().clone(),
@@ -102,15 +100,11 @@ impl Entry {
 
     pub fn prepare(&self) -> Result<()> {
         match self {
-            Entry::Dir(p, (_, _)) => {
-                create_dir_all(p).with_context(|| format!("create dir for {:?}", p))
-            }
+            Entry::Dir(p, (_, _)) => create_dir_all(p).with_context(|| format!("create dir for {:?}", p)),
 
             Entry::File(p, (_, _)) => {
                 p.parent()
-                    .map(|d| {
-                        create_dir_all(d).with_context(|| format!("create parent dir for {:?}", p))
-                    })
+                    .map(|d| create_dir_all(d).with_context(|| format!("create parent dir for {:?}", p)))
                     .transpose()?;
 
                 Ok(())
@@ -145,9 +139,9 @@ impl fmt::Debug for Entry {
     }
 }
 
-impl Into<PathBuf> for Entry {
-    fn into(self) -> PathBuf {
-        match self {
+impl From<Entry> for PathBuf {
+    fn from(ent: Entry) -> Self {
+        match ent {
             Entry::Dir(p, (_, _)) => p,
             Entry::File(p, (_, _)) => p,
         }

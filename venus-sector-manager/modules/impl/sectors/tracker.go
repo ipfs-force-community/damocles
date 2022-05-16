@@ -3,38 +3,37 @@ package sectors
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sync"
 
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
-var _ api.SectorTracker = (*Tracker)(nil)
+var _ core.SectorTracker = (*Tracker)(nil)
 
 type sectorStoreInstances struct {
-	info       api.SectorAccessStores
+	info       core.SectorAccessStores
 	sealedFile objstore.Store
 	cacheDir   objstore.Store
 }
 
-func NewTracker(indexer api.SectorIndexer) (*Tracker, error) {
+func NewTracker(indexer core.SectorIndexer) (*Tracker, error) {
 	return &Tracker{
 		indexer: indexer,
 	}, nil
 }
 
 type Tracker struct {
-	indexer api.SectorIndexer
+	indexer core.SectorIndexer
 }
 
-func (t *Tracker) SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, sector builtin.ExtendedSectorInfo, locator api.SectorLocator) (api.PrivateSectorInfo, error) {
-	sref := api.SectorRef{
+func (t *Tracker) SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, sector builtin.ExtendedSectorInfo, locator core.SectorLocator) (core.PrivateSectorInfo, error) {
+	sref := core.SectorRef{
 		ID:        abi.SectorID{Miner: mid, Number: sector.SectorNumber},
 		ProofType: sector.SealProof,
 	}
@@ -42,10 +41,10 @@ func (t *Tracker) SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, s
 	return t.SinglePrivateInfo(ctx, sref, sector.SectorKey != nil, locator)
 }
 
-func (t *Tracker) getPrivateInfo(ctx context.Context, sref api.SectorRef, upgrade bool, locator api.SectorLocator) (*sectorStoreInstances, api.PrivateSectorInfo, error) {
+func (t *Tracker) getPrivateInfo(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator) (*sectorStoreInstances, core.PrivateSectorInfo, error) {
 	objins, err := t.getObjInstanceForSector(ctx, sref.ID, locator, upgrade)
 	if err != nil {
-		return nil, api.PrivateSectorInfo{}, fmt.Errorf("get location for %s: %w", util.FormatSectorID(sref.ID), err)
+		return nil, core.PrivateSectorInfo{}, fmt.Errorf("get location for %s: %w", util.FormatSectorID(sref.ID), err)
 	}
 
 	var cache string
@@ -58,7 +57,7 @@ func (t *Tracker) getPrivateInfo(ctx context.Context, sref api.SectorRef, upgrad
 		sealed = util.SectorPath(util.SectorPathTypeSealed, sref.ID)
 	}
 
-	return objins, api.PrivateSectorInfo{
+	return objins, core.PrivateSectorInfo{
 		Accesses:         objins.info,
 		CacheDirURI:      cache,
 		CacheDirPath:     objins.cacheDir.FullPath(ctx, cache),
@@ -67,16 +66,16 @@ func (t *Tracker) getPrivateInfo(ctx context.Context, sref api.SectorRef, upgrad
 	}, nil
 }
 
-func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref api.SectorRef, upgrade bool, locator api.SectorLocator) (api.PrivateSectorInfo, error) {
+func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator) (core.PrivateSectorInfo, error) {
 	_, privateInfo, err := t.getPrivateInfo(ctx, sref, upgrade, locator)
 	if err != nil {
-		return api.PrivateSectorInfo{}, fmt.Errorf("get private info: %w", err)
+		return core.PrivateSectorInfo{}, fmt.Errorf("get private info: %w", err)
 	}
 
 	return privateInfo, nil
 }
 
-func (t *Tracker) SingleProvable(ctx context.Context, sref api.SectorRef, upgrade bool, locator api.SectorLocator, strict bool) error {
+func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator, strict bool) error {
 	ssize, err := sref.ProofType.SectorSize()
 	if err != nil {
 		return fmt.Errorf("get sector size: %w", err)
@@ -87,9 +86,7 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref api.SectorRef, upgrad
 		return fmt.Errorf("get private info: %w", err)
 	}
 
-	targetsInCacheDir := map[string]int64{
-		filepath.Join(privateInfo.CacheDirURI, "p_aux"): 0,
-	}
+	targetsInCacheDir := map[string]int64{}
 	addCachePathsForSectorSize(targetsInCacheDir, privateInfo.CacheDirURI, ssize)
 
 	checks := []struct {
@@ -145,7 +142,7 @@ func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, sectors []built
 
 			sector := sectors[i]
 
-			sref := api.SectorRef{
+			sref := core.SectorRef{
 				ID:        abi.SectorID{Miner: mid, Number: sector.SectorNumber},
 				ProofType: sector.SealProof,
 			}
@@ -171,12 +168,12 @@ func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, sectors []built
 	return bad, nil
 }
 
-func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, sectorInfo []builtin.ExtendedSectorInfo, typer api.SectorPoStTyper) ([]api.FFIPrivateSectorInfo, error) {
+func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, sectorInfo []builtin.ExtendedSectorInfo, typer core.SectorPoStTyper) ([]core.FFIPrivateSectorInfo, error) {
 	if len(sectorInfo) == 0 {
-		return []api.FFIPrivateSectorInfo{}, nil
+		return []core.FFIPrivateSectorInfo{}, nil
 	}
 
-	out := make([]api.FFIPrivateSectorInfo, 0, len(sectorInfo))
+	out := make([]core.FFIPrivateSectorInfo, 0, len(sectorInfo))
 	proofType, err := typer(sectorInfo[0].SealProof)
 	if err != nil {
 		return nil, fmt.Errorf("get PoSt proof type: %w", err)
@@ -193,7 +190,7 @@ func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, sectorInfo 
 	return out, nil
 }
 
-func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID, locator api.SectorLocator, upgrade bool) (*sectorStoreInstances, error) {
+func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID, locator core.SectorLocator, upgrade bool) (*sectorStoreInstances, error) {
 	if locator == nil {
 		if upgrade {
 			locator = t.indexer.Upgrade().Find

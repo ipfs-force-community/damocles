@@ -5,12 +5,10 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub use fil_clock::ChainEpoch;
 pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness};
 
-use crate::rpc::sealer::{
-    AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket,
-};
+use crate::rpc::sealer::{AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket};
 use crate::sealing::processor::{
-    PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
-    SealPreCommitPhase2Output, SectorId, SnapEncodeOutput,
+    PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
+    SnapEncodeOutput,
 };
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
@@ -35,9 +33,9 @@ macro_rules! def_state {
             }
         }
 
-        impl Into<&str> for State {
-            fn into(self) -> &'static str {
-                self.as_str()
+        impl From<State> for &str {
+            fn from(s: State) -> &'static str {
+                s.as_str()
             }
         }
 

@@ -1,4 +1,4 @@
-package api
+package core
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 // applies outside changes to the state, returns if it is ok to go on, and any error if exist
 type SectorStateChangeHook func(st *SectorState) (bool, error)
 
-// returns the persist instance name, existance
+// returns the persist instance name, existence
 type SectorLocator func(ctx context.Context, sid abi.SectorID) (SectorAccessStores, bool, error)
 
 type SectorPoStTyper func(proofType abi.RegisteredSealProof) (abi.RegisteredPoStProof, error)

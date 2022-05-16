@@ -192,6 +192,24 @@ func (s *Store) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 	return res.ReadCloser, res.Err
 }
 
+func (s *Store) Del(ctx context.Context, p string) error {
+	if s.cfg.ReadOnly {
+		return objstore.ErrReadOnlyStore
+	}
+
+	fpath, err := s.getAbsPath(p)
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(fpath)
+	if err != nil {
+		return fmt.Errorf("del obj: %w", err)
+	}
+
+	return nil
+}
+
 func (s *Store) Stat(ctx context.Context, p string) (objstore.Stat, error) {
 	resCh := make(chan statOrErr, 1)
 	go func() {
@@ -218,18 +236,27 @@ func (s *Store) Stat(ctx context.Context, p string) (objstore.Stat, error) {
 	}
 }
 
+func (s *Store) getAbsPath(p string) (string, error) {
+	fpath, err := filepath.Abs(filepath.Join(s.cfg.Path, p))
+	if err != nil {
+		return "", fmt.Errorf("obj %s: %w", p, objstore.ErrInvalidObjectPath)
+	}
+
+	if !strings.HasPrefix(fpath, s.cfg.Path) {
+		return "", fmt.Errorf("obj %s: %w: outside of the dir", p, objstore.ErrInvalidObjectPath)
+	}
+
+	return fpath, nil
+}
+
 func (s *Store) Put(ctx context.Context, p string, r io.Reader) (int64, error) {
 	if s.cfg.ReadOnly {
 		return 0, objstore.ErrReadOnlyStore
 	}
 
-	fpath, err := filepath.Abs(filepath.Join(s.cfg.Path, p))
+	fpath, err := s.getAbsPath(p)
 	if err != nil {
-		return 0, fmt.Errorf("obj %s: %w", p, objstore.ErrInvalidObjectPath)
-	}
-
-	if !strings.HasPrefix(fpath, s.cfg.Path) {
-		return 0, fmt.Errorf("obj %s: %w: outside of the dir", p, objstore.ErrInvalidObjectPath)
+		return 0, err
 	}
 
 	file, err := os.OpenFile(fpath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)

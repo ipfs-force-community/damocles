@@ -6,27 +6,25 @@ import (
 	"fmt"
 	"time"
 
-	logging "github.com/ipfs/go-log/v2"
-	"golang.org/x/xerrors"
-
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	v1 "github.com/filecoin-project/venus/venus-shared/api/gateway/v1"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
-var log = logging.Logger("proof_event")
+var log = logging.New("proof_event")
 
 type ProofEvent struct {
-	prover  api.Prover
+	prover  core.Prover
 	client  v1.IGateway
-	actor   api.ActorIdent
-	tracker api.SectorTracker
+	actor   core.ActorIdent
+	tracker core.SectorTracker
 }
 
-func NewProofEvent(prover api.Prover, client v1.IGateway, actor api.ActorIdent, tracker api.SectorTracker) *ProofEvent {
+func NewProofEvent(prover core.Prover, client v1.IGateway, actor core.ActorIdent, tracker core.SectorTracker) *ProofEvent {
 	pe := &ProofEvent{
 		prover:  prover,
 		client:  client,
@@ -66,7 +64,7 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 	proofEventCh, err := pe.client.ListenProofEvent(ctx, policy)
 	if err != nil {
 		// Retry is handled by caller
-		return xerrors.Errorf("listenHeadChanges ChainNotify call failed: %w", err)
+		return fmt.Errorf("listenHeadChanges ChainNotify call failed: %w", err)
 	}
 
 	for proofEvent := range proofEventCh {
@@ -75,7 +73,7 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 			req := gtypes.ConnectedCompleted{}
 			err := json.Unmarshal(proofEvent.Payload, &req)
 			if err != nil {
-				return xerrors.Errorf("odd error in connect %v", err)
+				return fmt.Errorf("odd error in connect %v", err)
 			}
 			log.Infof("%s success to connect with proof %s", pe.actor.Addr, req.ChannelId)
 		case "ComputeProof":
@@ -140,11 +138,11 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqID vtypes.UUID
 	}
 }
 
-func (pe *ProofEvent) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.ExtendedSectorInfo) (api.SortedPrivateSectorInfo, error) {
-	out, err := pe.tracker.PubToPrivate(ctx, pe.actor.ID, sectorInfo, api.SectorWinningPoSt)
+func (pe *ProofEvent) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.ExtendedSectorInfo) (core.SortedPrivateSectorInfo, error) {
+	out, err := pe.tracker.PubToPrivate(ctx, pe.actor.ID, sectorInfo, core.SectorWinningPoSt)
 	if err != nil {
-		return api.SortedPrivateSectorInfo{}, fmt.Errorf("convert to private infos: %w", err)
+		return core.SortedPrivateSectorInfo{}, fmt.Errorf("convert to private infos: %w", err)
 	}
 
-	return api.NewSortedPrivateSectorInfo(out...), nil
+	return core.NewSortedPrivateSectorInfo(out...), nil
 }

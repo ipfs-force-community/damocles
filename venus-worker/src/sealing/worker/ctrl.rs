@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver, Sender};
 
 use super::{super::store::Location, State};
+use crate::rpc::sealer::SectorID;
 
 pub fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
     let (pause_tx, pause_rx) = bounded(1);
@@ -21,14 +22,14 @@ pub fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
         CtrlCtx {
             pause_rx,
             resume_rx,
-            state: state,
+            state,
         },
     )
 }
 
 #[derive(Default)]
 pub struct CtrlJobState {
-    pub id: Option<String>,
+    pub id: Option<SectorID>,
     pub state: State,
     pub last_error: Option<String>,
 }
@@ -48,10 +49,7 @@ pub struct Ctrl {
 
 impl Ctrl {
     pub fn load_state<T, F: FnOnce(&CtrlState) -> T>(&self, f: F) -> Result<T> {
-        let ctrl_state = self
-            .state
-            .read()
-            .map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
+        let ctrl_state = self.state.read().map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
 
         let res = f(&ctrl_state);
         drop(ctrl_state);
@@ -67,10 +65,7 @@ pub struct CtrlCtx {
 
 impl CtrlCtx {
     pub fn update_state<F: FnOnce(&mut CtrlState)>(&self, f: F) -> Result<()> {
-        let mut ctrl_state = self
-            .state
-            .write()
-            .map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
+        let mut ctrl_state = self.state.write().map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
 
         f(&mut ctrl_state);
         drop(ctrl_state);

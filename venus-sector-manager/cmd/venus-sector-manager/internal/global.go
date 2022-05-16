@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/signal"
+	"reflect"
 	"strconv"
 	"syscall"
 	"time"
@@ -18,7 +19,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.uber.org/fx"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
@@ -46,6 +47,11 @@ var SealerListenFlag = &cli.StringFlag{
 	Value: ":1789",
 }
 
+var ConfDirFlag = &cli.StringFlag{
+	Name:  "conf-dir",
+	Usage: "the dir path in which the sector-manager.cfg file exists, set this only if you don't want to use the config file inside home dir",
+}
+
 type stopper = func()
 
 func NewSigContext(parent context.Context) (context.Context, context.CancelFunc) {
@@ -53,9 +59,20 @@ func NewSigContext(parent context.Context) (context.Context, context.CancelFunc)
 }
 
 func DepsFromCLICtx(cctx *cli.Context) dix.Option {
+	confDir := cctx.String(ConfDirFlag.Name)
 	return dix.Options(
 		dix.Override(new(*cli.Context), cctx),
 		dix.Override(new(*homedir.Home), HomeFromCLICtx),
+		dix.If(confDir != "",
+			dix.Override(new(dep.ConfDirPath), func() (dep.ConfDirPath, error) {
+				dir, err := homedir.Expand(confDir)
+				if err != nil {
+					return "", fmt.Errorf("expand conf dir path: %w", err)
+				}
+
+				return dep.ConfDirPath(dir), nil
+			}),
+		),
 	)
 }
 
@@ -77,7 +94,7 @@ type API struct {
 	Chain    chain.API
 	Messager messager.API
 	Market   market.API
-	Sealer   api.SealerCliClient
+	Sealer   core.SealerCliClient
 }
 
 func extractAPI(cctx *cli.Context, target ...interface{}) (*API, context.Context, stopper, error) {
@@ -88,10 +105,10 @@ func extractAPI(cctx *cli.Context, target ...interface{}) (*API, context.Context
 
 	stopper, err := dix.New(
 		gctx,
+		dep.API(wants...),
 		DepsFromCLICtx(cctx),
 		dix.Override(new(dep.GlobalContext), gctx),
 		dix.Override(new(dep.ListenAddress), dep.ListenAddress(cctx.String(SealerListenFlag.Name))),
-		dep.API(wants...),
 	)
 
 	if err != nil {
@@ -229,4 +246,19 @@ func OuputJSON(w io.Writer, v interface{}) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "\t")
 	return enc.Encode(v)
+}
+
+func FormatOrNull(arg interface{}, f func() string) string {
+	if arg == nil {
+		return "NULL"
+	}
+
+	rv := reflect.ValueOf(arg)
+	rt := rv.Type()
+	if rt.Kind() == reflect.Ptr && rv.IsNil() {
+		return "NULL"
+
+	}
+
+	return f()
 }

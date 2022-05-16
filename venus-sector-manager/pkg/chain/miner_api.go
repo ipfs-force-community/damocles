@@ -2,6 +2,7 @@ package chain
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/filecoin-project/go-address"
@@ -11,15 +12,15 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
-var _ api.MinerInfoAPI = (*MinerInfoAPI)(nil)
+var _ core.MinerInfoAPI = (*MinerInfoAPI)(nil)
 
 func NewMinerInfoAPI(capi API) *MinerInfoAPI {
 	return &MinerInfoAPI{
 		chain: capi,
-		cache: map[abi.ActorID]*api.MinerInfo{},
+		cache: map[abi.ActorID]*core.MinerInfo{},
 	}
 }
 
@@ -27,10 +28,10 @@ type MinerInfoAPI struct {
 	// TODO: miner info cache
 	chain   API
 	cacheMu sync.RWMutex
-	cache   map[abi.ActorID]*api.MinerInfo
+	cache   map[abi.ActorID]*core.MinerInfo
 }
 
-func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*api.MinerInfo, error) {
+func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
 	m.cacheMu.RLock()
 	mi, ok := m.cache[mid]
 	m.cacheMu.RUnlock()
@@ -48,17 +49,23 @@ func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*api.MinerInfo
 		return nil, err
 	}
 
+	dlinfo, err := m.chain.StateMinerProvingDeadline(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return nil, fmt.Errorf("get proving deadline info: %w", err)
+	}
+
 	sealProof, err := miner.SealProofTypeFromSectorSize(minfo.SectorSize, constants.NewestNetworkVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	mi = &api.MinerInfo{
+	mi = &core.MinerInfo{
 		ID:                  mid,
 		Addr:                maddr,
 		SectorSize:          minfo.SectorSize,
 		WindowPoStProofType: minfo.WindowPoStProofType,
 		SealProofType:       sealProof,
+		Deadline:            *dlinfo,
 	}
 
 	m.cacheMu.Lock()

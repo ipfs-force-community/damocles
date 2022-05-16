@@ -51,12 +51,7 @@ impl Pool {
         let mut pool = HashMap::new();
 
         for (k, v) in iter {
-            debug!(
-                target: LOG_TARGET,
-                name = k.as_str(),
-                limit = *v,
-                "add limitation"
-            );
+            debug!(target: LOG_TARGET, name = k.as_str(), limit = *v, "add limitation");
             pool.insert(k.to_owned(), Limit::new(*v));
         }
 

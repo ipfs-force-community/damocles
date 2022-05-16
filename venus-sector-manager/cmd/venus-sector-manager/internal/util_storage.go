@@ -2,18 +2,23 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dtynn/dix"
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/filecoin-project/venus/venus-shared/types"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
@@ -100,14 +105,16 @@ var utilStorageAttachCmd = &cli.Command{
 			return fmt.Errorf("encode example config for storage path: %w", err)
 		}
 
-		var indexer api.SectorIndexer
+		var indexer core.SectorIndexer
+		var chainAPI chain.API
 
 		stopper, err := dix.New(
 			gctx,
 			DepsFromCLICtx(cctx),
 			dep.Product(),
 			dix.Override(new(dep.GlobalContext), gctx),
-			dix.Populate(dep.InvokePopulate, &indexer),
+			dix.Override(new(dep.ListenAddress), dep.ListenAddress(cctx.String(SealerListenFlag.Name))),
+			dix.Populate(dep.InvokePopulate, &indexer, &chainAPI),
 		)
 
 		if err != nil {
@@ -116,9 +123,15 @@ var utilStorageAttachCmd = &cli.Command{
 
 		defer stopper(gctx) // nolint:errcheck
 
+		cacheInfo := &cachedInfoForScanning{
+			capi:   chainAPI,
+			ssizes: make(map[abi.ActorID]abi.SectorSize),
+			errors: make(map[abi.ActorID]error),
+		}
+
 		for _, upgrade := range []bool{false, true} {
 			logger.Infof("scan for sectors(upgrade=%v)", upgrade)
-			sids, err := scanForSectors(logger, abs, upgrade, false, verbose)
+			sids, err := scanForSectors(gctx, logger, cacheInfo, abs, upgrade, false, allowSplitted, verbose)
 			if err != nil {
 				return fmt.Errorf("scan sectors(upgrade=%v): %w", upgrade, err)
 			}
@@ -129,7 +142,7 @@ var utilStorageAttachCmd = &cli.Command{
 			}
 
 			for _, sid := range sids {
-				access := api.SectorAccessStores{
+				access := core.SectorAccessStores{
 					SealedFile: name,
 				}
 
@@ -149,13 +162,13 @@ var utilStorageAttachCmd = &cli.Command{
 
 			if allowSplitted {
 				logger.Infof("scan for splitted cache dirs(upgrade=%v)", upgrade)
-				cachedSIDs, err := scanForSectors(logger, abs, upgrade, true, verbose)
+				cachedSIDs, err := scanForSectors(gctx, logger, cacheInfo, abs, upgrade, true, allowSplitted, verbose)
 				if err != nil {
 					return fmt.Errorf("scan splitted cache dirs(upgrade=%v): %w", upgrade, err)
 				}
 
 				for _, sid := range cachedSIDs {
-					err := dest.Update(gctx, sid, api.SectorAccessStores{
+					err := dest.Update(gctx, sid, core.SectorAccessStores{
 						CacheDir: name,
 					})
 					if err != nil {
@@ -177,21 +190,61 @@ var utilStorageAttachCmd = &cli.Command{
 	},
 }
 
-func scanForSectors(logger *logging.ZapLogger, abs string, upgrade bool, useCacheDir bool, verbose bool) ([]abi.SectorID, error) {
-	var targetPath string
-	if upgrade {
-		targetPath = util.SectorPath(util.SectorPathTypeUpdate, abi.SectorID{})
-		if useCacheDir {
-			targetPath = util.SectorPath(util.SectorPathTypeUpdateCache, abi.SectorID{})
-		}
-	} else {
-		targetPath = util.SectorPath(util.SectorPathTypeSealed, abi.SectorID{})
-		if useCacheDir {
-			targetPath = util.SectorPath(util.SectorPathTypeCache, abi.SectorID{})
-		}
+type cachedInfoForScanning struct {
+	capi   chain.API
+	ssizes map[abi.ActorID]abi.SectorSize
+	errors map[abi.ActorID]error
+}
+
+func (c *cachedInfoForScanning) getSectorSize(ctx context.Context, mid abi.ActorID) (abi.SectorSize, error) {
+	if ssize, ok := c.ssizes[mid]; ok {
+		return ssize, nil
 	}
 
-	matchPattern := filepath.Join(abs, filepath.Dir(targetPath), "*")
+	if err, ok := c.errors[mid]; ok {
+		return 0, err
+	}
+
+	maddr, err := address.NewIDAddress(uint64(mid))
+	if err != nil {
+		c.errors[mid] = fmt.Errorf("construct actor address: %w", err)
+		return 0, c.errors[mid]
+	}
+
+	minfo, err := c.capi.StateMinerInfo(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		c.errors[mid] = fmt.Errorf("state miner info: %w", err)
+		return 0, c.errors[mid]
+	}
+
+	ssize, err := minfo.WindowPoStProofType.SectorSize()
+	if err != nil {
+		c.errors[mid] = fmt.Errorf("sector size from post proof type: %w", err)
+		return 0, c.errors[mid]
+	}
+
+	c.ssizes[mid] = ssize
+	return ssize, nil
+}
+
+func scanForSectors(ctx context.Context, logger *logging.ZapLogger, cachedInfo *cachedInfoForScanning, abs string, upgrade bool, useCacheDir bool, allowSplitted bool, verbose bool) ([]abi.SectorID, error) {
+	var dirOfSealedFile string
+	var dirOfCacheDir string
+
+	if upgrade {
+		dirOfSealedFile = filepath.Dir(util.SectorPath(util.SectorPathTypeUpdate, abi.SectorID{}))
+		dirOfCacheDir = filepath.Dir(util.SectorPath(util.SectorPathTypeUpdateCache, abi.SectorID{}))
+	} else {
+		dirOfSealedFile = filepath.Dir(util.SectorPath(util.SectorPathTypeSealed, abi.SectorID{}))
+		dirOfCacheDir = filepath.Dir(util.SectorPath(util.SectorPathTypeCache, abi.SectorID{}))
+	}
+
+	targetDir := dirOfSealedFile
+	if useCacheDir {
+		targetDir = dirOfCacheDir
+	}
+
+	matchPattern := filepath.Join(abs, targetDir, "*")
 	if verbose {
 		logger.Infof("use match pattern %q", matchPattern)
 	}
@@ -202,15 +255,67 @@ func scanForSectors(logger *logging.ZapLogger, abs string, upgrade bool, useCach
 	}
 
 	sids := make([]abi.SectorID, 0, len(matches))
+SECTOR_LOOP:
 	for _, mat := range matches {
 		base := filepath.Base(mat)
 		sid, ok := util.ScanSectorID(base)
-		if ok {
-			sids = append(sids, sid)
+		if !ok {
+			continue SECTOR_LOOP
 		}
 
+		ssize, err := cachedInfo.getSectorSize(ctx, sid.Miner)
+		if err != nil {
+			if verbose {
+				logger.Warn("get sector size for %d: %s", sid.Miner, err)
+			}
+			continue SECTOR_LOOP
+		}
+
+		checkSealedFile := !allowSplitted || !useCacheDir
+		checkCacheFiles := !allowSplitted || useCacheDir
+
+		if checkSealedFile {
+			fpath := filepath.Join(abs, dirOfSealedFile, util.FormatSectorID(sid))
+			stat, err := os.Stat(fpath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					if verbose {
+						logger.Warnf("sealed file %q not exists", fpath)
+					}
+					continue SECTOR_LOOP
+				}
+
+				return nil, fmt.Errorf("stat file %q: %w", fpath, err)
+			}
+
+			if fsize := stat.Size(); fsize != int64(ssize) {
+				if verbose {
+					logger.Warnf("sealed file %q with incorrect file size %d", fpath, fsize)
+				}
+				continue SECTOR_LOOP
+			}
+		}
+
+		if checkCacheFiles {
+			fpaths := util.CachedFilesForSectorSize(filepath.Join(abs, dirOfCacheDir, util.FormatSectorID(sid)), ssize)
+			for _, fpath := range fpaths {
+				_, err := os.Stat(fpath)
+				if err != nil {
+					if os.IsNotExist(err) {
+						if verbose {
+							logger.Warnf("cache file %q not exists", fpath)
+						}
+						continue SECTOR_LOOP
+					}
+
+					return nil, fmt.Errorf("stat file %q: %w", fpath, err)
+				}
+			}
+		}
+
+		sids = append(sids, sid)
 		if verbose {
-			logger.Infof("path %q matched=%v", base, ok)
+			logger.Infof("sector %s scanned", util.FormatSectorID(sid))
 		}
 	}
 
@@ -246,7 +351,7 @@ var utilStorageFindCmd = &cli.Command{
 			return fmt.Errorf("parse sector number: %w", err)
 		}
 
-		var indexer api.SectorIndexer
+		var indexer core.SectorIndexer
 
 		stopper, err := dix.New(
 			gctx,

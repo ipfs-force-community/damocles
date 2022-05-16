@@ -14,12 +14,13 @@ import (
 	"github.com/filecoin-project/go-jsonrpc"
 	vapi "github.com/filecoin-project/venus/venus-shared/api"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/commitmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/dealmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/mock"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/sectors"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/worker"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
@@ -37,14 +38,21 @@ type (
 	PersistedObjectStoreManager objstore.Manager
 	SectorIndexMetaStore        kvstore.KVStore
 	ListenAddress               string
+	ProxyAddress                string
+	WorkerMetaStore             kvstore.KVStore
+	ConfDirPath                 string
 )
 
-func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi api.MinerInfoAPI, numAlloc api.SectorNumberAllocator) (api.SectorManager, error) {
+func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerInfoAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
 	return sectors.NewManager(scfg, mapi, numAlloc)
 }
 
-func BuildLocalConfigManager(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (confmgr.ConfigManager, error) {
-	cfgmgr, err := confmgr.NewLocal(home.Dir())
+func BuildConfDirPath(home *homedir.Home) ConfDirPath {
+	return ConfDirPath(home.Dir())
+}
+
+func BuildLocalConfigManager(gctx GlobalContext, lc fx.Lifecycle, confDir ConfDirPath) (confmgr.ConfigManager, error) {
+	cfgmgr, err := confmgr.NewLocal(string(confDir))
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +83,7 @@ func ProvideConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigMan
 		return nil, err
 	}
 
-	log.Infof("Sector-manager initial cfg: %s\n", buf.String())
+	log.Infof("Sector-manager initial cfg: \n%s\n", buf.String())
 
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
@@ -136,7 +144,7 @@ func BuildOfflineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Ho
 	return store, nil
 }
 
-func BuildSectorNumberAllocator(meta OnlineMetaStore) (api.SectorNumberAllocator, error) {
+func BuildSectorNumberAllocator(meta OnlineMetaStore) (core.SectorNumberAllocator, error) {
 	store, err := kvstore.NewWrappedKVStore([]byte("sector-number"), meta)
 	if err != nil {
 		return nil, err
@@ -145,7 +153,7 @@ func BuildSectorNumberAllocator(meta OnlineMetaStore) (api.SectorNumberAllocator
 	return sectors.NewNumerAllocator(store)
 }
 
-func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaStore) (api.SectorStateManager, error) {
+func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaStore) (core.SectorStateManager, error) {
 	onlineStore, err := kvstore.NewWrappedKVStore([]byte("sector-states"), online)
 	if err != nil {
 		return nil, err
@@ -179,19 +187,25 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Conf
 	return mcli, nil
 }
 
-func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) api.SealerCliClient {
-	cli, err := BuildSealerCliClient(gctx, lc, listen)
+// used for cli commands
+func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) core.SealerCliClient {
+	cli, err := buildSealerCliClient(gctx, lc, string(listen), false)
 	if err != nil {
-		cli = api.UnavailableSealerCliClient
+		cli = core.UnavailableSealerCliClient
 	}
 
 	return cli
 }
 
-func BuildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) (api.SealerCliClient, error) {
-	var scli api.SealerCliClient
+// used for proxy
+func BuildSealerProxyClient(gctx GlobalContext, lc fx.Lifecycle, proxy ProxyAddress) (core.SealerCliClient, error) {
+	return buildSealerCliClient(gctx, lc, string(proxy), true)
+}
 
-	addr, err := net.ResolveTCPAddr("tcp", string(listen))
+func buildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, serverAddr string, useHTTP bool) (core.SealerCliClient, error) {
+	var scli core.SealerCliClient
+
+	addr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
 		return scli, err
 	}
@@ -202,9 +216,12 @@ func BuildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddr
 	}
 
 	maddr := fmt.Sprintf("/ip4/%s/tcp/%d", ip, addr.Port)
+	if useHTTP {
+		maddr += "/http"
+	}
 
 	ainfo := vapi.NewAPIInfo(maddr, "")
-	apiAddr, err := ainfo.DialArgs(vapi.VerString(api.MajorVersion))
+	apiAddr, err := ainfo.DialArgs(vapi.VerString(core.MajorVersion))
 	if err != nil {
 		return scli, err
 	}
@@ -244,7 +261,7 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config,
 	return ccli, nil
 }
 
-func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.Config, locker confmgr.RLocker) (api.MinerInfoAPI, error) {
+func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.Config, locker confmgr.RLocker) (core.MinerInfoAPI, error) {
 	mapi := chain.NewMinerInfoAPI(capi)
 
 	locker.Lock()
@@ -287,13 +304,13 @@ func BuildCommitmentManager(
 	lc fx.Lifecycle,
 	capi chain.API,
 	mapi messager.API,
-	rapi api.RandomnessAPI,
-	stmgr api.SectorStateManager,
-	minfoAPI api.MinerInfoAPI,
+	rapi core.RandomnessAPI,
+	stmgr core.SectorStateManager,
+	minfoAPI core.MinerInfoAPI,
 	scfg *modules.SafeConfig,
-	verif api.Verifier,
-	prover api.Prover,
-) (api.CommitmentManager, error) {
+	verif core.Verifier,
+	prover core.Prover,
+) (core.CommitmentManager, error) {
 	mgr, err := commitmgr.NewCommitmentMgr(
 		gctx,
 		mapi,
@@ -352,7 +369,7 @@ func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker) (P
 	return filestore.NewManager(persistCfg)
 }
 
-func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (api.SectorIndexer, error) {
+func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (core.SectorIndexer, error) {
 	upgrade, err := kvstore.NewWrappedKVStore([]byte("sector-upgrade"), kv)
 	if err != nil {
 		return nil, fmt.Errorf("wrap kvstore for sector-upgrade: %w", err)
@@ -361,18 +378,18 @@ func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMeta
 	return sectors.NewIndexer(storeMgr, kv, upgrade)
 }
 
-func BuildSectorTracker(indexer api.SectorIndexer) (api.SectorTracker, error) {
+func BuildSectorTracker(indexer core.SectorIndexer) (core.SectorTracker, error) {
 	return sectors.NewTracker(indexer)
 }
 
 type MarketAPIRelatedComponets struct {
 	fx.Out
 
-	DealManager api.DealManager
+	DealManager core.DealManager
 	MarketAPI   market.API
 }
 
-func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI api.MinerInfoAPI) (market.API, error) {
+func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI) (market.API, error) {
 	scfg.Lock()
 	api, token := scfg.Common.API.Market, scfg.Common.API.Token
 	defer scfg.Unlock()
@@ -396,7 +413,7 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 	return mapi, nil
 }
 
-func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI api.MinerInfoAPI) (MarketAPIRelatedComponets, error) {
+func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI) (MarketAPIRelatedComponets, error) {
 	mapi, err := BuildMarketAPI(gctx, lc, scfg, infoAPI)
 	if err != nil {
 		return MarketAPIRelatedComponets{}, fmt.Errorf("build market api: %w", err)
@@ -420,11 +437,118 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	}
 
 	proxy := piecestore.NewProxy(locals, mapi)
-	http.DefaultServeMux.Handle(HttpEndpointPiecestore, http.StripPrefix(HttpEndpointPiecestore, proxy))
+	http.DefaultServeMux.Handle(HTTPEndpointPiecestore, http.StripPrefix(HTTPEndpointPiecestore, proxy))
 	log.Info("piecestore proxy has been registered into default mux")
 
 	return MarketAPIRelatedComponets{
 		DealManager: dealmgr.New(mapi, infoAPI, scfg),
 		MarketAPI:   mapi,
 	}, nil
+}
+
+func BuildChainEventBus(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	capi chain.API,
+	scfg *modules.SafeConfig,
+) (*chain.EventBus, error) {
+	scfg.Lock()
+	interval := scfg.Common.API.ChainEventInterval
+	scfg.Unlock()
+
+	bus, err := chain.NewEventBus(gctx, capi, interval.Std())
+	if err != nil {
+		return nil, fmt.Errorf("construct chain eventbus: %w", err)
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			go bus.Run()
+			return nil
+		},
+
+		OnStop: func(ctx context.Context) error {
+			bus.Stop()
+			return nil
+		},
+	})
+
+	return bus, nil
+}
+
+func BuildSnapUpManager(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	home *homedir.Home,
+	scfg *modules.SafeConfig,
+	tracker core.SectorTracker,
+	indexer core.SectorIndexer,
+	chainAPI chain.API,
+	eventbus *chain.EventBus,
+	messagerAPI messager.API,
+	minerInfoAPI core.MinerInfoAPI,
+	stateMgr core.SectorStateManager,
+) (core.SnapUpSectorManager, error) {
+	dir := home.Sub("snapup")
+	kv, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return kv.Run(gctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return kv.Close(ctx)
+		},
+	})
+
+	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerInfoAPI, stateMgr, scfg, kv)
+	if err != nil {
+		return nil, fmt.Errorf("construct snapup manager: %w", err)
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return mgr.Start()
+		},
+
+		OnStop: func(ctx context.Context) error {
+			mgr.Stop()
+			return nil
+		},
+	})
+
+	return mgr, nil
+}
+
+func BuildWorkerMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (WorkerMetaStore, error) {
+	dir := home.Sub("worker")
+	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return store.Run(gctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return store.Close(ctx)
+		},
+	})
+
+	return store, nil
+}
+
+func BuildWorkerManager(meta WorkerMetaStore) (core.WorkerManager, error) {
+	return worker.NewManager(meta)
+}
+
+func BuildProxiedSectorIndex(client core.SealerCliClient, storeMgr PersistedObjectStoreManager) (core.SectorIndexer, error) {
+	log.Debug("build proxied sector indexer")
+	return sectors.NewProxiedIndexer(client, storeMgr)
 }

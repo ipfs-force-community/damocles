@@ -1,11 +1,11 @@
-GIT_COMMIT=git.$(subst -,.,$(shell git describe --always --match=NeVeRmAtCh --dirty 2>/dev/null || git rev-parse --short HEAD 2>/dev/null))
+export GIT_COMMIT=git.$(subst -,.,$(shell git describe --always --match=NeVeRmAtCh --dirty 2>/dev/null || git rev-parse --short HEAD 2>/dev/null))
 
 all: fmt clippy build-all
 
 check-all: check-fmt check-clippy
 
 build-all:
-	GIT_COMMIT=$(GIT_COMMIT) cargo build --release
+	cargo build --release
 
 fmt:
 	cargo fmt --all
@@ -18,3 +18,6 @@ clippy:
 
 check-clippy:
 	cargo clippy --no-deps -- -D warnings
+
+dev-env:
+	rustup component add --toolchain $(shell cat rust-toolchain) rls rust-analysis rust-src rustc-dev clippy rustfmt

@@ -8,7 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 )
@@ -16,7 +16,7 @@ import (
 var stateFields []reflect.StructField
 
 func init() {
-	rst := reflect.TypeOf(api.SectorState{})
+	rst := reflect.TypeOf(core.SectorState{})
 	fnum := rst.NumField()
 	fields := make([]reflect.StructField, 0, fnum)
 	for fi := 0; fi < fnum; fi++ {
@@ -27,15 +27,15 @@ func init() {
 	stateFields = fields
 }
 
-func WorkerJobMatcher(jobType api.SectorWorkerJob, state *api.SectorState) bool {
+func WorkerJobMatcher(jobType core.SectorWorkerJob, state *core.SectorState) bool {
 	switch jobType {
-	case api.SectorWorkerJobAll:
+	case core.SectorWorkerJobAll:
 		return true
 
-	case api.SectorWorkerJobSealing:
+	case core.SectorWorkerJobSealing:
 		return !bool(state.Upgraded)
 
-	case api.SectorWorkerJobSnapUp:
+	case core.SectorWorkerJobSnapUp:
 		return bool(state.Upgraded)
 
 	default:
@@ -43,7 +43,7 @@ func WorkerJobMatcher(jobType api.SectorWorkerJob, state *api.SectorState) bool 
 	}
 }
 
-var _ api.SectorStateManager = (*StateManager)(nil)
+var _ core.SectorStateManager = (*StateManager)(nil)
 
 func NewStateManager(online kvstore.KVStore, offline kvstore.KVStore) (*StateManager, error) {
 	return &StateManager{
@@ -62,7 +62,7 @@ type StateManager struct {
 	locker *sectorsLocker
 }
 
-func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *api.SectorState, online bool) error {
+func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.SectorState, online bool) error {
 	var kv kvstore.KVStore
 	if online {
 		kv = sm.online
@@ -79,11 +79,11 @@ func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *api.Se
 	return nil
 }
 
-func (sm *StateManager) getIter(ctx context.Context, ws api.SectorWorkerState) (kvstore.Iter, error) {
+func (sm *StateManager) getIter(ctx context.Context, ws core.SectorWorkerState) (kvstore.Iter, error) {
 	switch ws {
-	case api.WorkerOnline:
+	case core.WorkerOnline:
 		return sm.online.Scan(ctx, nil)
-	case api.WorkerOffline:
+	case core.WorkerOffline:
 		return sm.offline.Scan(ctx, nil)
 
 	default:
@@ -91,7 +91,7 @@ func (sm *StateManager) getIter(ctx context.Context, ws api.SectorWorkerState) (
 	}
 }
 
-func (sm *StateManager) All(ctx context.Context, ws api.SectorWorkerState, job api.SectorWorkerJob) ([]*api.SectorState, error) {
+func (sm *StateManager) All(ctx context.Context, ws core.SectorWorkerState, job core.SectorWorkerJob) ([]*core.SectorState, error) {
 	iter, err := sm.getIter(ctx, ws)
 	if err != nil {
 		return nil, fmt.Errorf("get iter for All: %w", err)
@@ -99,9 +99,9 @@ func (sm *StateManager) All(ctx context.Context, ws api.SectorWorkerState, job a
 
 	defer iter.Close()
 
-	states := make([]*api.SectorState, 0, 32)
+	states := make([]*core.SectorState, 0, 32)
 	for iter.Next() {
-		var state api.SectorState
+		var state core.SectorState
 		if err := iter.View(ctx, func(data []byte) error {
 			return json.Unmarshal(data, &state)
 		}); err != nil {
@@ -116,7 +116,7 @@ func (sm *StateManager) All(ctx context.Context, ws api.SectorWorkerState, job a
 	return states, nil
 }
 
-func (sm *StateManager) ForEach(ctx context.Context, ws api.SectorWorkerState, job api.SectorWorkerJob, fn func(api.SectorState) error) error {
+func (sm *StateManager) ForEach(ctx context.Context, ws core.SectorWorkerState, job core.SectorWorkerJob, fn func(core.SectorState) error) error {
 	iter, err := sm.getIter(ctx, ws)
 	if err != nil {
 		return fmt.Errorf("get iter for ForEach: %w", err)
@@ -125,7 +125,7 @@ func (sm *StateManager) ForEach(ctx context.Context, ws api.SectorWorkerState, j
 	defer iter.Close()
 
 	for iter.Next() {
-		var state api.SectorState
+		var state core.SectorState
 		if err := iter.View(ctx, func(data []byte) error {
 			return json.Unmarshal(data, &state)
 		}); err != nil {
@@ -152,7 +152,7 @@ func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofTyp
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
-	state := api.SectorState{
+	state := core.SectorState{
 		ID:         sid,
 		SectorType: proofType,
 	}
@@ -177,11 +177,11 @@ func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofTyp
 	return save(ctx, sm.online, key, state)
 }
 
-func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID) (*api.SectorState, error) {
+func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID) (*core.SectorState, error) {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
-	var state api.SectorState
+	var state core.SectorState
 	key := makeSectorKey(sid)
 	if err := sm.load(ctx, key, &state, true); err != nil {
 		return nil, err
@@ -194,7 +194,7 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals 
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
-	var state api.SectorState
+	var state core.SectorState
 	key := makeSectorKey(sid)
 	if err := sm.load(ctx, key, &state, true); err != nil {
 		return err
@@ -208,12 +208,12 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals 
 	return save(ctx, sm.online, key, state)
 }
 
-func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinalize api.SectorStateChangeHook) error {
+func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinalize core.SectorStateChangeHook) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
 	key := makeSectorKey(sid)
-	var state api.SectorState
+	var state core.SectorState
 	if err := sm.load(ctx, key, &state, true); err != nil {
 		return fmt.Errorf("load from online store: %w", err)
 	}
@@ -241,12 +241,12 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 	return nil
 }
 
-func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore api.SectorStateChangeHook) error {
+func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore core.SectorStateChangeHook) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
 	key := makeSectorKey(sid)
-	var state api.SectorState
+	var state core.SectorState
 	if err := sm.load(ctx, key, &state, false); err != nil {
 		return fmt.Errorf("load from offline store: %w", err)
 	}
@@ -297,7 +297,7 @@ func makeSectorKey(sid abi.SectorID) kvstore.Key {
 	return []byte(fmt.Sprintf("m-%d-n-%d", sid.Miner, sid.Number))
 }
 
-func save(ctx context.Context, store kvstore.KVStore, key kvstore.Key, state api.SectorState) error {
+func save(ctx context.Context, store kvstore.KVStore, key kvstore.Key, state core.SectorState) error {
 	b, err := json.Marshal(state)
 	if err != nil {
 		return fmt.Errorf("marshal state: %w", err)
@@ -306,7 +306,7 @@ func save(ctx context.Context, store kvstore.KVStore, key kvstore.Key, state api
 	return store.Put(ctx, key, b)
 }
 
-func apply(ctx context.Context, state *api.SectorState, fieldvals ...interface{}) error {
+func apply(ctx context.Context, state *core.SectorState, fieldvals ...interface{}) error {
 	statev := reflect.ValueOf(state).Elem()
 	for fi := range fieldvals {
 		fieldval := fieldvals[fi]

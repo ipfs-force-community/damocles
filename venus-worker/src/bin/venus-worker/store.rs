@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{values_t, App, AppSettings, Arg, ArgMatches, SubCommand};
 use tracing::{error, info};
 
-use venus_worker::{logging, objstore::filestore::FileStore, store::Store};
+use venus_worker::{objstore::filestore::FileStore, store::Store};
 
 pub const SUB_CMD_NAME: &str = "store";
 
@@ -31,17 +31,17 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
         .subcommand(filestore_init_cmd)
 }
 
-pub(crate) fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
+pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
     match subargs.subcommand() {
         ("sealing-init", Some(m)) => {
             let locs = values_t!(m, "location", String).context("get locations from flag")?;
 
             for loc in locs {
                 match Store::init(&loc) {
-                    Ok(l) => info!(loc = logging::debug_field(&l), "store initialized"),
+                    Ok(l) => info!(loc = ?l, "store initialized"),
                     Err(e) => error!(
                         loc = loc.as_str(),
-                        err = logging::debug_field(&e),
+                        err = ?e,
                         "failed to init store"
                     ),
                 }
@@ -55,10 +55,10 @@ pub(crate) fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
 
             for loc in locs {
                 match FileStore::init(&loc) {
-                    Ok(_) => info!(loc = logging::debug_field(&loc), "store initialized"),
+                    Ok(_) => info!(?loc, "store initialized"),
                     Err(e) => error!(
                         loc = loc.as_str(),
-                        err = logging::debug_field(&e),
+                        err = ?e,
                         "failed to init store"
                     ),
                 }

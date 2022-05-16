@@ -121,7 +121,9 @@ type MinerSectorConfig struct {
 	InitNumber   uint64
 	MaxNumber    *uint64
 	Enabled      bool
+	EnableDeals  bool
 	LifetimeDays uint64
+	Verbose      bool
 }
 
 func defaultMinerSectorConfig(example bool) MinerSectorConfig {
@@ -129,6 +131,7 @@ func defaultMinerSectorConfig(example bool) MinerSectorConfig {
 		InitNumber:   0,
 		Enabled:      true,
 		LifetimeDays: 540,
+		Verbose:      false,
 	}
 
 	if example {
@@ -149,7 +152,7 @@ type MinerSnapUpConfig struct {
 
 func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
 	cfg := MinerSnapUpConfig{
-		Enabled:             true,
+		Enabled:             false,
 		FeeConfig:           defaultFeeConfig(),
 		MessageConfidential: 15,
 		ReleaseCondidential: 30,
@@ -240,16 +243,6 @@ func defaultMinerPoStConfig(example bool) MinerPoStConfig {
 	return cfg
 }
 
-type MinerDealConfig struct {
-	Enabled bool
-}
-
-func defaultMinerDealConfig() MinerDealConfig {
-	return MinerDealConfig{
-		Enabled: false,
-	}
-}
-
 type MinerProofConfig struct {
 	Enabled bool
 }
@@ -267,7 +260,6 @@ type MinerConfig struct {
 	Commitment MinerCommitmentConfig
 	PoSt       MinerPoStConfig
 	Proof      MinerProofConfig
-	Deal       MinerDealConfig
 }
 
 func defaultMinerConfig(example bool) MinerConfig {
@@ -277,7 +269,6 @@ func defaultMinerConfig(example bool) MinerConfig {
 		Commitment: defaultMinerCommitmentConfig(example),
 		PoSt:       defaultMinerPoStConfig(example),
 		Proof:      defaultMinerProofConfig(),
-		Deal:       defaultMinerDealConfig(),
 	}
 
 	if example {
@@ -298,7 +289,9 @@ func (c *Config) UnmarshalConfig(data []byte) error {
 	primitive := struct {
 		Common CommonConfig
 		Miners []toml.Primitive
-	}{}
+	}{
+		Common: defaultCommonConfig(false),
+	}
 
 	meta, err := toml.NewDecoder(bytes.NewReader(data)).Decode(&primitive)
 	if err != nil {

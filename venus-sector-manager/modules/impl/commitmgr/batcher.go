@@ -7,7 +7,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
@@ -16,7 +16,7 @@ type Batcher struct {
 	mid      abi.ActorID
 	ctrlAddr address.Address
 
-	pendingCh chan api.SectorState
+	pendingCh chan core.SectorState
 
 	force, stop chan struct{}
 
@@ -29,7 +29,7 @@ func (b *Batcher) waitStop() {
 	<-b.stop
 }
 
-func (b *Batcher) Add(sector api.SectorState) {
+func (b *Batcher) Add(sector core.SectorState) {
 	b.pendingCh <- sector
 }
 
@@ -47,7 +47,7 @@ func (b *Batcher) run() {
 		pendingCap /= 4
 	}
 
-	pending := make([]api.SectorState, 0, pendingCap)
+	pending := make([]core.SectorState, 0, pendingCap)
 
 	for {
 		tick, manual := false, false
@@ -69,9 +69,9 @@ func (b *Batcher) run() {
 		full := len(pending) >= b.processor.Threshold(b.mid)
 		cleanAll := false
 		if len(pending) > 0 {
-			var processList []api.SectorState
+			var processList []core.SectorState
 			if full || manual || !b.processor.EnableBatch(b.mid) {
-				processList = make([]api.SectorState, len(pending))
+				processList = make([]core.SectorState, len(pending))
 				copy(processList, pending)
 
 				pending = pending[:0]
@@ -85,7 +85,7 @@ func (b *Batcher) run() {
 
 				if len(expired) > 0 {
 					remain := pending[:0]
-					processList = make([]api.SectorState, 0, len(pending))
+					processList = make([]core.SectorState, 0, len(pending))
 					for i := range pending {
 						if _, ok := expired[pending[i].ID]; ok {
 							processList = append(processList, pending[i])
@@ -117,15 +117,15 @@ func (b *Batcher) run() {
 	}
 }
 
-func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, processer Processor, l *logging.ZapLogger) *Batcher {
+func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, processor Processor, l *logging.ZapLogger) *Batcher {
 	b := &Batcher{
 		ctx:       ctx,
 		mid:       mid,
 		ctrlAddr:  ctrlAddr,
-		pendingCh: make(chan api.SectorState),
+		pendingCh: make(chan core.SectorState),
 		force:     make(chan struct{}),
 		stop:      make(chan struct{}),
-		processor: processer,
+		processor: processor,
 		log:       log.With("miner", mid),
 	}
 	go b.run()

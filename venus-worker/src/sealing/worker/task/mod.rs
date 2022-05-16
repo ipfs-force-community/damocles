@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -8,9 +7,7 @@ use crossbeam_channel::select;
 use super::{super::failure::*, CtrlCtx};
 use crate::logging::{debug, error, info, warn, warn_span};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
-use crate::rpc::sealer::{
-    ReportStateReq, SectorFailure, SectorID, SectorStateChange, WorkerIdentifier,
-};
+use crate::rpc::sealer::{ReportStateReq, SectorFailure, SectorID, SectorStateChange, WorkerIdentifier};
 use crate::sealing::processor::Stage;
 use crate::store::Store;
 use crate::types::SealProof;
@@ -79,7 +76,7 @@ impl<'c> Task<'c> {
             .get(SECTOR_INFO_KEY)
             .or_else(|e| match e {
                 MetaError::NotFound => {
-                    let _ = get_planner(s.plan.as_ref().map(|s| s.as_str()))?;
+                    let _ = get_planner(s.plan.as_deref())?;
                     let empty = Sector::new(s.plan.as_ref().cloned());
                     sector_meta.set(SECTOR_INFO_KEY, &empty)?;
                     Ok(empty)
@@ -108,17 +105,8 @@ impl<'c> Task<'c> {
         })
     }
 
-    fn report_state(
-        &self,
-        state_change: SectorStateChange,
-        fail: Option<SectorFailure>,
-    ) -> Result<(), Failure> {
-        let sector_id = match self
-            .sector
-            .base
-            .as_ref()
-            .map(|base| base.allocated.id.clone())
-        {
+    fn report_state(&self, state_change: SectorStateChange, fail: Option<SectorFailure>) -> Result<(), Failure> {
+        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
             Some(sid) => sid,
             None => return Ok(()),
         };
@@ -138,12 +126,15 @@ impl<'c> Task<'c> {
     }
 
     fn report_finalized(&self) -> Result<(), Failure> {
-        let sector_id = self.sector_id()?;
+        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
+            Some(sid) => sid,
+            None => return Ok(()),
+        };
 
         let _ = call_rpc! {
             self.ctx.global.rpc,
             report_finalized,
-            sector_id.clone(),
+            sector_id,
         }?;
 
         Ok(())
@@ -184,7 +175,7 @@ impl<'c> Task<'c> {
     }
 
     pub fn exec(mut self, state: Option<State>) -> Result<(), Failure> {
-        let mut event = state.map(|s| Event::SetState(s));
+        let mut event = state.map(Event::SetState);
         loop {
             let span = warn_span!(
                 "seal",
@@ -201,10 +192,7 @@ impl<'c> Task<'c> {
                 Some(base) => {
                     self.ctrl_ctx
                         .update_state(|cst| {
-                            cst.job.id.replace(format!(
-                                "m-{}-s-{}",
-                                base.allocated.id.miner, base.allocated.id.number
-                            ));
+                            cst.job.id.replace(base.allocated.id.clone());
                         })
                         .crit()?;
                     false
@@ -217,24 +205,19 @@ impl<'c> Task<'c> {
                     Some(base) => {
                         self.ctrl_ctx
                             .update_state(|cst| {
-                                cst.job.id.replace(format!(
-                                    "m-{}-s-{}",
-                                    base.allocated.id.miner, base.allocated.id.number
-                                ));
+                                cst.job.id.replace(base.allocated.id.clone());
                             })
                             .crit()?;
                     }
 
                     None => {}
                 };
-            } else {
-                if self.sector.base.is_none() {
-                    self.ctrl_ctx
-                        .update_state(|cst| {
-                            cst.job.id.take();
-                        })
-                        .crit()?;
-                }
+            } else if self.sector.base.is_none() {
+                self.ctrl_ctx
+                    .update_state(|cst| {
+                        cst.job.id.take();
+                    })
+                    .crit()?;
             }
 
             let fail = if let Err(eref) = handle_res.as_ref() {
@@ -304,7 +287,8 @@ impl<'c> Task<'c> {
                         interval = ?self.store.config.recover_interval,
                         "wait before recovering"
                     );
-                    sleep(self.store.config.recover_interval)
+
+                    self.wait_or_interruptted(self.store.config.recover_interval)?;
                 }
 
                 Err(f) => return Err(f),
@@ -330,38 +314,23 @@ impl<'c> Task<'c> {
     }
 
     fn prepared_dir(&self, sector_id: &SectorID) -> Entry {
-        Entry::dir(
-            &self.store.data_path,
-            PathBuf::from("prepared").join(self.sector_path(sector_id)),
-        )
+        Entry::dir(&self.store.data_path, PathBuf::from("prepared").join(self.sector_path(sector_id)))
     }
 
     fn cache_dir(&self, sector_id: &SectorID) -> Entry {
-        Entry::dir(
-            &self.store.data_path,
-            PathBuf::from("cache").join(self.sector_path(sector_id)),
-        )
+        Entry::dir(&self.store.data_path, PathBuf::from("cache").join(self.sector_path(sector_id)))
     }
 
     fn sealed_file(&self, sector_id: &SectorID) -> Entry {
-        Entry::file(
-            &self.store.data_path,
-            PathBuf::from("sealed").join(self.sector_path(sector_id)),
-        )
+        Entry::file(&self.store.data_path, PathBuf::from("sealed").join(self.sector_path(sector_id)))
     }
 
     fn staged_file(&self, sector_id: &SectorID) -> Entry {
-        Entry::file(
-            &self.store.data_path,
-            PathBuf::from("unsealed").join(self.sector_path(sector_id)),
-        )
+        Entry::file(&self.store.data_path, PathBuf::from("unsealed").join(self.sector_path(sector_id)))
     }
 
     fn update_file(&self, sector_id: &SectorID) -> Entry {
-        Entry::file(
-            &self.store.data_path,
-            PathBuf::from("update").join(self.sector_path(sector_id)),
-        )
+        Entry::file(&self.store.data_path, PathBuf::from("update").join(self.sector_path(sector_id)))
     }
 
     fn update_cache_dir(&self, sector_id: &SectorID) -> Entry {
@@ -375,7 +344,7 @@ impl<'c> Task<'c> {
         self.interruptted()?;
 
         let prev = self.sector.state;
-        let planner = get_planner(self.sector.plan.as_ref().map(|s| s.as_str())).perm()?;
+        let planner = get_planner(self.sector.plan.as_deref()).perm()?;
 
         if let Some(evt) = event {
             match evt {
@@ -386,7 +355,7 @@ impl<'c> Task<'c> {
                         "Event::Retry captured"
                     );
 
-                    sleep(self.store.config.recover_interval);
+                    self.wait_or_interruptted(self.store.config.recover_interval)?;
                 }
 
                 other => {
@@ -401,7 +370,7 @@ impl<'c> Task<'c> {
 
         self.ctrl_ctx
             .update_state(|cst| {
-                drop(std::mem::replace(&mut cst.job.state, self.sector.state));
+                let _ = std::mem::replace(&mut cst.job.state, self.sector.state);
             })
             .crit()?;
 

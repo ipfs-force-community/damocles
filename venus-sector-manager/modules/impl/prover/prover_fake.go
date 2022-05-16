@@ -9,28 +9,28 @@ import (
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
 type verifier struct {
 }
 
-func (verifier) VerifySeal(context.Context, api.SealVerifyInfo) (bool, error) {
+func (verifier) VerifySeal(context.Context, core.SealVerifyInfo) (bool, error) {
 	return true, nil
 }
 
-func (verifier) VerifyAggregateSeals(context.Context, api.AggregateSealVerifyProofAndInfos) (bool, error) {
+func (verifier) VerifyAggregateSeals(context.Context, core.AggregateSealVerifyProofAndInfos) (bool, error) {
 	return true, nil
 }
 
-func (verifier) VerifyWindowPoSt(ctx context.Context, info api.WindowPoStVerifyInfo) (bool, error) {
+func (verifier) VerifyWindowPoSt(ctx context.Context, info core.WindowPoStVerifyInfo) (bool, error) {
 	return true, nil
 }
 
 type prover struct {
 }
 
-func (prover) AggregateSealProofs(ctx context.Context, aggregateInfo api.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
+func (prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
 	return make([]byte, 32), nil
 }
 

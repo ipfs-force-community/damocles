@@ -2,12 +2,14 @@ package chain
 
 import (
 	"context"
+	"fmt"
 
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	"golang.org/x/xerrors"
 )
+
+var errNotSupported = fmt.Errorf("not supported")
 
 type apiBStore struct {
 	api API
@@ -22,7 +24,7 @@ func NewAPIBlockstore(a API) blockstore.Blockstore {
 
 // DeleteBlock implements Blockstore.DeleteBlock.
 func (a *apiBStore) DeleteBlock(context.Context, cid.Cid) error {
-	return xerrors.New("not supported")
+	return errNotSupported
 }
 
 // Has implements Blockstore.Has.
@@ -50,17 +52,17 @@ func (a *apiBStore) GetSize(ctx context.Context, c cid.Cid) (int, error) {
 
 // Put implements Blockstore.Put.
 func (a *apiBStore) Put(context.Context, blocks.Block) error {
-	return xerrors.New("not supported")
+	return errNotSupported
 }
 
 // PutMany implements Blockstore.PutMany.
 func (a *apiBStore) PutMany(context.Context, []blocks.Block) error {
-	return xerrors.New("not supported")
+	return errNotSupported
 }
 
 // AllKeysChan implements Blockstore.AllKeysChan.
 func (a *apiBStore) AllKeysChan(_ context.Context) (<-chan cid.Cid, error) {
-	return nil, xerrors.New("not supported")
+	return nil, errNotSupported
 }
 
 // HashOnRead implements Blockstore.HashOnRead.

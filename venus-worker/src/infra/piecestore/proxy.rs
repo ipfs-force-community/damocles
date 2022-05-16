@@ -38,27 +38,14 @@ impl ProxyPieceStore {
             .build()
             .context("build http client")?;
 
-        Ok(Self {
-            base,
-            token,
-            client,
-        })
+        Ok(Self { base, token, client })
     }
 }
 
 impl PieceStore for ProxyPieceStore {
-    fn get(
-        &self,
-        c: Cid,
-        payload_size: u64,
-        target_size: UnpaddedPieceSize,
-    ) -> Result<Box<dyn Read>> {
+    fn get(&self, c: Cid, payload_size: u64, target_size: UnpaddedPieceSize) -> Result<Box<dyn Read>> {
         let url = self.base.join(&c.to_string()).context("invalid url")?;
-        let mut resp = self
-            .client
-            .get(url)
-            .send()
-            .context("request to peicestore")?;
+        let mut resp = self.client.get(url).send().context("request to peicestore")?;
 
         let mut status_code = resp.status();
         if status_code.is_redirection() {
@@ -71,10 +58,7 @@ impl PieceStore for ProxyPieceStore {
 
             let mut req = self.client.get(redirect_url);
             if let Some(token) = self.token.as_ref() {
-                req = req.header(
-                    AUTHORIZATION,
-                    format!("{} {}", HEADER_AUTHORIZATION_BEARER_PREFIX, token),
-                )
+                req = req.header(AUTHORIZATION, format!("{} {}", HEADER_AUTHORIZATION_BEARER_PREFIX, token))
             };
 
             resp = req.send().context("request to redirected location")?;

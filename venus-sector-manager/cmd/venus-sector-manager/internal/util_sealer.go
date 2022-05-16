@@ -8,19 +8,17 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
 var utilSealerCmd = &cli.Command{
-	Name: "sealer",
-	Flags: []cli.Flag{
-		SealerListenFlag,
-	},
+	Name:  "sealer",
+	Flags: []cli.Flag{},
 	Subcommands: []*cli.Command{
 		utilSealerSectorsCmd,
 		utilSealerProvingCmd,
 		utilSealerActorCmd,
-		// utilSealerSnapCmd,
+		utilSealerSnapCmd,
 	},
 }
 
@@ -44,7 +42,7 @@ var utilSealerSectorsWorkerStatesCmd = &cli.Command{
 
 		defer stop()
 
-		states, err := cli.Sealer.ListSectors(gctx, api.WorkerOnline)
+		states, err := cli.Sealer.ListSectors(gctx, core.WorkerOnline)
 		if err != nil {
 			return err
 		}
@@ -107,7 +105,7 @@ var utilSealerSectorsAbortCmd = &cli.Command{
 		defer stop()
 
 		_, err = cli.Sealer.ReportAborted(gctx, abi.SectorID{
-			Miner:  abi.ActorID(miner),
+			Miner:  miner,
 			Number: abi.SectorNumber(sectorNum),
 		}, "aborted via CLI")
 		if err != nil {
@@ -129,7 +127,7 @@ var utilSealerSectorsListCmd = &cli.Command{
 
 		defer stop()
 
-		states, err := cli.Sealer.ListSectors(gctx, api.WorkerOffline)
+		states, err := cli.Sealer.ListSectors(gctx, core.WorkerOffline)
 		if err != nil {
 			return err
 		}

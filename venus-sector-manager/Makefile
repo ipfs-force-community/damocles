@@ -55,3 +55,14 @@ build-all: GOTAGS+=prod
 build-all: $(BUILD_DEPS) $(BUILDS)
 
 build-all-dev: $(MODULES) $(BUILDS)
+
+check-all: check-lint check-go-mod
+
+check-lint: $(BUILD_DEPS)
+	golangci-lint run
+
+check-go-mod:
+	go mod tidy
+
+dev-env:
+	go install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1

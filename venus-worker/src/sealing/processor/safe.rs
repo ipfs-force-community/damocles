@@ -6,16 +6,16 @@ use filecoin_proofs::StoreConfig;
 pub use filecoin_proofs::{EmptySectorUpdateEncoded, EmptySectorUpdateProof};
 use filecoin_proofs_api::seal;
 pub use filecoin_proofs_api::seal::{
-    clear_cache, write_and_preprocess, Labels, SealCommitPhase1Output, SealCommitPhase2Output,
-    SealPreCommitPhase1Output, SealPreCommitPhase2Output,
+    clear_cache, write_and_preprocess, Labels, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
+    SealPreCommitPhase2Output,
 };
 pub use filecoin_proofs_api::update::{
-    empty_sector_update_encode_into, generate_empty_sector_update_proof_with_vanilla,
-    generate_partition_proofs, verify_empty_sector_update_proof, verify_partition_proofs,
+    empty_sector_update_encode_into, generate_empty_sector_update_proof_with_vanilla, generate_partition_proofs,
+    verify_empty_sector_update_proof, verify_partition_proofs,
 };
 pub use filecoin_proofs_api::{
-    Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, ProverId, RegisteredSealProof,
-    RegisteredUpdateProof, SectorId, Ticket, UnpaddedBytesAmount,
+    Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, ProverId, RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket,
+    UnpaddedBytesAmount,
 };
 use storage_proofs_core::cache_key::CacheKey;
 
@@ -106,11 +106,7 @@ pub fn seal_pre_commit_phase2(
 }
 
 /// create tree-d file
-pub fn create_tree_d(
-    registered_proof: RegisteredSealProof,
-    in_path: Option<PathBuf>,
-    cache_path: PathBuf,
-) -> Result<()> {
+pub fn create_tree_d(registered_proof: RegisteredSealProof, in_path: Option<PathBuf>, cache_path: PathBuf) -> Result<()> {
     safe_call! {
         proof::create_tree_d(
             registered_proof,

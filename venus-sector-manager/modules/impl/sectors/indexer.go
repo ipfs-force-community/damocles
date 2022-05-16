@@ -7,12 +7,12 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
-var _ api.SectorIndexer = (*Indexer)(nil)
+var _ core.SectorIndexer = (*Indexer)(nil)
 
 func NewIndexer(storeMgr objstore.Manager, normal kvstore.KVStore, upgrade kvstore.KVStore) (*Indexer, error) {
 	return &Indexer{
@@ -28,11 +28,11 @@ type Indexer struct {
 	storeMgr objstore.Manager
 }
 
-func (i *Indexer) Normal() api.SectorTypedIndexer {
+func (i *Indexer) Normal() core.SectorTypedIndexer {
 	return i.normal
 }
 
-func (i *Indexer) Upgrade() api.SectorTypedIndexer {
+func (i *Indexer) Upgrade() core.SectorTypedIndexer {
 	return i.upgrade
 }
 
@@ -52,8 +52,8 @@ type innerIndexer struct {
 	kv kvstore.KVStore
 }
 
-func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (api.SectorAccessStores, bool, error) {
-	var stores api.SectorAccessStores
+func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (core.SectorAccessStores, bool, error) {
+	var stores core.SectorAccessStores
 	// string(b) will copy the underlying bytes, so we use View here
 	err := i.kv.View(ctx, makeSectorKeySealedFile(sid), func(b []byte) error {
 		stores.SealedFile = string(b)
@@ -84,7 +84,7 @@ func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (api.SectorAc
 	return stores, true, nil
 }
 
-func (i *innerIndexer) Update(ctx context.Context, sid abi.SectorID, access api.SectorAccessStores) error {
+func (i *innerIndexer) Update(ctx context.Context, sid abi.SectorID, access core.SectorAccessStores) error {
 	if instance := access.SealedFile; instance != "" {
 		err := i.kv.Put(ctx, makeSectorKeySealedFile(sid), []byte(instance))
 		if err != nil {

@@ -10,11 +10,11 @@ import (
 
 	"github.com/filecoin-project/venus/venus-shared/types"
 
-	apitypes "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 )
 
-type ErrApi struct{ error }
+type ErrAPI struct{ error }
 
 type ErrInvalidDeals struct{ error }
 type ErrInvalidPiece struct{ error }
@@ -33,10 +33,10 @@ type ErrCommitWaitFailed struct{ error }
 
 // checkPrecommit checks that data commitment generated in the sealing process
 //  matches pieces, and that the seal ticket isn't expired
-func checkPrecommit(ctx context.Context, maddr address.Address, si apitypes.SectorState, api SealingAPI) (err error) {
+func checkPrecommit(ctx context.Context, maddr address.Address, si core.SectorState, api SealingAPI) (err error) {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
-		return &ErrApi{fmt.Errorf("get chain head failed %w", err)}
+		return &ErrAPI{fmt.Errorf("get chain head failed %w", err)}
 	}
 
 	if err := checkPieces(ctx, maddr, si, api); err != nil {
@@ -45,7 +45,7 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si apitypes.Sect
 
 	commD, err := api.StateComputeDataCommitment(ctx, maddr, si.SectorType, si.DealIDs(), tok)
 	if err != nil {
-		return &ErrApi{fmt.Errorf("calling StateComputeDataCommitment: %w", err)}
+		return &ErrAPI{fmt.Errorf("calling StateComputeDataCommitment: %w", err)}
 	}
 
 	if si.Pre == nil {
@@ -68,7 +68,7 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si apitypes.Sect
 		if err == ErrSectorAllocated {
 			return &ErrSectorNumberAllocated{err}
 		}
-		return &ErrApi{fmt.Errorf("getting precommit info: %w", err)}
+		return &ErrAPI{fmt.Errorf("getting precommit info: %w", err)}
 	}
 
 	if pci != nil {
@@ -81,10 +81,10 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si apitypes.Sect
 	return nil
 }
 
-func checkPieces(ctx context.Context, maddr address.Address, si apitypes.SectorState, api SealingAPI) error {
+func checkPieces(ctx context.Context, maddr address.Address, si core.SectorState, api SealingAPI) error {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
-		return &ErrApi{fmt.Errorf("getting chain head: %w", err)}
+		return &ErrAPI{fmt.Errorf("getting chain head: %w", err)}
 	}
 
 	deals := si.Deals()
@@ -94,7 +94,7 @@ func checkPieces(ctx context.Context, maddr address.Address, si apitypes.SectorS
 
 		proposal, err := api.StateMarketStorageDealProposal(ctx, p.ID, tok)
 		if err != nil {
-			return &ErrApi{fmt.Errorf("getting deal %d for piece %d: %w", p.ID, i, err)}
+			return &ErrAPI{fmt.Errorf("getting deal %d for piece %d: %w", p.ID, i, err)}
 		}
 
 		if proposal.Provider != maddr {
@@ -117,7 +117,7 @@ func checkPieces(ctx context.Context, maddr address.Address, si apitypes.SectorS
 	return nil
 }
 
-func checkCommit(ctx context.Context, si apitypes.SectorState, proof []byte, tok apitypes.TipSetToken, maddr address.Address, verif apitypes.Verifier, api SealingAPI) (err error) {
+func checkCommit(ctx context.Context, si core.SectorState, proof []byte, tok core.TipSetToken, maddr address.Address, verif core.Verifier, api SealingAPI) (err error) {
 	if si.Seed == nil {
 		return &ErrBadSeed{fmt.Errorf("seed epoch was not set")}
 	}
@@ -127,7 +127,7 @@ func checkCommit(ctx context.Context, si apitypes.SectorState, proof []byte, tok
 		return &ErrSectorNumberAllocated{err}
 	}
 	if err != nil {
-		return &ErrApi{fmt.Errorf("get sector precommit info failed")}
+		return &ErrAPI{fmt.Errorf("get sector precommit info failed")}
 	}
 
 	if pci == nil {
@@ -147,14 +147,14 @@ func checkCommit(ctx context.Context, si apitypes.SectorState, proof []byte, tok
 
 	seed, err := api.GetSeed(ctx, types.EmptyTSK, seedEpoch, si.ID.Miner)
 	if err != nil {
-		return &ErrApi{fmt.Errorf("failed to get randomness for computing seal proof: %w", err)}
+		return &ErrAPI{fmt.Errorf("failed to get randomness for computing seal proof: %w", err)}
 	}
 
 	if !bytes.Equal(seed.Seed, si.Seed.Seed) {
 		return &ErrBadSeed{fmt.Errorf("seed has changed")}
 	}
 
-	ok, err := verif.VerifySeal(ctx, apitypes.SealVerifyInfo{
+	ok, err := verif.VerifySeal(ctx, core.SealVerifyInfo{
 		SectorID:              si.ID,
 		SealedCID:             pci.Info.SealedCID,
 		SealProof:             pci.Info.SealProof,

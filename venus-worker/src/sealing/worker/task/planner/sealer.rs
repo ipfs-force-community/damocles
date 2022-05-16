@@ -1,6 +1,6 @@
 use std::fs::{create_dir_all, remove_dir_all, remove_file, OpenOptions};
 use std::os::unix::fs::symlink;
-use std::path::PathBuf;
+use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
@@ -10,14 +10,10 @@ use super::{
     common, plan, ExecResult, Planner,
 };
 use crate::logging::{debug, warn};
-use crate::rpc::sealer::{
-    AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo,
-    SubmitResult,
-};
+use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    clear_cache, seal_commit_phase1, tree_d_path_in_dir, C2Input, PC1Input, PC2Input,
-    PaddedBytesAmount, PieceInfo, UnpaddedBytesAmount,
+    clear_cache, seal_commit_phase1, tree_d_path_in_dir, C2Input, PC1Input, PC2Input, PaddedBytesAmount, PieceInfo, UnpaddedBytesAmount,
 };
 use crate::sealing::util::get_all_zero_commitment;
 
@@ -99,7 +95,7 @@ impl Planner for SealerPlanner {
         Ok(next)
     }
 
-    fn exec<'c, 't>(&self, task: &'t mut Task<'c>) -> Result<Option<Event>, Failure> {
+    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
         let inner = Sealer { task };
         match state {
@@ -202,10 +198,7 @@ impl<'c, 't> Sealer<'c, 't> {
             },
         }?;
 
-        debug!(
-            count = deals.as_ref().map(|d| d.len()).unwrap_or(0),
-            "pieces acquired"
-        );
+        debug!(count = deals.as_ref().map(|d| d.len()).unwrap_or(0), "pieces acquired");
 
         Ok(Event::AcquireDeals(deals))
     }
@@ -223,7 +216,7 @@ impl<'c, 't> Sealer<'c, 't> {
             .open(self.task.staged_file(sector_id))
             .perm()?;
 
-        let seal_proof_type = proof_type.clone().into();
+        let seal_proof_type = (*proof_type).into();
 
         let sector_size = proof_type.sector_size();
         let mut pieces = Vec::new();
@@ -235,19 +228,12 @@ impl<'c, 't> Sealer<'c, 't> {
 
         if pieces.is_empty() {
             // skip AP for cc sector
-            staged_file
-                .set_len(sector_size)
-                .context("add zero commitment")
-                .perm()?;
+            staged_file.set_len(sector_size).context("add zero commitment").perm()?;
 
-            let commitment = get_all_zero_commitment(sector_size)
-                .context("get zero commitment")
-                .perm()?;
+            let commitment = get_all_zero_commitment(sector_size).context("get zero commitment").perm()?;
 
             let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
-            let pi = PieceInfo::new(commitment, unpadded_size)
-                .context("create piece info")
-                .perm()?;
+            let pi = PieceInfo::new(commitment, unpadded_size).context("create piece info").perm()?;
             pieces.push(pi);
         }
 
@@ -263,7 +249,7 @@ impl<'c, 't> Sealer<'c, 't> {
         Ok(Event::AssignTicket(None))
     }
 
-    fn cleanup_before_pc1(&self, cache_dir: &PathBuf, sealed_file: &PathBuf) -> Result<()> {
+    fn cleanup_before_pc1(&self, cache_dir: &Path, sealed_file: &Path) -> Result<()> {
         // TODO: see if we have more graceful ways to handle restarting pc1
         remove_dir_all(&cache_dir).and_then(|_| create_dir_all(&cache_dir))?;
         debug!("init cache dir {:?} before pc1", cache_dir);
@@ -305,13 +291,8 @@ impl<'c, 't> Sealer<'c, 't> {
         let sealed_file = self.task.sealed_file(sector_id);
         let prepared_dir = self.task.prepared_dir(sector_id);
 
-        self.cleanup_before_pc1(cache_dir.as_ref(), sealed_file.as_ref())
-            .crit()?;
-        symlink(
-            tree_d_path_in_dir(prepared_dir.as_ref()),
-            tree_d_path_in_dir(cache_dir.as_ref()),
-        )
-        .crit()?;
+        self.cleanup_before_pc1(cache_dir.as_ref(), sealed_file.as_ref()).crit()?;
+        symlink(tree_d_path_in_dir(prepared_dir.as_ref()), tree_d_path_in_dir(cache_dir.as_ref())).crit()?;
 
         field_required! {
             prove_input,
@@ -325,13 +306,13 @@ impl<'c, 't> Sealer<'c, 't> {
             .processors
             .pc1
             .process(PC1Input {
-                registered_proof: proof_type.clone().into(),
+                registered_proof: (*proof_type).into(),
                 cache_path: cache_dir.into(),
                 in_path: staged_file.into(),
                 out_path: sealed_file.into(),
                 prover_id: prove_input.0,
                 sector_id: prove_input.1,
-                ticket: ticket.ticket.0.clone(),
+                ticket: ticket.ticket.0,
                 piece_infos,
             })
             .perm()?;
@@ -340,15 +321,13 @@ impl<'c, 't> Sealer<'c, 't> {
         Ok(Event::PC1(ticket, out))
     }
 
-    fn cleanup_before_pc2(&self, cache_dir: &PathBuf) -> Result<()> {
+    fn cleanup_before_pc2(&self, cache_dir: &Path) -> Result<()> {
         for entry_res in cache_dir.read_dir()? {
             let entry = entry_res?;
             let fname = entry.file_name();
             if let Some(fname_str) = fname.to_str() {
-                let should = fname_str == "p_aux"
-                    || fname_str == "t_aux"
-                    || fname_str.contains("tree-c")
-                    || fname_str.contains("tree-r-last");
+                let should =
+                    fname_str == "p_aux" || fname_str == "t_aux" || fname_str.contains("tree-c") || fname_str.contains("tree-r-last");
 
                 if !should {
                     continue;
@@ -422,7 +401,7 @@ impl<'c, 't> Sealer<'c, 't> {
             .deals
             .as_ref()
             .map(|d| d.iter().map(|i| i.id).collect())
-            .unwrap_or(vec![]);
+            .unwrap_or_default();
 
         let pinfo = PreCommitOnChainInfo {
             comm_r,
@@ -443,17 +422,11 @@ impl<'c, 't> Sealer<'c, 't> {
         match res.res {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitPC),
 
-            SubmitResult::MismatchedSubmission => {
-                Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm())
-            }
+            SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
 
             SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
 
-            SubmitResult::FilesMissed => Err(anyhow!(
-                "FilesMissed should not happen for pc2 submission: {:?}",
-                res.desc
-            )
-            .perm()),
+            SubmitResult::FilesMissed => Err(anyhow!("FilesMissed should not happen for pc2 submission: {:?}", res.desc).perm()),
         }
     }
 
@@ -469,9 +442,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
             match state.state {
                 OnChainState::Landed => break 'POLL,
-                OnChainState::NotFound => {
-                    return Err(anyhow!("pre commit on-chain info not found").perm())
-                }
+                OnChainState::NotFound => return Err(anyhow!("pre commit on-chain info not found").perm()),
 
                 OnChainState::Failed => {
                     warn!("pre commit on-chain info failed: {:?}", state.desc);
@@ -480,13 +451,7 @@ impl<'c, 't> Sealer<'c, 't> {
                     return Ok(Event::ReSubmitPC);
                 }
 
-                OnChainState::PermFailed => {
-                    return Err(anyhow!(
-                        "pre commit on-chain info permanent failed: {:?}",
-                        state.desc
-                    )
-                    .perm())
-                }
+                OnChainState::PermFailed => return Err(anyhow!("pre commit on-chain info permanent failed: {:?}", state.desc).perm()),
 
                 OnChainState::Pending | OnChainState::Packed => {}
             }
@@ -497,8 +462,7 @@ impl<'c, 't> Sealer<'c, 't> {
                 "waiting for next round of polling pre commit state",
             );
 
-            self.task
-                .wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
+            self.task.wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
         }
 
         debug!("pre commit landed");
@@ -534,10 +498,7 @@ impl<'c, 't> Sealer<'c, 't> {
         if checked {
             Ok(Event::SubmitPersistance)
         } else {
-            Err(anyhow!(
-                "sector files are persisted but unavailable for sealer"
-            ))
-            .perm()
+            Err(anyhow!("sector files are persisted but unavailable for sealer")).perm()
         }
     }
 
@@ -663,9 +624,7 @@ impl<'c, 't> Sealer<'c, 't> {
             self.task.sector.phases.c2out
         }
 
-        let info = ProofOnChainInfo {
-            proof: proof.proof.into(),
-        };
+        let info = ProofOnChainInfo { proof: proof.proof.into() };
 
         let res = call_rpc! {
             self.task.ctx.global.rpc,
@@ -679,15 +638,11 @@ impl<'c, 't> Sealer<'c, 't> {
         match res.res {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitProof),
 
-            SubmitResult::MismatchedSubmission => {
-                Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm())
-            }
+            SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
 
             SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
 
-            SubmitResult::FilesMissed => {
-                Err(anyhow!("FilesMissed is not handled currently: {:?}", res.desc).perm())
-            }
+            SubmitResult::FilesMissed => Err(anyhow!("FilesMissed is not handled currently: {:?}", res.desc).perm()),
         }
     }
 
@@ -709,9 +664,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
                 match state.state {
                     OnChainState::Landed => break 'POLL,
-                    OnChainState::NotFound => {
-                        return Err(anyhow!("proof on-chain info not found").perm())
-                    }
+                    OnChainState::NotFound => return Err(anyhow!("proof on-chain info not found").perm()),
 
                     OnChainState::Failed => {
                         warn!("proof on-chain info failed: {:?}", state.desc);
@@ -720,13 +673,7 @@ impl<'c, 't> Sealer<'c, 't> {
                         return Ok(Event::ReSubmitProof);
                     }
 
-                    OnChainState::PermFailed => {
-                        return Err(anyhow!(
-                            "proof on-chain info permanent failed: {:?}",
-                            state.desc
-                        )
-                        .perm())
-                    }
+                    OnChainState::PermFailed => return Err(anyhow!("proof on-chain info permanent failed: {:?}", state.desc).perm()),
 
                     OnChainState::Pending | OnChainState::Packed => {}
                 }
@@ -737,8 +684,7 @@ impl<'c, 't> Sealer<'c, 't> {
                     "waiting for next round of polling proof state",
                 );
 
-                self.task
-                    .wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
+                self.task.wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
             }
         }
 

@@ -33,7 +33,7 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
         .subcommand(tree_d_cmd)
 }
 
-pub(crate) fn submatch<'a>(subargs: &ArgMatches<'a>) -> Result<()> {
+pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
     match subargs.subcommand() {
         ("tree-d", Some(m)) => {
             let size_str = value_t!(m, "sector-size", String)?;

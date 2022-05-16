@@ -7,11 +7,11 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/venus/venus-shared/actors"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/api"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 )
 
-func (pp PreCommitProcessor) sectorExpiration(ctx context.Context, state *api.SectorState) (abi.ChainEpoch, error) {
+func (pp PreCommitProcessor) sectorExpiration(ctx context.Context, state *core.SectorState) (abi.ChainEpoch, error) {
 	mcfg, err := pp.config.MinerConfig(state.ID.Miner)
 	if err != nil {
 		return 0, fmt.Errorf("get miner config: %w", err)
@@ -60,7 +60,7 @@ func (pp PreCommitProcessor) sectorExpiration(ctx context.Context, state *api.Se
 	return expiration, nil
 }
 
-func (pp PreCommitProcessor) sectorEnd(ctx context.Context, tok api.TipSetToken, height abi.ChainEpoch, state *api.SectorState, lifetimeDays uint64, provingPeriod abi.ChainEpoch) (abi.ChainEpoch, error) {
+func (pp PreCommitProcessor) sectorEnd(ctx context.Context, tok core.TipSetToken, height abi.ChainEpoch, state *core.SectorState, lifetimeDays uint64, provingPeriod abi.ChainEpoch) (abi.ChainEpoch, error) {
 	var end *abi.ChainEpoch
 
 	deals := state.Deals()

@@ -18,7 +18,7 @@ impl CtrlGroup {
             .group_name
             .as_ref()
             .cloned()
-            .unwrap_or(DEFAULT_CGROUP_GROUP_NAME.to_owned());
+            .unwrap_or_else(|| DEFAULT_CGROUP_GROUP_NAME.to_owned());
 
         let mut wanted = HashSet::new();
 
@@ -28,22 +28,17 @@ impl CtrlGroup {
 
         if let Some(cpuset) = cfg.cpuset.as_ref() {
             for (sidx, sub) in cgsubs.iter().enumerate() {
-                match sub {
-                    Subsystem::CpuSet(ctrl) => {
-                        ctrl.create();
-                        ctrl.set_cpus(cpuset)
-                            .with_context(|| format!("set cpuset to {}", cpuset))?;
-                        wanted.insert(sidx);
-                        break;
-                    }
-
-                    _ => {}
+                if let Subsystem::CpuSet(ctrl) = sub {
+                    ctrl.create();
+                    ctrl.set_cpus(cpuset).with_context(|| format!("set cpuset to {}", cpuset))?;
+                    wanted.insert(sidx);
+                    break;
                 }
             }
         }
 
         let mut subsystems = Vec::with_capacity(cgsubs.len());
-        for (sidx, sub) in cgsubs.into_iter().enumerate() {
+        for (sidx, sub) in cgsubs.iter().enumerate() {
             if wanted.contains(&sidx) {
                 subsystems.push(sub.clone());
             }
@@ -65,10 +60,7 @@ impl CtrlGroup {
     pub fn delete(&mut self) {
         for sub in self.subsystems.iter() {
             if let Err(e) = sub.to_controller().delete() {
-                warn!(
-                    system = sub.controller_name().as_str(),
-                    "subsystem delete failed: {:?}", e
-                );
+                warn!(system = sub.controller_name().as_str(), "subsystem delete failed: {:?}", e);
             };
         }
     }
