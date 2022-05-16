@@ -1,6 +1,6 @@
 [package]
 name = "venus-worker"
-version = "0.2.0-rc1"
+version = "0.3.0-rc1"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2018"
 
