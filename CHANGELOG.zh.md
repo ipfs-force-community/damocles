@@ -1,5 +1,7 @@
 # Changelog
 
+## v0.3.0-rc1
+
 ## v0.2.0
 - 支持 snapup 批量生产模式
   - venus-worker 支持配置 `snapup` 类型任务
