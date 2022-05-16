@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.0rc-1
+## v0.2.0
 - 支持 snapup 批量生产模式
   - venus-worker 支持配置 `snapup` 类型任务
   - venus-sector-manager 支持配置 `snapup` 类型任务
@@ -18,6 +18,8 @@
   - venus-sector-manager 的 `util daemon run` 新增 `--conf-dir` 参数，可以指定配置目录
   - 新增外部证明计算器 (external prover) 的支持
   - 参考文档：[09.独立运行的poster节点](https://github.com/ipfs-force-community/venus-cluster/blob/9be393761645f5fbd3a415b5ff1f50ec9254943c/docs/zh/09.%E7%8B%AC%E7%AB%8B%E8%BF%90%E8%A1%8C%E7%9A%84poster%E8%8A%82%E7%82%B9.md)
+
+- 修复 PreCommit/Prove 的 Batch Commit 未使用相应的费用配置的问题
 
 - 其他调整
   - venus-worker 的配置调整
