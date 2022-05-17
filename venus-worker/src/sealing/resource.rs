@@ -58,6 +58,7 @@ impl StaggeredLimit {
             RateLimiter::builder()
                 .max(concurrent)
                 .initial(concurrent)
+                .refill(1)
                 .interval(interval)
                 .build(),
         )
@@ -125,5 +126,162 @@ impl Pool {
                 token_opt
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use humantime::format_duration;
+    use tokio::runtime::Builder;
+
+    use super::{LimitItem, Pool};
+    use std::time::{Duration, Instant};
+
+    macro_rules! assert_elapsed {
+        ($start:expr, $dur:expr) => {{
+            assert_elapsed!($start, $dur, "");
+        }};
+        ($start:expr, $dur:expr, $($arg:tt)+) => {{
+            let elapsed = $start.elapsed();
+            // type ascription improves compiler error when wrong type is passed
+            let lower: std::time::Duration = $dur;
+
+            // Handles ms rounding
+            assert!(
+                elapsed >= lower && elapsed <= lower + std::time::Duration::from_millis(2),
+                "actual = {:?}, expected = {:?}. {}",
+                elapsed,
+                lower,
+                format_args!($($arg)+),
+            );
+        }};
+    }
+
+    #[test]
+    fn test_acquire_both_concurrent_limit_and_staggered_limit() {
+        let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+        let _rt_guard = rt.enter();
+
+        let staggered_interval = ms(10);
+        let pool = Pool::new(
+            (vec![LimitItem {
+                name: "pc1",
+                concurrent: Some(&2),
+                staggered_interval: Some(&staggered_interval),
+            }])
+            .into_iter(),
+        );
+        let mut now = Instant::now();
+        let token1 = pool.acquire("pc1").unwrap();
+        assert_elapsed!(now, ms(0), "first acquire should not block");
+        now = Instant::now();
+        let _token2 = pool.acquire("pc1").unwrap();
+        assert_elapsed!(
+            now,
+            staggered_interval,
+            "because of the staggered limit, it should to block for {}",
+            format_duration(staggered_interval).to_string()
+        );
+
+        now = Instant::now();
+        timeout(ms(20), move || drop(token1));
+        let _ = pool.acquire("pc1").unwrap();
+        assert_elapsed!(now, ms(20), "concurrent is only 2 so must wait for for the `token1` to be dropped");
+
+        drop(_token2);
+
+        now = Instant::now();
+        let _ = pool.acquire("pc1").unwrap();
+        assert_elapsed!(
+            now,
+            staggered_interval,
+            "need wait staggered_interval: {}",
+            format_duration(staggered_interval).to_string()
+        );
+    }
+
+    #[test]
+    fn test_acquire_only_concurrent_limit() {
+        let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+        let _rt_guard = rt.enter();
+
+        let pool = Pool::new(
+            (vec![LimitItem {
+                name: "pc1",
+                concurrent: Some(&2),
+                staggered_interval: None,
+            }])
+            .into_iter(),
+        );
+
+        let mut now = Instant::now();
+        let token1 = pool.acquire("pc1").unwrap();
+        assert_elapsed!(now, ms(0), "first acquire should not block");
+        assert!(token1.is_some());
+
+        now = Instant::now();
+        let token2 = pool.acquire("pc1").unwrap();
+        assert!(token2.is_some());
+        assert_elapsed!(now, ms(0), "seconed acquire should not block");
+
+        now = Instant::now();
+        timeout(ms(20), move || drop(token1));
+        assert!(pool.acquire("pc1").unwrap().is_some());
+        assert_elapsed!(now, ms(20), "concurrent is only 2 so must wait for for the `token1` to be dropped");
+
+        drop(token2);
+
+        now = Instant::now();
+        assert!(pool.acquire("pc1").unwrap().is_some());
+        assert_elapsed!(now, ms(0), "should not block");
+    }
+
+    #[test]
+    fn test_acquire_only_staggered_limit() {
+        let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+        let _rt_guard = rt.enter();
+
+        let staggered_interval = ms(10);
+        let pool = Pool::new(
+            (vec![LimitItem {
+                name: "pc1",
+                concurrent: None,
+                staggered_interval: Some(&staggered_interval),
+            }])
+            .into_iter(),
+        );
+
+        let mut now = Instant::now();
+        assert!(pool.acquire("pc1").unwrap().is_none());
+        assert_elapsed!(now, ms(0), "first acquire should not block");
+
+        now = Instant::now();
+        assert!(pool.acquire("pc1").unwrap().is_none());
+        assert_elapsed!(
+            now,
+            staggered_interval,
+            "because of the staggered limit, it should to block for {}",
+            format_duration(staggered_interval).to_string()
+        );
+
+        now = Instant::now();
+        let _ = pool.acquire("pc1").unwrap();
+        assert_elapsed!(
+            now,
+            staggered_interval,
+            "need wait staggered_interval: {}",
+            format_duration(staggered_interval).to_string()
+        );
+    }
+
+    fn ms(n: u64) -> Duration {
+        Duration::from_millis(n)
+    }
+
+    fn timeout(t: Duration, f: impl FnOnce() -> () + Send + 'static) {
+        let _ = std::thread::spawn(move || {
+            std::thread::sleep(t);
+            f();
+        });
     }
 }
