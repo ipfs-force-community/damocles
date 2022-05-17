@@ -1080,9 +1080,9 @@ dependencies = [
 
 [[package]]
 name = "fil_types"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd0c8096c885589be68ef7151cd5144b2611cf792f75570a83a2dfbaf1e05993"
+checksum = "b261d3b2bc8f0ed497669cc7aeff6cf7627a108b4605d8f25f7862ee44505067"
 dependencies = [
  "async-std",
  "base64",
@@ -1098,6 +1098,7 @@ dependencies = [
  "lazy_static",
  "num-derive",
  "num-traits",
+ "rayon",
  "serde",
  "serde_json",
 ]
