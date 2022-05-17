@@ -10,10 +10,6 @@ use crate::{block_on, logging::debug};
 
 const LOG_TARGET: &str = "resource";
 
-/// The proportion of tasks allowed to start
-/// at the same time to the total concurrency of tasks
-const STAGGERED_CONCURRENT_PROPORTION: f32 = 0.1;
-
 type LimitTx = Sender<()>;
 type LimitRx = Receiver<()>;
 
@@ -99,13 +95,9 @@ impl Pool {
             );
 
             let concurrent_limit_opt = limit_item.concurrent.map(|concurrent| ConcurrentLimit::new(*concurrent));
-            let staggered_limit_opt = limit_item.staggered_interval.map(|interval| {
-                let c = *limit_item.concurrent.unwrap_or(&0) as f32 * STAGGERED_CONCURRENT_PROPORTION;
-                StaggeredLimit::new(
-                    1.max(c as usize), // ensure the minimum concurrency is 1
-                    interval.to_owned(),
-                )
-            });
+            let staggered_limit_opt = limit_item
+                .staggered_interval
+                .map(|interval| StaggeredLimit::new(1, interval.to_owned()));
             pool.insert(limit_item.name.to_string(), (concurrent_limit_opt, staggered_limit_opt));
         }
 
