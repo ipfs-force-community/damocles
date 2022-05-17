@@ -1226,17 +1226,19 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
 name = "forest_address"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dd6b3511082cd6d99581720a6af422fd319bf2e8dead77adc5c17b36ad9e6f6"
+checksum = "e36b7dbc8805f7d93e4a3c63a5be26dd521d3a62b20cc9453eaf722022d7f8ee"
 dependencies = [
  "data-encoding",
  "data-encoding-macro",
  "forest_encoding",
  "forest_json_utils",
  "leb128",
+ "log",
  "num-derive",
  "num-traits",
+ "once_cell",
  "serde",
  "thiserror",
 ]
