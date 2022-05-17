@@ -138,8 +138,8 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         attached: Arc::new(attached_mgr),
         processors,
         limit: Arc::new(create_resource_pool(
-            cfg.processors.limits_concurrent(),
-            &cfg.processors.limits.staggered,
+            cfg.processors.limitation_concurrent(),
+            &cfg.processors.limitation.staggered,
         )),
         ext_locks,
         static_tree_d,

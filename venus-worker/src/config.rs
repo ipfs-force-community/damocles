@@ -142,11 +142,11 @@ pub struct RPCServer {
 /// configurations for processors
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Processors {
-    // For compatibility, it is equivalent to ` Limit concurrent`
+    // For compatibility, it is equivalent to `Limit.concurrent`
     pub limit: Option<HashMap<String, usize>>,
 
     #[serde(default)]
-    pub limits: Limit,
+    pub limitation: Limit,
 
     pub ext_locks: Option<HashMap<String, usize>>,
 
@@ -171,10 +171,10 @@ pub struct Processors {
 }
 
 impl Processors {
-    pub fn limits_concurrent(&self) -> &Option<HashMap<String, usize>> {
-        match (&self.limit, &self.limits.concurrent) {
+    pub fn limitation_concurrent(&self) -> &Option<HashMap<String, usize>> {
+        match (&self.limit, &self.limitation.concurrent) {
             (_, None) => &self.limit,
-            (_, Some(_)) => &self.limits.concurrent,
+            (_, Some(_)) => &self.limitation.concurrent,
         }
     }
 }

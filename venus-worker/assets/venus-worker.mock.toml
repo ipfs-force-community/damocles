@@ -47,12 +47,12 @@ location = "./mock-tmp/remote"
 [attached_selection]
 # enable_space_weighted = true
 
-[processors.limits.concurrent]
+[processors.limitation.concurrent]
 pc1 = 3
 pc2 = 2
 c2 = 1
 
-[processors.limits.staggered]
+[processors.limitation.staggered]
 pc1 = "1min"
 
 [processors.static_tree_d]
