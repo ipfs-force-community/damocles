@@ -16,7 +16,12 @@ use crate::{
         piecestore::{proxy::ProxyPieceStore, PieceStore},
     },
     logging::info,
-    sealing::{ping, processor, resource, service, store::StoreManager},
+    sealing::{
+        ping, processor,
+        resource::{self, LimitItem},
+        service,
+        store::StoreManager,
+    },
     signal::Signal,
     types::SealProof,
     util::net::{local_interface_ip, rpc_addr, socket_addr_from_url},
@@ -120,9 +125,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         None
     };
 
-    let ext_locks = Arc::new(resource::Pool::new(
-        cfg.processors.ext_locks.as_ref().cloned().unwrap_or_default().iter(),
-    ));
+    let ext_locks = Arc::new(create_resource_pool(&cfg.processors.ext_locks, &None));
 
     let (processors, modules) = start_processors(&cfg, &ext_locks).context("start processors")?;
 
@@ -134,8 +137,9 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         rpc: Arc::new(rpc_client),
         attached: Arc::new(attached_mgr),
         processors,
-        limit: Arc::new(resource::Pool::new(
-            cfg.processors.limit.as_ref().cloned().unwrap_or_default().iter(),
+        limit: Arc::new(create_resource_pool(
+            cfg.processors.limits_concurrent(),
+            &cfg.processors.limits.staggered,
         )),
         ext_locks,
         static_tree_d,
@@ -171,6 +175,50 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     let _ = dog.wait();
 
     Ok(())
+}
+
+fn create_resource_pool(
+    concurrent_limit_opt: &Option<HashMap<String, usize>>,
+    staggered_limit_opt: &Option<HashMap<String, config::SerdeDuration>>,
+) -> resource::Pool {
+    resource::Pool::new(merge_limit_config(concurrent_limit_opt, staggered_limit_opt))
+}
+
+#[inline]
+fn merge_limit_config<'a>(
+    concurrent_limit_opt: &'a Option<HashMap<String, usize>>,
+    staggered_limit_opt: &'a Option<HashMap<String, config::SerdeDuration>>,
+) -> impl Iterator<Item = LimitItem<'a>> {
+    let concurrent_map_len = concurrent_limit_opt.as_ref().map(|x| x.len()).unwrap_or(0);
+    let staggered_map_len = staggered_limit_opt.as_ref().map(|x| x.len()).unwrap_or(0);
+    let mut limits: HashMap<&str, LimitItem<'_>> = HashMap::with_capacity(concurrent_map_len.max(staggered_map_len));
+
+    if let Some(concurrent_limit) = concurrent_limit_opt {
+        for (name, concurrent) in concurrent_limit {
+            limits.insert(
+                name,
+                LimitItem {
+                    name,
+                    concurrent: Some(concurrent),
+                    staggered_interval: None,
+                },
+            );
+        }
+    }
+
+    if let Some(staggered_limit) = staggered_limit_opt {
+        for (name, interval) in staggered_limit {
+            limits
+                .entry(name)
+                .and_modify(|limit_item| limit_item.staggered_interval = Some(&interval.0))
+                .or_insert_with(|| LimitItem {
+                    name,
+                    concurrent: None,
+                    staggered_interval: Some(&interval.0),
+                });
+        }
+    }
+    limits.into_values()
 }
 
 fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>> {
@@ -232,4 +280,79 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
         },
         modules,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{config::SerdeDuration, sealing::resource::LimitItem};
+
+    use super::merge_limit_config;
+    use humantime::parse_duration;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_merge_limit_config() {
+        let cases = vec![
+            (
+                Some(vec![("pc1", 10), ("pc2", 20)]),
+                Some(vec![("pc1", "1s"), ("pc2", "2s")]),
+                vec![
+                    ("pc1", Some(10), Some(parse_duration("1s").unwrap())),
+                    ("pc2", Some(20), Some(parse_duration("2s").unwrap())),
+                ],
+            ),
+            (
+                Some(vec![("pc2", 20)]),
+                Some(vec![("pc1", "1s"), ("pc2", "2s")]),
+                vec![
+                    ("pc1", Some(10), Some(parse_duration("1s").unwrap())),
+                    ("pc2", None, Some(parse_duration("2s").unwrap())),
+                ],
+            ),
+            (
+                Some(vec![("pc2", 20)]),
+                Some(vec![("pc1", "1s")]),
+                vec![("pc1", None, Some(parse_duration("1s").unwrap())), ("pc2", Some(20), None)],
+            ),
+            (
+                None,
+                Some(vec![("pc1", "1s"), ("pc2", "2s")]),
+                vec![
+                    ("pc1", None, Some(parse_duration("1s").unwrap())),
+                    ("pc2", None, Some(parse_duration("2s").unwrap())),
+                ],
+            ),
+            (
+                Some(vec![("pc1", 10), ("pc2", 20)]),
+                None,
+                vec![("pc1", Some(10), None), ("pc2", Some(20), None)],
+            ),
+            (None, None, vec![]),
+        ];
+
+        for testcase in cases {
+            let concurrent_limit_map_opt = testcase.0.map(|x| x.into_iter().map(|(name, x)| (name.to_string(), x)).collect());
+            let staggered_limit_map_opt = testcase.1.map(|x| {
+                x.into_iter()
+                    .map(|(name, dur)| (name.to_string(), SerdeDuration(parse_duration(dur).unwrap())))
+                    .collect()
+            });
+            let merged = merge_limit_config(&concurrent_limit_map_opt, &staggered_limit_map_opt);
+
+            let expect = testcase
+                .2
+                .iter()
+                .map(|x| LimitItem {
+                    name: x.0,
+                    concurrent: x.1.as_ref(),
+                    staggered_interval: x.2.as_ref(),
+                })
+                .collect::<Vec<_>>()
+                .sort_by(|x, y| x.name.cmp(y.name));
+
+            let actual = merged.collect::<Vec<_>>().sort_by(|x, y| x.name.cmp(y.name));
+
+            assert_eq!(format!("{:?}", actual), format!("{:?}", expect));
+        }
+    }
 }

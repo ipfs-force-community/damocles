@@ -142,7 +142,11 @@ pub struct RPCServer {
 /// configurations for processors
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Processors {
+    // For compatibility, it is equivalent to ` Limit concurrent`
     pub limit: Option<HashMap<String, usize>>,
+
+    #[serde(default)]
+    pub limits: Limit,
 
     pub ext_locks: Option<HashMap<String, usize>>,
 
@@ -165,6 +169,24 @@ pub struct Processors {
     /// section for c2 processor
     pub snap_prove: Option<Vec<Ext>>,
 }
+
+impl Processors {
+    pub fn limits_concurrent(&self) -> &Option<HashMap<String, usize>> {
+        match (&self.limit, &self.limits.concurrent) {
+            (_, None) => &self.limit,
+            (_, Some(_)) => &self.limits.concurrent,
+        }
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Limit {
+    pub concurrent: Option<HashMap<String, usize>>,
+    pub staggered: Option<HashMap<String, SerdeDuration>>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SerdeDuration(#[serde(with = "humantime_serde")] pub Duration);
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorkerInstanceConfig {
