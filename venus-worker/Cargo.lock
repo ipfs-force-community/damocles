@@ -1080,9 +1080,9 @@ dependencies = [
 
 [[package]]
 name = "fil_types"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd0c8096c885589be68ef7151cd5144b2611cf792f75570a83a2dfbaf1e05993"
+checksum = "b261d3b2bc8f0ed497669cc7aeff6cf7627a108b4605d8f25f7862ee44505067"
 dependencies = [
  "async-std",
  "base64",
@@ -1098,6 +1098,7 @@ dependencies = [
  "lazy_static",
  "num-derive",
  "num-traits",
+ "rayon",
  "serde",
  "serde_json",
 ]
@@ -1226,17 +1227,19 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
 name = "forest_address"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dd6b3511082cd6d99581720a6af422fd319bf2e8dead77adc5c17b36ad9e6f6"
+checksum = "e36b7dbc8805f7d93e4a3c63a5be26dd521d3a62b20cc9453eaf722022d7f8ee"
 dependencies = [
  "data-encoding",
  "data-encoding-macro",
  "forest_encoding",
  "forest_json_utils",
  "leb128",
+ "log",
  "num-derive",
  "num-traits",
+ "once_cell",
  "serde",
  "thiserror",
 ]

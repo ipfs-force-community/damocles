@@ -1,0 +1,23 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/venus-worker"
+    schedule:
+      interval: "daily"
+    allow:
+      - dependency-name: "storage-proofs-core"
+      - dependency-name: "forest_json_utils"
+      - dependency-name: "forest_address"
+      - dependency-name: "forest_cid"
+      - dependency-name: "fil_clock"
+      - dependency-name: "multiaddr"
+      - dependency-name: "filecoin-proofs-api"
+      - dependency-name: "filecoin-proofs"
+      - dependency-name: "fil_types"
+
+  - package-ecosystem: "gomod"
+    directory: "/venus-sector-manager"
+    schedule:
+      interval: "daily"
+    allow:
+      - dependency-name: "github.com/filecoin-project/venus"
