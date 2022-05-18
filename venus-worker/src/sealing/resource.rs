@@ -3,20 +3,19 @@
 use std::{collections::HashMap, time::Duration};
 
 use anyhow::Result;
-use crossbeam_channel::{bounded, Receiver, Sender};
-use leaky_bucket::RateLimiter;
+use crossbeam_channel::{bounded, select, tick, Receiver, Sender};
 
-use crate::{block_on, logging::debug};
+use crate::logging::debug;
 
 const LOG_TARGET: &str = "resource";
 
 type LimitTx = Sender<()>;
 type LimitRx = Receiver<()>;
 
-/// Token represents 1 available resource unit
-pub struct Token(LimitRx);
+/// ConcurrentToken represents 1 available resource unit
+pub struct ConcurrentToken(LimitRx);
 
-impl Drop for Token {
+impl Drop for ConcurrentToken {
     fn drop(&mut self) {
         let _ = self.0.recv();
     }
@@ -34,19 +33,20 @@ impl ConcurrentLimit {
         ConcurrentLimit { tx, rx }
     }
 
-    fn acquire(&self) -> Result<Token> {
+    fn acquire(&self) -> Result<ConcurrentToken> {
         self.tx.send(())?;
 
-        Ok(Token(self.rx.clone()))
+        Ok(ConcurrentToken(self.rx.clone()))
     }
 }
 
 /// StaggeredLimit is used to avoid the multiple concurrent tasks
 /// that start at the same time, causing excessive strain
-/// on resources such as cpu or disk.
-/// StaggeredLimit uses an [leaky bucket] algorithm to allow
-/// multiple tasks to start at staggered times.
-struct StaggeredLimit(RateLimiter);
+/// on resources such as cpu or disk. it makes multiple tasks to start at staggered times.
+struct StaggeredLimit {
+    token_rx: Receiver<()>,
+    task_done_tx: Sender<()>,
+}
 
 impl StaggeredLimit {
     /// Create a StaggeredLimit with specified concurrent and specified interval.
@@ -54,20 +54,60 @@ impl StaggeredLimit {
     /// * `concurrent` - The number of tasks that are allowed to start at the same time
     /// * `interval` - Time interval for task start
     fn new(concurrent: usize, interval: Duration) -> Self {
-        Self(
-            RateLimiter::builder()
-                .max(concurrent)
-                .initial(concurrent)
-                .refill(1)
-                .interval(interval)
-                .build(),
-        )
+        let (token_tx, token_rx) = bounded(concurrent);
+        let (task_done_tx, task_done_rx) = bounded(concurrent);
+
+        // initialize fill token
+        for _ in 0..concurrent {
+            let _ = token_tx.send(());
+        }
+
+        // spawn the token filling timed task
+        std::thread::spawn(move || {
+            let send_token = || {
+                // we don't care the channel is full or not.
+                let _ = token_tx.try_send(());
+            };
+
+            loop {
+                let ticker = tick(interval);
+                loop {
+                    select! {
+                        recv(ticker) -> _ => {
+                            send_token();
+                        },
+                        recv(task_done_rx) -> _ => {
+                            send_token();
+                            break;
+                        },
+                    }
+                }
+            }
+        });
+
+        Self { token_rx, task_done_tx }
     }
 
-    fn wait(&self) {
-        block_on(self.0.acquire_one())
+    fn acquire(&self) -> Result<StaggeredToken> {
+        self.token_rx
+            .recv()
+            .map(|_| StaggeredToken(self.task_done_tx.clone()))
+            .map_err(Into::into)
     }
 }
+
+struct StaggeredToken(Sender<()>);
+
+impl Drop for StaggeredToken {
+    fn drop(&mut self) {
+        // it's safe to ignore the error here,
+        // because we don't care the channel is full or not.
+        let _ = self.0.try_send(());
+    }
+}
+
+/// Token combines ConcurrentToken and StaggeredToken
+pub struct Token(Option<ConcurrentToken>, Option<StaggeredToken>);
 
 /// resource limit pool
 pub struct Pool {
@@ -114,16 +154,16 @@ impl Pool {
                 None
             }
             Some((concurrent_limit_opt, staggered_limit_opt)) => {
-                let mut token_opt = None;
+                let mut token = Token(None, None);
                 if let Some(concurrent_limit) = concurrent_limit_opt {
-                    token_opt = Some(concurrent_limit.acquire()?)
+                    token.0 = Some(concurrent_limit.acquire()?)
                 }
 
                 if let Some(staggered_limit) = staggered_limit_opt {
-                    staggered_limit.wait();
+                    token.1 = Some(staggered_limit.acquire()?);
                 }
                 debug!(target: LOG_TARGET, name = key, "acquired");
-                token_opt
+                Some(token)
             }
         })
     }
@@ -132,7 +172,6 @@ impl Pool {
 #[cfg(test)]
 mod tests {
     use humantime::format_duration;
-    use tokio::runtime::Builder;
 
     use super::{LimitItem, Pool};
     use std::time::{Duration, Instant};
@@ -158,10 +197,20 @@ mod tests {
     }
 
     #[test]
-    fn test_acquire_both_concurrent_limit_and_staggered_limit() {
-        let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-        let _rt_guard = rt.enter();
+    fn test_acquire_without_limit() {
+        let pool = Pool::new(vec![].into_iter());
 
+        let mut now = Instant::now();
+        assert!(pool.acquire("pc1").unwrap().is_none());
+        assert_elapsed!(now, ms(0), "without limit should not block");
+
+        now = Instant::now();
+        assert!(pool.acquire("pc1").unwrap().is_none());
+        assert_elapsed!(now, ms(0), "without limit should not block");
+    }
+
+    #[test]
+    fn test_acquire_both_concurrent_limit_and_staggered_limit() {
         let staggered_interval = ms(10);
         let pool = Pool::new(
             (vec![LimitItem {
@@ -171,9 +220,11 @@ mod tests {
             }])
             .into_iter(),
         );
+
         let mut now = Instant::now();
         let token1 = pool.acquire("pc1").unwrap();
         assert_elapsed!(now, ms(0), "first acquire should not block");
+
         now = Instant::now();
         let _token2 = pool.acquire("pc1").unwrap();
         assert_elapsed!(
@@ -184,31 +235,17 @@ mod tests {
         );
 
         now = Instant::now();
-        timeout(ms(20), move || drop(token1));
-        let _ = pool.acquire("pc1").unwrap();
-        assert_elapsed!(now, ms(20), "concurrent is only 2 so must wait for for the `token1` to be dropped");
-
-        drop(_token2);
-
-        now = Instant::now();
-        let _ = pool.acquire("pc1").unwrap();
-        assert_elapsed!(
-            now,
-            staggered_interval,
-            "need wait staggered_interval: {}",
-            format_duration(staggered_interval).to_string()
-        );
+        timeout(ms(5), move || drop(token1));
+        let _token3 = pool.acquire("pc1").unwrap();
+        assert_elapsed!(now, ms(5), "concurrent is only 2 so must wait for the `token1` to be dropped");
     }
 
     #[test]
     fn test_acquire_only_concurrent_limit() {
-        let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-        let _rt_guard = rt.enter();
-
         let pool = Pool::new(
             (vec![LimitItem {
                 name: "pc1",
-                concurrent: Some(&2),
+                concurrent: Some(&3),
                 staggered_interval: None,
             }])
             .into_iter(),
@@ -217,30 +254,32 @@ mod tests {
         let mut now = Instant::now();
         let token1 = pool.acquire("pc1").unwrap();
         assert_elapsed!(now, ms(0), "first acquire should not block");
-        assert!(token1.is_some());
 
         now = Instant::now();
         let token2 = pool.acquire("pc1").unwrap();
-        assert!(token2.is_some());
         assert_elapsed!(now, ms(0), "seconed acquire should not block");
 
         now = Instant::now();
-        timeout(ms(20), move || drop(token1));
-        assert!(pool.acquire("pc1").unwrap().is_some());
-        assert_elapsed!(now, ms(20), "concurrent is only 2 so must wait for for the `token1` to be dropped");
-
-        drop(token2);
+        let token3 = pool.acquire("pc1").unwrap();
+        assert_elapsed!(now, ms(0), "third acquire should not block");
 
         now = Instant::now();
-        assert!(pool.acquire("pc1").unwrap().is_some());
+        timeout(ms(20), move || drop(token1));
+        let token4 = pool.acquire("pc1").unwrap();
+        assert_elapsed!(now, ms(20), "concurrent is only 3 so must wait for the `token1` to be dropped");
+
+        drop(token2);
+        drop(token3);
+        drop(token4);
+        now = Instant::now();
+        pool.acquire("pc1").unwrap();
+        pool.acquire("pc1").unwrap();
+        pool.acquire("pc1").unwrap();
         assert_elapsed!(now, ms(0), "should not block");
     }
 
     #[test]
     fn test_acquire_only_staggered_limit() {
-        let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-        let _rt_guard = rt.enter();
-
         let staggered_interval = ms(10);
         let pool = Pool::new(
             (vec![LimitItem {
@@ -252,11 +291,11 @@ mod tests {
         );
 
         let mut now = Instant::now();
-        assert!(pool.acquire("pc1").unwrap().is_none());
+        let token1 = pool.acquire("pc1").unwrap();
         assert_elapsed!(now, ms(0), "first acquire should not block");
 
         now = Instant::now();
-        assert!(pool.acquire("pc1").unwrap().is_none());
+        let _token2 = pool.acquire("pc1").unwrap();
         assert_elapsed!(
             now,
             staggered_interval,
@@ -265,11 +304,52 @@ mod tests {
         );
 
         now = Instant::now();
-        let _ = pool.acquire("pc1").unwrap();
+        let _token3 = pool.acquire("pc1").unwrap();
         assert_elapsed!(
             now,
             staggered_interval,
-            "need wait staggered_interval: {}",
+            "because of the staggered limit, it should to block for {}",
+            format_duration(staggered_interval).to_string()
+        );
+
+        now = Instant::now();
+        drop(token1);
+        let _token4 = pool.acquire("pc1").unwrap();
+        assert_elapsed!(now, ms(0), "since task1 has completed (token1 dropped), it should not be blocked");
+    }
+
+    #[test]
+    fn test_a_task_done_acquire() {
+        let staggered_interval = ms(10);
+        let pool = Pool::new(
+            (vec![LimitItem {
+                name: "pc1",
+                concurrent: None,
+                staggered_interval: Some(&staggered_interval),
+            }])
+            .into_iter(),
+        );
+
+        let mut now = Instant::now();
+        let token1 = pool.acquire("pc1").unwrap();
+        assert_elapsed!(now, ms(0), "first acquire should not block");
+
+        now = Instant::now();
+        timeout(staggered_interval / 2, || drop(token1));
+        let _token2 = pool.acquire("pc1").unwrap();
+        assert_elapsed!(
+            now,
+            staggered_interval / 2,
+            "since task1 has completed (token1 dropped), it should only block for {}",
+            format_duration(staggered_interval / 2).to_string()
+        );
+
+        now = Instant::now();
+        let _token3 = pool.acquire("pc1").unwrap();
+        assert_elapsed!(
+            now,
+            staggered_interval,
+            "should block {}",
             format_duration(staggered_interval).to_string()
         );
     }
