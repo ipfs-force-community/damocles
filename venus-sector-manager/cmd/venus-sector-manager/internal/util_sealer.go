@@ -84,6 +84,37 @@ var utilSealerSectorsWorkerStatesCmd = &cli.Command{
 			fmt.Fprintf(os.Stdout, "\t\tInstance: %s\n", state.LatestState.Worker.Instance)
 			fmt.Fprintf(os.Stdout, "\t\tLocation: %s\n", state.LatestState.Worker.Location)
 
+			fmt.Fprintln(os.Stdout, "\tDeals:")
+			deals := state.Deals()
+			if len(deals) == 0 {
+				fmt.Fprintln(os.Stdout, "\t\tNULL")
+			} else {
+				for _, deal := range deals {
+					fmt.Fprintf(os.Stdout, "\t\tID: %d\n", deal.ID)
+					fmt.Fprintf(os.Stdout, "\t\tPiece: %v\n", deal.Piece)
+				}
+			}
+
+			fmt.Fprintln(os.Stdout, "\tTicket:")
+			if state.Ticket != nil {
+				fmt.Fprintf(os.Stdout, "\t\tHeight: %d\n", state.Ticket.Epoch)
+				fmt.Fprintf(os.Stdout, "\t\tValue: %x\n", state.Ticket.Ticket)
+			}
+
+			fmt.Fprintln(os.Stdout, "\tSeed:")
+			if state.Seed != nil {
+				fmt.Fprintf(os.Stdout, "\t\tHeight: %d\n", state.Seed.Epoch)
+				fmt.Fprintf(os.Stdout, "\t\tValue: %x\n", state.Seed.Seed)
+			}
+
+			fmt.Fprintln(os.Stdout, "\tMessageInfo:")
+			if state.MessageInfo.PreCommitCid != nil {
+				fmt.Fprintf(os.Stdout, "\t\tPre: %s\n", state.MessageInfo.PreCommitCid.String())
+			}
+			if state.MessageInfo.CommitCid != nil {
+				fmt.Fprintf(os.Stdout, "\t\tProve: %s\n", state.MessageInfo.CommitCid.String())
+			}
+
 			fmt.Fprintln(os.Stdout, "\tState:")
 			fmt.Fprintf(os.Stdout, "\t\tPrev: %s\n", state.LatestState.StateChange.Prev)
 			fmt.Fprintf(os.Stdout, "\t\tCurrent: %s\n", state.LatestState.StateChange.Next)
@@ -205,12 +236,22 @@ var utilSealerSectorsListCmd = &cli.Command{
 			}
 			fmt.Fprintf(os.Stdout, "\t\tNeedSeed: %v\n", state.MessageInfo.NeedSend)
 
+			fmt.Fprintln(os.Stdout, "\tTerminateInfo:")
+			if state.TerminateInfo.TerminateCid != nil {
+				fmt.Fprintf(os.Stdout, "\t\tUid: %s\n", state.TerminateInfo.TerminateCid.String())
+				fmt.Fprintf(os.Stdout, "\t\tHeight: %v\n", state.TerminateInfo.TerminatedAt)
+				fmt.Fprintf(os.Stdout, "\t\tAddedHeight: %v\n", state.TerminateInfo.AddedHeight)
+			} else {
+				fmt.Fprintln(os.Stdout, "\t\tNULL")
+			}
+
 			fmt.Fprintln(os.Stdout, "\tState:")
 			fmt.Fprintf(os.Stdout, "\t\tPrev: %s\n", state.LatestState.StateChange.Prev)
 			fmt.Fprintf(os.Stdout, "\t\tCurrent: %s\n", state.LatestState.StateChange.Next)
 			fmt.Fprintf(os.Stdout, "\t\tEvent: %s\n", state.LatestState.StateChange.Event)
 
 			fmt.Fprintf(os.Stdout, "\tFinalized: %v\n", state.Finalized)
+			fmt.Fprintf(os.Stdout, "\tRemoved: %v\n", state.Removed)
 
 			fmt.Fprintln(os.Stdout, "")
 		}
