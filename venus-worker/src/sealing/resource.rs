@@ -3,9 +3,9 @@
 use std::{collections::HashMap, time::Duration};
 
 use anyhow::Result;
-use crossbeam_channel::{bounded, select, tick, Receiver, Sender};
+use crossbeam_channel::{bounded, select, tick, Receiver, Sender, TryRecvError};
 
-use crate::logging::debug;
+use crate::logging::{debug, warn};
 
 const LOG_TARGET: &str = "resource";
 
@@ -44,7 +44,7 @@ impl ConcurrentLimit {
 /// that start at the same time, causing excessive strain
 /// on resources such as cpu or disk. it makes multiple tasks to start at staggered times.
 struct StaggeredLimit {
-    token_rx: Receiver<()>,
+    token_tx: Sender<()>,
     task_done_tx: Sender<()>,
 }
 
@@ -57,52 +57,60 @@ impl StaggeredLimit {
         let (token_tx, token_rx) = bounded(concurrent);
         let (task_done_tx, task_done_rx) = bounded(concurrent);
 
-        // initialize fill token
-        for _ in 0..concurrent {
-            let _ = token_tx.send(());
-        }
-
-        // spawn the token filling timed task
+        // spawn the token filling delay task
         std::thread::spawn(move || {
             let send_token = || {
-                // we don't care the channel is full or not.
-                let _ = token_tx.try_send(());
+                match token_rx.try_recv() {
+                    // we don't care the channel is empty or not.
+                    Err(TryRecvError::Empty) => Ok(()),
+                    x => x,
+                }
             };
-
-            loop {
-                let ticker = tick(interval);
+            let res = (|| -> Result<()> {
                 loop {
-                    select! {
-                        recv(ticker) -> _ => {
-                            send_token();
-                        },
-                        recv(task_done_rx) -> _ => {
-                            send_token();
-                            break;
-                        },
+                    let ticker = tick(interval);
+                    loop {
+                        select! {
+                            recv(ticker) -> res => {
+                                res?;
+                                send_token()?;
+                            },
+                            recv(task_done_rx) -> res => {
+                                res?;
+                                send_token()?;
+                                break;
+                            },
+                        }
                     }
                 }
+            })();
+            if let Err(e) = res {
+                warn!(err=?e, "StaggeredLimit channel disconnected");
             }
         });
 
-        Self { token_rx, task_done_tx }
+        Self { token_tx, task_done_tx }
     }
 
     fn acquire(&self) -> Result<StaggeredToken> {
-        self.token_rx
-            .recv()
-            .map(|_| StaggeredToken(self.task_done_tx.clone()))
+        self.token_tx
+            .send(())
+            .map(|_| StaggeredToken {
+                task_done_tx: self.task_done_tx.clone(),
+            })
             .map_err(Into::into)
     }
 }
 
-struct StaggeredToken(Sender<()>);
+struct StaggeredToken {
+    task_done_tx: Sender<()>,
+}
 
 impl Drop for StaggeredToken {
     fn drop(&mut self) {
         // it's safe to ignore the error here,
         // because we don't care the channel is full or not.
-        let _ = self.0.try_send(());
+        let _ = self.task_done_tx.try_send(());
     }
 }
 
