@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/filecoin-project/go-address"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/filecoin-project/venus/pkg/clock"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
@@ -168,4 +170,93 @@ func (s *Sealer) SectorIndexerFind(ctx context.Context, indexType core.SectorInd
 		Found:    found,
 		Instance: instance,
 	}, nil
+}
+
+func (s *Sealer) TerminateSector(ctx context.Context, sid abi.SectorID) (core.SubmitTerminateResp, error) {
+	return s.commit.SubmitTerminate(ctx, sid)
+}
+
+func (s *Sealer) PollTerminateSectorState(ctx context.Context, sid abi.SectorID) (core.TerminateInfo, error) {
+	return s.commit.TerminateState(ctx, sid)
+}
+
+func (s *Sealer) RemoveSector(ctx context.Context, sid abi.SectorID) error {
+	state, err := s.state.Load(ctx, sid, false)
+	if err != nil {
+		return fmt.Errorf("load sector state: %w", err)
+	}
+
+	if state.Removed {
+		return nil
+	}
+
+	if state.TerminateInfo.TerminatedAt > 0 {
+		ts, err := s.capi.ChainHead(ctx)
+		if err != nil {
+			return fmt.Errorf("getting chain head: %w", err)
+		}
+
+		nv, err := s.capi.StateNetworkVersion(ctx, ts.Key())
+		if err != nil {
+			return fmt.Errorf("getting network version: %w", err)
+		}
+
+		if ts.Height() < state.TerminateInfo.TerminatedAt+specpolicy.GetWinningPoStSectorSetLookback(nv) {
+			height := state.TerminateInfo.TerminatedAt + specpolicy.GetWinningPoStSectorSetLookback(nv)
+			return fmt.Errorf("wait for expiration(+winning lookback?): %v", height)
+		}
+	}
+
+	dest := s.sectorIdxer.Normal()
+	if state.Upgraded {
+		dest = s.sectorIdxer.Upgrade()
+	}
+
+	access, has, err := dest.Find(ctx, sid)
+	if err != nil {
+		return fmt.Errorf("find objstore instance: %w", err)
+	}
+	if !has {
+		return fmt.Errorf("object not found")
+	}
+
+	sealedFile, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, access.SealedFile)
+	if err != nil {
+		return fmt.Errorf("get objstore instance %s for sealed file: %w", access.SealedFile, err)
+	}
+
+	cacheDir, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, access.CacheDir)
+	if err != nil {
+		return fmt.Errorf("get objstore instance %s for cache dir: %w", access.CacheDir, err)
+	}
+
+	var cache string
+	var sealed string
+	if state.Upgraded {
+		cache = util.SectorPath(util.SectorPathTypeUpdateCache, state.ID)
+		sealed = util.SectorPath(util.SectorPathTypeUpdate, state.ID)
+	} else {
+		cache = util.SectorPath(util.SectorPathTypeCache, state.ID)
+		sealed = util.SectorPath(util.SectorPathTypeSealed, state.ID)
+	}
+
+	cachePath := cacheDir.FullPath(ctx, cache)
+	err = os.RemoveAll(cachePath)
+	if err != nil {
+		return fmt.Errorf("remove cache: %w", err)
+	}
+
+	sealedPath := sealedFile.FullPath(ctx, sealed)
+	err = os.Remove(sealedPath)
+	if err != nil {
+		return fmt.Errorf("remove sealed file: %w", err)
+	}
+
+	state.Removed = true
+	err = s.state.Update(ctx, state.ID, false, state.Removed)
+	if err != nil {
+		return fmt.Errorf("update sector Removed failed: %w", err)
+	}
+
+	return nil
 }

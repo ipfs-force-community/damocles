@@ -140,6 +140,11 @@ type PollProofStateResp struct {
 	Desc  *string
 }
 
+type SubmitTerminateResp struct {
+	Res  SubmitResult
+	Desc *string
+}
+
 type MinerInfo struct {
 	ID   abi.ActorID
 	Addr address.Address
@@ -182,6 +187,12 @@ type MessageInfo struct {
 	PreCommitCid *cid.Cid
 	CommitCid    *cid.Cid
 	NeedSend     bool
+}
+
+type TerminateInfo struct {
+	TerminateCid *cid.Cid
+	TerminatedAt abi.ChainEpoch
+	AddedHeight  abi.ChainEpoch
 }
 
 type ReportStateReq struct {

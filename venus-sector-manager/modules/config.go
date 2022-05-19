@@ -196,6 +196,7 @@ type MinerCommitmentConfig struct {
 	Confidence int64
 	Pre        MinerCommitmentPolicyConfig
 	Prove      MinerCommitmentPolicyConfig
+	Terminate  MinerCommitmentPolicyConfig
 }
 
 func defaultMinerCommitmentConfig(example bool) MinerCommitmentConfig {
@@ -203,7 +204,10 @@ func defaultMinerCommitmentConfig(example bool) MinerCommitmentConfig {
 		Confidence: 10,
 		Pre:        defaultMinerCommitmentPolicyConfig(example),
 		Prove:      defaultMinerCommitmentPolicyConfig(example),
+		Terminate:  defaultMinerCommitmentPolicyConfig(example),
 	}
+
+	cfg.Terminate.Batch.Threshold = 5
 
 	return cfg
 }

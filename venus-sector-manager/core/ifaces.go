@@ -26,6 +26,9 @@ type CommitmentManager interface {
 
 	SubmitProof(context.Context, abi.SectorID, ProofInfo, bool) (SubmitProofResp, error)
 	ProofState(context.Context, abi.SectorID) (PollProofStateResp, error)
+
+	SubmitTerminate(context.Context, abi.SectorID) (SubmitTerminateResp, error)
+	TerminateState(context.Context, abi.SectorID) (TerminateInfo, error)
 }
 
 type SectorNumberAllocator interface {
@@ -35,8 +38,8 @@ type SectorNumberAllocator interface {
 type SectorStateManager interface {
 	Init(context.Context, abi.SectorID, abi.RegisteredSealProof) error
 	InitWith(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, fields ...interface{}) error
-	Load(context.Context, abi.SectorID) (*SectorState, error)
-	Update(context.Context, abi.SectorID, ...interface{}) error
+	Load(ctx context.Context, sid abi.SectorID, online bool) (*SectorState, error)
+	Update(ctx context.Context, sid abi.SectorID, online bool, fieldvals ...interface{}) error
 	Finalize(context.Context, abi.SectorID, SectorStateChangeHook) error
 	Restore(context.Context, abi.SectorID, SectorStateChangeHook) error
 	All(ctx context.Context, ws SectorWorkerState, job SectorWorkerJob) ([]*SectorState, error)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -45,9 +46,11 @@ type CommitmentMgrImpl struct {
 
 	commitBatcher    map[abi.ActorID]*Batcher
 	preCommitBatcher map[abi.ActorID]*Batcher
+	terminateBatcher map[abi.ActorID]*Batcher
 
-	prePendingChan chan core.SectorState
-	proPendingChan chan core.SectorState
+	prePendingChan       chan core.SectorState
+	proPendingChan       chan core.SectorState
+	terminatePendingChan chan core.SectorState
 
 	verif  core.Verifier
 	prover core.Prover
@@ -61,6 +64,7 @@ func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr Seal
 ) (*CommitmentMgrImpl, error) {
 	prePendingChan := make(chan core.SectorState, 1024)
 	proPendingChan := make(chan core.SectorState, 1024)
+	terminatePendingChan := make(chan core.SectorState, 1024)
 
 	mgr := CommitmentMgrImpl{
 		ctx:       ctx,
@@ -72,9 +76,11 @@ func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr Seal
 
 		commitBatcher:    map[abi.ActorID]*Batcher{},
 		preCommitBatcher: map[abi.ActorID]*Batcher{},
+		terminateBatcher: map[abi.ActorID]*Batcher{},
 
-		prePendingChan: prePendingChan,
-		proPendingChan: proPendingChan,
+		prePendingChan:       prePendingChan,
+		proPendingChan:       proPendingChan,
+		terminatePendingChan: terminatePendingChan,
 
 		verif:  verif,
 		prover: prover,
@@ -89,7 +95,7 @@ func updateSector(ctx context.Context, stmgr core.SectorStateManager, sector []c
 	for i := range sector {
 		sectorID[i] = sector[i].ID
 		sector[i].MessageInfo.NeedSend = false
-		err := stmgr.Update(ctx, sector[i].ID, sector[i].MessageInfo)
+		err := stmgr.Update(ctx, sector[i].ID, true, sector[i].MessageInfo)
 		if err != nil {
 			plog.With("sector", sector[i].ID.Number).Errorf("Update sector MessageInfo failed: %s", err)
 		}
@@ -176,6 +182,7 @@ func NewMIdFromBytes(seed []byte) (cid.Cid, error) {
 func (c *CommitmentMgrImpl) Run(ctx context.Context) {
 	go c.startPreLoop()
 	go c.startProLoop()
+	go c.startTerminateLoop(ctx)
 
 	go c.restartSector(ctx)
 }
@@ -185,6 +192,7 @@ func (c *CommitmentMgrImpl) Stop() {
 	c.stopOnce.Do(func() {
 		close(c.prePendingChan)
 		close(c.proPendingChan)
+		close(c.terminatePendingChan)
 		close(c.stop)
 
 		for i := range c.commitBatcher {
@@ -192,6 +200,9 @@ func (c *CommitmentMgrImpl) Stop() {
 		}
 		for i := range c.commitBatcher {
 			c.preCommitBatcher[i].waitStop()
+		}
+		for i := range c.terminateBatcher {
+			c.terminateBatcher[i].waitStop()
 		}
 	})
 }
@@ -220,6 +231,19 @@ func (c *CommitmentMgrImpl) proveSender(mid abi.ActorID) (address.Address, error
 	}
 
 	return mcfg.Commitment.Prove.Sender.Std(), nil
+}
+
+func (c *CommitmentMgrImpl) terminateSender(mid abi.ActorID) (address.Address, error) {
+	mcfg, err := c.cfg.MinerConfig(mid)
+	if err != nil {
+		return address.Undef, fmt.Errorf("get miner config for %d: %w", mid, err)
+	}
+
+	if !mcfg.Commitment.Terminate.Sender.Valid() {
+		return address.Undef, fmt.Errorf("sender address not valid")
+	}
+
+	return mcfg.Commitment.Terminate.Sender.Std(), nil
 }
 
 func (c *CommitmentMgrImpl) startPreLoop() {
@@ -290,6 +314,78 @@ func (c *CommitmentMgrImpl) startProLoop() {
 	}
 }
 
+func (c *CommitmentMgrImpl) pollTerminateState(ctx context.Context, sector *core.SectorState) {
+	mlog := log.With("sector-id", sector.ID, "stage", "terminate-commit")
+	mlog.Debug("poll start")
+
+	for {
+		select {
+		case <-time.After(time.Minute):
+		case <-ctx.Done():
+			return
+		}
+
+		sector, err := c.smgr.Load(ctx, sector.ID, false)
+		if err != nil {
+			mlog.Error(err.Error())
+			break
+		}
+
+		if sector.TerminateInfo.TerminateCid == nil {
+			continue
+		}
+
+		msg, err := c.msgClient.GetMessageByUid(ctx, sector.TerminateInfo.TerminateCid.String())
+		if err != nil {
+			mlog.Error(err.Error())
+			break
+		}
+
+		state, _ := c.handleMessage(ctx, sector.ID.Miner, msg, mlog)
+		if state == core.OnChainStateLanded {
+			sector.TerminateInfo.TerminatedAt = abi.ChainEpoch(msg.Height)
+
+			err := c.smgr.Update(ctx, sector.ID, false, sector.TerminateInfo)
+			if err != nil {
+				mlog.Errorf("Update sector TerminateInfo failed: %s", err)
+			}
+
+			mlog.Debug("poll finished")
+			break
+		}
+	}
+}
+
+func (c *CommitmentMgrImpl) startTerminateLoop(ctx context.Context) {
+	llog := log.With("loop", "terminate")
+
+	llog.Info("pending loop start")
+	defer llog.Info("pending loop stop")
+
+	for s := range c.terminatePendingChan {
+		miner := s.ID.Miner
+		if _, ok := c.terminateBatcher[miner]; !ok {
+			sender, err := c.terminateSender(miner)
+			if err != nil {
+				llog.Errorf("get sender address: %s", err)
+				continue
+			}
+
+			c.terminateBatcher[miner] = NewBatcher(c.ctx, miner, sender, TerminateProcessor{
+				api:       c.stateMgr,
+				msgClient: c.msgClient,
+				smgr:      c.smgr,
+				config:    c.cfg,
+				prover:    c.prover,
+			}, llog)
+		}
+
+		go c.pollTerminateState(ctx, &s)
+
+		c.terminateBatcher[miner].Add(s)
+	}
+}
+
 func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
 	sectors, err := c.smgr.All(ctx, core.WorkerOnline, core.SectorWorkerJobSealing)
 	if err != nil {
@@ -308,6 +404,24 @@ func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
 			}
 		}
 	}
+
+	offlineSectors, err := c.smgr.All(ctx, core.WorkerOffline, core.SectorWorkerJobAll)
+	if err != nil {
+		log.Errorf("load all offline sector from db failed: %s", err)
+		return
+	}
+
+	log.Debugw("previous offline sectors loaded", "count", len(offlineSectors))
+
+	for i := range offlineSectors {
+		if offlineSectors[i].TerminateInfo.AddedHeight > 0 && offlineSectors[i].TerminateInfo.TerminatedAt == 0 {
+			if offlineSectors[i].TerminateInfo.TerminateCid != nil {
+				go c.pollTerminateState(ctx, offlineSectors[i])
+			} else {
+				c.terminatePendingChan <- *offlineSectors[i]
+			}
+		}
+	}
 }
 
 func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info core.PreCommitInfo, hardReset bool) (core.SubmitPreCommitResp, error) {
@@ -316,7 +430,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 		return core.SubmitPreCommitResp{}, err
 	}
 
-	sector, err := c.smgr.Load(ctx, id)
+	sector, err := c.smgr.Load(ctx, id, true)
 	if err != nil {
 		return core.SubmitPreCommitResp{}, err
 	}
@@ -358,7 +472,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 
 	sector.MessageInfo.NeedSend = true
 	sector.MessageInfo.PreCommitCid = nil
-	err = c.smgr.Update(ctx, sector.ID, sector.Pre, sector.MessageInfo)
+	err = c.smgr.Update(ctx, sector.ID, true, sector.Pre, sector.MessageInfo)
 	if err != nil {
 		return core.SubmitPreCommitResp{}, err
 	}
@@ -378,7 +492,7 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 		return core.PollPreCommitStateResp{}, err
 	}
 
-	sector, err := c.smgr.Load(ctx, id)
+	sector, err := c.smgr.Load(ctx, id, true)
 	if err != nil {
 		return core.PollPreCommitStateResp{}, err
 	}
@@ -424,7 +538,7 @@ func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, in
 		return core.SubmitProofResp{}, err
 	}
 
-	sector, err := c.smgr.Load(ctx, id)
+	sector, err := c.smgr.Load(ctx, id, true)
 	if err != nil {
 		return core.SubmitProofResp{}, err
 	}
@@ -473,7 +587,7 @@ func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, in
 
 	sector.MessageInfo.NeedSend = true
 	sector.MessageInfo.CommitCid = nil
-	err = c.smgr.Update(ctx, id, sector.Proof, sector.MessageInfo)
+	err = c.smgr.Update(ctx, id, true, sector.Proof, sector.MessageInfo)
 	if err != nil {
 		return core.SubmitProofResp{}, err
 	}
@@ -493,7 +607,7 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (co
 		return core.PollProofStateResp{}, err
 	}
 
-	sector, err := c.smgr.Load(ctx, id)
+	sector, err := c.smgr.Load(ctx, id, true)
 	if err != nil {
 		return core.PollProofStateResp{}, err
 	}
@@ -528,6 +642,98 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (co
 	return core.PollProofStateResp{State: state, Desc: maybe}, nil
 }
 
+func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorID) (core.SubmitTerminateResp, error) {
+	_, height, err := c.stateMgr.ChainHead(ctx)
+	if err != nil {
+		return core.SubmitTerminateResp{}, err
+	}
+
+	sector, err := c.smgr.Load(ctx, sid, false)
+	if err != nil {
+		return core.SubmitTerminateResp{}, err
+	}
+
+	// check for duplicate actions
+	if sector.TerminateInfo.AddedHeight > 0 {
+		errMsg := "duplicate submit"
+		return core.SubmitTerminateResp{Res: core.SubmitDuplicateSubmit, Desc: &errMsg}, nil
+	}
+
+	_, err = c.terminateSender(sid.Miner)
+	if err != nil {
+		return core.SubmitTerminateResp{}, err
+	}
+
+	// if sector is live, Add to termination queue
+	maddr, err := address.NewIDAddress(uint64(sid.Miner))
+	if err != nil {
+		errMsg := err.Error()
+		return core.SubmitTerminateResp{Res: core.SubmitRejected, Desc: &errMsg}, nil
+	}
+
+	si, err := c.stateMgr.StateSectorGetInfo(ctx, maddr, sid.Number, nil)
+	if err != nil {
+		return core.SubmitTerminateResp{}, err
+	}
+	if si == nil {
+		// either already terminated or not committed yet
+		pci, err := c.stateMgr.StateSectorPreCommitInfo(ctx, maddr, sid.Number, nil)
+		if err != nil {
+			return core.SubmitTerminateResp{}, fmt.Errorf("checking precommit presence: %w", err)
+		}
+		if pci != nil {
+			return core.SubmitTerminateResp{}, fmt.Errorf("sector was precommitted but not proven, remove instead of terminating")
+		}
+
+		return core.SubmitTerminateResp{}, fmt.Errorf("already terminated")
+	}
+
+	// check if maybe already terminated
+	loc, err := c.stateMgr.StateSectorPartition(c.ctx, maddr, sid.Number, nil)
+	if err != nil {
+		return core.SubmitTerminateResp{}, fmt.Errorf("getting location: %w", err)
+	}
+	if loc == nil {
+		return core.SubmitTerminateResp{}, fmt.Errorf("location not found")
+	}
+	parts, err := c.stateMgr.StateMinerPartitions(c.ctx, maddr, loc.Deadline, nil)
+	if err != nil {
+		return core.SubmitTerminateResp{}, fmt.Errorf("getting partitions: %w", err)
+	}
+	live, err := parts[loc.Partition].LiveSectors.IsSet(uint64(sid.Number))
+	if err != nil {
+		return core.SubmitTerminateResp{}, fmt.Errorf("checking if sector is in live set: %w", err)
+	}
+	if !live {
+		return core.SubmitTerminateResp{}, fmt.Errorf("already terminated")
+	}
+
+	sector.TerminateInfo.TerminatedAt = abi.ChainEpoch(0)
+	sector.TerminateInfo.TerminateCid = nil
+	sector.TerminateInfo.AddedHeight = height
+	err = c.smgr.Update(ctx, sid, false, sector.TerminateInfo)
+	if err != nil {
+		return core.SubmitTerminateResp{}, err
+	}
+
+	go func() {
+		c.terminatePendingChan <- *sector
+	}()
+
+	return core.SubmitTerminateResp{
+		Res: core.SubmitAccepted,
+	}, nil
+}
+
+func (c *CommitmentMgrImpl) TerminateState(ctx context.Context, sid abi.SectorID) (core.TerminateInfo, error) {
+	sector, err := c.smgr.Load(ctx, sid, false)
+	if err != nil {
+		return core.TerminateInfo{}, err
+	}
+
+	return sector.TerminateInfo, nil
+}
+
 func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, msg *messager.Message, mlog *logging.ZapLogger) (core.OnChainState, *string) {
 	mlog = mlog.With("msg-cid", msg.ID, "msg-state", messager.MessageStateToString(msg.State))
 	if msg.SignedCid != nil {
@@ -540,7 +746,7 @@ func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, 
 	if msg.Receipt != nil && len(msg.Receipt.Return) > 0 {
 		msgRet := string(msg.Receipt.Return)
 		if msg.State != messager.MessageState.OnChainMsg {
-			mlog.Warnf("MAYBE WARN from off-chain msg recepit: %s", msgRet)
+			mlog.Warnf("MAYBE WARN from off-chain msg receipt: %s", msgRet)
 		}
 
 		maybeMsg = &msgRet

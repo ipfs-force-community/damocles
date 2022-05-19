@@ -110,7 +110,7 @@ func (sc *SnapUpCommitter) Commit(ctx context.Context, sid abi.SectorID) error {
 		return fmt.Errorf("duplicate commit job")
 	}
 
-	state, err := sc.state.Load(ctx, sid)
+	state, err := sc.state.Load(ctx, sid, true)
 	if err != nil {
 		return fmt.Errorf("load sector state: %w", err)
 	}
@@ -373,7 +373,7 @@ func (h *snapupCommitHandler) submitMessage() error {
 	}
 
 	msgID := core.SectorUpgradeMessageID(mcid)
-	if err := h.committer.state.Update(h.committer.ctx, h.state.ID, &msgID); err != nil {
+	if err := h.committer.state.Update(h.committer.ctx, h.state.ID, true, &msgID); err != nil {
 		return newTempErr(fmt.Errorf("update UpgradeMessageID: %w", err), mcfg.SnapUp.Retry.LocalFailureWait.Std())
 	}
 
@@ -473,7 +473,7 @@ func (h *snapupCommitHandler) waitForMessage() error {
 	}
 
 	landedEpoch := core.SectorUpgradeLandedEpoch(ts.Height())
-	err = h.committer.state.Update(h.committer.ctx, h.state.ID, &landedEpoch)
+	err = h.committer.state.Update(h.committer.ctx, h.state.ID, true, &landedEpoch)
 	if err != nil {
 		return newTempErr(fmt.Errorf("update sector state: %w", err), mcfg.SnapUp.Retry.LocalFailureWait.Std())
 	}
