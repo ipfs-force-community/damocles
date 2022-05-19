@@ -198,7 +198,7 @@ func (c *CommitmentMgrImpl) Stop() {
 		for i := range c.commitBatcher {
 			c.commitBatcher[i].waitStop()
 		}
-		for i := range c.commitBatcher {
+		for i := range c.preCommitBatcher {
 			c.preCommitBatcher[i].waitStop()
 		}
 		for i := range c.terminateBatcher {
