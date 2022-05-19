@@ -3,7 +3,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use anyhow::Result;
-use crossbeam_channel::{bounded, select, tick, Receiver, Sender, TryRecvError};
+use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender, TryRecvError};
 
 use crate::logging::{debug, warn};
 
@@ -62,30 +62,21 @@ impl StaggeredLimit {
             let send_token = || {
                 match token_rx.try_recv() {
                     // we don't care the channel is empty or not.
-                    Err(TryRecvError::Empty) => Ok(()),
-                    x => x,
+                    // empty channel means the token is full
+                    Ok(_) | Err(TryRecvError::Empty) => Ok(()),
+                    x @ Err(TryRecvError::Disconnected) => x,
                 }
             };
-            let res = (|| -> Result<()> {
+            let res = (|| -> Result<(), TryRecvError> {
                 loop {
-                    let ticker = tick(interval);
-                    loop {
-                        select! {
-                            recv(ticker) -> res => {
-                                res?;
-                                send_token()?;
-                            },
-                            recv(task_done_rx) -> res => {
-                                res?;
-                                send_token()?;
-                                break;
-                            },
-                        }
+                    match task_done_rx.recv_timeout(interval) {
+                        Ok(_) | Err(RecvTimeoutError::Timeout) => send_token()?,
+                        Err(RecvTimeoutError::Disconnected) => return Err(TryRecvError::Disconnected),
                     }
                 }
             })();
-            if let Err(e) = res {
-                warn!(err=?e, "StaggeredLimit channel disconnected");
+            if res.is_err() {
+                warn!("StaggeredLimit channel disconnected");
             }
         });
 
