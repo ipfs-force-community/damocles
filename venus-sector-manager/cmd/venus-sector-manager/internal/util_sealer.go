@@ -420,20 +420,20 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 			return err
 		}
 
-		extApi, ctx, stop, err := extractAPI(cctx)
+		extAPI, ctx, stop, err := extractAPI(cctx)
 		if err != nil {
 			return err
 		}
 		defer stop()
 
-		head, err := extApi.Chain.ChainHead(ctx)
+		head, err := extAPI.Chain.ChainHead(ctx)
 		if err != nil {
 			return fmt.Errorf("getting chain head: %w", err)
 		}
 
 		lbEpoch := abi.ChainEpoch(cctx.Int64("expired-epoch"))
 		if !cctx.IsSet("expired-epoch") {
-			nv, err := extApi.Chain.StateNetworkVersion(ctx, head.Key())
+			nv, err := extAPI.Chain.StateNetworkVersion(ctx, head.Key())
 			if err != nil {
 				return fmt.Errorf("getting network version: %w", err)
 			}
@@ -448,7 +448,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 			return fmt.Errorf("--expired-epoch must be specified with --confirm-remove-count")
 		}
 
-		lbts, err := extApi.Chain.ChainGetTipSetByHeight(ctx, lbEpoch, head.Key())
+		lbts, err := extAPI.Chain.ChainGetTipSetByHeight(ctx, lbEpoch, head.Key())
 		if err != nil {
 			return fmt.Errorf("getting lookback tipset: %w", err)
 		}
@@ -457,7 +457,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 		toCheck := bitfield.New()
 		toCheckSectors := make(map[abi.SectorNumber]*core.SectorState)
 		{
-			sectors, err := extApi.Sealer.ListSectors(ctx, core.WorkerOffline)
+			sectors, err := extAPI.Sealer.ListSectors(ctx, core.WorkerOffline)
 			if err != nil {
 				return fmt.Errorf("getting sector list: %w", err)
 			}
@@ -468,12 +468,12 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 			}
 		}
 
-		mact, err := extApi.Chain.StateGetActor(ctx, maddr, lbts.Key())
+		mact, err := extAPI.Chain.StateGetActor(ctx, maddr, lbts.Key())
 		if err != nil {
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(chain.NewAPIBlockstore(extApi.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(chain.NewAPIBlockstore(extAPI.Chain)))
 		mas, err := miner.Load(store, mact)
 		if err != nil {
 			return err
@@ -572,7 +572,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 			for _, number := range toRemove {
 				fmt.Printf("Removing sector\t%s:\t", color.YellowString("%d", number))
 
-				err = extApi.Sealer.RemoveSector(ctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(number)})
+				err = extAPI.Sealer.RemoveSector(ctx, abi.SectorID{Miner: abi.ActorID(actor), Number: number})
 				if err != nil {
 					color.Red("ERROR: %s\n", err.Error())
 				} else {

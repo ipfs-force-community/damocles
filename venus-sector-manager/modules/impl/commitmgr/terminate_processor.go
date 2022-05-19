@@ -125,7 +125,7 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 	plog := log.With("proc", "terminate", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
 	start := time.Now()
-	defer plog.Infof("finished process, elasped %s", time.Since(start))
+	defer plog.Infof("finished process, elapsed %s", time.Since(start))
 
 	defer func() {
 		for i := range sectors {

@@ -2,11 +2,11 @@ package internal
 
 import (
 	"fmt"
-	"github.com/filecoin-project/venus/venus-shared/types/messager"
 
 	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/venus/pkg/constants"
+	"github.com/filecoin-project/venus/venus-shared/types/messager"
 )
 
 var utilMessageCmd = &cli.Command{
