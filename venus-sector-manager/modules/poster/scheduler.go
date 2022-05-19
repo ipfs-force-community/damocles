@@ -34,7 +34,6 @@ func newScheduler(
 	cfg *modules.SafeConfig,
 	verifier core.Verifier,
 	prover core.Prover,
-	indexer core.SectorIndexer,
 	sectorTracker core.SectorTracker,
 	capi chain.API,
 	rand core.RandomnessAPI,
@@ -62,7 +61,6 @@ func newScheduler(
 		cfg:           cfg,
 		verifier:      verifier,
 		prover:        prover,
-		indexer:       indexer,
 		sectorTracker: sectorTracker,
 		chain:         capi,
 		rand:          rand,
@@ -80,7 +78,6 @@ type scheduler struct {
 	cfg           *modules.SafeConfig
 	verifier      core.Verifier
 	prover        core.Prover
-	indexer       core.SectorIndexer
 	sectorTracker core.SectorTracker
 	chain         chain.API
 	rand          core.RandomnessAPI
