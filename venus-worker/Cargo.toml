@@ -67,6 +67,10 @@ version = "0.16"
 version = "18"
 features = ["tls", "http"]
 
+[dev-dependencies]
+pretty_assertions = "1.2"
+humantime = "2.1"
+
 [features]
 default = ["numa"]
 numa = []
