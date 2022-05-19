@@ -15,6 +15,7 @@ var UtilCmd = &cli.Command{
 		utilMarketCmd,
 		utilStorageCmd,
 		utilWorkerCmd,
+		utilMessageCmd,
 		utilFetchParamCmd,
 	},
 	Flags: []cli.Flag{
