@@ -130,6 +130,11 @@ pub struct LimitItem<'a> {
 }
 
 impl Pool {
+    #[cfg(not(test))]
+    const MIN_STAGGERED_INTERVAL: Duration = Duration::from_secs(1);
+    #[cfg(test)]
+    const MIN_STAGGERED_INTERVAL: Duration = Duration::from_millis(1);
+
     /// construct a pool with given name-size mapping
     pub fn new<'a, I: Iterator<Item = LimitItem<'a>>>(iter: I) -> Self {
         let mut pool = HashMap::new();
@@ -144,9 +149,14 @@ impl Pool {
             );
 
             let concurrent_limit_opt = limit_item.concurrent.map(|concurrent| ConcurrentLimit::new(*concurrent));
-            let staggered_limit_opt = limit_item
-                .staggered_interval
-                .map(|interval| StaggeredLimit::new(1, interval.to_owned()));
+            let staggered_limit_opt = limit_item.staggered_interval.and_then(|interval| {
+                if interval < &Self::MIN_STAGGERED_INTERVAL {
+                    warn!(staggered_interval = ?interval, "staggered interval must be greater than or equal to {:?}", Self::MIN_STAGGERED_INTERVAL);
+                    None
+                } else {
+                    Some(StaggeredLimit::new(1, interval.to_owned()))
+                }
+            });
             pool.insert(limit_item.name.to_string(), (concurrent_limit_opt, staggered_limit_opt));
         }
 
@@ -206,6 +216,7 @@ mod tests {
 
     #[test]
     fn test_acquire_without_limit() {
+        // time::pause();
         let pool = Pool::new(vec![].into_iter());
 
         let mut now = Instant::now();
