@@ -15,6 +15,7 @@ var UtilCmd = &cli.Command{
 		utilMarketCmd,
 		utilStorageCmd,
 		utilWorkerCmd,
+		utilFetchParamCmd,
 	},
 	Flags: []cli.Flag{
 		SealerListenFlag,
