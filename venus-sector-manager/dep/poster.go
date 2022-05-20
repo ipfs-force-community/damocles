@@ -25,13 +25,12 @@ func RunPoSter(
 	scfg *modules.SafeConfig,
 	verifier core.Verifier,
 	prover core.Prover,
-	indexer core.SectorIndexer,
 	sectorTracker core.SectorTracker,
 	capi chain.API,
 	rapi core.RandomnessAPI,
 	mapi messager.API,
 ) error {
-	p, err := poster.NewPoSter(gctx, scfg, verifier, prover, indexer, sectorTracker, capi, rapi, mapi)
+	p, err := poster.NewPoSter(gctx, scfg, verifier, prover, sectorTracker, capi, rapi, mapi)
 	if err != nil {
 		return err
 	}

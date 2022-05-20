@@ -24,7 +24,6 @@ func NewPoSter(
 	cfg *modules.SafeConfig,
 	verifier core.Verifier,
 	prover core.Prover,
-	indexer core.SectorIndexer,
 	sectorTracker core.SectorTracker,
 	capi chain.API,
 	rand core.RandomnessAPI,
@@ -34,7 +33,6 @@ func NewPoSter(
 		cfg:           cfg,
 		verifier:      verifier,
 		prover:        prover,
-		indexer:       indexer,
 		sectorTracker: sectorTracker,
 		chain:         capi,
 		rand:          rand,
@@ -52,7 +50,7 @@ func NewPoSter(
 			continue
 		}
 
-		sched, err := newScheduler(ctx, mcfg.Actor, p.cfg, p.verifier, p.prover, p.indexer, p.sectorTracker, p.chain, p.rand, p.msg)
+		sched, err := newScheduler(ctx, mcfg.Actor, p.cfg, p.verifier, p.prover, p.sectorTracker, p.chain, p.rand, p.msg)
 		if err != nil {
 			return nil, fmt.Errorf("construct scheduler for actor %d: %w", mcfg.Actor, err)
 		}
@@ -67,7 +65,6 @@ type PoSter struct {
 	cfg           *modules.SafeConfig
 	verifier      core.Verifier
 	prover        core.Prover
-	indexer       core.SectorIndexer
 	sectorTracker core.SectorTracker
 	chain         chain.API
 	rand          core.RandomnessAPI

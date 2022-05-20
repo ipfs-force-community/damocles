@@ -9,6 +9,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/network"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/market"
@@ -16,6 +17,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 )
 
 var ErrSectorAllocated = errors.New("sectorNumber is allocated, but PreCommit info wasn't found on chain")
@@ -35,6 +37,10 @@ type SealingAPI interface {
 	StateNetworkVersion(ctx context.Context, tok core.TipSetToken) (network.Version, error)
 	ChainHead(ctx context.Context) (core.TipSetToken, abi.ChainEpoch, error)
 	ChainBaseFee(ctx context.Context, tok core.TipSetToken) (abi.TokenAmount, error)
+
+	StateSectorPartition(context.Context, address.Address, abi.SectorNumber, core.TipSetToken) (*miner.SectorLocation, error)
+	StateMinerPartitions(context.Context, address.Address, uint64, core.TipSetToken) ([]chain.Partition, error)
+	StateMinerProvingDeadline(context.Context, address.Address, core.TipSetToken) (*dline.Info, error)
 
 	GetSeed(context.Context, types.TipSetKey, abi.ChainEpoch, abi.ActorID) (core.Seed, error)
 }

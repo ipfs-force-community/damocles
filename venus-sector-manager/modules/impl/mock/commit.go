@@ -29,6 +29,11 @@ type commitMgr struct {
 		sync.RWMutex
 		proofs map[abi.SectorID]core.ProofInfo
 	}
+
+	terminates struct {
+		sync.RWMutex
+		terminates map[abi.SectorID]struct{}
+	}
 }
 
 func (c *commitMgr) SubmitPreCommit(ctx context.Context, sid abi.SectorID, info core.PreCommitInfo, hardReset bool) (core.SubmitPreCommitResp, error) {
@@ -105,4 +110,27 @@ func (c *commitMgr) ProofState(ctx context.Context, sid abi.SectorID) (core.Poll
 		State: core.OnChainStateNotFound,
 		Desc:  nil,
 	}, nil
+}
+
+func (c *commitMgr) SubmitTerminate(ctx context.Context, sid abi.SectorID) (core.SubmitTerminateResp, error) {
+	c.terminates.Lock()
+	defer c.terminates.Unlock()
+
+	if _, ok := c.terminates.terminates[sid]; ok {
+		return core.SubmitTerminateResp{
+			Res:  core.SubmitDuplicateSubmit,
+			Desc: nil,
+		}, nil
+	}
+
+	c.terminates.terminates[sid] = struct{}{}
+
+	return core.SubmitTerminateResp{
+		Res:  core.SubmitAccepted,
+		Desc: nil,
+	}, nil
+}
+
+func (c *commitMgr) TerminateState(ctx context.Context, sid abi.SectorID) (core.TerminateInfo, error) {
+	return core.TerminateInfo{}, nil
 }

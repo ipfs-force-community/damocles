@@ -62,21 +62,43 @@ type StateManager struct {
 	locker *sectorsLocker
 }
 
-func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.SectorState, online bool) error {
+func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.SectorState, ws core.SectorWorkerState) error {
 	var kv kvstore.KVStore
-	if online {
+	switch ws {
+	case core.WorkerOnline:
 		kv = sm.online
-	} else {
+	case core.WorkerOffline:
 		kv = sm.offline
+	default:
+		return fmt.Errorf("state %s does not exist", ws)
 	}
 
 	if err := kv.View(ctx, key, func(content []byte) error {
 		return json.Unmarshal(content, state)
 	}); err != nil {
-		return fmt.Errorf("load state: %w", err)
+		return fmt.Errorf("load state from %s: %w", ws, err)
 	}
 
 	return nil
+}
+
+func (sm *StateManager) save(ctx context.Context, key kvstore.Key, state core.SectorState, ws core.SectorWorkerState) error {
+	var kv kvstore.KVStore
+	switch ws {
+	case core.WorkerOnline:
+		kv = sm.online
+	case core.WorkerOffline:
+		kv = sm.offline
+	default:
+		return fmt.Errorf("state %s does not exist", ws)
+	}
+
+	b, err := json.Marshal(state)
+	if err != nil {
+		return fmt.Errorf("marshal state: %w", err)
+	}
+
+	return kv.Put(ctx, key, b)
 }
 
 func (sm *StateManager) getIter(ctx context.Context, ws core.SectorWorkerState) (kvstore.Iter, error) {
@@ -174,29 +196,29 @@ func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofTyp
 		}
 	}
 
-	return save(ctx, sm.online, key, state)
+	return sm.save(ctx, key, state, core.WorkerOnline)
 }
 
-func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID) (*core.SectorState, error) {
+func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID, ws core.SectorWorkerState) (*core.SectorState, error) {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
 	var state core.SectorState
 	key := makeSectorKey(sid)
-	if err := sm.load(ctx, key, &state, true); err != nil {
+	if err := sm.load(ctx, key, &state, ws); err != nil {
 		return nil, err
 	}
 
 	return &state, nil
 }
 
-func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals ...interface{}) error {
+func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, ws core.SectorWorkerState, fieldvals ...interface{}) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
 	var state core.SectorState
 	key := makeSectorKey(sid)
-	if err := sm.load(ctx, key, &state, true); err != nil {
+	if err := sm.load(ctx, key, &state, ws); err != nil {
 		return err
 	}
 
@@ -205,7 +227,7 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, fieldvals 
 		return fmt.Errorf("apply field vals: %w", err)
 	}
 
-	return save(ctx, sm.online, key, state)
+	return sm.save(ctx, key, state, ws)
 }
 
 func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinalize core.SectorStateChangeHook) error {
@@ -214,7 +236,7 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 
 	key := makeSectorKey(sid)
 	var state core.SectorState
-	if err := sm.load(ctx, key, &state, true); err != nil {
+	if err := sm.load(ctx, key, &state, core.WorkerOnline); err != nil {
 		return fmt.Errorf("load from online store: %w", err)
 	}
 
@@ -230,7 +252,7 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 	}
 
 	state.Finalized = true
-	if err := save(ctx, sm.offline, key, state); err != nil {
+	if err := sm.save(ctx, key, state, core.WorkerOffline); err != nil {
 		return fmt.Errorf("save info into offline store: %w", err)
 	}
 
@@ -247,7 +269,7 @@ func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore
 
 	key := makeSectorKey(sid)
 	var state core.SectorState
-	if err := sm.load(ctx, key, &state, false); err != nil {
+	if err := sm.load(ctx, key, &state, core.WorkerOffline); err != nil {
 		return fmt.Errorf("load from offline store: %w", err)
 	}
 
@@ -263,7 +285,7 @@ func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore
 	}
 
 	state.Finalized = false
-	if err := save(ctx, sm.online, key, state); err != nil {
+	if err := sm.save(ctx, key, state, core.WorkerOnline); err != nil {
 		return fmt.Errorf("save info into online store: %w", err)
 	}
 
@@ -295,15 +317,6 @@ func processStateField(rv reflect.Value, fieldval interface{}) error {
 
 func makeSectorKey(sid abi.SectorID) kvstore.Key {
 	return []byte(fmt.Sprintf("m-%d-n-%d", sid.Miner, sid.Number))
-}
-
-func save(ctx context.Context, store kvstore.KVStore, key kvstore.Key, state core.SectorState) error {
-	b, err := json.Marshal(state)
-	if err != nil {
-		return fmt.Errorf("marshal state: %w", err)
-	}
-
-	return store.Put(ctx, key, b)
 }
 
 func apply(ctx context.Context, state *core.SectorState, fieldvals ...interface{}) error {

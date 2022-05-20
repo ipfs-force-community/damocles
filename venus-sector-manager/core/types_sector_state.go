@@ -25,6 +25,7 @@ func SectorWinningPoSt(proofType abi.RegisteredSealProof) (abi.RegisteredPoStPro
 
 type SectorFinalized bool
 type SectorUpgraded bool
+type SectorRemoved bool
 type SectorUpgradeLandedEpoch abi.ChainEpoch
 type SectorUpgradeMessageID string
 type SectorUpgradePublic SectorPublicInfo
@@ -49,8 +50,11 @@ type SectorState struct {
 
 	MessageInfo MessageInfo
 
+	TerminateInfo TerminateInfo
+
 	LatestState *ReportStateReq `json:",omitempty"`
 	Finalized   SectorFinalized
+	Removed     SectorRemoved
 	AbortReason string
 
 	// for snapup
