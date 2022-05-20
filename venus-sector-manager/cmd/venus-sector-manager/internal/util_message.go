@@ -23,8 +23,9 @@ var utilMessageWaitCmd = &cli.Command{
 	Usage:     "Wait for the execution result of the specified uid message",
 	ArgsUsage: "<uid from venus-messager>",
 	Action: func(cctx *cli.Context) error {
-		if cctx.NArg() < 1 {
-			return fmt.Errorf("uid args required")
+		if cctx.NArg() != 1 {
+			cli.ShowSubcommandHelpAndExit(cctx, 1)
+			return nil
 		}
 
 		api, gctx, stop, err := extractAPI(cctx)
@@ -58,7 +59,8 @@ var utilMessageSearchCmd = &cli.Command{
 	ArgsUsage: "<uid from venus-messager>",
 	Action: func(cctx *cli.Context) error {
 		if cctx.NArg() != 1 {
-			return fmt.Errorf("uid args required")
+			cli.ShowSubcommandHelpAndExit(cctx, 1)
+			return nil
 		}
 
 		api, gctx, stop, err := extractAPI(cctx)

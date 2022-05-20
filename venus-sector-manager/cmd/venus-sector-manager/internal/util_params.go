@@ -14,10 +14,11 @@ import (
 var utilFetchParamCmd = &cli.Command{
 	Name:      "fetch-params",
 	Usage:     "Fetch proving parameters",
-	ArgsUsage: "[sectorSize]",
+	ArgsUsage: `<sectorSize (eg. "32GiB", "512MiB", ...)>`,
 	Action: func(cctx *cli.Context) error {
 		if !cctx.Args().Present() {
-			return fmt.Errorf("must pass sector size to fetch params for (specify as \"32GiB\", for instance)")
+			cli.ShowSubcommandHelpAndExit(cctx, 1)
+			return nil
 		}
 		sectorSizeInt, err := units.RAMInBytes(cctx.Args().First())
 		if err != nil {
