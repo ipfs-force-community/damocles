@@ -38,8 +38,8 @@ type SectorNumberAllocator interface {
 type SectorStateManager interface {
 	Init(context.Context, abi.SectorID, abi.RegisteredSealProof) error
 	InitWith(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, fields ...interface{}) error
-	Load(ctx context.Context, sid abi.SectorID, online bool) (*SectorState, error)
-	Update(ctx context.Context, sid abi.SectorID, online bool, fieldvals ...interface{}) error
+	Load(ctx context.Context, sid abi.SectorID, ws SectorWorkerState) (*SectorState, error)
+	Update(ctx context.Context, sid abi.SectorID, ws SectorWorkerState, fieldvals ...interface{}) error
 	Finalize(context.Context, abi.SectorID, SectorStateChangeHook) error
 	Restore(context.Context, abi.SectorID, SectorStateChangeHook) error
 	All(ctx context.Context, ws SectorWorkerState, job SectorWorkerJob) ([]*SectorState, error)

@@ -95,7 +95,7 @@ func updateSector(ctx context.Context, stmgr core.SectorStateManager, sector []c
 	for i := range sector {
 		sectorID[i] = sector[i].ID
 		sector[i].MessageInfo.NeedSend = false
-		err := stmgr.Update(ctx, sector[i].ID, true, sector[i].MessageInfo)
+		err := stmgr.Update(ctx, sector[i].ID, core.WorkerOnline, sector[i].MessageInfo)
 		if err != nil {
 			plog.With("sector", sector[i].ID.Number).Errorf("Update sector MessageInfo failed: %s", err)
 		}
@@ -325,7 +325,7 @@ func (c *CommitmentMgrImpl) pollTerminateState(ctx context.Context, sector *core
 			return
 		}
 
-		sector, err := c.smgr.Load(ctx, sector.ID, false)
+		sector, err := c.smgr.Load(ctx, sector.ID, core.WorkerOffline)
 		if err != nil {
 			mlog.Error(err.Error())
 			break
@@ -345,7 +345,7 @@ func (c *CommitmentMgrImpl) pollTerminateState(ctx context.Context, sector *core
 		if state == core.OnChainStateLanded {
 			sector.TerminateInfo.TerminatedAt = abi.ChainEpoch(msg.Height)
 
-			err := c.smgr.Update(ctx, sector.ID, false, sector.TerminateInfo)
+			err := c.smgr.Update(ctx, sector.ID, core.WorkerOffline, sector.TerminateInfo)
 			if err != nil {
 				mlog.Errorf("Update sector TerminateInfo failed: %s", err)
 			}
@@ -430,7 +430,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 		return core.SubmitPreCommitResp{}, err
 	}
 
-	sector, err := c.smgr.Load(ctx, id, true)
+	sector, err := c.smgr.Load(ctx, id, core.WorkerOnline)
 	if err != nil {
 		return core.SubmitPreCommitResp{}, err
 	}
@@ -472,7 +472,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 
 	sector.MessageInfo.NeedSend = true
 	sector.MessageInfo.PreCommitCid = nil
-	err = c.smgr.Update(ctx, sector.ID, true, sector.Pre, sector.MessageInfo)
+	err = c.smgr.Update(ctx, sector.ID, core.WorkerOnline, sector.Pre, sector.MessageInfo)
 	if err != nil {
 		return core.SubmitPreCommitResp{}, err
 	}
@@ -492,7 +492,7 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 		return core.PollPreCommitStateResp{}, err
 	}
 
-	sector, err := c.smgr.Load(ctx, id, true)
+	sector, err := c.smgr.Load(ctx, id, core.WorkerOnline)
 	if err != nil {
 		return core.PollPreCommitStateResp{}, err
 	}
@@ -538,7 +538,7 @@ func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, in
 		return core.SubmitProofResp{}, err
 	}
 
-	sector, err := c.smgr.Load(ctx, id, true)
+	sector, err := c.smgr.Load(ctx, id, core.WorkerOnline)
 	if err != nil {
 		return core.SubmitProofResp{}, err
 	}
@@ -587,7 +587,7 @@ func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, in
 
 	sector.MessageInfo.NeedSend = true
 	sector.MessageInfo.CommitCid = nil
-	err = c.smgr.Update(ctx, id, true, sector.Proof, sector.MessageInfo)
+	err = c.smgr.Update(ctx, id, core.WorkerOnline, sector.Proof, sector.MessageInfo)
 	if err != nil {
 		return core.SubmitProofResp{}, err
 	}
@@ -607,7 +607,7 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (co
 		return core.PollProofStateResp{}, err
 	}
 
-	sector, err := c.smgr.Load(ctx, id, true)
+	sector, err := c.smgr.Load(ctx, id, core.WorkerOnline)
 	if err != nil {
 		return core.PollProofStateResp{}, err
 	}
@@ -648,7 +648,7 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 		return core.SubmitTerminateResp{}, err
 	}
 
-	sector, err := c.smgr.Load(ctx, sid, false)
+	sector, err := c.smgr.Load(ctx, sid, core.WorkerOffline)
 	if err != nil {
 		return core.SubmitTerminateResp{}, err
 	}
@@ -711,7 +711,7 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 	sector.TerminateInfo.TerminatedAt = abi.ChainEpoch(0)
 	sector.TerminateInfo.TerminateCid = nil
 	sector.TerminateInfo.AddedHeight = height
-	err = c.smgr.Update(ctx, sid, false, sector.TerminateInfo)
+	err = c.smgr.Update(ctx, sid, core.WorkerOffline, sector.TerminateInfo)
 	if err != nil {
 		return core.SubmitTerminateResp{}, err
 	}
@@ -726,7 +726,7 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 }
 
 func (c *CommitmentMgrImpl) TerminateState(ctx context.Context, sid abi.SectorID) (core.TerminateInfo, error) {
-	sector, err := c.smgr.Load(ctx, sid, false)
+	sector, err := c.smgr.Load(ctx, sid, core.WorkerOffline)
 	if err != nil {
 		return core.TerminateInfo{}, err
 	}

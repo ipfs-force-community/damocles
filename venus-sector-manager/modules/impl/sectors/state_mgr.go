@@ -62,35 +62,35 @@ type StateManager struct {
 	locker *sectorsLocker
 }
 
-func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.SectorState, online bool) error {
-	var (
-		kv    kvstore.KVStore
-		kvSrc string
-	)
-
-	if online {
+func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.SectorState, ws core.SectorWorkerState) error {
+	var kv kvstore.KVStore
+	switch ws {
+	case core.WorkerOnline:
 		kv = sm.online
-		kvSrc = "online"
-	} else {
+	case core.WorkerOffline:
 		kv = sm.offline
-		kvSrc = "offline"
+	default:
+		return fmt.Errorf("state %s does not exist", ws)
 	}
 
 	if err := kv.View(ctx, key, func(content []byte) error {
 		return json.Unmarshal(content, state)
 	}); err != nil {
-		return fmt.Errorf("load state from %s: %w", kvSrc, err)
+		return fmt.Errorf("load state from %s: %w", ws, err)
 	}
 
 	return nil
 }
 
-func (sm *StateManager) save(ctx context.Context, key kvstore.Key, state core.SectorState, online bool) error {
+func (sm *StateManager) save(ctx context.Context, key kvstore.Key, state core.SectorState, ws core.SectorWorkerState) error {
 	var kv kvstore.KVStore
-	if online {
+	switch ws {
+	case core.WorkerOnline:
 		kv = sm.online
-	} else {
+	case core.WorkerOffline:
 		kv = sm.offline
+	default:
+		return fmt.Errorf("state %s does not exist", ws)
 	}
 
 	b, err := json.Marshal(state)
@@ -196,29 +196,29 @@ func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofTyp
 		}
 	}
 
-	return sm.save(ctx, key, state, true)
+	return sm.save(ctx, key, state, core.WorkerOnline)
 }
 
-func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID, online bool) (*core.SectorState, error) {
+func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID, ws core.SectorWorkerState) (*core.SectorState, error) {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
 	var state core.SectorState
 	key := makeSectorKey(sid)
-	if err := sm.load(ctx, key, &state, online); err != nil {
+	if err := sm.load(ctx, key, &state, ws); err != nil {
 		return nil, err
 	}
 
 	return &state, nil
 }
 
-func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, online bool, fieldvals ...interface{}) error {
+func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, ws core.SectorWorkerState, fieldvals ...interface{}) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
 	var state core.SectorState
 	key := makeSectorKey(sid)
-	if err := sm.load(ctx, key, &state, online); err != nil {
+	if err := sm.load(ctx, key, &state, ws); err != nil {
 		return err
 	}
 
@@ -227,7 +227,7 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, online boo
 		return fmt.Errorf("apply field vals: %w", err)
 	}
 
-	return sm.save(ctx, key, state, online)
+	return sm.save(ctx, key, state, ws)
 }
 
 func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinalize core.SectorStateChangeHook) error {
@@ -236,7 +236,7 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 
 	key := makeSectorKey(sid)
 	var state core.SectorState
-	if err := sm.load(ctx, key, &state, true); err != nil {
+	if err := sm.load(ctx, key, &state, core.WorkerOnline); err != nil {
 		return fmt.Errorf("load from online store: %w", err)
 	}
 
@@ -252,7 +252,7 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 	}
 
 	state.Finalized = true
-	if err := sm.save(ctx, key, state, false); err != nil {
+	if err := sm.save(ctx, key, state, core.WorkerOffline); err != nil {
 		return fmt.Errorf("save info into offline store: %w", err)
 	}
 
@@ -269,7 +269,7 @@ func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore
 
 	key := makeSectorKey(sid)
 	var state core.SectorState
-	if err := sm.load(ctx, key, &state, false); err != nil {
+	if err := sm.load(ctx, key, &state, core.WorkerOffline); err != nil {
 		return fmt.Errorf("load from offline store: %w", err)
 	}
 
@@ -285,7 +285,7 @@ func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore
 	}
 
 	state.Finalized = false
-	if err := sm.save(ctx, key, state, true); err != nil {
+	if err := sm.save(ctx, key, state, core.WorkerOnline); err != nil {
 		return fmt.Errorf("save info into online store: %w", err)
 	}
 

@@ -181,7 +181,7 @@ func (s *Sealer) PollTerminateSectorState(ctx context.Context, sid abi.SectorID)
 }
 
 func (s *Sealer) RemoveSector(ctx context.Context, sid abi.SectorID) error {
-	state, err := s.state.Load(ctx, sid, false)
+	state, err := s.state.Load(ctx, sid, core.WorkerOffline)
 	if err != nil {
 		return fmt.Errorf("load sector state: %w", err)
 	}
@@ -253,7 +253,7 @@ func (s *Sealer) RemoveSector(ctx context.Context, sid abi.SectorID) error {
 	}
 
 	state.Removed = true
-	err = s.state.Update(ctx, state.ID, false, state.Removed)
+	err = s.state.Update(ctx, state.ID, core.WorkerOffline, state.Removed)
 	if err != nil {
 		return fmt.Errorf("update sector Removed failed: %w", err)
 	}

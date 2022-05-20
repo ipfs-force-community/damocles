@@ -135,7 +135,7 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 }
 
 func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.Deals, error) {
-	state, err := s.state.Load(ctx, sid, true)
+	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
 		return nil, sectorStateErr(err)
 	}
@@ -168,7 +168,7 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.A
 		return nil, err
 	}
 
-	err = s.state.Update(ctx, sid, true, pieces)
+	err = s.state.Update(ctx, sid, core.WorkerOnline, pieces)
 	if err != nil {
 		slog.Errorf("failed to update sector state: %v", err)
 		return nil, sectorStateErr(err)
@@ -191,7 +191,7 @@ func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (core.Ticke
 		return core.Ticket{}, err
 	}
 
-	if err := s.state.Update(ctx, sid, true, &ticket); err != nil {
+	if err := s.state.Update(ctx, sid, core.WorkerOnline, &ticket); err != nil {
 		return core.Ticket{}, sectorStateErr(err)
 	}
 
@@ -211,7 +211,7 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (core
 }
 
 func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) (bool, error) {
-	state, err := s.state.Load(ctx, sid, true)
+	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
 		return false, sectorStateErr(err)
 	}
@@ -271,7 +271,7 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedR
 		return core.WaitSeedResp{}, err
 	}
 
-	if err := s.state.Update(ctx, sid, true, &seed); err != nil {
+	if err := s.state.Update(ctx, sid, core.WorkerOnline, &seed); err != nil {
 		return core.WaitSeedResp{}, sectorStateErr(err)
 	}
 
@@ -291,7 +291,7 @@ func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (core.Pol
 }
 
 func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.ReportStateReq) (core.Meta, error) {
-	if err := s.state.Update(ctx, sid, true, &req); err != nil {
+	if err := s.state.Update(ctx, sid, core.WorkerOnline, &req); err != nil {
 		return core.Empty, sectorStateErr(err)
 	}
 
@@ -429,7 +429,7 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 		return resp, nil
 	}
 
-	state, err := s.state.Load(ctx, sid, true)
+	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
 		return resp, sectorStateErr(err)
 	}
@@ -485,7 +485,7 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 		AccessInstance: snapupInfo.AccessInstance,
 	}
 
-	err = s.state.Update(ctx, sid, true, &upgradedInfo)
+	err = s.state.Update(ctx, sid, core.WorkerOnline, &upgradedInfo)
 	if err != nil {
 		return resp, sectorStateErr(err)
 	}

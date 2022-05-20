@@ -130,7 +130,7 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 	defer func() {
 		for i := range sectors {
 			if sectors[i].TerminateInfo.TerminateCid != nil {
-				err := tp.smgr.Update(ctx, sectors[i].ID, false, sectors[i].TerminateInfo)
+				err := tp.smgr.Update(ctx, sectors[i].ID, core.WorkerOffline, sectors[i].TerminateInfo)
 				if err != nil {
 					plog.With("sector", sectors[i].ID.Number).Errorf("Update sector TerminateInfo failed: %s", err)
 				}
