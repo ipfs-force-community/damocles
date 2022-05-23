@@ -4,11 +4,14 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::bounded;
+use rand::distributions::WeightedIndex;
+use rand::prelude::Distribution;
 use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
 
+use self::sub::{ProcessingGuard, SubProcessTx};
+
 use super::*;
-use crate::logging::debug;
 use crate::sealing::resource::Pool;
 
 pub mod config;
@@ -36,6 +39,16 @@ where
     }
 }
 
+fn try_lock<'a, I: Input>(txes: &Vec<&'a SubProcessTx<I>>, limit: &Pool) -> Result<Vec<(ProcessingGuard, &'a SubProcessTx<I>)>> {
+    let mut acquired = Vec::new();
+    for &tx in txes {
+        if let Some(guard) = tx.try_lock(limit)? {
+            acquired.push((guard, tx));
+        }
+    }
+    Ok(acquired)
+}
+
 impl<I> Processor<I> for ExtProcessor<I>
 where
     I: Input,
@@ -45,38 +58,26 @@ where
         if size == 0 {
             return Err(anyhow!("no available sub processor"));
         }
+        let available: Vec<_> = self.txes.iter().filter(|s| !s.limiter.is_full()).collect();
 
-        let available: Vec<_> = self.txes.iter().filter(|l| !l.limiter.is_full()).collect();
-        let available_size = available.len();
+        let (_processing_guard, sub_process_tx) = {
+            let mut acquired = try_lock(&available, &self.limit)?;
 
-        let input_tx = if available_size == 0 {
-            self.txes.choose(&mut OsRng).context("no input tx from all chosen")?
-        } else {
-            available.choose(&mut OsRng).context("no input tx from availables chosen")?
+            if !acquired.is_empty() {
+                let dist = WeightedIndex::new(acquired.iter().map(|(_, sub_process_tx)| sub_process_tx.weight))
+                    .context("invalid acquired list")?;
+
+                acquired.swap_remove(dist.sample(&mut OsRng))
+            } else {
+                let chosen = available
+                    .choose_weighted(&mut OsRng, |x| x.weight)
+                    .context("no input tx from availables chosen")?;
+                (chosen.lock(&self.limit)?, *chosen)
+            }
         };
 
-        let tokens = input_tx
-            .locks
-            .iter()
-            .map(|lock_name| {
-                let token = self
-                    .limit
-                    .acquire(lock_name)
-                    .with_context(|| format!("acquire lock for {}", lock_name))?;
-
-                debug!(
-                    name = lock_name.as_str(),
-                    stage = I::STAGE.name(),
-                    got = token.is_some(),
-                    "acquiring lock",
-                );
-
-                Ok(token)
-            })
-            .collect::<Result<Vec<_>>>()?;
-
         let (res_tx, res_rx) = bounded(1);
-        input_tx
+        sub_process_tx
             .input_tx
             .send((input, res_tx))
             .map_err(|e| anyhow!("failed to send input through chan for stage {}: {:?}", I::STAGE.name(), e))?;
@@ -84,8 +85,6 @@ where
         let res = res_rx
             .recv()
             .with_context(|| format!("recv process result for stage {}", I::STAGE.name()))?;
-
-        tokens.into_iter().for_each(drop);
 
         res
     }

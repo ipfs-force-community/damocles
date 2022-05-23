@@ -43,4 +43,10 @@ pub struct Ext {
     pub concurrent: Option<usize>,
 
     pub locks: Option<Vec<String>>,
+
+    /// the weight of this external proceessor
+    /// 
+    /// the probability of each external proceessor being selected is `weight / s`, 
+    /// where `s` is the sum of all `weight`.
+    pub weight: u16,
 }
