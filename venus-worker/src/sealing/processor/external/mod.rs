@@ -39,9 +39,12 @@ where
     }
 }
 
-fn try_lock<'a, I: Input>(txes: &Vec<&'a SubProcessTx<I>>, limit: &Pool) -> Result<Vec<(ProcessingGuard, &'a SubProcessTx<I>)>> {
+fn try_lock<'a, I: Input>(
+    txes: impl Iterator<Item = &'a SubProcessTx<I>>,
+    limit: &Pool,
+) -> Result<Vec<(ProcessingGuard, &'a SubProcessTx<I>)>> {
     let mut acquired = Vec::new();
-    for &tx in txes {
+    for tx in txes {
         if let Some(guard) = tx.try_lock(limit)? {
             acquired.push((guard, tx));
         }
@@ -58,10 +61,9 @@ where
         if size == 0 {
             return Err(anyhow!("no available sub processor"));
         }
-        let available: Vec<_> = self.txes.iter().filter(|s| !s.limiter.is_full()).collect();
 
         let (_processing_guard, sub_process_tx) = {
-            let mut acquired = try_lock(&available, &self.limit)?;
+            let mut acquired = try_lock(self.txes.iter().filter(|s| !s.limiter.is_full()), &self.limit)?;
 
             if !acquired.is_empty() {
                 let dist = WeightedIndex::new(acquired.iter().map(|(_, sub_process_tx)| sub_process_tx.weight))
@@ -69,10 +71,11 @@ where
 
                 acquired.swap_remove(dist.sample(&mut OsRng))
             } else {
-                let chosen = available
+                let chosen = self
+                    .txes
                     .choose_weighted(&mut OsRng, |x| x.weight)
                     .context("no input tx from availables chosen")?;
-                (chosen.lock(&self.limit)?, *chosen)
+                (chosen.lock(&self.limit)?, chosen)
             }
         };
 

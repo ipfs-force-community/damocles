@@ -52,6 +52,7 @@ pub struct Ext {
     pub weight: u16,
 }
 
+#[inline]
 fn default_weight() -> u16 {
     1
 }

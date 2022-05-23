@@ -12,6 +12,7 @@ const LOG_TARGET: &str = "resource";
 type LimitTx = Sender<()>;
 type LimitRx = Receiver<()>;
 
+#[inline]
 fn limiter_closed() -> Error {
     anyhow!("resource limiter closed")
 }
