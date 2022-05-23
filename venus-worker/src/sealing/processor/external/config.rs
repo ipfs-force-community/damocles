@@ -43,4 +43,16 @@ pub struct Ext {
     pub concurrent: Option<usize>,
 
     pub locks: Option<Vec<String>>,
+
+    /// the weight of this external proceessor
+    ///
+    /// the probability of each external proceessor being selected is `weight / s`,
+    /// where `s` is the sum of the `weight' of all ext processor with the same stage_name.
+    #[serde(default = "default_weight")]
+    pub weight: u16,
+}
+
+#[inline]
+fn default_weight() -> u16 {
+    1
 }

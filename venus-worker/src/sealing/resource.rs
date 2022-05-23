@@ -2,8 +2,8 @@
 
 use std::{collections::HashMap, time::Duration};
 
-use anyhow::Result;
-use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender, TryRecvError};
+use anyhow::{anyhow, Error, Result};
+use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender, TryRecvError, TrySendError};
 
 use crate::logging::{debug, warn};
 
@@ -11,6 +11,11 @@ const LOG_TARGET: &str = "resource";
 
 type LimitTx = Sender<()>;
 type LimitRx = Receiver<()>;
+
+#[inline]
+fn limiter_closed() -> Error {
+    anyhow!("resource limiter closed")
+}
 
 /// ConcurrentToken represents 1 available resource unit
 pub struct ConcurrentToken(LimitRx);
@@ -34,9 +39,18 @@ impl ConcurrentLimit {
     }
 
     fn acquire(&self) -> Result<ConcurrentToken> {
-        self.tx.send(())?;
+        self.tx
+            .send(())
+            .map(|_| ConcurrentToken(self.rx.clone()))
+            .map_err(|_| limiter_closed())
+    }
 
-        Ok(ConcurrentToken(self.rx.clone()))
+    fn try_acquire(&self) -> Result<Option<ConcurrentToken>> {
+        match self.tx.try_send(()) {
+            Ok(_) => Ok(Some(ConcurrentToken(self.rx.clone()))),
+            Err(TrySendError::Full(_)) => Ok(None),
+            Err(TrySendError::Disconnected(_)) => Err(limiter_closed()),
+        }
     }
 }
 
@@ -76,7 +90,7 @@ impl StaggeredLimit {
                 }
             })();
             if res.is_err() {
-                warn!("StaggeredLimit channel disconnected");
+                warn!(target: LOG_TARGET, "StaggeredLimit channel disconnected");
             }
         });
 
@@ -89,7 +103,17 @@ impl StaggeredLimit {
             .map(|_| StaggeredToken {
                 task_done_tx: self.task_done_tx.clone(),
             })
-            .map_err(Into::into)
+            .map_err(|_| limiter_closed())
+    }
+
+    fn try_acquire(&self) -> Result<Option<StaggeredToken>> {
+        match self.token_tx.try_send(()) {
+            Ok(_) => Ok(Some(StaggeredToken {
+                task_done_tx: self.task_done_tx.clone(),
+            })),
+            Err(TrySendError::Full(_)) => Ok(None),
+            Err(TrySendError::Disconnected(_)) => Err(limiter_closed()),
+        }
     }
 }
 
@@ -106,6 +130,8 @@ impl Drop for StaggeredToken {
 }
 
 /// Token combines ConcurrentToken and StaggeredToken
+/// Token is an RAII implementation of a "scoped lock" of a resource.
+/// When this structure is dropped (falls out of scope), the resource will be unlocked.
 pub struct Token(Option<ConcurrentToken>, Option<StaggeredToken>);
 
 /// resource limit pool
@@ -155,12 +181,12 @@ impl Pool {
     }
 
     /// acquires a token for the named resource
-    pub fn acquire<N: AsRef<str>>(&self, name: N) -> Result<Option<Token>> {
+    pub fn acquire<N: AsRef<str>>(&self, name: N) -> Result<Token> {
         let key = name.as_ref();
         Ok(match self.pool.get(key) {
             None | Some((None, None)) => {
                 debug!(target: LOG_TARGET, name = key, "unlimited");
-                None
+                Token(None, None)
             }
             Some((concurrent_limit_opt, staggered_limit_opt)) => {
                 let mut token = Token(None, None);
@@ -170,6 +196,43 @@ impl Pool {
 
                 if let Some(staggered_limit) = staggered_limit_opt {
                     token.1 = Some(staggered_limit.acquire()?);
+                }
+                debug!(target: LOG_TARGET, name = key, "acquired");
+                token
+            }
+        })
+    }
+
+    /// Attempts to acquire the named resource.
+    ///
+    /// If the resource is successfully acquire, an RAII guard `Token` is returned.
+    /// The resource will be released when the guard `Token` is dropped.
+    ///
+    /// If the resource could not be acquired because it is already occupied,
+    /// then this call will return the `Ok(None)`.
+    ///
+    /// Otherwise return an error.
+    pub fn try_acquire<N: AsRef<str>>(&self, name: N) -> Result<Option<Token>> {
+        let key = name.as_ref();
+        Ok(match self.pool.get(key) {
+            None | Some((None, None)) => {
+                debug!(target: LOG_TARGET, name = key, "unlimited");
+                Some(Token(None, None))
+            }
+            Some((concurrent_limit_opt, staggered_limit_opt)) => {
+                let mut token = Token(None, None);
+                if let Some(concurrent_limit) = concurrent_limit_opt {
+                    match concurrent_limit.try_acquire()? {
+                        t @ Some(_) => token.0 = t,
+                        None => return Ok(None),
+                    }
+                }
+
+                if let Some(staggered_limit_opt) = staggered_limit_opt {
+                    match staggered_limit_opt.try_acquire()? {
+                        t @ Some(_) => token.1 = t,
+                        None => return Ok(None),
+                    }
                 }
                 debug!(target: LOG_TARGET, name = key, "acquired");
                 Some(token)
@@ -211,11 +274,15 @@ mod tests {
         let pool = Pool::new(vec![].into_iter());
 
         let mut now = Instant::now();
-        assert!(pool.acquire("pc1").unwrap().is_none());
+        let token1 = pool.acquire("pc1").unwrap();
+        assert!(token1.0.is_none());
+        assert!(token1.1.is_none());
         assert_elapsed!(now, ms(0), "without limit should not block");
 
         now = Instant::now();
-        assert!(pool.acquire("pc1").unwrap().is_none());
+        let token2 = pool.acquire("pc1").unwrap();
+        assert!(token2.0.is_none());
+        assert!(token2.1.is_none());
         assert_elapsed!(now, ms(0), "without limit should not block");
     }
 
@@ -362,6 +429,23 @@ mod tests {
             "should block {}",
             format_duration(staggered_interval).to_string()
         );
+    }
+
+    #[test]
+    fn test_try_acquire() {
+        let pool = Pool::new(
+            (vec![LimitItem {
+                name: "pc1",
+                concurrent: Some(&1),
+                staggered_interval: None,
+            }])
+            .into_iter(),
+        );
+        let token1 = pool.try_acquire("pc1").unwrap();
+        assert!(token1.is_some(), "first try_acquire should not block");
+        assert!(pool.try_acquire("pc1").unwrap().is_none(), "second acquire should block");
+        drop(token1);
+        assert!(pool.try_acquire("pc1").unwrap().is_some(), "should not block");
     }
 
     fn ms(n: u64) -> Duration {
