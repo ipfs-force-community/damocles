@@ -45,8 +45,13 @@ pub struct Ext {
     pub locks: Option<Vec<String>>,
 
     /// the weight of this external proceessor
-    /// 
-    /// the probability of each external proceessor being selected is `weight / s`, 
+    ///
+    /// the probability of each external proceessor being selected is `weight / s`,
     /// where `s` is the sum of all `weight`.
+    #[serde(default = "default_weight")]
     pub weight: u16,
+}
+
+fn default_weight() -> u16 {
+    1
 }

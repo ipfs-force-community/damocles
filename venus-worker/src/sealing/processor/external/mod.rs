@@ -82,10 +82,8 @@ where
             .send((input, res_tx))
             .map_err(|e| anyhow!("failed to send input through chan for stage {}: {:?}", I::STAGE.name(), e))?;
 
-        let res = res_rx
+        res_rx
             .recv()
-            .with_context(|| format!("recv process result for stage {}", I::STAGE.name()))?;
-
-        res
+            .with_context(|| format!("recv process result for stage {}", I::STAGE.name()))?
     }
 }
