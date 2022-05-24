@@ -8,6 +8,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use byte_unit::Byte;
 use serde::{Deserialize, Serialize};
 use toml::from_slice;
 
@@ -33,6 +34,9 @@ pub struct Sealing {
     /// max limit of deals count inside one sector
     pub max_deals: Option<usize>,
 
+    /// min used space for deals inside one sector
+    pub min_deal_space: Option<Byte>,
+
     /// max retry times for tempoary failed sector
     pub max_retries: u32,
 
@@ -56,6 +60,7 @@ impl Default for Sealing {
             allowed_sizes: None,
             enable_deals: false,
             max_deals: None,
+            min_deal_space: None,
             max_retries: 5,
             seal_interval: Duration::from_secs(30),
             recover_interval: Duration::from_secs(60),
@@ -79,6 +84,9 @@ pub struct SealingOptional {
 
     /// max limit of deals count inside one sector
     pub max_deals: Option<usize>,
+
+    /// min used space for deals inside one sector
+    pub min_deal_space: Option<Byte>,
 
     /// max retry times for tempoary failed sector
     pub max_retries: Option<u32>,

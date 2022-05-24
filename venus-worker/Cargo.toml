@@ -30,7 +30,6 @@ jsonrpc-http-server = "18"
 toml = "0.5"
 humantime-serde = "1"
 clap = "2.33"
-byte-unit = "4"
 cgroups-rs = "0.2"
 signal-hook = "0.3"
 multiaddr = "0.14.0"
@@ -66,6 +65,10 @@ version = "0.16"
 [dependencies.jsonrpc-core-client]
 version = "18"
 features = ["tls", "http"]
+
+[dependencies.byte-unit]
+version = "4"
+features = ["serde"]
 
 [dev-dependencies]
 pretty_assertions = "1.2"

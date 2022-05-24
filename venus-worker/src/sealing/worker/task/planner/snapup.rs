@@ -100,7 +100,8 @@ impl<'c, 't> SnapUp<'c, 't> {
                     allowed_proof_types: self.task.store.allowed_proof_types.as_ref().cloned(),
                 },
                 deals: AcquireDealsSpec {
-                    max_deals: None,
+                    max_deals: self.task.store.config.max_deals.as_ref().cloned(),
+                    min_used_space: self.task.store.config.min_deal_space.as_ref().map(|b| b.get_bytes() as usize),
                 },
             },
         };
