@@ -232,6 +232,7 @@ fn customized_sealing_config(common: &SealingOptional, customized: Option<&Seali
         },
         {
             enable_deals,
+            disable_cc,
             max_retries,
             seal_interval,
             recover_interval,

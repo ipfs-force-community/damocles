@@ -31,6 +31,9 @@ pub struct Sealing {
     /// enable sealing sectors with deal pieces
     pub enable_deals: bool,
 
+    /// disable cc sectors when deals enabled
+    pub disable_cc: bool,
+
     /// max limit of deals count inside one sector
     pub max_deals: Option<usize>,
 
@@ -59,6 +62,7 @@ impl Default for Sealing {
             allowed_miners: None,
             allowed_sizes: None,
             enable_deals: false,
+            disable_cc: false,
             max_deals: None,
             min_deal_space: None,
             max_retries: 5,
@@ -81,6 +85,9 @@ pub struct SealingOptional {
 
     /// enable sealing sectors with deal pieces
     pub enable_deals: Option<bool>,
+
+    /// disable cc sectors when deals enabled
+    pub disable_cc: Option<bool>,
 
     /// max limit of deals count inside one sector
     pub max_deals: Option<usize>,
