@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/ipfs/go-cid"
 
@@ -32,7 +33,7 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	path := req.URL.Path
+	path := strings.Trim(req.URL.Path, "/ ")
 	c, err := cid.Decode(path)
 	if err != nil {
 		http.Error(rw, fmt.Sprintf("cast %s to cid: %s", path, err), http.StatusBadRequest)
