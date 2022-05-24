@@ -196,7 +196,7 @@ impl<'c, 't> Sealer<'c, 't> {
                 sector_id.clone(),
                 AcquireDealsSpec {
                     max_deals: self.task.store.config.max_deals,
-                    min_used_space: self.task.store.config.min_deal_space.as_ref().map(|b| b.get_bytes() as usize),
+                    min_used_space: self.task.store.config.min_deal_space.map(|b| b.get_bytes() as usize),
                 },
             }?;
 
