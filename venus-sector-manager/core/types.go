@@ -42,7 +42,8 @@ type DealInfo struct {
 type Deals []DealInfo
 
 type AcquireDealsSpec struct {
-	MaxDeals *uint
+	MaxDeals     *uint
+	MinUsedSpace *uint64
 }
 
 type Ticket struct {

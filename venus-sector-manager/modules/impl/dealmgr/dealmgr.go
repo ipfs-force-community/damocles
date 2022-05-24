@@ -62,6 +62,10 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.
 		mspec.MaxPiece = int(*spec.MaxDeals)
 	}
 
+	if spec.MinUsedSpace != nil {
+		mspec.MinUsedSpace = *spec.MinUsedSpace
+	}
+
 	dm.acquireMu.Lock()
 	defer dm.acquireMu.Unlock()
 
