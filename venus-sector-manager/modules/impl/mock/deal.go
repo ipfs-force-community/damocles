@@ -2,6 +2,8 @@ package mock
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/filecoin-project/go-state-types/abi"
 
@@ -17,7 +19,13 @@ func NewDealManager() core.DealManager {
 type nullDeal struct {
 }
 
-func (*nullDeal) Acquire(context.Context, abi.SectorID, core.AcquireDealsSpec, core.SectorWorkerJob) (core.Deals, error) {
+func (*nullDeal) Acquire(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec, wjob core.SectorWorkerJob) (core.Deals, error) {
+	b, err := json.Marshal(spec)
+	if err != nil {
+		return nil, fmt.Errorf("marshal core.AcquireDealsSpec: %w", err)
+	}
+
+	log.Info(string(b))
 	return nil, nil
 }
 
