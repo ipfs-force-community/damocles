@@ -51,6 +51,5 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	rw.Header().Set("Content-Type", "application/octet-stream")
 	http.Redirect(rw, req, p.market.PieceResourceURL(c), http.StatusFound)
 }
