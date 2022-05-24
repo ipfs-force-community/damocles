@@ -148,6 +148,8 @@ pub type Deals = Vec<DealInfo>;
 pub struct AcquireDealsSpec {
     /// max deal count
     pub max_deals: Option<usize>,
+
+    pub min_used_space: Option<usize>,
 }
 
 /// assigned ticket
