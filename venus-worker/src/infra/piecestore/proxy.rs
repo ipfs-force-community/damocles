@@ -39,7 +39,7 @@ impl ProxyPieceStore {
         })
     }
 
-     fn build_http_client(policy: Policy) ->  Result<Client> {
+    fn build_http_client(policy: Policy) -> Result<Client> {
         ClientBuilder::new()
         // handle redirect ourselves
         .redirect(policy)
@@ -55,11 +55,7 @@ impl ProxyPieceStore {
 impl PieceStore for ProxyPieceStore {
     fn get(&self, c: Cid, payload_size: u64, target_size: UnpaddedPieceSize) -> Result<Box<dyn Read>> {
         let url = self.base.join(&c.to_string()).context("invalid url")?;
-        let mut resp = self
-            .client
-            .get(url)
-            .send()
-            .context("request to peicestore")?;
+        let mut resp = self.client.get(url).send().context("request to peicestore")?;
 
         let mut status_code = resp.status();
         if status_code.is_redirection() {

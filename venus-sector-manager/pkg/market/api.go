@@ -67,7 +67,6 @@ type WrappedAPI struct {
 	ResourceEndpoint string
 }
 
-
 func (w *WrappedAPI) PieceResourceURL(c cid.Cid) string {
 	return fmt.Sprintf("%s?resource-id=%s", w.ResourceEndpoint, c.String())
 }
