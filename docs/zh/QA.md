@@ -58,3 +58,22 @@ export RUSTFLAGS="-C target-cpu=native"
 当然，上面这种情况也许只是众多可能性中的一种。我们会在发现其他情况之后补充到这里来。
 
 感谢来自社区的 [steven](https://app.slack.com/client/TEHTVS1L6/C028PCH8L31/user_profile/U03C6L8RWP6) 提供反馈，[Dennis Zou](https://app.slack.com/client/TEHTVS1L6/C028PCH8L31/user_profile/U01U2M1GZL7) 提供解答。
+
+
+
+## Q: `Too many open files (os error 24)` 是什么错误？如何处理？
+
+**A**：`Too many open files (os error 24)` 通常出现在 linux 系统中，表明当前进程开启了太多的文件句柄。
+
+这种情况在 `WindowPoSt` 过程中较为常见，原因是每个 `WindowPoSt` 任务都有可能要读取大量的扇区文件。
+
+通常来说，这种问题可以通过改变提高文件句柄限制来解决。但是我们很难确定一个具体的上限值。
+
+因此，在大多数场景中，我们直接将文件句柄限制设置为无限来规避这种问题。
+
+具体操作方式可以参考 [[Tutorial] Permanently Setting Your ULIMIT System Value](https://github.com/filecoin-project/lotus/discussions/6198)。
+
+
+
+
+
