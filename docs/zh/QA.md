@@ -75,5 +75,91 @@ export RUSTFLAGS="-C target-cpu=native"
 
 
 
+## Q：为什么我期望的结果是两张 GPU 都被使用，但是实际情况有一张 GPU 始终空闲？
+
+**A**：发生这种问题的原因有很多，但是一般来说，刚接触 venus-cluster 的用户在进行资源编排的时候误理解和配置了一些参数导致这种结果的情况比较多。换句话说，这通常是由*对硬件和调度配置的误解* 导致的。
+
+这里我们从原理说起。
+
+一般来说，配置一个外部处理器的时候，我们需要考虑几个方面的实际情况：
+
+1. 这个外部处理器能使用哪些硬件资源
+
+   这一块主要受诸如 `cgroup.cpuset` 、`numa_preferred` 以及环境变量 `CUDA_VISIBLE_DEVICE` 等影响。
+
+   换句话说，这些主要是针对这一个外部处理器子进程的、系统或启动级别的设置。
+
+2. 使用这个外部处理器时的调度原则
+
+   1. 这个外部处理器自身的处理能力设定
+
+      这一块目前主要是 `conncurrent` 配置项
+
+   2. 这个外部处理器和其他外部处理器的协调情况
+
+      这种情况相对复杂，还可以再细分为：
+
+      - 和其他相同阶段的外部处理器协调
+
+        如 `processors.limitation.concurrent`、`processors.limitation.staggered`
+
+      - 和其他不同阶段的外部处理器协调
+
+        如 `processors.ext_locks`
 
 
+
+以题目中的、在一台双 GPU 的机器上实行的这样一份配置为例：
+
+```
+[processors.ext_locks]
+gpu1 = 1
+gpu2 = 2
+
+
+[[processors.pc2]]
+cgroup.cpuset =  "2,5,8,11,14,17,20,23"
+locks = ["gpu1"]
+envs = { CUDA_VISIBLE_DEVICES = "0" }
+
+[[processors.pc2]]
+cgroup.cpuset =  "50,53,56,59,62,65,68,71"
+locks = ["gpu2"]
+envs = { CUDA_VISIBLE_DEVICES = "0" }
+
+[[processors.c2]]
+bin = /usr/local/bin/gpuproxy
+args = ["args1", "args2", "args3"]
+```
+
+其中存在这样几点常见误解：
+
+1. 关于 `ext_locks` 的配置格式，它是一个完全由用户自行定义的锁，其格式为 `<锁名> = <同时持锁的外部处理器数量>`。
+
+   在这个场景下，`gpu2 = 2` 很有可能来自于对数字含义的误解。
+
+2. `ext_locks` 通常用在 *不同阶段的处理器需要独占使用同一个硬件* 的场景，比较常见的是 `pc2` 和 `c2` 共用一块 GPU。
+
+   在这个范例中，`c2` 使用了代理 GPU 的方案，不使用本地 GPU，因此 `pc2` 的 `ext_locks` 设置并无效果。
+
+3. 两个 `pc2` 的外部处理器都设定了 `CUDA_VISIBLE_DEVICE = "0"`，这是第二块 GPU 空闲的根本原因，即两个 `pc2` 外部处理器都只能看到序号为 0 的 GPU，也就是说他们始终在使用同一块 GPU。
+
+   `CUDA_VISIBLE_DEVICE` 是 nvidia 官方驱动中提供的一个环境变量，它的解读可以参考 [CUDA Pro 技巧：使用 CUDA_VISIBLE_DEVICES 控制 GPU 的可见性](https://developer.nvidia.com/zh-cn/blog/cuda-pro-tip-control-gpu-visibility-cuda_visible_devices/)
+
+
+
+那么经过修正后的配置应当为：
+
+```
+[[processors.pc2]]
+cgroup.cpuset =  "2,5,8,11,14,17,20,23"
+envs = { CUDA_VISIBLE_DEVICES = "0" }
+
+[[processors.pc2]]
+cgroup.cpuset =  "50,53,56,59,62,65,68,71"
+envs = { CUDA_VISIBLE_DEVICES = "1" }
+
+[[processors.c2]]
+bin = /usr/local/bin/gpuproxy
+args = ["args1", "args2", "args3"]
+```
