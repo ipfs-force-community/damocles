@@ -55,7 +55,7 @@ func NewPoSter(
 			return nil, fmt.Errorf("construct scheduler for actor %d: %w", mcfg.Actor, err)
 		}
 
-		p.actors.handlers[sched.actor.Addr] = newChangeHandler(sched, sched.actor.Addr)
+		p.actors.handlers[sched.actor.Addr] = newChangeHandler(sched, sched.actor.Addr, mcfg.Actor, cfg)
 	}
 
 	return p, nil
