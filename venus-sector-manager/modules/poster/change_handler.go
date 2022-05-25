@@ -11,12 +11,13 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
 const (
-	SubmitConfidence    = 4
-	ChallengeConfidence = 10
+	SubmitConfidence           = 4
+	DefaultChallengeConfidence = 10
 )
 
 type CompleteGeneratePoSTCb func(posts []miner.SubmitWindowedPoStParams, err error)
@@ -38,9 +39,9 @@ type changeHandler struct {
 	submitHdlr *submitHandler
 }
 
-func newChangeHandler(api changeHandlerAPI, actor address.Address) *changeHandler {
+func newChangeHandler(api changeHandlerAPI, actor address.Address, acotrID abi.ActorID, scfg *modules.SafeConfig) *changeHandler {
 	posts := newPostsCache()
-	p := newProver(api, posts)
+	p := newProver(acotrID, api, posts, scfg)
 	s := newSubmitter(api, posts)
 	return &changeHandler{api: api, actor: actor, proveHdlr: p, submitHdlr: s}
 }
@@ -149,8 +150,10 @@ type postResult struct {
 
 // proveHandler generates proofs
 type proveHandler struct {
+	mid   abi.ActorID
 	api   changeHandlerAPI
 	posts *postsCache
+	scfg  *modules.SafeConfig
 
 	postResults chan *postResult
 	hcs         chan *headChange
@@ -166,13 +169,17 @@ type proveHandler struct {
 }
 
 func newProver(
+	mid abi.ActorID,
 	api changeHandlerAPI,
 	posts *postsCache,
+	scfg *modules.SafeConfig,
 ) *proveHandler {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &proveHandler{
+		mid:         mid,
 		api:         api,
 		posts:       posts,
+		scfg:        scfg,
 		postResults: make(chan *postResult),
 		hcs:         make(chan *headChange),
 		shutdownCtx: ctx,
@@ -211,6 +218,18 @@ func (p *proveHandler) run() {
 }
 
 func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSet, di *dline.Info) {
+	plog := log.With("miner", p.mid)
+	scfg, err := p.scfg.MinerConfig(p.mid)
+	if err != nil {
+		plog.Warn("no miner config found")
+		return
+	}
+
+	if !scfg.PoSt.Enabled {
+		plog.Warn("poster disabled")
+		return
+	}
+
 	// If the post window has expired, abort the current proof
 	if p.current != nil && newTS.Height() >= p.current.di.Close {
 		// Cancel the context on the current proof
@@ -235,8 +254,13 @@ func (p *proveHandler) processHeadChange(ctx context.Context, newTS *types.TipSe
 		_, complete = p.posts.get(di)
 	}
 
+	challengeConfidence := scfg.PoSt.ChallengeConfidence
+	if challengeConfidence == 0 {
+		challengeConfidence = DefaultChallengeConfidence
+	}
+
 	// Check if the chain is above the Challenge height for the post window
-	if newTS.Height() < di.Challenge+ChallengeConfidence {
+	if newTS.Height() < di.Challenge+abi.ChainEpoch(challengeConfidence) {
 		return
 	}
 
