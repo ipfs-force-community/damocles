@@ -163,3 +163,22 @@ envs = { CUDA_VISIBLE_DEVICES = "1" }
 bin = /usr/local/bin/gpuproxy
 args = ["args1", "args2", "args3"]
 ```
+
+
+
+感谢社区的 [steven](https://app.slack.com/client/TEHTVS1L6/C028PCH8L31/user_profile/U03C6L8RWP6) 提供案例。
+
+
+
+## Q：`memory map must have a non-zero length` 是什么错误？如何处理？
+
+**A**：这种报错信息表达的是，是使用 `mmap` 的过程中，目标文件大小为 0。
+
+根据经验，在目前 Filecoin 的各类算法中， `mmap` 的使用主要出现在各类静态文件的读取，如：
+
+- vk 和 params 文件
+- 各类事先生成的 cache 文件，如 parent cache 等
+
+那么出现这种错误，通常表示目标文件不存在，或为空文件。
+
+例如，在 `WindowPoSt` 场景，如果没有准备好参数文件或密钥文件。
