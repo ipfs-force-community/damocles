@@ -2,6 +2,48 @@
 
 ## v0.3.0-rc1
 
+- venus-sector-manager：
+  - 对于一些特定类型的异常，返回特殊结果，方便 venus-worker 处理：
+    - c2 消息上链成功，但扇区未上链 [#88](https://github.com/ipfs-force-community/venus-cluster/issues/88)
+    - 对于能够确定感知到 ticket expired 的场景，直接终止当前扇区 [#143](https://github.com/ipfs-force-community/venus-cluster/issues/143)
+    - 对于通过 `venus-sector-manager` 终止的扇区，或因其他原因确实扇区状态信息的情况，直接终止当前扇区 [#89](https://github.com/ipfs-force-community/venus-cluster/issues/89)
+  - 升级 `go-jsonrpc` 依赖，使之可以支持部分网络异常下的重连 [#97](https://github.com/ipfs-force-community/venus-cluster/issues/97)
+  - 支持新的可配置策略：
+    - 各阶段是否随消息发送 funding [#122](https://github.com/ipfs-force-community/venus-cluster/issues/122)
+    - SnapUp 提交重试次数 [#123](https://github.com/ipfs-force-community/venus-cluster/issues/123)
+  - 支持可配置的 `WindowPoSt Chanllenge Confidential` [#163](https://github.com/ipfs-force-community/venus-cluster/issues/163)
+  - 迁入更多管理命令
+  - 配置调整：
+    - 新增 [Miners.Commitment.Terminate] 配置块
+    - 新增 [Miners.SnapUp.Retry] 配置块
+    - 新增 [Miners.SnapUp] 中的 SendFund 配置项
+    - 新增 [Miners.Commitment.Pre] 中的 SendFund 配置项
+    - 新增 [Miners.Commitment.Prove] 中的 SendFund 配置项
+    - 新增 [Miners.PoSt] 中的 ChallengeConfidence  配置项
+- venus-worker ：
+  - 适配 venus-market 对于 oss piece store 的支持
+  - 支持指定阶段批次启动 [#144](https://github.com/ipfs-force-community/venus-cluster/issues/144)
+  - 支持外部处理器根据权重分配任务 [#145](https://github.com/ipfs-force-community/venus-cluster/issues/145)
+  - 支持新的订单填充逻辑：
+    - 禁止cc扇区 [#161](https://github.com/ipfs-force-community/venus-cluster/issues/161)
+    - `min_used_space` [#183](https://github.com/ipfs-force-community/venus-cluster/pull/183)
+  - 日志输出当前时区时间 [#87](https://github.com/ipfs-force-community/venus-cluster/issues/87)
+  - 配置调整：
+    - 废弃 [processors.limit] 配置块，替换为 [processors.limitation.concurrent] 配置块
+    - 新增 [processors.limitation.staggered] 配置块
+    - 新增 [[processors.{stage name}]] 中的 weight 配置项
+    - 新增 [sealing] 中的 min_deal_space 配置项
+    - 新增 [sealing] 中的 disable_cc 配置项
+- 工具链：
+  - 支持 cuda 版本编译
+- 文档：
+  - 更多 QA 问答
+  - [10.venus-worker任务管理](./docs/zh/10.venus-worker任务管理.md)
+  - [11.任务状态流转.md](./docs/zh/11.任务状态流转.md)
+- 其他改善和修复
+
+
+
 ## v0.2.0
 - 支持 snapup 批量生产模式
   - venus-worker 支持配置 `snapup` 类型任务
