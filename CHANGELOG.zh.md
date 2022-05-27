@@ -20,7 +20,7 @@
     - 新增 [Miners.Commitment.Pre] 中的 SendFund 配置项
     - 新增 [Miners.Commitment.Prove] 中的 SendFund 配置项
     - 新增 [Miners.PoSt] 中的 ChallengeConfidence  配置项
-- venus-worker ：
+- venus-worker：
   - 适配 venus-market 对于 oss piece store 的支持
   - 支持指定阶段批次启动 [#144](https://github.com/ipfs-force-community/venus-cluster/issues/144)
   - 支持外部处理器根据权重分配任务 [#145](https://github.com/ipfs-force-community/venus-cluster/issues/145)
