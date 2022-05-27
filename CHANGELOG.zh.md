@@ -6,7 +6,7 @@
   - 对于一些特定类型的异常，返回特殊结果，方便 venus-worker 处理：
     - c2 消息上链成功，但扇区未上链 [#88](https://github.com/ipfs-force-community/venus-cluster/issues/88)
     - 对于能够确定感知到 ticket expired 的场景，直接终止当前扇区 [#143](https://github.com/ipfs-force-community/venus-cluster/issues/143)
-    - 对于通过 `venus-sector-manager` 终止的扇区，或因其他原因确实扇区状态信息的情况，直接终止当前扇区 [#89](https://github.com/ipfs-force-community/venus-cluster/issues/89)
+    - 对于通过 `venus-sector-manager` 终止的扇区，或因其他原因缺失扇区状态信息的情况，直接终止当前扇区 [#89](https://github.com/ipfs-force-community/venus-cluster/issues/89)
   - 升级 `go-jsonrpc` 依赖，使之可以支持部分网络异常下的重连 [#97](https://github.com/ipfs-force-community/venus-cluster/issues/97)
   - 支持新的可配置策略：
     - 各阶段是否随消息发送 funding [#122](https://github.com/ipfs-force-community/venus-cluster/issues/122)
