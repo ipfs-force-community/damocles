@@ -142,20 +142,47 @@ func defaultMinerSectorConfig(example bool) MinerSectorConfig {
 	return cfg
 }
 
+type MinerSnapUpRetryConfig struct {
+	MaxAttempts      *int
+	PollInterval     Duration
+	APIFailureWait   Duration
+	LocalFailureWait Duration
+}
+
+func defaultMinerSnapUpRetryConfig(example bool) MinerSnapUpRetryConfig {
+	cfg := MinerSnapUpRetryConfig{
+		MaxAttempts:      nil,
+		PollInterval:     Duration(3 * time.Minute),
+		APIFailureWait:   Duration(3 * time.Minute),
+		LocalFailureWait: Duration(3 * time.Minute),
+	}
+
+	if example {
+		maxAttempts := 10
+		cfg.MaxAttempts = &maxAttempts
+	}
+
+	return cfg
+}
+
 type MinerSnapUpConfig struct {
-	Enabled bool
-	Sender  MustAddress
+	Enabled  bool
+	Sender   MustAddress
+	SendFund bool
 	FeeConfig
 	MessageConfidential abi.ChainEpoch
 	ReleaseCondidential abi.ChainEpoch
+	Retry               MinerSnapUpRetryConfig
 }
 
 func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
 	cfg := MinerSnapUpConfig{
 		Enabled:             false,
+		SendFund:            true,
 		FeeConfig:           defaultFeeConfig(),
 		MessageConfidential: 15,
 		ReleaseCondidential: 30,
+		Retry:               defaultMinerSnapUpRetryConfig(example),
 	}
 
 	if example {
@@ -169,6 +196,7 @@ type MinerCommitmentConfig struct {
 	Confidence int64
 	Pre        MinerCommitmentPolicyConfig
 	Prove      MinerCommitmentPolicyConfig
+	Terminate  MinerCommitmentPolicyConfig
 }
 
 func defaultMinerCommitmentConfig(example bool) MinerCommitmentConfig {
@@ -176,19 +204,24 @@ func defaultMinerCommitmentConfig(example bool) MinerCommitmentConfig {
 		Confidence: 10,
 		Pre:        defaultMinerCommitmentPolicyConfig(example),
 		Prove:      defaultMinerCommitmentPolicyConfig(example),
+		Terminate:  defaultMinerCommitmentPolicyConfig(example),
 	}
+
+	cfg.Terminate.Batch.Threshold = 5
 
 	return cfg
 }
 
 type MinerCommitmentPolicyConfig struct {
-	Sender MustAddress
+	Sender   MustAddress
+	SendFund bool
 	FeeConfig
 	Batch MinerCommitmentBatchPolicyConfig
 }
 
 func defaultMinerCommitmentPolicyConfig(example bool) MinerCommitmentPolicyConfig {
 	cfg := MinerCommitmentPolicyConfig{
+		SendFund:  true,
 		FeeConfig: defaultFeeConfig(),
 		Batch:     defaultMinerCommitmentBatchPolicyConfig(),
 	}
@@ -225,15 +258,17 @@ type MinerPoStConfig struct {
 	Enabled     bool
 	StrictCheck bool
 	FeeConfig
-	Confidence uint64
+	Confidence          uint64
+	ChallengeConfidence uint64
 }
 
 func defaultMinerPoStConfig(example bool) MinerPoStConfig {
 	cfg := MinerPoStConfig{
-		Enabled:     true,
-		StrictCheck: true,
-		FeeConfig:   defaultFeeConfig(),
-		Confidence:  10,
+		Enabled:             true,
+		StrictCheck:         true,
+		FeeConfig:           defaultFeeConfig(),
+		Confidence:          10,
+		ChallengeConfidence: 10,
 	}
 
 	if example {

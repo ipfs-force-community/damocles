@@ -42,7 +42,8 @@ type DealInfo struct {
 type Deals []DealInfo
 
 type AcquireDealsSpec struct {
-	MaxDeals *uint
+	MaxDeals     *uint
+	MinUsedSpace *uint64
 }
 
 type Ticket struct {
@@ -76,6 +77,7 @@ const (
 	OnChainStateFailed
 	// worker should enter perm err
 	OnChainStatePermFailed
+	OnChainStateShouldAbort
 )
 
 type PreCommitOnChainInfo struct {
@@ -139,6 +141,11 @@ type PollProofStateResp struct {
 	Desc  *string
 }
 
+type SubmitTerminateResp struct {
+	Res  SubmitResult
+	Desc *string
+}
+
 type MinerInfo struct {
 	ID   abi.ActorID
 	Addr address.Address
@@ -181,6 +188,12 @@ type MessageInfo struct {
 	PreCommitCid *cid.Cid
 	CommitCid    *cid.Cid
 	NeedSend     bool
+}
+
+type TerminateInfo struct {
+	TerminateCid *cid.Cid
+	TerminatedAt abi.ChainEpoch
+	AddedHeight  abi.ChainEpoch
 }
 
 type ReportStateReq struct {

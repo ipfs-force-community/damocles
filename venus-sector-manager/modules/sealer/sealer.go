@@ -31,6 +31,18 @@ func sectorLogger(sid abi.SectorID) *logging.ZapLogger {
 	return log.With("miner", sid.Miner, "num", sid.Number)
 }
 
+func sectorStateErr(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	if errors.Is(err, kvstore.ErrKeyNotFound) {
+		return fmt.Errorf("%w: sector state not found", core.APIErrCodeSectorStateNotFound)
+	}
+
+	return fmt.Errorf("sector state: %w", err)
+}
+
 func New(
 	capi chain.API,
 	rand core.RandomnessAPI,
@@ -123,9 +135,9 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 }
 
 func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.Deals, error) {
-	state, err := s.state.Load(ctx, sid)
+	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
-		return nil, fmt.Errorf("load sector state: %w", err)
+		return nil, sectorStateErr(err)
 	}
 
 	if len(state.Pieces) != 0 {
@@ -156,10 +168,10 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.A
 		return nil, err
 	}
 
-	err = s.state.Update(ctx, sid, pieces)
+	err = s.state.Update(ctx, sid, core.WorkerOnline, pieces)
 	if err != nil {
 		slog.Errorf("failed to update sector state: %v", err)
-		return nil, err
+		return nil, sectorStateErr(err)
 	}
 
 	success = true
@@ -179,8 +191,8 @@ func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (core.Ticke
 		return core.Ticket{}, err
 	}
 
-	if err := s.state.Update(ctx, sid, &ticket); err != nil {
-		return core.Ticket{}, err
+	if err := s.state.Update(ctx, sid, core.WorkerOnline, &ticket); err != nil {
+		return core.Ticket{}, sectorStateErr(err)
 	}
 
 	return ticket, nil
@@ -199,9 +211,9 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (core
 }
 
 func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) (bool, error) {
-	state, err := s.state.Load(ctx, sid)
+	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
-		return false, fmt.Errorf("load state for %s: %w", util.FormatSectorID(sid), err)
+		return false, sectorStateErr(err)
 	}
 
 	ok, err := s.checkPersistedFiles(ctx, sid, state.SectorType, instance, false)
@@ -259,8 +271,8 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedR
 		return core.WaitSeedResp{}, err
 	}
 
-	if err := s.state.Update(ctx, sid, &seed); err != nil {
-		return core.WaitSeedResp{}, err
+	if err := s.state.Update(ctx, sid, core.WorkerOnline, &seed); err != nil {
+		return core.WaitSeedResp{}, sectorStateErr(err)
 	}
 
 	return core.WaitSeedResp{
@@ -279,8 +291,8 @@ func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (core.Pol
 }
 
 func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.ReportStateReq) (core.Meta, error) {
-	if err := s.state.Update(ctx, sid, &req); err != nil {
-		return core.Empty, err
+	if err := s.state.Update(ctx, sid, core.WorkerOnline, &req); err != nil {
+		return core.Empty, sectorStateErr(err)
 	}
 
 	return core.Empty, nil
@@ -296,7 +308,7 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Me
 
 		return true, nil
 	}); err != nil {
-		return core.Empty, err
+		return core.Empty, sectorStateErr(err)
 	}
 
 	return core.Empty, nil
@@ -318,7 +330,7 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 	})
 
 	if err != nil {
-		return core.Empty, err
+		return core.Empty, sectorStateErr(err)
 	}
 
 	return core.Empty, nil
@@ -417,9 +429,9 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 		return resp, nil
 	}
 
-	state, err := s.state.Load(ctx, sid)
+	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
-		return resp, fmt.Errorf("load sector state: %w", err)
+		return resp, sectorStateErr(err)
 	}
 
 	if len(state.Pieces) != len(snapupInfo.Pieces) {
@@ -473,9 +485,9 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 		AccessInstance: snapupInfo.AccessInstance,
 	}
 
-	err = s.state.Update(ctx, sid, &upgradedInfo)
+	err = s.state.Update(ctx, sid, core.WorkerOnline, &upgradedInfo)
 	if err != nil {
-		return resp, fmt.Errorf("update sector state: %w", err)
+		return resp, sectorStateErr(err)
 	}
 
 	err = s.snapup.Commit(ctx, sid)

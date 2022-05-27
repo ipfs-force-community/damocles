@@ -148,6 +148,8 @@ pub type Deals = Vec<DealInfo>;
 pub struct AcquireDealsSpec {
     /// max deal count
     pub max_deals: Option<usize>,
+
+    pub min_used_space: Option<usize>,
 }
 
 /// assigned ticket
@@ -201,6 +203,9 @@ pub enum OnChainState {
 
     /// permanent failed
     PermFailed = 6,
+
+    /// the sector is not going to get on-chain
+    ShouldAbort = 7,
 }
 
 /// required infos for pre commint

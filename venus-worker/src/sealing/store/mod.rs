@@ -228,9 +228,11 @@ fn customized_sealing_config(common: &SealingOptional, customized: Option<&Seali
             allowed_miners,
             allowed_sizes,
             max_deals,
+            min_deal_space,
         },
         {
             enable_deals,
+            disable_cc,
             max_retries,
             seal_interval,
             recover_interval,

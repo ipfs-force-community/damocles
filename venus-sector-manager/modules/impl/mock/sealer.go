@@ -165,3 +165,15 @@ func (s *Sealer) SectorIndexerFind(ctx context.Context, indexType core.SectorInd
 		Instance: core.SectorAccessStores{},
 	}, nil
 }
+
+func (s *Sealer) TerminateSector(ctx context.Context, sid abi.SectorID) (core.SubmitTerminateResp, error) {
+	return s.commit.SubmitTerminate(ctx, sid)
+}
+
+func (s *Sealer) PollTerminateSectorState(ctx context.Context, sid abi.SectorID) (core.TerminateInfo, error) {
+	return s.commit.TerminateState(ctx, sid)
+}
+
+func (s *Sealer) RemoveSector(ctx context.Context, sid abi.SectorID) error {
+	return nil
+}

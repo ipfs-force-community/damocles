@@ -189,18 +189,27 @@ impl<'c, 't> Sealer<'c, 't> {
 
         let sector_id = self.task.sector_id()?.clone();
 
-        let deals = call_rpc! {
-            self.task.ctx.global.rpc,
-            acquire_deals,
-            sector_id,
-            AcquireDealsSpec {
-                max_deals: self.task.store.config.max_deals.as_ref().cloned(),
-            },
-        }?;
+        loop {
+            let deals = call_rpc! {
+                self.task.ctx.global.rpc,
+                acquire_deals,
+                sector_id.clone(),
+                AcquireDealsSpec {
+                    max_deals: self.task.store.config.max_deals,
+                    min_used_space: self.task.store.config.min_deal_space.map(|b| b.get_bytes() as usize),
+                },
+            }?;
 
-        debug!(count = deals.as_ref().map(|d| d.len()).unwrap_or(0), "pieces acquired");
+            let deals_count = deals.as_ref().map(|d| d.len()).unwrap_or(0);
 
-        Ok(Event::AcquireDeals(deals))
+            debug!(count = deals_count, "pieces acquired");
+
+            if !self.task.store.config.disable_cc || deals_count > 0 {
+                return Ok(Event::AcquireDeals(deals));
+            }
+
+            self.task.wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
+        }
     }
 
     fn handle_deals_acquired(&self) -> ExecResult {
@@ -424,7 +433,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
             SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort()),
 
             SubmitResult::FilesMissed => Err(anyhow!("FilesMissed should not happen for pc2 submission: {:?}", res.desc).perm()),
         }
@@ -452,6 +461,8 @@ impl<'c, 't> Sealer<'c, 't> {
                 }
 
                 OnChainState::PermFailed => return Err(anyhow!("pre commit on-chain info permanent failed: {:?}", state.desc).perm()),
+
+                OnChainState::ShouldAbort => return Err(anyhow!("pre commit info will not get on-chain: {:?}", state.desc).abort()),
 
                 OnChainState::Pending | OnChainState::Packed => {}
             }
@@ -640,7 +651,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
             SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort()),
 
             SubmitResult::FilesMissed => Err(anyhow!("FilesMissed is not handled currently: {:?}", res.desc).perm()),
         }
@@ -674,6 +685,8 @@ impl<'c, 't> Sealer<'c, 't> {
                     }
 
                     OnChainState::PermFailed => return Err(anyhow!("proof on-chain info permanent failed: {:?}", state.desc).perm()),
+
+                    OnChainState::ShouldAbort => return Err(anyhow!("sector will not get on-chain: {:?}", state.desc).abort()),
 
                     OnChainState::Pending | OnChainState::Packed => {}
                 }

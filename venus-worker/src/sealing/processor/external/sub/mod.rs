@@ -10,12 +10,14 @@ use std::thread;
 use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::{after, bounded, select, unbounded, Sender};
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 use super::{
     super::{Input, Stage},
     config,
 };
 use crate::logging::info;
+use crate::sealing::resource::{self, Pool};
 
 mod run;
 pub use run::*;
@@ -47,7 +49,34 @@ pub(super) struct SubProcessTx<I: Input> {
     pub input_tx: Sender<(I, Sender<Result<I::Out>>)>,
     pub limiter: Sender<()>,
     pub locks: Vec<String>,
+    pub weight: u16,
 }
+
+impl<I: Input> SubProcessTx<I> {
+    pub fn try_lock(&self, res_limit_pool: &Pool) -> Result<Option<ProcessingGuard>> {
+        let mut tokens = Vec::new();
+        for lock_name in &self.locks {
+            debug!(name = lock_name.as_str(), stage = I::STAGE.name(), "acquiring lock");
+
+            match res_limit_pool.try_acquire(lock_name)? {
+                Some(t) => tokens.push(t),
+                None => return Ok(None),
+            }
+        }
+
+        Ok(Some(ProcessingGuard(tokens)))
+    }
+
+    pub fn lock(&self, res_limit_pool: &Pool) -> Result<ProcessingGuard> {
+        let mut tokens = Vec::new();
+        for lock_name in &self.locks {
+            tokens.push(res_limit_pool.acquire(lock_name)?);
+        }
+        Ok(ProcessingGuard(tokens))
+    }
+}
+
+pub(super) struct ProcessingGuard(Vec<resource::Token>);
 
 pub(super) struct SubProcessContext<I: Input> {
     pub txes: Vec<SubProcessTx<I>>,
@@ -94,6 +123,7 @@ pub(super) fn start_sub_processes<I: Input>(cfg: &[config::Ext]) -> Result<SubPr
             input_tx: tx,
             limiter: limit_tx,
             locks: sub_cfg.locks.as_ref().cloned().unwrap_or_default(),
+            weight: sub_cfg.weight,
         });
         processes.push(proc);
     }

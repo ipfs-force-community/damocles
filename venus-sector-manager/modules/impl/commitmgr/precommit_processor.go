@@ -32,7 +32,11 @@ type PreCommitProcessor struct {
 }
 
 func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []core.SectorState, from address.Address, mid abi.ActorID, l *logging.ZapLogger) {
-	mcfg := p.config.MustMinerConfig(mid)
+	mcfg, err := p.config.MinerConfig(mid)
+	if err != nil {
+		l.Errorf("get miner config for %d: %s", mid, err)
+		return
+	}
 
 	var spec messager.MsgMeta
 	spec.GasOverEstimation = mcfg.Commitment.Pre.GasOverEstimation
@@ -57,6 +61,10 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []c
 				return
 			}
 
+			if !mcfg.Commitment.Pre.SendFund {
+				deposit = big.Zero()
+			}
+
 			mcid, err := pushMessage(ctx, from, mid, deposit, miner.Methods.PreCommitSector, p.msgClient, spec, enc.Bytes(), slog)
 			if err != nil {
 				slog.Error("push pre-commit single failed: ", err)
@@ -71,8 +79,6 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []c
 }
 
 func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
-	mcfg := p.config.MustMinerConfig(mid)
-
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "pre", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
@@ -83,6 +89,11 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	if !p.EnableBatch(mid) {
 		p.processIndividually(ctx, sectors, ctrlAddr, mid, plog)
 		return nil
+	}
+
+	mcfg, err := p.config.MinerConfig(mid)
+	if err != nil {
+		return fmt.Errorf("get miner config for %d: %w", mid, err)
 	}
 
 	infos := []core.PreCommitEntry{}
@@ -101,12 +112,18 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 		})
 	}
 
+	if len(infos) == 0 {
+		return fmt.Errorf("no available sector infos for pre commit batching")
+	}
+
 	params := core.PreCommitSectorBatchParams{}
 
 	deposit := big.Zero()
-	for i := range infos {
-		params.Sectors = append(params.Sectors, *infos[i].Pci)
-		deposit = big.Add(deposit, infos[i].Deposit)
+	if mcfg.Commitment.Pre.SendFund {
+		for i := range infos {
+			params.Sectors = append(params.Sectors, *infos[i].Pci)
+			deposit = big.Add(deposit, infos[i].Deposit)
+		}
 	}
 
 	enc := new(bytes.Buffer)

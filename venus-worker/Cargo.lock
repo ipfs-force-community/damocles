@@ -484,6 +484,7 @@ version = "4.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "063197e6eb4b775b64160dedde7a0986bb2836cce140e9492e9e96f28e18bcd8"
 dependencies = [
+ "serde",
  "utf8-width",
 ]
 
@@ -881,6 +882,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "diff"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e25ea47919b1560c4e3b7fe0aaab9becf5b84a10325ddf7db0f0ba5e1026499"
 
 [[package]]
 name = "difference"
@@ -2660,6 +2667,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "pretty_assertions"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c89f989ac94207d048d92db058e4f6ec7342b0971fc58d1271ca148b799b3563"
+dependencies = [
+ "ansi_term 0.12.1",
+ "ctor",
+ "diff",
+ "output_vt100",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2716,11 +2735,11 @@ checksum = "bc881b2c22681370c6a780e47af9840ef841837bc98118431d4e1868bd0c1086"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.27"
+version = "1.0.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0d8caf72986c1a598726adc988bb5984792ef84f5ee5aa50209145ee8077038"
+checksum = "c54b25569025b7fc9651de43004ae593a75ad88543b17178aa5e1b9c4f15f56f"
 dependencies = [
- "unicode-xid",
+ "unicode-ident",
 ]
 
 [[package]]
@@ -3373,7 +3392,7 @@ dependencies = [
  "num-traits",
  "num_cpus",
  "pairing",
- "pretty_assertions",
+ "pretty_assertions 0.6.1",
  "rand 0.8.5",
  "rayon",
  "serde",
@@ -3444,7 +3463,7 @@ dependencies = [
  "num-bigint 0.2.6",
  "num-traits",
  "num_cpus",
- "pretty_assertions",
+ "pretty_assertions 0.6.1",
  "rand 0.8.5",
  "rayon",
  "serde",
@@ -3470,13 +3489,13 @@ checksum = "1e81da0851ada1f3e9d4312c704aa4f8806f0f9d69faaf8df2f3464b4a9437c2"
 
 [[package]]
 name = "syn"
-version = "1.0.72"
+version = "1.0.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1e8cdbefb79a9a5a65e0db8b47b723ee907b7c7f8496c76a1770b5c310bab82"
+checksum = "fbaf6116ab8924f39d52792136fb74fd60a80194cf1b1c6ffa6453eef1c3f942"
 dependencies = [
  "proc-macro2",
  "quote",
- "unicode-xid",
+ "unicode-ident",
 ]
 
 [[package]]
@@ -3785,6 +3804,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "unicode-ident"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d22af068fba1eb5edcb4aea19d382b2a3deb4c8f9d475c589b6ada9e0fd493ee"
+
+[[package]]
 name = "unicode-normalization"
 version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3876,7 +3901,7 @@ checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
 name = "venus-worker"
-version = "0.2.0"
+version = "0.3.0-rc1"
 dependencies = [
  "anyhow",
  "base64",
@@ -3894,6 +3919,7 @@ dependencies = [
  "forest_address",
  "forest_cid",
  "forest_json_utils",
+ "humantime",
  "humantime-serde",
  "jsonrpc-core",
  "jsonrpc-core-client",
@@ -3902,6 +3928,7 @@ dependencies = [
  "memmap",
  "multiaddr",
  "nix 0.23.1",
+ "pretty_assertions 1.2.1",
  "rand 0.8.5",
  "reqwest",
  "rocksdb",
@@ -3910,6 +3937,7 @@ dependencies = [
  "serde_repr",
  "signal-hook",
  "storage-proofs-core",
+ "time 0.3.9",
  "tokio",
  "toml",
  "tracing",

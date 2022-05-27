@@ -5,13 +5,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ipfs/go-cid"
-	cbg "github.com/whyrusleeping/cbor-gen"
-
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/network"
+	"github.com/ipfs/go-cid"
+	cbg "github.com/whyrusleeping/cbor-gen"
 
 	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
 
@@ -238,6 +238,44 @@ func (s SealingAPIImpl) ChainBaseFee(ctx context.Context, tok core.TipSetToken) 
 	}
 
 	return ts.Blocks()[0].ParentBaseFee, nil
+}
+
+func (s SealingAPIImpl) StateSectorPartition(ctx context.Context, maddr address.Address, sectorNumber abi.SectorNumber, tok core.TipSetToken) (*miner.SectorLocation, error) {
+	tsk, err := types.TipSetKeyFromBytes(tok)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal TipSetToken to TipSetKey: %w", err)
+	}
+
+	l, err := s.api.StateSectorPartition(ctx, maddr, sectorNumber, tsk)
+	if err != nil {
+		return nil, err
+	}
+	if l != nil {
+		return &miner.SectorLocation{
+			Deadline:  l.Deadline,
+			Partition: l.Partition,
+		}, nil
+	}
+
+	return nil, nil // not found
+}
+
+func (s SealingAPIImpl) StateMinerPartitions(ctx context.Context, maddr address.Address, dlIdx uint64, tok core.TipSetToken) ([]chainAPI.Partition, error) {
+	tsk, err := types.TipSetKeyFromBytes(tok)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal TipSetToken to TipSetKey: %w", err)
+	}
+
+	return s.api.StateMinerPartitions(ctx, maddr, dlIdx, tsk)
+}
+
+func (s SealingAPIImpl) StateMinerProvingDeadline(ctx context.Context, maddr address.Address, tok core.TipSetToken) (*dline.Info, error) {
+	tsk, err := types.TipSetKeyFromBytes(tok)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.api.StateMinerProvingDeadline(ctx, maddr, tsk)
 }
 
 var _ SealingAPI = (*SealingAPIImpl)(nil)

@@ -8,6 +8,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use byte_unit::Byte;
 use serde::{Deserialize, Serialize};
 use toml::from_slice;
 
@@ -30,8 +31,14 @@ pub struct Sealing {
     /// enable sealing sectors with deal pieces
     pub enable_deals: bool,
 
+    /// disable cc sectors when deals enabled
+    pub disable_cc: bool,
+
     /// max limit of deals count inside one sector
     pub max_deals: Option<usize>,
+
+    /// min used space for deals inside one sector
+    pub min_deal_space: Option<Byte>,
 
     /// max retry times for tempoary failed sector
     pub max_retries: u32,
@@ -55,7 +62,9 @@ impl Default for Sealing {
             allowed_miners: None,
             allowed_sizes: None,
             enable_deals: false,
+            disable_cc: false,
             max_deals: None,
+            min_deal_space: None,
             max_retries: 5,
             seal_interval: Duration::from_secs(30),
             recover_interval: Duration::from_secs(60),
@@ -77,8 +86,14 @@ pub struct SealingOptional {
     /// enable sealing sectors with deal pieces
     pub enable_deals: Option<bool>,
 
+    /// disable cc sectors when deals enabled
+    pub disable_cc: Option<bool>,
+
     /// max limit of deals count inside one sector
     pub max_deals: Option<usize>,
+
+    /// min used space for deals inside one sector
+    pub min_deal_space: Option<Byte>,
 
     /// max retry times for tempoary failed sector
     pub max_retries: Option<u32>,
@@ -142,7 +157,11 @@ pub struct RPCServer {
 /// configurations for processors
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Processors {
+    // For compatibility, it is equivalent to `Limit.concurrent`
     pub limit: Option<HashMap<String, usize>>,
+
+    #[serde(default)]
+    pub limitation: Limit,
 
     pub ext_locks: Option<HashMap<String, usize>>,
 
@@ -165,6 +184,24 @@ pub struct Processors {
     /// section for c2 processor
     pub snap_prove: Option<Vec<Ext>>,
 }
+
+impl Processors {
+    pub fn limitation_concurrent(&self) -> &Option<HashMap<String, usize>> {
+        match (&self.limit, &self.limitation.concurrent) {
+            (_, None) => &self.limit,
+            (_, Some(_)) => &self.limitation.concurrent,
+        }
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Limit {
+    pub concurrent: Option<HashMap<String, usize>>,
+    pub staggered: Option<HashMap<String, SerdeDuration>>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SerdeDuration(#[serde(with = "humantime_serde")] pub Duration);
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorkerInstanceConfig {

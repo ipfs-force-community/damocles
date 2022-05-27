@@ -24,7 +24,6 @@ func NewPoSter(
 	cfg *modules.SafeConfig,
 	verifier core.Verifier,
 	prover core.Prover,
-	indexer core.SectorIndexer,
 	sectorTracker core.SectorTracker,
 	capi chain.API,
 	rand core.RandomnessAPI,
@@ -34,7 +33,6 @@ func NewPoSter(
 		cfg:           cfg,
 		verifier:      verifier,
 		prover:        prover,
-		indexer:       indexer,
 		sectorTracker: sectorTracker,
 		chain:         capi,
 		rand:          rand,
@@ -52,12 +50,12 @@ func NewPoSter(
 			continue
 		}
 
-		sched, err := newScheduler(ctx, mcfg.Actor, p.cfg, p.verifier, p.prover, p.indexer, p.sectorTracker, p.chain, p.rand, p.msg)
+		sched, err := newScheduler(ctx, mcfg.Actor, p.cfg, p.verifier, p.prover, p.sectorTracker, p.chain, p.rand, p.msg)
 		if err != nil {
 			return nil, fmt.Errorf("construct scheduler for actor %d: %w", mcfg.Actor, err)
 		}
 
-		p.actors.handlers[sched.actor.Addr] = newChangeHandler(sched, sched.actor.Addr)
+		p.actors.handlers[sched.actor.Addr] = newChangeHandler(sched, sched.actor.Addr, mcfg.Actor, cfg)
 	}
 
 	return p, nil
@@ -67,7 +65,6 @@ type PoSter struct {
 	cfg           *modules.SafeConfig
 	verifier      core.Verifier
 	prover        core.Prover
-	indexer       core.SectorIndexer
 	sectorTracker core.SectorTracker
 	chain         chain.API
 	rand          core.RandomnessAPI
@@ -102,6 +99,7 @@ func (p *PoSter) Run(ctx context.Context) {
 	reconnectWait := 10 * time.Second
 
 	// not fine to panic after this point
+CHAIN_HEAD_LOOP:
 	for {
 		if notifs == nil {
 			if !firstTime {
@@ -120,14 +118,16 @@ func (p *PoSter) Run(ctx context.Context) {
 
 			ch, err := p.chain.ChainNotify(ctx)
 			if err != nil {
-				log.Errorf("get ChainNotify error: %w", err)
-				continue
-			}
-			if ch == nil {
-				log.Error("get nil ChainNotify receiver")
-				continue
+				log.Errorf("get ChainNotify error: %s", err)
+				continue CHAIN_HEAD_LOOP
 			}
 
+			if ch == nil {
+				log.Error("get nil ChainNotify receiver")
+				continue CHAIN_HEAD_LOOP
+			}
+
+			log.Debug("ChainNotify channel established")
 			notifs = ch
 		}
 
@@ -139,7 +139,7 @@ func (p *PoSter) Run(ctx context.Context) {
 			if !ok {
 				log.Warn("window post scheduler notifs channel closed")
 				notifs = nil
-				continue
+				continue CHAIN_HEAD_LOOP
 			}
 
 			var lowest, highest *types.TipSet = nil, nil
@@ -148,7 +148,7 @@ func (p *PoSter) Run(ctx context.Context) {
 			} else {
 				for _, change := range changes {
 					if change.Val == nil {
-						log.Errorf("change.Val was nil")
+						log.Warnw("change with nil Val", "type", change.Type)
 						continue
 					}
 
@@ -159,6 +159,10 @@ func (p *PoSter) Run(ctx context.Context) {
 						highest = change.Val
 					}
 				}
+			}
+
+			if lowest == nil && highest == nil {
+				continue CHAIN_HEAD_LOOP
 			}
 
 			p.actors.RLock()

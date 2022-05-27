@@ -52,6 +52,18 @@ var UnavailableSealerCliClient = SealerCliClient{
 	SectorIndexerFind: func(ctx context.Context, indexType SectorIndexType, sid abi.SectorID) (SectorIndexLocation, error) {
 		panic("sealer client unavailable")
 	},
+
+	TerminateSector: func(context.Context, abi.SectorID) (SubmitTerminateResp, error) {
+		panic("sealer client unavailable")
+	},
+
+	PollTerminateSectorState: func(context.Context, abi.SectorID) (TerminateInfo, error) {
+		panic("sealer client unavailable")
+	},
+
+	RemoveSector: func(context.Context, abi.SectorID) error {
+		panic("sealer client unavailable")
+	},
 }
 
 type SealerCliClient struct {
@@ -78,4 +90,10 @@ type SealerCliClient struct {
 	WorkerPingInfoList func(ctx context.Context) ([]WorkerPingInfo, error)
 
 	SectorIndexerFind func(ctx context.Context, indexType SectorIndexType, sid abi.SectorID) (SectorIndexLocation, error)
+
+	TerminateSector func(context.Context, abi.SectorID) (SubmitTerminateResp, error)
+
+	PollTerminateSectorState func(context.Context, abi.SectorID) (TerminateInfo, error)
+
+	RemoveSector func(context.Context, abi.SectorID) error
 }

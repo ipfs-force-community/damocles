@@ -54,7 +54,7 @@ var utilSealerActorBalanceCmd = &cli.Command{
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
 		if count := args.Len(); count < 1 {
-			return fmt.Errorf("3 args required, got %d", count)
+			return fmt.Errorf("1 args required, got %d", count)
 		}
 
 		miner, err := ShouldAddress(args.Get(0), true, true)

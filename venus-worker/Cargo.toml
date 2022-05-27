@@ -1,6 +1,6 @@
 [package]
 name = "venus-worker"
-version = "0.2.0"
+version = "0.3.0-rc1"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2018"
 
@@ -22,7 +22,7 @@ fil_clock = "0.1"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8.5"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "time"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "time", "local-time"] }
 crossterm = "0.20"
 jsonrpc-core = "18"
 jsonrpc-derive = "18"
@@ -30,12 +30,12 @@ jsonrpc-http-server = "18"
 toml = "0.5"
 humantime-serde = "1"
 clap = "2.33"
-byte-unit = "4"
 cgroups-rs = "0.2"
 signal-hook = "0.3"
 multiaddr = "0.14.0"
 rand = "0.8.5"
 nix = "0.23"
+time = "0.3"
 
 [dependencies.filecoin-proofs-api]
 version = "11"
@@ -65,6 +65,14 @@ version = "0.16"
 [dependencies.jsonrpc-core-client]
 version = "18"
 features = ["tls", "http"]
+
+[dependencies.byte-unit]
+version = "4"
+features = ["serde"]
+
+[dev-dependencies]
+pretty_assertions = "1.2"
+humantime = "2.1"
 
 [features]
 default = ["numa"]
