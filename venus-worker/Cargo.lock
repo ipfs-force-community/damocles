@@ -3890,6 +3890,12 @@ dependencies = [
 [[package]]
 name = "vc-processors"
 version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tracing",
+]
 
 [[package]]
 name = "vcpkg"
