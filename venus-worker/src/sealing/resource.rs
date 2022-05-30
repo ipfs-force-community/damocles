@@ -259,7 +259,7 @@ mod tests {
 
             // Handles ms rounding
             assert!(
-                elapsed >= lower && elapsed <= lower + std::time::Duration::from_millis(2),
+                elapsed >= lower,
                 "actual = {:?}, expected = {:?}. {}",
                 elapsed,
                 lower,
