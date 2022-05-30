@@ -29,8 +29,14 @@ jobs:
         with:
           toolchain: '1.60.0'
 
+      - name: test venus-worker
+        run: make test-worker
+
       - name: build venus-worker
         run: make build-worker
+
+      - name: check git dirty
+        run: make check-git
 
       - name: show bins
         run: ls -lha ./dist/bin/
