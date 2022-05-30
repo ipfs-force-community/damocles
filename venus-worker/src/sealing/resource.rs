@@ -452,7 +452,7 @@ mod tests {
         Duration::from_millis(n)
     }
 
-    fn timeout(t: Duration, f: impl FnOnce() -> () + Send + 'static) {
+    fn timeout(t: Duration, f: impl FnOnce() + Send + 'static) {
         let _ = std::thread::spawn(move || {
             std::thread::sleep(t);
             f();
