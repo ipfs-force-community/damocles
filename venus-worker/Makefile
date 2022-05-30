@@ -40,6 +40,8 @@ clippy:
 
 check-clippy:
 	cargo clippy --no-deps --workspace --tests -- -D warnings
+	# avoid missing checks like #![deny(missing_docs)]
+	cargo clippy --no-deps --workspace -- -D warnings
 
 dev-env:
 	rustup component add --toolchain $(shell cat rust-toolchain) rls rust-analysis rust-src rustc-dev clippy rustfmt
