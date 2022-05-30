@@ -24,7 +24,10 @@ RUSTFLAGS+=--cfg unsound_local_offset
 endif
 
 build-all:
-	cargo build --release $(VENUS_WORKER_FEATURE_FLAGS)
+	cargo build --release --workspace $(VENUS_WORKER_FEATURE_FLAGS)
+
+test-all:
+	cargo test --release --workspace -- --nocapture
 
 fmt:
 	cargo fmt --all
@@ -33,10 +36,10 @@ check-fmt:
 	cargo fmt --all -- --check
 
 clippy:
-	cargo clippy --fix --no-deps
+	cargo clippy --fix --no-deps --workspace --tests
 
 check-clippy:
-	cargo clippy --no-deps -- -D warnings
+	cargo clippy --no-deps --workspace --tests -- -D warnings
 
 dev-env:
 	rustup component add --toolchain $(shell cat rust-toolchain) rls rust-analysis rust-src rustc-dev clippy rustfmt

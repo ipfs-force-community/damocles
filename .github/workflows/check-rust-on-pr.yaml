@@ -33,4 +33,7 @@ jobs:
         run: rustup component add --toolchain $(cat rust-toolchain) clippy rustfmt
 
       - name: check venus-worker
-        run: make check-worker && make check-git
+        run: make check-worker
+
+      - name: check git dirty
+        run: make check-git

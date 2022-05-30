@@ -29,8 +29,14 @@ jobs:
         with:
           go-version: '1.16'
 
+      - name: test venus-sector-manager
+        run: make test-smgr
+
       - name: build venus-sector-manager
         run: make build-smgr
+
+      - name: check git dirty
+        run: make check-git
 
       - name: show bins
         run: ls -lha ./dist/bin/

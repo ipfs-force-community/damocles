@@ -34,8 +34,14 @@ jobs:
         with:
           toolchain: '1.60.0'
 
+      - name: test venus-sector-manager
+        run: make test-smgr
+
       - name: build venus-sector-manager
         run: make build-smgr
+
+      - name: test venus-worker
+        run: make test-worker
 
       - name: build venus-worker
         run: make build-worker

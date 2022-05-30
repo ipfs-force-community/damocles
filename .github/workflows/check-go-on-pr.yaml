@@ -33,4 +33,7 @@ jobs:
         run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1
 
       - name: check venus-sector-manager
-        run: make check-smgr && make check-git
+        run: make check-smgr
+
+      - name: check git dirty
+        run: make check-git
