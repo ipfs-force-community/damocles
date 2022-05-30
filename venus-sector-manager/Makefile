@@ -56,6 +56,10 @@ build-all: $(BUILD_DEPS) $(BUILDS)
 
 build-all-dev: $(MODULES) $(BUILDS)
 
+test-all: GOTAGS+=prod
+test-all: $(BUILD_DEPS)
+	go test -tags="$(GOTAGS)" $(GOFLAGS) -v -failfast `go list ./... | grep -v /extern/`
+
 check-all: check-lint check-go-mod
 
 check-lint: $(BUILD_DEPS)
