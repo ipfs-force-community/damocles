@@ -3888,6 +3888,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "vc-processors"
+version = "0.0.1"
+
+[[package]]
 name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
