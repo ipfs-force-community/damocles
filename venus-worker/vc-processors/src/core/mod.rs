@@ -19,19 +19,16 @@ where
 
     /// The output type
     type Output;
-
-    /// Execute the task
-    fn exec(self) -> Result<Self::Output>;
 }
 
 /// Processor of a specific task type
-pub trait Processor<T>
+pub trait Processor
 where
     Self: Send + Sync,
-    T: Task,
 {
+    /// The task type to which this processor is assosiated.
+    type Task: Task;
+
     /// Process the given task.
-    fn process(&self, task: T) -> Result<T::Output> {
-        task.exec()
-    }
+    fn process(&self, task: Self::Task) -> Result<<Self::Task as Task>::Output>;
 }

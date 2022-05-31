@@ -5,17 +5,19 @@ use serde_json::{from_str, to_string};
 use tracing::{debug, error, info, warn_span};
 
 use super::{ready_msg, Request, Response};
-use crate::core::Task;
+use crate::core::{Processor, Task};
 
 /// Starts the consumer.In most cases, this is used in a sub-process
-pub fn run<T: Task>() -> Result<()> {
+pub fn run<P: Processor + Default + Send + Sync + Copy + 'static>() -> Result<()> {
     #[cfg(feature = "numa")]
     crate::sys::numa::try_set_preferred();
 
-    let _span = warn_span!("sub", name = %T::STAGE, pid = std::process::id()).entered();
+    let proc = P::default();
+
+    let _span = warn_span!("sub", name = %P::Task::STAGE, pid = std::process::id()).entered();
 
     let mut output = stdout();
-    writeln!(output, "{}", ready_msg(T::STAGE)).context("write ready msg")?;
+    writeln!(output, "{}", ready_msg(P::Task::STAGE)).context("write ready msg")?;
 
     let input = stdin();
     let mut line = String::new();
@@ -29,7 +31,7 @@ pub fn run<T: Task>() -> Result<()> {
             return Err(anyhow!("got empty line, parent might be out"));
         }
 
-        let req: Request<T> = match from_str(&line).context("unmarshal request") {
+        let req: Request<P::Task> = match from_str(&line).context("unmarshal request") {
             Ok(r) => r,
             Err(e) => {
                 error!("unmarshal request: {:?}", e);
@@ -39,17 +41,17 @@ pub fn run<T: Task>() -> Result<()> {
 
         std::thread::spawn(move || {
             let _req_span = warn_span!("request", id = req.id, size = size).entered();
-            if let Err(e) = process_request(req) {
+            if let Err(e) = process_request(proc, req) {
                 error!("failed: {:?}", e);
             }
         });
     }
 }
 
-fn process_request<T: Task>(req: Request<T>) -> Result<()> {
+fn process_request<P: Processor>(proc: P, req: Request<P::Task>) -> Result<()> {
     debug!("request received");
 
-    let resp = match req.task.exec() {
+    let resp = match proc.process(req.task) {
         Ok(out) => Response {
             id: req.id,
             err_msg: None,
