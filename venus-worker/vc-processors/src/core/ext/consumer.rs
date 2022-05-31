@@ -7,8 +7,8 @@ use tracing::{debug, error, info, warn_span};
 use super::{ready_msg, Request, Response};
 use crate::core::Task;
 
-/// start the consumer in a sub-process
-pub fn subrun<T: Task>() -> Result<()> {
+/// Starts the consumer.In most cases, this is used in a sub-process
+pub fn run<T: Task>() -> Result<()> {
     #[cfg(feature = "numa")]
     crate::sys::numa::try_set_preferred();
 
@@ -49,20 +49,20 @@ pub fn subrun<T: Task>() -> Result<()> {
 fn process_request<T: Task>(req: Request<T>) -> Result<()> {
     debug!("request received");
 
-    let resp = match req.data.exec() {
+    let resp = match req.task.exec() {
         Ok(out) => Response {
             id: req.id,
             err_msg: None,
-            result: Some(out),
+            output: Some(out),
         },
 
         Err(e) => Response {
             id: req.id,
             err_msg: Some(format!("{:?}", e)),
-            result: None,
+            output: None,
         },
     };
-    debug!(ok = resp.result.is_some(), "request done");
+    debug!(ok = resp.output.is_some(), "request done");
 
     let res_str = to_string(&resp).context("marshal response")?;
     let sout = stdout();

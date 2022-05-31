@@ -1,23 +1,36 @@
 //! This module provides wrappers to construct task producer & consumer.
-//! The producer sends tasks to the consumer via stdin of the consumer, which should be a
+//! The producer sends tasks via stdin of the consumer, which should be a
 //! sub-process.
 
 use serde::{Deserialize, Serialize};
 
-mod sub;
-pub use sub::subrun;
+mod producer;
+pub use producer::{Producer, ProducerBuilder};
 
+mod consumer;
+pub use consumer::run as run_consumer;
+
+/// Request contains the required data to be sent to the consumer.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct Request<T> {
+pub struct Request<T> {
+    /// request id which should be maintained by the producer and used later to dispatch the response
     pub id: u64,
-    pub data: T,
+
+    /// the task itself
+    pub task: T,
 }
 
+/// Response contains the output for the specific task, and error message if exists.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct Response<T> {
+pub struct Response<O> {
+    /// request id
     pub id: u64,
+
+    /// error message if the task execution failed
     pub err_msg: Option<String>,
-    pub result: Option<T>,
+
+    /// output of the succeeded task execution
+    pub output: Option<O>,
 }
 
 #[inline]
