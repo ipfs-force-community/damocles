@@ -12,3 +12,6 @@ pub(crate) mod sys;
 #[cfg(feature = "fil-proofs")]
 #[allow(missing_docs)]
 pub mod fil_proofs;
+
+#[cfg(any(feature = "builtin-tasks", feature = "builtin-processors"))]
+pub mod builtin;

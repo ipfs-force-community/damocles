@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 use filecoin_proofs::{get_base_tree_leafs, get_base_tree_size, DefaultBinaryTree, DefaultPieceHasher, StoreConfig, BINARY_ARITY};
 use filecoin_proofs_api::seal;
 use memmap::{Mmap, MmapOptions};
+use serde::{Deserialize, Serialize};
 use storage_proofs_core::{
     cache_key::CacheKey,
     merkle::{create_base_merkle_tree, BinaryMerkleTree},
@@ -16,7 +17,6 @@ use storage_proofs_core::{
 };
 
 // re-exported
-pub use filecoin_proofs::{EmptySectorUpdateEncoded, EmptySectorUpdateProof};
 pub use filecoin_proofs_api::{
     seal::{
         clear_cache, write_and_preprocess, Labels, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
@@ -29,6 +29,9 @@ pub use filecoin_proofs_api::{
     Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, ProverId, RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket,
     UnpaddedBytesAmount,
 };
+
+/// Identifier for Actors.
+pub type ActorID = u64;
 
 macro_rules! safe_call {
     ($ex:expr) => {
@@ -114,8 +117,11 @@ pub fn seal_pre_commit_phase2(
     }
 }
 
-pub fn tree_d_path_in_dir(dir: &PathBuf) -> PathBuf {
-    StoreConfig::data_path(dir, &CacheKey::CommDTree.to_string())
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SnapEncodeOutput {
+    pub comm_r_new: Commitment,
+    pub comm_r_last_new: Commitment,
+    pub comm_d_new: Commitment,
 }
 
 pub fn snap_encode_into(
@@ -126,7 +132,7 @@ pub fn snap_encode_into(
     sector_cache_path: PathBuf,
     staged_data_path: PathBuf,
     piece_infos: &[PieceInfo],
-) -> Result<EmptySectorUpdateEncoded> {
+) -> Result<SnapEncodeOutput> {
     safe_call! {
         empty_sector_update_encode_into(
             registered_proof,
@@ -137,6 +143,11 @@ pub fn snap_encode_into(
             staged_data_path,
             piece_infos,
         )
+        .map(|out| SnapEncodeOutput {
+            comm_r_new: out.comm_r_new,
+            comm_r_last_new: out.comm_r_last_new,
+            comm_d_new: out.comm_d_new,
+        })
     }
 }
 
@@ -164,13 +175,15 @@ pub fn snap_generate_partition_proofs(
     }
 }
 
+pub type SnapProveOutput = Vec<u8>;
+
 pub fn snap_generate_sector_update_proof(
     registered_proof: RegisteredUpdateProof,
     vannilla_proofs: Vec<PartitionProofBytes>,
     comm_r_old: Commitment,
     comm_r_new: Commitment,
     comm_d_new: Commitment,
-) -> Result<EmptySectorUpdateProof> {
+) -> Result<SnapProveOutput> {
     safe_call! {
         generate_empty_sector_update_proof_with_vanilla(
             registered_proof,
@@ -178,7 +191,7 @@ pub fn snap_generate_sector_update_proof(
             comm_r_old,
             comm_r_new,
             comm_d_new,
-        )
+        ).map(|out| out.0)
     }
 }
 
@@ -200,14 +213,8 @@ pub fn snap_verify_sector_update_proof(
     }
 }
 
-pub fn create_tree_d(registered_proof: RegisteredSealProof, in_path: Option<PathBuf>, cache_path: PathBuf) -> Result<()> {
-    safe_call! {
-        create_tree_d_inner(
-            registered_proof,
-            in_path,
-            cache_path,
-        )
-    }
+pub fn tree_d_path_in_dir(dir: &PathBuf) -> PathBuf {
+    StoreConfig::data_path(dir, &CacheKey::CommDTree.to_string())
 }
 
 enum Bytes {
@@ -222,6 +229,16 @@ impl AsRef<[u8]> for Bytes {
             Bytes::Mmap(m) => &m[..],
             Bytes::InMem(m) => &m[..],
         }
+    }
+}
+
+pub fn create_tree_d(registered_proof: RegisteredSealProof, in_path: Option<PathBuf>, cache_path: PathBuf) -> Result<()> {
+    safe_call! {
+        create_tree_d_inner(
+            registered_proof,
+            in_path,
+            cache_path,
+        )
     }
 }
 
