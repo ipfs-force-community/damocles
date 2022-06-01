@@ -3,14 +3,16 @@ name = "venus-worker"
 version = "0.3.0-rc1"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2021"
-exclude = [".github"]
+exclude = [
+    ".github",
+    "vc-processors-demos/*",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
 members = [
     "vc-processors",
-    "vc-processors-demos/*",
 ]
 
 [dependencies]
