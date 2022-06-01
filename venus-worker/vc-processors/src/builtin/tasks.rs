@@ -78,14 +78,14 @@ impl Task for PC2 {
 
 /// Task of commit phase2
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct C2Input {
+pub struct C2 {
     pub c1out: SealCommitPhase1Output,
     pub prover_id: ProverId,
     pub sector_id: SectorId,
     pub miner_id: ActorID,
 }
 
-impl Task for C2Input {
+impl Task for C2 {
     const STAGE: &'static str = STAGE_NAME_C2;
     type Output = SealCommitPhase2Output;
 }
