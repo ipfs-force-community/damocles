@@ -3893,8 +3893,12 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
+ "filecoin-proofs",
+ "filecoin-proofs-api",
+ "memmap",
  "serde",
  "serde_json",
+ "storage-proofs-core",
  "tracing",
 ]
 

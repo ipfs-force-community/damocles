@@ -20,8 +20,29 @@ serde_json = "1.0"
 tracing = "0.1"
 anyhow = "1"
 crossbeam-channel = "0.5"
+memmap = { version = "0.7", optional = true }
+
+[dependencies.filecoin-proofs]
+version = "11.0.2"
+default-features = false
+features = ["opencl", "multicore-sdr"]
+optional = true
+
+[dependencies.filecoin-proofs-api]
+version = "11"
+default-features = false
+features = ["opencl", "multicore-sdr"]
+optional = true
+
+[dependencies.storage-proofs-core]
+version = "11.0.2"
+optional = true
 
 [features]
 default = ["builtin", "numa"]
 numa = []
-builtin = []
+fil-proofs = ["memmap", "filecoin-proofs", "filecoin-proofs-api", "storage-proofs-core"]
+fil-proofs-cuda = ["fil-proofs", "filecoin-proofs/cuda", "filecoin-proofs-api/cuda"]
+builtin-task = []
+builtin-processors = []
+builtin = ["fil-proofs", "builtin-task", "builtin-processors"]

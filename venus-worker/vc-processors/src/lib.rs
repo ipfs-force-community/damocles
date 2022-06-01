@@ -8,3 +8,7 @@
 
 pub mod core;
 pub(crate) mod sys;
+
+#[cfg(feature = "fil-proofs")]
+#[allow(missing_docs)]
+pub mod fil_proofs;
