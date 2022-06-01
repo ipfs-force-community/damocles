@@ -3335,6 +3335,13 @@ dependencies = [
 [[package]]
 name = "sqr-producer"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "tracing",
+ "tracing-subscriber",
+ "vc-processors",
+]
 
 [[package]]
 name = "static_assertions"

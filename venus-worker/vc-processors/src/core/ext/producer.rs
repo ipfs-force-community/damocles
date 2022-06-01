@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::env::vars;
 use std::io::{BufRead, BufReader, Write};
 use std::os::raw::c_int;
+use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::{
     atomic::{AtomicU64, Ordering},
@@ -13,7 +14,7 @@ use std::time::Duration;
 use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::{after, bounded, never, select, Sender};
 use serde_json::{from_str, to_string};
-use tracing::{debug, error, info, warn_span};
+use tracing::{debug, error, info, warn, warn_span};
 
 use super::{ready_msg, Request, Response};
 use crate::core::{Processor, Task};
@@ -26,11 +27,15 @@ pub fn start_response_handler<T: Task>(stdout: ChildStdout, out_txes: Arc<Mutex<
         line_buf.clear();
 
         let size = reader.read_line(&mut line_buf).context("read line from stdout")?;
+        if size == 0 {
+            warn!("child exited");
+            return Ok(());
+        }
 
         let resp: Response<T::Output> = match from_str(line_buf.as_str()) {
             Ok(r) => r,
             Err(e) => {
-                error!("failed to unmarshal response tring: {:?}", e);
+                error!("failed to unmarshal response string: {:?}", e);
                 continue;
             }
         };
@@ -50,7 +55,7 @@ pub struct Hooks<P, F> {
 
 /// Builder for Producer
 pub struct ProducerBuilder<HP, HF> {
-    bin: String,
+    bin: PathBuf,
     args: Vec<String>,
     envs: HashMap<String, String>,
 
@@ -61,7 +66,7 @@ pub struct ProducerBuilder<HP, HF> {
 
 impl<HP, HF> ProducerBuilder<HP, HF> {
     /// Construct a new builder with the given binary path & args.
-    pub fn new(bin: String, args: Vec<String>) -> Self {
+    pub fn new(bin: PathBuf, args: Vec<String>) -> Self {
         ProducerBuilder {
             bin,
             args,
@@ -76,38 +81,38 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
     }
 
     /// Set if we should inherit envs from the parent process, default is true.
-    pub fn inherit_envs(&mut self, yes: bool) -> &mut Self {
+    pub fn inherit_envs(mut self, yes: bool) -> Self {
         self.inherit_envs = yes;
         self
     }
 
     /// Set a pair of env name & value for the child.
-    pub fn env(&mut self, name: String, value: String) -> &mut Self {
+    pub fn env(mut self, name: String, value: String) -> Self {
         self.envs.insert(name, value);
         self
     }
 
     /// Set the timeout before we wait for the child process to be stable, default is None, thus we
     /// would block util the child gives the ready message.
-    pub fn stable_timeout(&mut self, timeout: Duration) -> &mut Self {
+    pub fn stable_timeout(mut self, timeout: Duration) -> Self {
         self.stable_timeout.replace(timeout);
         self
     }
 
     /// Set if the child has a preferred numa node.
     #[cfg(feature = "numa")]
-    pub fn numa_preferred(&mut self, node: c_int) -> &mut Self {
+    pub fn numa_preferred(self, node: c_int) -> Self {
         self.env(crate::sys::numa::ENV_NUMA_PREFERRED.to_string(), node.to_string())
     }
 
     /// Set a prepare hook, which will be called before the Producer send the task to the child.
-    pub fn hook_prepare(&mut self, f: HP) -> &mut Self {
+    pub fn hook_prepare(mut self, f: HP) -> Self {
         self.hooks.prepare.replace(f);
         self
     }
 
     /// Set a finalize hook, which will be called before the Processor::process returns.
-    pub fn hook_finalize(&mut self, f: HF) -> &mut Self {
+    pub fn hook_finalize(mut self, f: HF) -> Self {
         self.hooks.finalize.replace(f);
         self
     }
@@ -153,6 +158,8 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
                 return Err(anyhow!("timeout exceeded before child get ready"));
             }
         }
+
+        info!("producer ready");
 
         let stdout = stable_hdl.join().map_err(|_| anyhow!("wait for stable handle to be joined"))?;
         defer.0 = false;
@@ -241,6 +248,12 @@ impl<T: Task, HP, HF> Drop for Producer<T, HP, HF> {
         info!("cleaned up");
     }
 }
+
+/// Could be use to avoid type annotations problem
+pub type BoxedPrepareHook<T> = Box<dyn Fn(&Request<T>) -> Result<()> + Send + Sync>;
+
+/// Could be use to avoid type annotations problem
+pub type BoxedFinalizeHook<T> = Box<dyn Fn(&Request<T>) + Send + Sync>;
 
 impl<T, HP, HF> Processor<T> for Producer<T, HP, HF>
 where
