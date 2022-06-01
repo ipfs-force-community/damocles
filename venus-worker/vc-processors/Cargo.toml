@@ -11,6 +11,8 @@ keywords = [
 ]
 description = "provide core types & builtin processors for venus-worker"
 homepage = "https://github.com/ipfs-force-community/venus-cluster"
+repository = "https://github.com/ipfs-force-community/venus-cluster"
+exclude = ["demos"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
