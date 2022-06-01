@@ -242,14 +242,12 @@ impl<T: Task, HP, HF> Drop for Producer<T, HP, HF> {
     }
 }
 
-impl<T, HP, HF> Processor for Producer<T, HP, HF>
+impl<T, HP, HF> Processor<T> for Producer<T, HP, HF>
 where
     T: Task,
     HP: Fn(&Request<T>) -> Result<()> + Send + Sync,
     HF: Fn(&Request<T>) + Send + Sync,
 {
-    type Task = T;
-
     fn process(&self, task: T) -> Result<T::Output> {
         let req = Request {
             id: self.id.fetch_add(1, Ordering::Relaxed),

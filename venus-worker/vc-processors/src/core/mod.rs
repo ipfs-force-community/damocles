@@ -22,13 +22,10 @@ where
 }
 
 /// Processor of a specific task type
-pub trait Processor
+pub trait Processor<T: Task>
 where
     Self: Send + Sync,
 {
-    /// The task type to which this processor is assosiated.
-    type Task: Task;
-
     /// Process the given task.
-    fn process(&self, task: Self::Task) -> Result<<Self::Task as Task>::Output>;
+    fn process(&self, task: T) -> Result<<T as Task>::Output>;
 }
