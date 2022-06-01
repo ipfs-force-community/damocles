@@ -252,7 +252,7 @@ where
 
     fn process(&self, task: T) -> Result<T::Output> {
         let req = Request {
-            id: self.id.fetch_add(1, Ordering::SeqCst),
+            id: self.id.fetch_add(1, Ordering::Relaxed),
             task,
         };
 
