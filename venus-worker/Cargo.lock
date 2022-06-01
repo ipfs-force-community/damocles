@@ -860,6 +860,13 @@ dependencies = [
 [[package]]
 name = "customize-proc"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "tracing",
+ "tracing-subscriber",
+ "vc-processors",
+]
 
 [[package]]
 name = "data-encoding"
