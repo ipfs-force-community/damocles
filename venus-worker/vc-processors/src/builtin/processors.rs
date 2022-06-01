@@ -10,6 +10,7 @@ use crate::fil_proofs::{
     PartitionProofBytes,
 };
 
+#[derive(Copy, Clone, Default, Debug)]
 pub struct BuiltinProcessor;
 
 impl Processor<TreeD> for BuiltinProcessor {

@@ -71,6 +71,8 @@ fn run_main() -> Result<()> {
     let mut line_buf = String::new();
 
     loop {
+        info!("please enter a number:");
+
         line_buf.clear();
 
         let size = reader.read_line(&mut line_buf).context("read line from stdin")?;
