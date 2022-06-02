@@ -10,7 +10,7 @@ use crate::core::{Processor, Task};
 /// Starts the consumer.
 /// In most cases, this is used in a sub-process
 /// Please be awrae that you should let the logs output into stderr, or just disable all logs
-/// from this process, othersize the producer colud be confused.
+/// from this process, otherwise the producer colud be confused.
 pub fn run<T: Task, P: Processor<T> + Default + Send + Sync + Copy + 'static>() -> Result<()> {
     #[cfg(feature = "numa")]
     crate::sys::numa::try_set_preferred();
