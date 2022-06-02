@@ -9,6 +9,9 @@
 //! 1. interact with builtin external processors in venus-worker.
 //! 2. wrap close-source processors for builtin tasks in venus-worker.
 //! 3. implement any customized external processors for other usecases.
+//!
+//! The examples show more details about the usages.
+//!
 
 pub mod core;
 pub(crate) mod sys;
