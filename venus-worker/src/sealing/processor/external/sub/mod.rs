@@ -91,6 +91,12 @@ pub(super) fn start_sub_processors<I: Input>(cfgs: &[config::Ext]) -> Result<Vec
             builder = builder.numa_preferred(preferred);
         }
 
+        if let Some(envs) = sub_cfg.envs.as_ref() {
+            for (k, v) in envs {
+                builder = builder.env(k.to_owned(), v.to_owned());
+            }
+        }
+
         let mut producer = builder.build::<I>().context("build ext producer")?;
 
         let name = format!("sub-{}-{}-{}", stage, std::process::id(), i);
