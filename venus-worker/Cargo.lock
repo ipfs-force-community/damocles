@@ -3957,6 +3957,7 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
+ "vc-processors",
 ]
 
 [[package]]

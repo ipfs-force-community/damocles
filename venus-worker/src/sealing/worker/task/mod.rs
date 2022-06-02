@@ -8,7 +8,6 @@ use super::{super::failure::*, CtrlCtx};
 use crate::logging::{debug, error, info, warn, warn_span};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
 use crate::rpc::sealer::{ReportStateReq, SectorFailure, SectorID, SectorStateChange, WorkerIdentifier};
-use crate::sealing::processor::Stage;
 use crate::store::Store;
 use crate::types::SealProof;
 use crate::watchdog::Ctx;

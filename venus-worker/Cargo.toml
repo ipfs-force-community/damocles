@@ -46,6 +46,9 @@ rand = "0.8.5"
 nix = "0.23"
 time = "0.3"
 
+[dependencies.vc-processors]
+path = "./vc-processors"
+
 [dependencies.filecoin-proofs-api]
 version = "11"
 default-features = false
@@ -84,6 +87,5 @@ pretty_assertions = "1.2"
 humantime = "2.1"
 
 [features]
-default = ["numa"]
-numa = []
+default = []
 cuda = ["filecoin-proofs/cuda", "filecoin-proofs-api/cuda"]

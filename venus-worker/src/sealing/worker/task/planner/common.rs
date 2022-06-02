@@ -5,8 +5,9 @@ use std::io::{self, prelude::*};
 use std::os::unix::fs::symlink;
 
 use anyhow::Context;
+use vc_processors::builtin::tasks::STAGE_NAME_TREED;
 
-use super::super::{Entry, Stage, Task};
+use super::super::{Entry, Task};
 use crate::logging::{debug, warn_span};
 use crate::rpc::sealer::Deals;
 use crate::sealing::failure::*;
@@ -63,7 +64,7 @@ pub fn build_tree_d(task: &'_ Task<'_>, allow_static: bool) -> Result<(), Failur
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
 
-    let token = task.ctx.global.limit.acquire(Stage::TreeD).crit()?;
+    let token = task.ctx.global.limit.acquire(STAGE_NAME_TREED).crit()?;
 
     let prepared_dir = task.prepared_dir(sector_id);
     prepared_dir.prepare().perm()?;

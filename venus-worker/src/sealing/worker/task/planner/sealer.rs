@@ -4,9 +4,10 @@ use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
+use vc_processors::builtin::tasks::{STAGE_NAME_C1, STAGE_NAME_C2, STAGE_NAME_PC1, STAGE_NAME_PC2};
 
 use super::{
-    super::{call_rpc, cloned_required, field_required, Event, Stage, State, Task},
+    super::{call_rpc, cloned_required, field_required, Event, State, Task},
     common, plan, ExecResult, Planner,
 };
 use crate::logging::{debug, warn};
@@ -277,7 +278,7 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_ticket_assigned(&self) -> ExecResult {
-        let token = self.task.ctx.global.limit.acquire(Stage::PC1).crit()?;
+        let token = self.task.ctx.global.limit.acquire(STAGE_NAME_PC1).crit()?;
 
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
@@ -352,7 +353,7 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_pc1_done(&self) -> ExecResult {
-        let token = self.task.ctx.global.limit.acquire(Stage::PC2).crit()?;
+        let token = self.task.ctx.global.limit.acquire(STAGE_NAME_PC2).crit()?;
 
         let sector_id = self.task.sector_id()?;
 
@@ -542,7 +543,7 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_seed_assigned(&self) -> ExecResult {
-        let token = self.task.ctx.global.limit.acquire(Stage::C1).crit()?;
+        let token = self.task.ctx.global.limit.acquire(STAGE_NAME_C1).crit()?;
 
         let sector_id = self.task.sector_id()?;
 
@@ -593,7 +594,7 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_c1_done(&self) -> ExecResult {
-        let token = self.task.ctx.global.limit.acquire(Stage::C2).crit()?;
+        let token = self.task.ctx.global.limit.acquire(STAGE_NAME_C2).crit()?;
 
         let miner_id = self.task.sector_id()?.miner;
 
