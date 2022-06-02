@@ -7,17 +7,20 @@ use tracing::{debug, error, info, warn_span};
 use super::{ready_msg, Request, Response};
 use crate::core::{Processor, Task};
 
-/// Starts the consumer.In most cases, this is used in a sub-process
-pub fn run<P: Processor + Default + Send + Sync + Copy + 'static>() -> Result<()> {
+/// Starts the consumer.
+/// In most cases, this is used in a sub-process
+/// Please be awrae that you should let the logs output into stderr, or just disable all logs
+/// from this process, otherwise the producer colud be confused.
+pub fn run<T: Task, P: Processor<T> + Default + Send + Sync + Copy + 'static>() -> Result<()> {
     #[cfg(feature = "numa")]
     crate::sys::numa::try_set_preferred();
 
     let proc = P::default();
 
-    let _span = warn_span!("sub", name = %P::Task::STAGE, pid = std::process::id()).entered();
+    let _span = warn_span!("sub", name = %T::STAGE, pid = std::process::id()).entered();
 
     let mut output = stdout();
-    writeln!(output, "{}", ready_msg(P::Task::STAGE)).context("write ready msg")?;
+    writeln!(output, "{}", ready_msg(T::STAGE)).context("write ready msg")?;
 
     let input = stdin();
     let mut line = String::new();
@@ -31,7 +34,7 @@ pub fn run<P: Processor + Default + Send + Sync + Copy + 'static>() -> Result<()
             return Err(anyhow!("got empty line, parent might be out"));
         }
 
-        let req: Request<P::Task> = match from_str(&line).context("unmarshal request") {
+        let req: Request<T> = match from_str(&line).context("unmarshal request") {
             Ok(r) => r,
             Err(e) => {
                 error!("unmarshal request: {:?}", e);
@@ -48,7 +51,7 @@ pub fn run<P: Processor + Default + Send + Sync + Copy + 'static>() -> Result<()
     }
 }
 
-fn process_request<P: Processor>(proc: P, req: Request<P::Task>) -> Result<()> {
+fn process_request<T: Task, P: Processor<T>>(proc: P, req: Request<T>) -> Result<()> {
     debug!("request received");
 
     let resp = match proc.process(req.task) {

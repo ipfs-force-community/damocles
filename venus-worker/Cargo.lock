@@ -3889,13 +3889,18 @@ dependencies = [
 
 [[package]]
 name = "vc-processors"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
+ "filecoin-proofs",
+ "filecoin-proofs-api",
+ "memmap",
  "serde",
  "serde_json",
+ "storage-proofs-core",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -3925,8 +3930,6 @@ dependencies = [
  "crossterm",
  "fil_clock",
  "fil_types",
- "filecoin-proofs",
- "filecoin-proofs-api",
  "forest_address",
  "forest_cid",
  "forest_json_utils",
@@ -3936,7 +3939,6 @@ dependencies = [
  "jsonrpc-core-client",
  "jsonrpc-derive",
  "jsonrpc-http-server",
- "memmap",
  "multiaddr",
  "nix 0.23.1",
  "pretty_assertions 1.2.1",
@@ -3947,12 +3949,12 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "signal-hook",
- "storage-proofs-core",
  "time 0.3.9",
  "tokio",
  "toml",
  "tracing",
  "tracing-subscriber",
+ "vc-processors",
 ]
 
 [[package]]
