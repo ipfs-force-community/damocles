@@ -5,6 +5,7 @@ use tokio::runtime::Builder;
 use venus_worker::{logging, start_deamon};
 
 mod generator;
+mod hwinfo;
 mod processor;
 mod store;
 mod worker;
@@ -33,6 +34,7 @@ pub fn main() -> Result<()> {
     let processor_cmd = processor::subcommand();
     let store_cmd = store::subcommand();
     let worker_cmd = worker::subcommand();
+    let hwinfo_cmd = hwinfo::subcommand();
 
     let ver_string = format!("v{}-{}", env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT"));
 
@@ -43,7 +45,8 @@ pub fn main() -> Result<()> {
         .subcommand(generator_cmd)
         .subcommand(processor_cmd)
         .subcommand(store_cmd)
-        .subcommand(worker_cmd);
+        .subcommand(worker_cmd)
+        .subcommand(hwinfo_cmd);
 
     let matches = app.get_matches();
 
@@ -61,6 +64,8 @@ pub fn main() -> Result<()> {
         (store::SUB_CMD_NAME, Some(args)) => store::submatch(args),
 
         (worker::SUB_CMD_NAME, Some(args)) => worker::submatch(args),
+
+        (hwinfo::SUB_CMD_NAME, Some(args)) => hwinfo::submatch(args),
 
         (name, _) => Err(anyhow!("unexpected subcommand `{}`", name)),
     }
