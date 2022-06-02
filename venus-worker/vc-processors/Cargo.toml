@@ -41,7 +41,7 @@ version = "11.0.2"
 optional = true
 
 [features]
-default = ["builtin", "numa", "ext-producer"]
+default = ["numa"]
 ext-producer = ["crossbeam-channel"]
 numa = []
 fil-proofs = ["memmap", "filecoin-proofs", "filecoin-proofs-api", "storage-proofs-core"]

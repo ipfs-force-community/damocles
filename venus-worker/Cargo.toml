@@ -17,8 +17,6 @@ members = [
 
 [dependencies]
 anyhow = "1"
-storage-proofs-core = "11.0.2"
-memmap = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.56"
 serde_repr = "0.1"
@@ -49,16 +47,6 @@ time = "0.3"
 [dependencies.vc-processors]
 path = "./vc-processors"
 
-[dependencies.filecoin-proofs-api]
-version = "11"
-default-features = false
-features = ["opencl", "multicore-sdr"]
-
-[dependencies.filecoin-proofs]
-version = "11.0.2"
-default-features = false
-features = ["opencl", "multicore-sdr"]
-
 [dependencies.reqwest]
 version = "0.11"
 features = ["blocking"]
@@ -87,5 +75,5 @@ pretty_assertions = "1.2"
 humantime = "2.1"
 
 [features]
-default = []
-cuda = ["filecoin-proofs/cuda", "filecoin-proofs-api/cuda"]
+default = ["vc-processors/builtin", "vc-processors/ext-producer"]
+cuda = ["vc-processors/fil-proofs-cuda"]
