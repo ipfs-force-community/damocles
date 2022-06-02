@@ -40,6 +40,9 @@ optional = true
 version = "11.0.2"
 optional = true
 
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
 [features]
 default = ["numa"]
 ext-producer = ["crossbeam-channel"]
@@ -49,3 +52,19 @@ fil-proofs-cuda = ["fil-proofs", "filecoin-proofs/cuda", "filecoin-proofs-api/cu
 builtin-tasks = ["fil-proofs"]
 builtin-processors = ["builtin-tasks"]
 builtin = ["builtin-tasks", "builtin-processors"]
+
+[[example]]
+name = "sqr-consumer"
+required-features = []
+
+[[example]]
+name = "sqr-producer"
+required-features = ["ext-producer"]
+
+[[example]]
+name = "customize-proc"
+required-features = ["ext-producer", "builtin-tasks"]
+
+[[example]]
+name = "builtin-proc"
+required-features = ["ext-producer", "builtin"]

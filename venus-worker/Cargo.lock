@@ -3900,6 +3900,7 @@ dependencies = [
  "serde_json",
  "storage-proofs-core",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

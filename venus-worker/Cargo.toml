@@ -5,7 +5,6 @@ authors = ["dtynn <dtynn@163.com>"]
 edition = "2021"
 exclude = [
     ".github",
-    "vc-processors-demos/*",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

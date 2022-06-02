@@ -1,21 +1,46 @@
+//! This demo shows how to implement a customize processor for a builtin task.
+//!
+//! $ cargo run --example customize-proc --features="ext-producer builtin-tasks"
+//! ```
+//! 2022-06-02T05:34:31.705303Z  INFO sub{name=tree_d pid=2824}: vc_processors::core::ext::consumer: processor ready
+//! 2022-06-02T05:34:31.705457Z  INFO parent{pid=509}: vc_processors::core::ext::producer: producer ready
+//! 2022-06-02T05:34:31.705714Z  INFO parent{pid=509}: customize_proc: producer start child=2824
+//! 2022-06-02T05:34:31.705858Z  INFO parent{pid=509}: customize_proc: please enter a dir:
+//! a
+//! 2022-06-02T05:34:34.411353Z  INFO parent{pid=509}: customize_proc: token acquired
+//! 2022-06-02T05:34:34.412432Z  INFO request{id=0 size=99}: customize_proc: process tree_d task dir="a"
+//! 2022-06-02T05:34:37.413271Z  INFO parent{pid=509}: customize_proc: do nothing
+//! 2022-06-02T05:34:37.413492Z  INFO parent{pid=509}: customize_proc: get output: false
+//! 2022-06-02T05:34:37.413632Z  INFO parent{pid=509}: customize_proc: please enter a dir:
+//! ```
+
 use std::env::{self, current_exe};
-use std::fs::{create_dir_all, remove_dir_all, OpenOptions};
 use std::io::{self, BufRead, BufReader};
 use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use crossbeam_channel::bounded;
 use tracing::{info, warn, warn_span};
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, EnvFilter};
 use vc_processors::{
-    builtin::{processors::BuiltinProcessor, tasks::TreeD},
+    builtin::tasks::TreeD,
     core::{
         ext::{run_consumer, ProducerBuilder, Request},
-        Processor,
+        Processor, Task,
     },
     fil_proofs::RegisteredSealProof,
 };
+
+#[derive(Clone, Copy, Default)]
+struct TreeDProc;
+
+impl Processor<TreeD> for TreeDProc {
+    fn process(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {
+        info!(dir = ?task.cache_dir, "process tree_d task");
+        std::thread::sleep(Duration::from_secs(3));
+        Ok(false)
+    }
+}
 
 fn main() -> Result<()> {
     tracing_subscriber::registry()
@@ -30,28 +55,17 @@ fn main() -> Result<()> {
 
     let args = env::args().collect::<Vec<String>>();
     if args.len() == 2 && args[1] == "sub" {
-        return run_consumer::<TreeD, BuiltinProcessor>();
+        return run_consumer::<TreeD, TreeDProc>();
     };
 
     run_main()
 }
 
 fn run_main() -> Result<()> {
-    // act as a simple concurrent & rate limiter
-    let (limit_tx, limit_rx) = bounded(1);
-
-    std::thread::spawn(move || loop {
-        std::thread::sleep(Duration::from_secs(5));
-        if limit_rx.try_recv().is_ok() {
-            info!("re-fill one token");
-        }
-    });
-
     let _span = warn_span!("parent", pid = std::process::id()).entered();
     let mut producer = ProducerBuilder::<_, _>::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
         .stable_timeout(Duration::from_secs(5))
         .hook_prepare(move |_: &Request<TreeD>| -> Result<()> {
-            let _ = limit_tx.send(());
             info!("token acquired");
             Ok(())
         })
@@ -86,22 +100,7 @@ fn run_main() -> Result<()> {
         }
 
         let dir = PathBuf::from(loc);
-        info!(
-            ?dir,
-            "will generate an empty staged file of 8MiB & a tree_d file, and clean them up after"
-        );
-
         let staged_file_path = dir.join("staged");
-        create_dir_all(&dir).with_context(|| format!("create dir at {:?}", &dir))?;
-        let fs = OpenOptions::new()
-            .create(true)
-            .truncate(true)
-            .read(true)
-            .write(true)
-            .open(&staged_file_path)
-            .context("create staged file")?;
-
-        fs.set_len(2 << 10).context("set len for staged file")?;
 
         match producer.process(TreeD {
             registered_proof: RegisteredSealProof::StackedDrg2KiBV1_1,
@@ -116,7 +115,5 @@ fn run_main() -> Result<()> {
                 warn!("get err: {:?}", e);
             }
         };
-
-        remove_dir_all(dir).context("remove the demo dir")?;
     }
 }
