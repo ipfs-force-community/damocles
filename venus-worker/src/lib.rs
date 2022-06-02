@@ -25,4 +25,3 @@ pub use watchdog::dones;
 
 pub mod client;
 pub mod logging;
-pub mod sys;
