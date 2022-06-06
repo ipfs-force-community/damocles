@@ -47,4 +47,4 @@ dev-env:
 	rustup component add --toolchain $(shell cat rust-toolchain) rls rust-analysis rust-src rustc-dev clippy rustfmt
 
 publish-vc-processors:
-	cargo publish -p vc-processors
+	cargo publish -p vc-processors --features="builtin ext-producer"
