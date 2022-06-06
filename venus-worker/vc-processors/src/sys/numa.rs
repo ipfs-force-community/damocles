@@ -1,9 +1,7 @@
-//! helpers for numa control
-
 use std::env::var;
 use std::os::raw::c_int;
 
-use crate::logging::{info, warn};
+use tracing::{info, warn};
 
 /// env key for preferred numa node
 pub const ENV_NUMA_PREFERRED: &str = "VENUS_WORKER_NUMA_PREFERRED";

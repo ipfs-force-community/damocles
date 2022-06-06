@@ -8,6 +8,7 @@ use byte_unit::Byte;
 use jsonrpc_core_client::transports::http;
 use reqwest::Url;
 use tokio::runtime::Builder;
+use vc_processors::builtin::processors::BuiltinProcessor;
 
 use crate::{
     config,
@@ -25,7 +26,7 @@ use crate::{
     signal::Signal,
     types::SealProof,
     util::net::{local_interface_ip, rpc_addr, socket_addr_from_url},
-    watchdog::{GloablProcessors, GlobalModules, Module, WatchDog},
+    watchdog::{GloablProcessors, GlobalModules, WatchDog},
 };
 
 /// start a normal venus-worker daemon
@@ -127,7 +128,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let ext_locks = Arc::new(create_resource_pool(&cfg.processors.ext_locks, &None));
 
-    let (processors, modules) = start_processors(&cfg, &ext_locks).context("start processors")?;
+    let processors = start_processors(&cfg, &ext_locks).context("start processors")?;
 
     let workers = store_mgr.into_workers();
 
@@ -164,10 +165,6 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let worker_ping = ping::Ping::new(worker_ping_interval, worker_ctrls);
     dog.start_module(worker_ping);
-
-    for m in modules {
-        dog.start_module(m);
-    }
 
     dog.start_module(Signal);
 
@@ -240,46 +237,37 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
 }
 
 macro_rules! construct_sub_processor {
-    ($field:ident, $cfg:ident, $locks:ident, $modules:ident) => {
+    ($field:ident, $cfg:ident, $locks:ident) => {
         if let Some(ext) = $cfg.processors.$field.as_ref() {
-            let (proc, subs) = processor::external::ExtProcessor::build(ext, $locks.clone())?;
-            for sub in subs {
-                $modules.push(Box::new(sub));
-            }
-
+            let proc = processor::external::ExtProcessor::build(ext, $locks.clone())?;
             Box::new(proc)
         } else {
-            Box::new(processor::internal::Proc::new())
+            Box::new(BuiltinProcessor::default())
         }
     };
 }
 
-fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<(GloablProcessors, Vec<Box<dyn Module>>)> {
-    let mut modules: Vec<Box<dyn Module>> = Vec::new();
+fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<GloablProcessors> {
+    let tree_d: processor::BoxedTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks);
 
-    let tree_d: processor::BoxedTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks, modules);
+    let pc1: processor::BoxedPC1Processor = construct_sub_processor!(pc1, cfg, locks);
 
-    let pc1: processor::BoxedPC1Processor = construct_sub_processor!(pc1, cfg, locks, modules);
+    let pc2: processor::BoxedPC2Processor = construct_sub_processor!(pc2, cfg, locks);
 
-    let pc2: processor::BoxedPC2Processor = construct_sub_processor!(pc2, cfg, locks, modules);
+    let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, locks);
 
-    let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, locks, modules);
+    let snap_encode: processor::BoxedSnapEncodeProcessor = construct_sub_processor!(snap_encode, cfg, locks);
 
-    let snap_encode: processor::BoxedSnapEncodeProcessor = construct_sub_processor!(snap_encode, cfg, locks, modules);
+    let snap_prove: processor::BoxedSnapProveProcessor = construct_sub_processor!(snap_prove, cfg, locks);
 
-    let snap_prove: processor::BoxedSnapProveProcessor = construct_sub_processor!(snap_prove, cfg, locks, modules);
-
-    Ok((
-        GloablProcessors {
-            tree_d: Arc::new(tree_d),
-            pc1: Arc::new(pc1),
-            pc2: Arc::new(pc2),
-            c2: Arc::new(c2),
-            snap_encode: Arc::new(snap_encode),
-            snap_prove: Arc::new(snap_prove),
-        },
-        modules,
-    ))
+    Ok(GloablProcessors {
+        tree_d: Arc::new(tree_d),
+        pc1: Arc::new(pc1),
+        pc2: Arc::new(pc2),
+        c2: Arc::new(c2),
+        snap_encode: Arc::new(snap_encode),
+        snap_prove: Arc::new(snap_prove),
+    })
 }
 
 #[cfg(test)]

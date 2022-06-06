@@ -1,9 +1,14 @@
 use anyhow::{anyhow, Result};
 use clap::{App, AppSettings, ArgMatches, SubCommand};
-
-use venus_worker::{
-    run, run_c2, run_pc1, run_pc2, run_tree_d, SnapEncodeInput, SnapProveInput, STAGE_NAME_C2, STAGE_NAME_PC1, STAGE_NAME_PC2,
-    STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE, STAGE_NAME_TREED,
+use vc_processors::{
+    builtin::{
+        processors::BuiltinProcessor,
+        tasks::{
+            SnapEncode, SnapProve, TreeD, C2, PC1, PC2, STAGE_NAME_C2, STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE,
+            STAGE_NAME_SNAP_PROVE, STAGE_NAME_TREED,
+        },
+    },
+    core::ext::run_consumer,
 };
 
 pub const SUB_CMD_NAME: &str = "processor";
@@ -27,17 +32,17 @@ pub(crate) fn subcommand<'a, 'b>() -> App<'a, 'b> {
 
 pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
     match subargs.subcommand() {
-        (STAGE_NAME_PC1, _) => run_pc1(),
+        (STAGE_NAME_PC1, _) => run_consumer::<PC1, BuiltinProcessor>(),
 
-        (STAGE_NAME_PC2, _) => run_pc2(),
+        (STAGE_NAME_PC2, _) => run_consumer::<PC2, BuiltinProcessor>(),
 
-        (STAGE_NAME_C2, _) => run_c2(),
+        (STAGE_NAME_C2, _) => run_consumer::<C2, BuiltinProcessor>(),
 
-        (STAGE_NAME_TREED, _) => run_tree_d(),
+        (STAGE_NAME_TREED, _) => run_consumer::<TreeD, BuiltinProcessor>(),
 
-        (STAGE_NAME_SNAP_ENCODE, _) => run::<SnapEncodeInput>(),
+        (STAGE_NAME_SNAP_ENCODE, _) => run_consumer::<SnapEncode, BuiltinProcessor>(),
 
-        (STAGE_NAME_SNAP_PROVE, _) => run::<SnapProveInput>(),
+        (STAGE_NAME_SNAP_PROVE, _) => run_consumer::<SnapProve, BuiltinProcessor>(),
 
         (other, _) => Err(anyhow!("unexpected subcommand `{}` of processor", other)),
     }
