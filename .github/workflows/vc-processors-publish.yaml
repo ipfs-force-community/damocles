@@ -17,6 +17,9 @@ jobs:
         with:
           toolchain: '1.60.0'
 
+      - name: dependencies
+        run: sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
+
       - name: cargo-publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_CRATES_IO_API_TOKEN }}

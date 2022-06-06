@@ -10,7 +10,7 @@
 //! 2. wrap close-source processors for builtin tasks in venus-worker.
 //! 3. implement any customized external processors for other usecases.
 //!
-//! The examples show more details about the usages.
+//! The [examples](https://github.com/ipfs-force-community/venus-cluster/tree/main/venus-worker/vc-processors/examples) show more details about the usages.
 //!
 
 pub mod core;
