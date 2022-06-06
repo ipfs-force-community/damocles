@@ -26,7 +26,7 @@ type NumberAllocator struct {
 	locker *sectorsLocker
 }
 
-func (na *NumberAllocator) Next(ctx context.Context, mid abi.ActorID, initNum uint64, check func(uint64) bool) (uint64, bool, error) {
+func (na *NumberAllocator) Next(ctx context.Context, mid abi.ActorID, minNum uint64, check func(uint64) bool) (uint64, bool, error) {
 	lock := na.locker.lock(abi.SectorID{
 		Miner:  mid,
 		Number: 0,
@@ -48,10 +48,13 @@ func (na *NumberAllocator) Next(ctx context.Context, mid abi.ActorID, initNum ui
 	case nil:
 
 	case kvstore.ErrKeyNotFound:
-		current = initNum
 
 	default:
 		return 0, false, fmt.Errorf("fetch current number for %d: %w", mid, err)
+	}
+
+	if current < minNum {
+		current = minNum
 	}
 
 	current++

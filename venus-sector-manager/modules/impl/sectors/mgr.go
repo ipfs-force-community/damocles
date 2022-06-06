@@ -67,7 +67,12 @@ func (m *Manager) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*
 			}
 		}
 
-		next, available, err := m.numAlloc.Next(ctx, selected.info.ID, selected.cfg.InitNumber, check)
+		minNumber := selected.cfg.InitNumber
+		if selected.cfg.MinNumber != nil {
+			minNumber = *selected.cfg.MinNumber
+		}
+
+		next, available, err := m.numAlloc.Next(ctx, selected.info.ID, minNumber, check)
 		if err != nil {
 			return nil, err
 		}
