@@ -36,14 +36,14 @@ jobs:
             venus-worker/target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('venus-worker/Cargo.lock') }}
 
-      - name: check venus-worker
-        run: make check-worker
-
       - name: test venus-worker
         run: make test-worker
 
       - name: build venus-worker
         run: make build-worker
+
+      - name: check venus-worker
+        run: make check-worker
 
       - name: check git dirty
         run: make check-git
