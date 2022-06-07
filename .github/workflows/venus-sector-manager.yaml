@@ -25,21 +25,23 @@ jobs:
       - name: install golangci-lint
         run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1
 
-      - uses: actions/cache@v3
+      - name: setup build cache
+        uses: actions/cache@v3
+        continue-on-error: false
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('venus-sector-manager/go.sum') }}
 
-      - name: check venus-sector-manager
-        run: make check-smgr
-
       - name: test venus-sector-manager
         run: make test-smgr
 
       - name: build venus-sector-manager
         run: make build-smgr
+
+      - name: check venus-sector-manager
+        run: make check-smgr
 
       - name: check git dirty
         run: make check-git
