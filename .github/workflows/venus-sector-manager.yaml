@@ -1,0 +1,57 @@
+name: venus-sector-manager
+
+on:
+  pull_request:
+    branches: [ main, release/** ]
+
+  push:
+    branches: [ main, release/** ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: dependencies
+        run: sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
+
+      - name: setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+
+      - name: install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.42.1
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('venus-sector-manager/go.sum') }}
+
+      - name: check venus-sector-manager
+        run: make check-smgr
+
+      - name: test venus-sector-manager
+        run: make test-smgr
+
+      - name: build venus-sector-manager
+        run: make build-smgr
+
+      - name: check git dirty
+        run: make check-git
+
+      - name: show bins
+        run: ls -lha ./dist/bin/
+
+
+      # - name: upload venus-sector-manager
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: venus-sector-manager
+      #     path: ./dist/bin/
+      #     if-no-files-found: error
+      #     retention-days: 3

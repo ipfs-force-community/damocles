@@ -1,0 +1,60 @@
+name: venus-worker
+
+on:
+  pull_request:
+    branches: [ main, release/** ]
+
+  push:
+    branches: [ main, release/** ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: dependencies
+        run: sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
+
+      - name: setup rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: '1.60.0'
+          override: true
+          components: rustfmt, clippy
+
+      - name: setup build cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            venus-worker/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('venus-worker/Cargo.lock') }}
+
+      - name: check venus-worker
+        run: make check-worker
+
+      - name: test venus-worker
+        run: make test-worker
+
+      - name: build venus-worker
+        run: make build-worker
+
+      - name: check git dirty
+        run: make check-git
+
+      - name: show bins
+        run: ls -lha ./dist/bin/
+
+      # - name: upload venus-worker
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: venus-worker
+      #     path: ./dist/bin/
+      #     if-no-files-found: error
+      #     retention-days: 3
