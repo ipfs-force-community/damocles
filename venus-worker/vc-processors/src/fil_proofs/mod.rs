@@ -2,7 +2,7 @@
 //!
 
 use std::fs::OpenOptions;
-use std::panic::catch_unwind;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
@@ -35,7 +35,7 @@ pub type ActorID = u64;
 
 macro_rules! safe_call {
     ($ex:expr) => {
-        match catch_unwind(move || $ex.map_err(|e| format!("{:?}", e))) {
+        match catch_unwind(AssertUnwindSafe(move || $ex.map_err(|e| format!("{:?}", e)))) {
             Ok(r) => r.map_err(anyhow::Error::msg),
             Err(p) => {
                 let error_msg = match p.downcast_ref::<&'static str>() {
