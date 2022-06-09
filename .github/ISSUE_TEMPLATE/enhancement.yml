@@ -6,8 +6,8 @@ body:
   attributes:
     label: 模块 / Components
     description: |
-      选择 bug 所在的模块。
-      Please select the components you are filing a bug for
+      选择涉及模块。
+      Please select the related components.
     options:
       - label: venus-sector-manager
         required: false
