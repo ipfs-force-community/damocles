@@ -2,13 +2,13 @@ use sysinfo::{RefreshKind, System, SystemExt};
 
 /// The memory infomation
 pub struct Mem {
-    /// The RAM size in KB.
+    /// The RAM size in bytes.
     pub total_mem: u64,
-    /// The amount of used RAM in KB.
+    /// The amount of used RAM in bytes.
     pub used_mem: u64,
-    /// The SWAP size in KB.
+    /// The SWAP size in bytes.
     pub total_swap: u64,
-    /// The amount of used SWAP in KB.
+    /// The amount of used SWAP in bytes.
     pub used_swap: u64,
 }
 
@@ -16,9 +16,9 @@ pub struct Mem {
 pub fn load() -> Mem {
     let sys = System::new_with_specifics(RefreshKind::new().with_memory());
     Mem {
-        total_mem: sys.total_memory(),
-        used_mem: sys.used_memory(),
-        total_swap: sys.total_swap(),
-        used_swap: sys.used_swap(),
+        total_mem: sys.total_memory() * 1024,
+        used_mem: sys.used_memory() * 1024,
+        total_swap: sys.total_swap() * 1024,
+        used_swap: sys.used_swap() * 1024,
     }
 }
