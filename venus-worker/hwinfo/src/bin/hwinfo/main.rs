@@ -2,13 +2,15 @@ use anyhow::{anyhow, Result};
 use clap::App;
 mod cpu;
 mod disk;
+mod gpu;
 mod mem;
 
 fn main() -> Result<()> {
     let app = App::new("hwinfo")
         .subcommand(cpu::subcommand())
         .subcommand(disk::subcommand())
-        .subcommand(mem::subcommand());
+        .subcommand(mem::subcommand())
+        .subcommand(gpu::subcommand());
 
     let matches = app.get_matches();
 
@@ -16,6 +18,7 @@ fn main() -> Result<()> {
         (cpu::SUB_CMD_NAME, Some(args)) => cpu::submatch(args),
         (disk::SUB_CMD_NAME, Some(args)) => disk::submatch(args),
         (mem::SUB_CMD_NAME, Some(args)) => mem::submatch(args),
+        (gpu::SUB_CMD_NAME, Some(args)) => gpu::submatch(args),
         (name, _) => Err(anyhow!("unexpected subcommand `{}`", name)),
     }
 }
