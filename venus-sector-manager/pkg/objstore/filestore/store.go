@@ -41,14 +41,16 @@ type Config struct {
 	ReadOnly bool
 }
 
-func OpenMany(cfgs []Config) ([]*Store, error) {
-	stores := make([]*Store, 0, len(cfgs))
+func OpenStores(cfgs []Config) ([]objstore.Store, error) {
+	stores := make([]objstore.Store, 0, len(cfgs))
+
 	for _, cfg := range cfgs {
 		store, err := Open(cfg)
 		if err != nil {
 			return nil, err
 		}
 
+		log.Infow("load store", "name", store.cfg.Name, "path", store.cfg.Path)
 		stores = append(stores, store)
 	}
 

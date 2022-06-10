@@ -10,12 +10,12 @@ import (
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
 var log = logging.New("piecestore")
 
-func NewProxy(locals []*filestore.Store, mapi market.API) *Proxy {
+func NewProxy(locals []objstore.Store, mapi market.API) *Proxy {
 	return &Proxy{
 		locals: locals,
 		market: mapi,
@@ -23,7 +23,7 @@ func NewProxy(locals []*filestore.Store, mapi market.API) *Proxy {
 }
 
 type Proxy struct {
-	locals []*filestore.Store
+	locals []objstore.Store
 	market market.API
 }
 

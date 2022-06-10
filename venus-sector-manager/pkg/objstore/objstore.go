@@ -49,7 +49,3 @@ type Store interface {
 	GetChunks(context.Context, string, []Range) ([]ReaderResult, error)
 	FullPath(context.Context, string) string
 }
-
-type Manager interface {
-	GetInstance(ctx context.Context, name string) (Store, error)
-}

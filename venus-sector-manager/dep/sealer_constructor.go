@@ -366,7 +366,12 @@ func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker) (P
 	persistCfg := scfg.Common.PersistStores
 	locker.Unlock()
 
-	return filestore.NewManager(persistCfg)
+	stores, err := filestore.OpenStores(persistCfg)
+	if err != nil {
+		return nil, fmt.Errorf("open stores: %w", err)
+	}
+
+	return objstore.NewStoreManager(stores)
 }
 
 func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (core.SectorIndexer, error) {
@@ -431,7 +436,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	pieceStoreCfg := scfg.Common.PieceStores
 	scfg.Unlock()
 
-	locals, err := filestore.OpenMany(pieceStoreCfg)
+	locals, err := filestore.OpenStores(pieceStoreCfg)
 	if err != nil {
 		return MarketAPIRelatedComponets{}, fmt.Errorf("open local piece stores: %w", err)
 	}
