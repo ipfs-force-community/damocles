@@ -36,7 +36,6 @@ jsonrpc-http-server = "18"
 toml = "0.5"
 humantime-serde = "1"
 clap = "2.33"
-cgroups-rs = "0.2"
 signal-hook = "0.3"
 multiaddr = "0.14.0"
 rand = "0.8.5"
@@ -69,10 +68,14 @@ features = ["tls", "http"]
 version = "4"
 features = ["serde"]
 
+[target.'cfg(target_os = "linux")'.dependencies]
+cgroups-rs = "0.2"
+
 [dev-dependencies]
 pretty_assertions = "1.2"
 humantime = "2.1"
 
 [features]
 default = ["vc-processors/builtin", "vc-processors/ext-producer"]
+numa = ["vc-processors/numa"]
 cuda = ["vc-processors/fil-proofs-cuda"]

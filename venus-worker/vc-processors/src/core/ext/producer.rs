@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::env::vars;
 use std::io::{BufRead, BufReader, Write};
-use std::os::raw::c_int;
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::{
@@ -101,7 +100,7 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
 
     /// Set if the child has a preferred numa node.
     #[cfg(feature = "numa")]
-    pub fn numa_preferred(self, node: c_int) -> Self {
+    pub fn numa_preferred(self, node: std::os::raw::c_int) -> Self {
         self.env(crate::sys::numa::ENV_NUMA_PREFERRED.to_string(), node.to_string())
     }
 
