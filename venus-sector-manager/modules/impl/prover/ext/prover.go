@@ -122,12 +122,18 @@ func (sp *subProcessor) handleResponse(ctx context.Context) {
 	splog.Info("response loop start")
 	defer splog.Info("response loop stop")
 
-	scanner := bufio.NewScanner(sp.stdout)
+	reader := bufio.NewReaderSize(sp.stdout, 1<<20)
+	var readErr error
 
-	for scanner.Scan() {
+	for {
+		b, err := reader.ReadBytes('\n')
+		if err != nil {
+			readErr = err
+			break
+		}
+
 		var resp Response
-		b := scanner.Bytes()
-		err := json.Unmarshal(b, &resp)
+		err = json.Unmarshal(b, &resp)
 		if err != nil {
 			splog.Warnf("decode response from stdout of sub: %s", err)
 			continue
@@ -144,8 +150,8 @@ func (sp *subProcessor) handleResponse(ctx context.Context) {
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		splog.Warnf("sub stdout scanner error: %s", err)
+	if readErr != nil {
+		splog.Warnf("sub stdout scanner error: %s", readErr)
 	}
 
 }

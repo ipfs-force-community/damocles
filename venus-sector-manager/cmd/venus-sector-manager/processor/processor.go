@@ -34,18 +34,20 @@ var processorWdPostCmd = &cli.Command{
 
 		plog.Info("ready")
 
-		in := bufio.NewScanner(os.Stdin)
+		in := bufio.NewReaderSize(os.Stdin, 1<<20)
 		out := bufio.NewWriter(os.Stdout)
 		var outMu = &sync.Mutex{}
 
+		var readErr error
 		for {
-			if !in.Scan() {
+			b, err := in.ReadBytes('\n')
+			if err != nil {
+				readErr = err
 				break
 			}
 
 			var req ext.Request
-			b := in.Bytes()
-			err := json.Unmarshal(b, &req)
+			err = json.Unmarshal(b, &req)
 			if err != nil {
 				plog.Warnf("decode incoming request: %s", err)
 				continue
@@ -70,8 +72,8 @@ var processorWdPostCmd = &cli.Command{
 			}()
 		}
 
-		if err := in.Err(); err != nil {
-			plog.Warnf("stdin broken: %s", err)
+		if readErr != nil {
+			plog.Warnf("stdin broken: %s", readErr)
 		}
 
 		return nil
