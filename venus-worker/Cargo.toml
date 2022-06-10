@@ -36,15 +36,11 @@ jsonrpc-http-server = "18"
 toml = "0.5"
 humantime-serde = "1"
 clap = "2.33"
-cgroups-rs = "0.2"
 signal-hook = "0.3"
 multiaddr = "0.14.0"
 rand = "0.8.5"
 nix = "0.23"
 time = "0.3"
-
-[dependencies.vc-processors]
-path = "./vc-processors"
 
 [dependencies.reqwest]
 version = "0.11"
@@ -68,6 +64,15 @@ features = ["tls", "http"]
 [dependencies.byte-unit]
 version = "4"
 features = ["serde"]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+cgroups-rs = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+vc-processors = { path = "./vc-processors" }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+vc-processors = { path = "./vc-processors", features = ["numa"] }
 
 [dev-dependencies]
 pretty_assertions = "1.2"
