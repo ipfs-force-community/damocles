@@ -30,8 +30,18 @@ type Stat struct {
 	Size int64
 }
 
+type InstanceInfo struct {
+	Type        string
+	Total       uint64
+	Free        uint64
+	Used        uint64
+	UsedPercent float64
+	ReadOnly    bool
+}
+
 type Store interface {
 	Instance(context.Context) string
+	InstanceInfo(context.Context) (InstanceInfo, error)
 	Get(context.Context, string) (io.ReadCloser, error)
 	Del(context.Context, string) error
 	Stat(context.Context, string) (Stat, error)

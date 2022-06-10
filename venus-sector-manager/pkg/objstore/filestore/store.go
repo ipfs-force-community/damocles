@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shirou/gopsutil/v3/disk"
+
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
@@ -186,6 +188,22 @@ func (s *Store) open(p string, r *objstore.Range) (io.ReadCloser, error) {
 }
 
 func (s *Store) Instance(context.Context) string { return s.cfg.Name }
+
+func (s *Store) InstanceInfo(ctx context.Context) (objstore.InstanceInfo, error) {
+	usage, err := disk.UsageWithContext(ctx, s.cfg.Path)
+	if err != nil {
+		return objstore.InstanceInfo{}, fmt.Errorf("get disk usage: %w", err)
+	}
+
+	return objstore.InstanceInfo{
+		Type:        usage.Fstype,
+		Total:       usage.Total,
+		Free:        usage.Free,
+		Used:        usage.Used,
+		UsedPercent: usage.UsedPercent,
+		ReadOnly:    s.cfg.ReadOnly,
+	}, nil
+}
 
 func (s *Store) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 	res := s.openWithContext(ctx, p, nil)
