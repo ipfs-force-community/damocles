@@ -87,8 +87,6 @@ pub(super) fn start_sub_processors<I: Input>(cfgs: &[config::Ext]) -> Result<Vec
                 // check this?
                 let _ = limit_rx.try_recv();
             });
-
-        #[cfg(feature = "numa")]
         if let Some(preferred) = sub_cfg.numa_preferred {
             builder = builder.numa_preferred(preferred);
         }
