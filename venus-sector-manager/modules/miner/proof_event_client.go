@@ -2,6 +2,7 @@ package miner
 
 import (
 	"context"
+	"github.com/filecoin-project/go-jsonrpc"
 
 	"go.uber.org/fx"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func NewProofEventClient(lc fx.Lifecycle, url, token string) (gateway.IGateway, error) {
-	pvc, closer, err := gateway.DialIGatewayRPC(context.Background(), url, token, nil)
+	pvc, closer, err := gateway.DialIGatewayRPC(context.Background(), url, token, nil, jsonrpc.WithRetry(true))
 	if err != nil {
 		return nil, err
 	}

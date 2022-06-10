@@ -38,7 +38,8 @@ func New(ctx context.Context, addr, token string) (API, jsonrpc.ClientCloser, er
 		return nil, nil, fmt.Errorf("get dial args for connecting: %w", err)
 	}
 
-	cli, closer, err := market.NewIMarketRPC(ctx, dialAddr, ainfo.AuthHeader())
+
+	cli, closer, err := market.NewIMarketRPC(ctx, dialAddr, ainfo.AuthHeader(), jsonrpc.WithRetry(true))
 	if err != nil {
 		return nil, nil, fmt.Errorf("construct market api client: %w", err)
 	}

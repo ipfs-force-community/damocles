@@ -40,5 +40,5 @@ var MessageState = struct {
 type API = mapi.IMessager
 
 func New(ctx context.Context, api, token string) (API, jsonrpc.ClientCloser, error) {
-	return mapi.DialIMessagerRPC(ctx, api, token, nil)
+	return mapi.DialIMessagerRPC(ctx, api, token, nil, jsonrpc.WithRetry(true))
 }
