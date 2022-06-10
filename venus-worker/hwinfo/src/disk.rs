@@ -2,7 +2,7 @@ use strum::AsRefStr;
 use sysinfo::{DiskExt, RefreshKind, System, SystemExt};
 
 #[derive(Debug, PartialEq, Clone, Copy, AsRefStr)]
-#[strum(serialize_all = "PascalCase")]
+#[strum(serialize_all = "UPPERCASE")]
 pub enum DiskType {
     /// HDD type.
     HDD,

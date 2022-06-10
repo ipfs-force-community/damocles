@@ -544,13 +544,13 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "cgroups-rs"
-version = "0.2.6"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c5c9f6e5c72958dc962baa5f8bb37fb611017854b0d774b8adab4d7416ab445"
+checksum = "cdae996d9638ba03253ffa1c93345a585974a97abbdeab9176c77922f3efc1e8"
 dependencies = [
  "libc",
  "log",
- "nix 0.20.0",
+ "nix",
  "regex",
 ]
 
@@ -2296,18 +2296,6 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa9b4819da1bc61c0ea48b63b7bc8604064dd43013e7cc325df098d49cd7c18a"
-dependencies = [
- "bitflags 1.3.2",
- "cc",
- "cfg-if 1.0.0",
- "libc",
-]
-
-[[package]]
-name = "nix"
 version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f866317acbd3a240710c63f065ffb1e4fd466259045ccb504130b7f668f35c6"
@@ -3928,7 +3916,7 @@ dependencies = [
  "jsonrpc-http-server",
  "memmap",
  "multiaddr",
- "nix 0.23.1",
+ "nix",
  "pretty_assertions 1.2.1",
  "rand 0.8.5",
  "reqwest",
