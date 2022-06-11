@@ -175,7 +175,7 @@ impl ObjectStore for FileStore {
 
     fn free_space(&self) -> ObjResult<u64> {
         let stat = statvfs(&self.local_path).context("get via statvfs")?;
-        Ok(stat.block_size() * stat.blocks_free())
+        Ok(stat.block_size() as u64 * stat.blocks_free() as u64)
     }
 }
 
