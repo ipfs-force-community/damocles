@@ -3,13 +3,19 @@ name = "venus-worker"
 version = "0.3.0-rc1"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2021"
+exclude = [
+    ".github",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+members = [
+    "vc-processors",
+]
+
 [dependencies]
 anyhow = "1"
-storage-proofs-core = "11.0.2"
-memmap = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.56"
 serde_repr = "0.1"
@@ -20,7 +26,7 @@ forest_address = "0.3"
 forest_cid = { version = "0.3", features = ["json"]}
 fil_clock = "0.1"
 crossbeam-channel = "0.5"
-crossbeam-utils = "0.8.5"
+crossbeam-utils = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "time", "local-time"] }
 crossterm = "0.20"
@@ -30,22 +36,11 @@ jsonrpc-http-server = "18"
 toml = "0.5"
 humantime-serde = "1"
 clap = "2.33"
-cgroups-rs = "0.2"
 signal-hook = "0.3"
 multiaddr = "0.14.0"
 rand = "0.8.5"
 nix = "0.23"
 time = "0.3"
-
-[dependencies.filecoin-proofs-api]
-version = "11"
-default-features = false
-features = ["opencl", "multicore-sdr"]
-
-[dependencies.filecoin-proofs]
-version = "11.0.2"
-default-features = false
-features = ["opencl", "multicore-sdr"]
 
 [dependencies.reqwest]
 version = "0.11"
@@ -70,11 +65,19 @@ features = ["tls", "http"]
 version = "4"
 features = ["serde"]
 
+[target.'cfg(target_os = "linux")'.dependencies]
+cgroups-rs = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+vc-processors = { path = "./vc-processors" }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+vc-processors = { path = "./vc-processors", features = ["numa"] }
+
 [dev-dependencies]
 pretty_assertions = "1.2"
 humantime = "2.1"
 
 [features]
-default = ["numa"]
-numa = []
-cuda = ["filecoin-proofs/cuda", "filecoin-proofs-api/cuda"]
+default = ["vc-processors/builtin", "vc-processors/ext-producer"]
+cuda = ["vc-processors/fil-proofs-cuda"]

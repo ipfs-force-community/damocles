@@ -119,6 +119,7 @@ func defaultFeeConfig() FeeConfig {
 
 type MinerSectorConfig struct {
 	InitNumber   uint64
+	MinNumber    *uint64
 	MaxNumber    *uint64
 	Enabled      bool
 	EnableDeals  bool
@@ -135,7 +136,9 @@ func defaultMinerSectorConfig(example bool) MinerSectorConfig {
 	}
 
 	if example {
+		min := uint64(10)
 		max := uint64(1_000_000)
+		cfg.MinNumber = &min
 		cfg.MaxNumber = &max
 	}
 

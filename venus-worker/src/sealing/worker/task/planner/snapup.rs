@@ -1,6 +1,7 @@
 use std::os::unix::fs::symlink;
 
 use anyhow::{anyhow, Context, Result};
+use vc_processors::builtin::tasks::{STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE};
 
 use super::{
     super::{call_rpc, cloned_required, field_required, Finalized},
@@ -155,6 +156,8 @@ impl<'c, 't> SnapUp<'c, 't> {
     }
 
     fn snap_encode(&self) -> ExecResult {
+        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_SNAP_ENCODE).crit()?;
+
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
         field_required!(
@@ -235,6 +238,8 @@ impl<'c, 't> SnapUp<'c, 't> {
     }
 
     fn snap_prove(&self) -> ExecResult {
+        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_SNAP_PROVE).crit()?;
+
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
         field_required!(encode_out, self.task.sector.phases.snap_encode_out.as_ref());

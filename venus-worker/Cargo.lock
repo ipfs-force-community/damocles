@@ -731,9 +731,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-deque"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94af6efb46fef72616855b036a624cf27ba656ffc9be1b9a3c931cfc7749a9a9"
+checksum = "6455c0ca19f0d2fbf751b908d5c55c1f5cbc65e03c4225427254b46890bdde1e"
 dependencies = [
  "cfg-if 1.0.0",
  "crossbeam-epoch",
@@ -765,9 +765,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-utils"
-version = "0.8.5"
+version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d82cfc11ce7f2c3faef78d8a684447b40d503d9681acebed6cb728d45940c4db"
+checksum = "b5e5bed1f1c269533fa816a0a5492b3545209a205ca1a54842be180eb63a16a6"
 dependencies = [
  "cfg-if 1.0.0",
  "lazy_static",
@@ -2915,9 +2915,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.5.4"
+version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d07a8629359eb56f1e2fb1652bb04212c072a87ba68546a04065d525673ac461"
+checksum = "1a11647b6b25ff05a515cb92c365cec08801e83423a235b51e231e1808747286"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -3877,6 +3877,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "vc-processors"
+version = "0.1.2"
+dependencies = [
+ "anyhow",
+ "crossbeam-channel",
+ "filecoin-proofs",
+ "filecoin-proofs-api",
+ "memmap",
+ "serde",
+ "serde_json",
+ "storage-proofs-core",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3903,8 +3919,6 @@ dependencies = [
  "crossterm",
  "fil_clock",
  "fil_types",
- "filecoin-proofs",
- "filecoin-proofs-api",
  "forest_address",
  "forest_cid",
  "forest_json_utils",
@@ -3914,7 +3928,6 @@ dependencies = [
  "jsonrpc-core-client",
  "jsonrpc-derive",
  "jsonrpc-http-server",
- "memmap",
  "multiaddr",
  "nix",
  "pretty_assertions 1.2.1",
@@ -3925,12 +3938,12 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "signal-hook",
- "storage-proofs-core",
  "time 0.3.9",
  "tokio",
  "toml",
  "tracing",
  "tracing-subscriber",
+ "vc-processors",
 ]
 
 [[package]]

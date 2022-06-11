@@ -1,0 +1,70 @@
+[package]
+name = "vc-processors"
+version = "0.1.2"
+edition = "2021"
+license = "MIT"
+keywords = [
+    "filecoin",
+    "venus",
+    "venus-cluster",
+    "venus-worker",
+]
+description = "provide core types & builtin processors for venus-worker"
+homepage = "https://github.com/ipfs-force-community/venus-cluster"
+repository = "https://github.com/ipfs-force-community/venus-cluster"
+exclude = ["demos"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+anyhow = "1"
+crossbeam-channel = { version = "0.5", optional = true }
+memmap = { version = "0.7", optional = true }
+
+[dependencies.filecoin-proofs]
+version = "11.0.2"
+default-features = false
+features = ["opencl", "multicore-sdr"]
+optional = true
+
+[dependencies.filecoin-proofs-api]
+version = "11"
+default-features = false
+features = ["opencl", "multicore-sdr"]
+optional = true
+
+[dependencies.storage-proofs-core]
+version = "11.0.2"
+optional = true
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[features]
+default = []
+ext-producer = ["crossbeam-channel"]
+numa = []
+fil-proofs = ["memmap", "filecoin-proofs", "filecoin-proofs-api", "storage-proofs-core"]
+fil-proofs-cuda = ["fil-proofs", "filecoin-proofs/cuda", "filecoin-proofs-api/cuda"]
+builtin-tasks = ["fil-proofs"]
+builtin-processors = ["builtin-tasks"]
+builtin = ["builtin-tasks", "builtin-processors"]
+
+[[example]]
+name = "sqr-consumer"
+required-features = []
+
+[[example]]
+name = "sqr-producer"
+required-features = ["ext-producer"]
+
+[[example]]
+name = "customize-proc"
+required-features = ["ext-producer", "builtin-tasks"]
+
+[[example]]
+name = "builtin-proc"
+required-features = ["ext-producer", "builtin"]

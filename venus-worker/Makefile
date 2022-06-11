@@ -36,12 +36,15 @@ check-fmt:
 	cargo fmt --all -- --check
 
 clippy:
-	cargo clippy --fix --no-deps --workspace --tests
+	cargo clippy --release --fix --no-deps --workspace --tests
 
 check-clippy:
-	cargo clippy --no-deps --workspace --tests -- -D warnings
+	cargo clippy --release --no-deps --workspace --tests -- -D warnings
 	# avoid missing checks like #![deny(missing_docs)]
-	cargo clippy --no-deps --workspace -- -D warnings
+	cargo clippy --release --no-deps --workspace -- -D warnings
 
 dev-env:
 	rustup component add --toolchain $(shell cat rust-toolchain) rls rust-analysis rust-src rustc-dev clippy rustfmt
+
+publish-vc-processors:
+	cargo publish -p vc-processors --features="builtin ext-producer"
