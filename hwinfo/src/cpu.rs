@@ -111,11 +111,11 @@ pub fn load() -> Option<TopologyNode> {
     let topo = Topology::new()?;
 
     let root_obj = topo.object_at_root();
-    assert!(root_obj.object_type() == ObjectType::Machine);
+
     Some(TopologyNode {
         logical_index: root_obj.logical_index(),
         children: load_recursive(root_obj),
-        ty: TopologyType::Machine,
+        ty: root_obj.try_into().ok()?,
     })
 }
 
