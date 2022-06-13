@@ -20,4 +20,4 @@ check-clippy:
 	cargo clippy --release --no-deps -- -D warnings
 
 dev-env:
-	rustup component add --toolchain clippy rustfmt
+	rustup component add clippy rustfmt
