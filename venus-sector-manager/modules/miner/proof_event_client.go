@@ -2,6 +2,7 @@ package miner
 
 import (
 	"context"
+
 	"github.com/filecoin-project/go-jsonrpc"
 
 	"go.uber.org/fx"
