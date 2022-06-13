@@ -21,7 +21,7 @@ type Config struct {
 	Path     string
 	Strict   bool
 	ReadOnly bool
-	Weight   int
+	Weight   uint
 	Meta     map[string]string
 }
 

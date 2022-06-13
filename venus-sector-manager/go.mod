@@ -31,6 +31,7 @@ require (
 	github.com/jbenet/go-random v0.0.0-20190219211222-123a90aedc0c
 	github.com/libp2p/go-libp2p-core v0.15.1
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/mroth/weightedrand v0.4.1 // indirect
 	github.com/multiformats/go-multiaddr v0.5.0
 	github.com/multiformats/go-multihash v0.1.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
