@@ -1,6 +1,6 @@
-all: build-smgr build-worker
+all: build-smgr build-worker build-hwinfo
 
-check-all: check-smgr check-worker check-git
+check-all: check-smgr check-worker check-hwinfo check-git
 
 test-smgr:
 	$(MAKE) -C ./venus-sector-manager/ test-all
@@ -26,6 +26,15 @@ build-worker:
 check-worker:
 	$(MAKE) -C ./venus-worker/ check-all
 
+build-hwinfo:
+	mkdir -p ./dist/bin/
+	rm -rf ./dist/bin/hwinfo
+	$(MAKE) -C ./hwinfo/ build-all
+	cp $(shell cargo metadata --format-version=1 --manifest-path=./hwinfo/Cargo.toml | jq -r ".target_directory")/release/hwinfo ./dist/bin/
+
+check-hwinfo:
+	$(MAKE) -C ./hwinfo/ check-all
+
 check-git:
 	./scripts/check-git-dirty.sh
 
@@ -41,3 +50,4 @@ dev-env:
 	ln -s ../../.githooks/pre-push ./.git/hooks/pre-push
 	$(MAKE) -C ./venus-sector-manager/ dev-env
 	$(MAKE) -C ./venus-worker/ dev-env
+	$(MAKE) -C ./hwinfo/ dev-env
