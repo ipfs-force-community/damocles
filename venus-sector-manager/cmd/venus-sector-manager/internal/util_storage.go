@@ -74,12 +74,9 @@ var utilStorageAttachCmd = &cli.Command{
 		readOnly := cctx.Bool("read-only")
 		allowSplitted := cctx.Bool("allow-splitted")
 
-		scfg := filestore.Config{
-			Name:     name,
-			Path:     abs,
-			Strict:   strict,
-			ReadOnly: readOnly,
-		}
+		scfg := objstore.DefaultConfig(abs, readOnly)
+		scfg.Name = name
+		scfg.Strict = strict
 
 		store, err := filestore.Open(scfg)
 		if err != nil {
@@ -91,7 +88,7 @@ var utilStorageAttachCmd = &cli.Command{
 
 		cfgExample := struct {
 			Common struct {
-				PersistStores []filestore.Config
+				PersistStores []objstore.Config
 			}
 		}{}
 

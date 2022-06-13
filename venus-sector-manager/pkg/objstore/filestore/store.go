@@ -27,23 +27,7 @@ type statOrErr struct {
 	Err error
 }
 
-func DefaultConfig(path string, readonly bool) Config {
-	return Config{
-		Path:     path,
-		ReadOnly: readonly,
-		Meta:     map[string]string{},
-	}
-}
-
-type Config struct {
-	Name     string
-	Path     string
-	Strict   bool
-	ReadOnly bool
-	Meta     map[string]string
-}
-
-func OpenStores(cfgs []Config) ([]objstore.Store, error) {
+func OpenStores(cfgs []objstore.Config) ([]objstore.Store, error) {
 	stores := make([]objstore.Store, 0, len(cfgs))
 
 	for _, cfg := range cfgs {
@@ -59,7 +43,7 @@ func OpenStores(cfgs []Config) ([]objstore.Store, error) {
 	return stores, nil
 }
 
-func Open(cfg Config) (*Store, error) {
+func Open(cfg objstore.Config) (*Store, error) {
 	dirPath, err := filepath.Abs(cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("abs path for %s: %w", cfg.Path, err)
@@ -86,7 +70,7 @@ func Open(cfg Config) (*Store, error) {
 }
 
 type Store struct {
-	cfg Config
+	cfg objstore.Config
 	dir fs.FS
 }
 
@@ -200,13 +184,12 @@ func (s *Store) InstanceInfo(ctx context.Context) (objstore.InstanceInfo, error)
 	}
 
 	return objstore.InstanceInfo{
+		Config:      s.cfg,
 		Type:        usage.Fstype,
 		Total:       usage.Total,
 		Free:        usage.Free,
 		Used:        usage.Used,
 		UsedPercent: usage.UsedPercent,
-		ReadOnly:    s.cfg.ReadOnly,
-		Meta:        s.cfg.Meta,
 	}, nil
 }
 

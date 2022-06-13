@@ -16,6 +16,23 @@ var (
 	ErrObjectNotFound              = fmt.Errorf("object not found")
 )
 
+type Config struct {
+	Name     string
+	Path     string
+	Strict   bool
+	ReadOnly bool
+	Weight   int
+	Meta     map[string]string
+}
+
+func DefaultConfig(path string, readonly bool) Config {
+	return Config{
+		Path:     path,
+		ReadOnly: readonly,
+		Meta:     map[string]string{},
+	}
+}
+
 type ReaderResult struct {
 	io.ReadCloser
 	Err error
@@ -31,13 +48,12 @@ type Stat struct {
 }
 
 type InstanceInfo struct {
+	Config      Config
 	Type        string
 	Total       uint64
 	Free        uint64
 	Used        uint64
 	UsedPercent float64
-	ReadOnly    bool
-	Meta        map[string]string
 }
 
 type Store interface {

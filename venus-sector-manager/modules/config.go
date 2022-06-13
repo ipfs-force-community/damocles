@@ -11,7 +11,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
 func init() {
@@ -79,22 +79,21 @@ func defaultCommonAPIConfig(example bool) CommonAPIConfig {
 
 type CommonConfig struct {
 	API           CommonAPIConfig
-	PieceStores   []filestore.Config
-	PersistStores []filestore.Config
+	PieceStores   []objstore.Config
+	PersistStores []objstore.Config
 }
 
-func exampleFilestoreConfig() filestore.Config {
-	return filestore.Config{
-		Name: "{store_name}",
-		Path: "{store_path}",
-	}
+func exampleFilestoreConfig() objstore.Config {
+	cfg := objstore.DefaultConfig("{store_path}", false)
+	cfg.Name = "{store_name}"
+	return cfg
 }
 
 func defaultCommonConfig(example bool) CommonConfig {
 	cfg := CommonConfig{
 		API:           defaultCommonAPIConfig(example),
-		PieceStores:   []filestore.Config{},
-		PersistStores: []filestore.Config{},
+		PieceStores:   []objstore.Config{},
+		PersistStores: []objstore.Config{},
 	}
 
 	if example {
