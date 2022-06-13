@@ -40,7 +40,7 @@ fn render_cpu() -> Result<()> {
     }
 
     let machine = cpu::load().ok_or_else(|| anyhow!("Can not load cpu infomation"))?;
-    println!("{}", machine.to_string());
+    println!("{}", machine);
     walk(&machine, "");
     Ok(())
 }

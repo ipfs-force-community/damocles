@@ -91,7 +91,11 @@ pub struct TopologyNode {
 impl Display for TopologyNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.ty {
-            TopologyType::Cache { cache_type, size } => f.write_fmt(format_args!("{} ({})", cache_type.as_ref(), byte_string(*size, 0),)),
+            TopologyType::Cache { cache_type, size } => f.write_fmt(format_args!(
+                "{} ({})",
+                cache_type.as_ref(),
+                byte_string(*size, 0),
+            )),
             TopologyType::Package { total_memory } => f.write_fmt(format_args!(
                 "{} (total memory: {})",
                 self.ty.as_ref(),
@@ -120,11 +124,14 @@ fn load_recursive(parent: &TopologyObject) -> Vec<TopologyNode> {
         .children()
         .into_iter()
         .filter_map(|child_topo_obj| {
-            child_topo_obj.try_into().ok().map(|topo_type| TopologyNode {
-                logical_index: child_topo_obj.logical_index(),
-                children: load_recursive(child_topo_obj),
-                ty: topo_type,
-            })
+            child_topo_obj
+                .try_into()
+                .ok()
+                .map(|topo_type| TopologyNode {
+                    logical_index: child_topo_obj.logical_index(),
+                    children: load_recursive(child_topo_obj),
+                    ty: topo_type,
+                })
         })
         .collect()
 }
@@ -136,7 +143,12 @@ impl TryFrom<&TopologyObject> for TopologyType {
     type Error = Unsupport;
 
     fn try_from(hwloc2_topo_obj: &TopologyObject) -> Result<Self, Self::Error> {
-        let get_cache_size = || hwloc2_topo_obj.cache_attributes().map(|attr| attr.size()).unwrap_or(0);
+        let get_cache_size = || {
+            hwloc2_topo_obj
+                .cache_attributes()
+                .map(|attr| attr.size())
+                .unwrap_or(0)
+        };
         Ok(match hwloc2_topo_obj.object_type() {
             ObjectType::Machine => TopologyType::Machine,
             ObjectType::Package => TopologyType::Package {
