@@ -226,7 +226,7 @@ func buildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, serverAddr string
 		return scli, err
 	}
 
-	closer, err := jsonrpc.NewClient(gctx, apiAddr, "Venus", &scli, ainfo.AuthHeader())
+	closer, err := jsonrpc.NewMergeClient(gctx, apiAddr, "Venus", []interface{}{&scli}, ainfo.AuthHeader(), jsonrpc.WithRetry(true))
 	if err != nil {
 		return scli, err
 	}

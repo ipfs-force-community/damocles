@@ -23,7 +23,7 @@ type (
 type API = v1.FullNode
 
 func New(ctx context.Context, api, token string) (API, jsonrpc.ClientCloser, error) {
-	client, closer, err := v1.DialFullNodeRPC(ctx, api, token, nil)
+	client, closer, err := v1.DialFullNodeRPC(ctx, api, token, nil, jsonrpc.WithRetry(true))
 	if err != nil {
 		return nil, nil, err
 	}
