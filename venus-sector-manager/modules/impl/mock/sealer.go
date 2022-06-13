@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
@@ -176,4 +177,25 @@ func (s *Sealer) PollTerminateSectorState(ctx context.Context, sid abi.SectorID)
 
 func (s *Sealer) RemoveSector(ctx context.Context, sid abi.SectorID) error {
 	return nil
+}
+
+func (s *Sealer) StoreReserveSpace(ctx context.Context, sid abi.SectorID, size uint64, candidates []string) (*core.StoreBasicInfo, error) {
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	selected := rand.Intn(len(candidates))
+	return &core.StoreBasicInfo{
+		Name: candidates[selected],
+		Path: "",
+		Meta: map[string]string{},
+	}, nil
+}
+
+func (s *Sealer) StoreReleaseReserved(ctx context.Context, sid abi.SectorID) (bool, error) {
+	return true, nil
+}
+
+func (s *Sealer) StoreList(ctx context.Context) ([]core.StoreDetailedInfo, error) {
+	return nil, nil
 }

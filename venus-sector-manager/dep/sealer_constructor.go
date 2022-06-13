@@ -41,6 +41,7 @@ type (
 	ProxyAddress                string
 	WorkerMetaStore             kvstore.KVStore
 	ConfDirPath                 string
+	CommonMetaStore             kvstore.KVStore
 )
 
 func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerInfoAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
@@ -102,6 +103,26 @@ func ProvideSafeConfig(cfg *modules.Config, locker confmgr.RLocker) (*modules.Sa
 		Config: cfg,
 		Locker: locker,
 	}, nil
+}
+
+func BuildCommonMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (CommonMetaStore, error) {
+	dir := home.Sub("common")
+	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return store.Run(gctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return store.Close(ctx)
+		},
+	})
+
+	return store, nil
 }
 
 func BuildOnlineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (OnlineMetaStore, error) {
@@ -361,7 +382,7 @@ func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedi
 	return store, nil
 }
 
-func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker) (PersistedObjectStoreManager, error) {
+func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker, globalStore CommonMetaStore) (PersistedObjectStoreManager, error) {
 	locker.Lock()
 	persistCfg := scfg.Common.PersistStores
 	locker.Unlock()
@@ -371,7 +392,12 @@ func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker) (P
 		return nil, fmt.Errorf("open stores: %w", err)
 	}
 
-	return objstore.NewStoreManager(stores)
+	wrapped, err := kvstore.NewWrappedKVStore([]byte("objstore"), globalStore)
+	if err != nil {
+		return nil, fmt.Errorf("construct wrapped kv store for objstore: %w", err)
+	}
+
+	return objstore.NewStoreManager(stores, wrapped)
 }
 
 func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (core.SectorIndexer, error) {

@@ -69,6 +69,8 @@ func Product() dix.Option {
 
 		dix.Override(new(WorkerMetaStore), BuildWorkerMetaStore),
 		dix.Override(new(core.WorkerManager), BuildWorkerManager),
+
+		dix.Override(new(CommonMetaStore), BuildCommonMetaStore),
 	)
 }
 

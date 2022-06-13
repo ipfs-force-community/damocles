@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/filecoin-project/go-address"
@@ -19,6 +20,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
 func (s *Sealer) ListSectors(ctx context.Context, ws core.SectorWorkerState) ([]*core.SectorState, error) {
@@ -259,4 +261,56 @@ func (s *Sealer) RemoveSector(ctx context.Context, sid abi.SectorID) error {
 	}
 
 	return nil
+}
+
+func (s *Sealer) StoreReleaseReserved(ctx context.Context, sid abi.SectorID) (bool, error) {
+	done, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, util.FormatSectorID(sid))
+	if err != nil {
+		return false, fmt.Errorf("release reserved: %w", err)
+	}
+
+	return done, nil
+}
+
+func (s *Sealer) StoreList(ctx context.Context) ([]core.StoreDetailedInfo, error) {
+	infos, err := s.sectorIdxer.StoreMgr().ListInstances(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list instances: %w", err)
+	}
+
+	details := make([]core.StoreDetailedInfo, 0, len(infos))
+	for _, info := range infos {
+		reservedBy := make([]core.ReservedItem, 0, len(info.Reserved.Reserved))
+		for _, res := range info.Reserved.Reserved {
+			reservedBy = append(reservedBy, res)
+		}
+		sort.Slice(reservedBy, func(i, j int) bool {
+			if reservedBy[i].At != reservedBy[j].At {
+				return reservedBy[i].At < reservedBy[j].At
+			}
+
+			return reservedBy[i].By < reservedBy[j].By
+		})
+
+		details = append(details, core.StoreDetailedInfo{
+			StoreBasicInfo: storeConfig2StoreBasic(&info.Instance.Config),
+			Type:           info.Instance.Type,
+			Total:          info.Instance.Total,
+			Free:           info.Instance.Free,
+			Used:           info.Instance.Used,
+			UsedPercent:    info.Instance.UsedPercent,
+			Reserved:       info.Reserved.ReservedSize,
+			ReservedBy:     reservedBy,
+		})
+	}
+
+	return details, nil
+}
+
+func storeConfig2StoreBasic(ocfg *objstore.Config) core.StoreBasicInfo {
+	return core.StoreBasicInfo{
+		Name: ocfg.Name,
+		Path: ocfg.Path,
+		Meta: ocfg.Meta,
+	}
 }

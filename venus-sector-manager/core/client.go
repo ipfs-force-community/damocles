@@ -64,6 +64,14 @@ var UnavailableSealerCliClient = SealerCliClient{
 	RemoveSector: func(context.Context, abi.SectorID) error {
 		panic("sealer client unavailable")
 	},
+
+	StoreReleaseReserved: func(ctx context.Context, sid abi.SectorID) (bool, error) {
+		panic("sealer client unavailable")
+	},
+
+	StoreList: func(ctx context.Context) ([]StoreDetailedInfo, error) {
+		panic("sealer client unavailable")
+	},
 }
 
 type SealerCliClient struct {
@@ -96,4 +104,8 @@ type SealerCliClient struct {
 	PollTerminateSectorState func(context.Context, abi.SectorID) (TerminateInfo, error)
 
 	RemoveSector func(context.Context, abi.SectorID) error
+
+	StoreReleaseReserved func(ctx context.Context, sid abi.SectorID) (bool, error)
+
+	StoreList func(ctx context.Context) ([]StoreDetailedInfo, error)
 }

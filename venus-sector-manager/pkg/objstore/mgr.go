@@ -44,28 +44,37 @@ type StoreReserved struct {
 	At   int64
 }
 
+type StoreInfo struct {
+	Instance InstanceInfo
+	Reserved StoreReserveStat
+}
+
 type Manager interface {
 	GetInstance(ctx context.Context, name string) (Store, error)
+	ListInstances(ctx context.Context) ([]StoreInfo, error)
 	ReserveSpace(ctx context.Context, by string, size uint64, candidates []string) (*Config, error)
 	ReleaseReserved(ctx context.Context, by string) (bool, error)
 }
 
 func NewStoreManager(stores []Store, metadb kvstore.KVStore) (*StoreManager, error) {
-	mgr := &StoreManager{
-		stores:  map[string]Store{},
-		resRand: rand.New(rand.NewSource(time.Now().UnixNano())),
-		metadb:  metadb,
+	idxes := map[string]int{}
+	for i, st := range stores {
+		idxes[st.Instance(context.Background())] = i
 	}
 
-	for _, store := range stores {
-		mgr.stores[store.Instance(context.Background())] = store
+	mgr := &StoreManager{
+		storeIdxes: idxes,
+		stores:     stores,
+		resRand:    rand.New(rand.NewSource(time.Now().UnixNano())),
+		metadb:     metadb,
 	}
 
 	return mgr, nil
 }
 
 type StoreManager struct {
-	stores map[string]Store
+	storeIdxes map[string]int
+	stores     []Store
 
 	resRand   *rand.Rand
 	reserveMu sync.Mutex
@@ -73,12 +82,42 @@ type StoreManager struct {
 }
 
 func (m *StoreManager) GetInstance(ctx context.Context, name string) (Store, error) {
-	store, ok := m.stores[name]
+	idx, ok := m.storeIdxes[name]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrObjectStoreInstanceNotFound, name)
 	}
 
-	return store, nil
+	return m.stores[idx], nil
+}
+
+func (m *StoreManager) ListInstances(ctx context.Context) ([]StoreInfo, error) {
+	infos := make([]StoreInfo, 0, len(m.stores))
+	err := m.modifyReserved(ctx, func(summary *StoreReserveSummary) (bool, error) {
+		for _, store := range m.stores {
+			insName := store.Instance(ctx)
+			insInfo, err := store.InstanceInfo(ctx)
+			if err != nil {
+				mgrLog.Errorf("get instance info for %s: %s", insName, err)
+				continue
+			}
+
+			reserved, ok := summary.Stats[insName]
+			if !ok {
+				reserved = emptyStoreReserveStat()
+			}
+
+			infos = append(infos, StoreInfo{
+				Instance: insInfo,
+				Reserved: *reserved,
+			})
+		}
+		return false, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get reserved info: %w", err)
+	}
+
+	return infos, nil
 }
 
 type storeCandidate struct {
@@ -101,9 +140,10 @@ func (m *StoreManager) ReserveSpace(ctx context.Context, by string, size uint64,
 	err := m.modifyReserved(ctx, func(summary *StoreReserveSummary) (bool, error) {
 		changed := false
 		candStores := make([]weightedrand.Choice, 0, len(m.stores))
-		for insName := range m.stores {
+		for si := range m.stores {
+			st := m.stores[si]
+			insName := st.Instance(ctx)
 			if len(cand) == 0 || cand[insName] {
-				st := m.stores[insName]
 				info, err := st.InstanceInfo(ctx)
 				if err != nil {
 					rlog.Errorf("get instance info for %s: %s", insName, err)

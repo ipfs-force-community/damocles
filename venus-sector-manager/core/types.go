@@ -6,6 +6,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/builtin/v8/miner"
 	"github.com/filecoin-project/go-state-types/dline"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs/go-cid"
 )
 
@@ -287,3 +288,22 @@ type SectorAccessStores struct {
 	SealedFile string
 	CacheDir   string
 }
+
+type StoreBasicInfo struct {
+	Name string
+	Path string
+	Meta map[string]string
+}
+
+type StoreDetailedInfo struct {
+	StoreBasicInfo
+	Type        string
+	Total       uint64
+	Free        uint64
+	Used        uint64
+	UsedPercent float64
+	Reserved    uint64
+	ReservedBy  []ReservedItem
+}
+
+type ReservedItem = objstore.StoreReserved
