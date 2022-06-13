@@ -81,6 +81,7 @@ pub enum TopologyType {
     Die,
 }
 
+/// Represents the type of a topology Node.
 pub struct TopologyNode {
     pub logical_index: u32,
     pub children: Vec<TopologyNode>,
@@ -128,6 +129,7 @@ fn load_recursive(parent: &TopologyObject) -> Vec<TopologyNode> {
         .collect()
 }
 
+/// Unsupport Error
 pub struct Unsupport;
 
 impl TryFrom<&TopologyObject> for TopologyType {

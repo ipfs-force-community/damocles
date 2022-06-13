@@ -1,6 +1,6 @@
 use sysinfo::{RefreshKind, System, SystemExt};
 
-/// The memory infomation
+/// Information about the Memory
 pub struct Mem {
     /// The RAM size in bytes.
     pub total_mem: u64,

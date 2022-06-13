@@ -10,12 +10,14 @@ pub enum Vendor {
     Nvidia,
 }
 
+/// Information about the GPU
 pub struct GPUInfo {
     pub name: String,
     pub vendor: Vendor,
     pub memory: u64,
 }
 
+/// Load GPU infomation
 pub fn load() -> Vec<GPUInfo> {
     Device::all()
         .iter()

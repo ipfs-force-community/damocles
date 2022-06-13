@@ -10,6 +10,7 @@ pub enum DiskType {
     SSD,
 }
 
+/// Information about the disk
 pub struct Disk {
     pub disk_type: DiskType,
     pub device_name: String,
