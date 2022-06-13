@@ -11,7 +11,7 @@ pub enum Level {
     // failed for a couple of times after retrying
     Permanent,
 
-    // the whole sealing task shoud be abortted
+    // the whole sealing task should be abortted
     Abort,
 
     // the worker should be paused

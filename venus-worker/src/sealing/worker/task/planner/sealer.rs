@@ -231,7 +231,7 @@ impl<'c, 't> Sealer<'c, 't> {
         let sector_size = proof_type.sector_size();
         let mut pieces = Vec::new();
 
-        // acquired peices
+        // acquired pieces
         if let Some(deals) = self.task.sector.deals.as_ref() {
             pieces = common::add_pieces(self.task, seal_proof_type, &mut staged_file, deals)?;
         }

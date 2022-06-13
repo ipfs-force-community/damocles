@@ -243,7 +243,7 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 	if onFinalize != nil {
 		should, err := onFinalize(&state)
 		if err != nil {
-			return fmt.Errorf("callback falied before finalize: %w", err)
+			return fmt.Errorf("callback failed before finalize: %w", err)
 		}
 
 		if !should {
@@ -276,7 +276,7 @@ func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore
 	if onRestore != nil {
 		should, err := onRestore(&state)
 		if err != nil {
-			return fmt.Errorf("callback falied before restore: %w", err)
+			return fmt.Errorf("callback failed before restore: %w", err)
 		}
 
 		if !should {

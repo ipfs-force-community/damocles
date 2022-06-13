@@ -1,4 +1,4 @@
-//! This demo shows how to implment an ext consumer for some specific `Task`.
+//! This demo shows how to implement an ext consumer for some specific `Task`.
 //!
 //! You can run the compiled binary, enter something like `{"id": 1, "task": 15}` to the input,
 //! and then see the result from stdout.

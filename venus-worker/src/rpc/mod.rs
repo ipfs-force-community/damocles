@@ -1,4 +1,4 @@
-//! rpc definitions & client implementaions
+//! rpc definitions & client implementations
 
 pub mod sealer;
 pub mod worker;

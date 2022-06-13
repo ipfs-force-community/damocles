@@ -1,4 +1,4 @@
-//! This demo shows how to implment a pair of producer and consumer for some specific `Task`,
+//! This demo shows how to implement a pair of producer and consumer for some specific `Task`,
 //! and make the producer act as a `Processor`.
 //!
 //! You can run the compiled binary, enter numbers one line each, and see the results.
@@ -115,7 +115,7 @@ fn run_main() -> Result<()> {
             .as_str()
             .trim()
             .parse()
-            .with_context(|| format!("number requried, got {:?}", line_buf))?;
+            .with_context(|| format!("number required, got {:?}", line_buf))?;
         info!(num, "read in");
 
         match producer.process(Num(num)) {

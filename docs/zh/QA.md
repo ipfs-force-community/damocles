@@ -93,7 +93,7 @@ export RUSTFLAGS="-C target-cpu=native"
 
    1. 这个外部处理器自身的处理能力设定
 
-      这一块目前主要是 `conncurrent` 配置项
+      这一块目前主要是 `concurrent` 配置项
 
    2. 这个外部处理器和其他外部处理器的协调情况
 

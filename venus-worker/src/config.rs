@@ -245,7 +245,7 @@ pub struct Config {
     /// section for attached store
     pub attached: Option<Vec<Attached>>,
 
-    /// sectin for selection policy
+    /// section for selection policy
     pub attached_selection: Option<AttachedSelectionConfig>,
 
     /// section for processors

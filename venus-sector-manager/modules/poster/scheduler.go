@@ -720,7 +720,7 @@ func (s *scheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedP
 
 		case res := <-resCh:
 			if res.err != nil {
-				wlog.Errorf("wait for message result falied: %s", res.err)
+				wlog.Errorf("wait for message result failed: %s", res.err)
 				return
 			}
 

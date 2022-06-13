@@ -13,7 +13,7 @@ extern "C" {
     fn numa_max_node() -> c_int;
 }
 
-/// set numa policy to preferred for currrent process
+/// set numa policy to preferred for current process
 pub fn set_preferred(node: c_int) {
     unsafe {
         if numa_available() < 0 {

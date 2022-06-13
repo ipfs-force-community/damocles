@@ -1,4 +1,4 @@
-//! Built-in taks.
+//! Built-in tasks.
 //!
 
 use std::path::PathBuf;
