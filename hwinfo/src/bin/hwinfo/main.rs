@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Ok, Result};
+use anyhow::{Context, Result};
 use hwinfo::{byte_string, cpu, disk, gpu, mem};
 use term_table::{
     row::Row,
@@ -39,7 +39,7 @@ fn render_cpu() -> Result<()> {
         }
     }
 
-    let machine = cpu::load().ok_or_else(|| anyhow!("Can not load cpu information"))?;
+    let machine = cpu::load().context("Can not load cpu information")?;
     println!("{}", machine);
     walk(&machine, "");
     Ok(())
