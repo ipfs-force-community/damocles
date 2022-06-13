@@ -56,20 +56,29 @@ fn render_disk() {
         TableCell::new_with_alignment("Space", 1, Alignment::Center),
     ]));
 
-    for disk in &disks {
-        let used_bytes = disk.total_space - disk.available_space;
-        table.add_row(Row::new(vec![
-            TableCell::new(disk.disk_type.as_ref()),
-            TableCell::new(&disk.device_name),
-            TableCell::new(&disk.filesystem),
-            TableCell::new(format!(
-                "{} / {} ({:.2}% used)",
-                byte_string(used_bytes, 2),
-                byte_string(disk.total_space, 2),
-                (used_bytes as f32 / disk.total_space as f32 * 100.0)
-            )),
-        ]))
+    if disks.is_empty() {
+        table.add_row(Row::new(vec![TableCell::new_with_alignment(
+            "No Disk device detected",
+            4,
+            Alignment::Center,
+        )]));
+    } else {
+        for disk in &disks {
+            let used_bytes = disk.total_space - disk.available_space;
+            table.add_row(Row::new(vec![
+                TableCell::new(disk.disk_type.as_ref()),
+                TableCell::new(&disk.device_name),
+                TableCell::new(&disk.filesystem),
+                TableCell::new(format!(
+                    "{} / {} ({:.2}% used)",
+                    byte_string(used_bytes, 2),
+                    byte_string(disk.total_space, 2),
+                    (used_bytes as f32 / disk.total_space as f32 * 100.0)
+                )),
+            ]))
+        }
     }
+
     println!("{}", table.render());
 }
 
