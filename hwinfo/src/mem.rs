@@ -12,7 +12,7 @@ pub struct Mem {
     pub used_swap: u64,
 }
 
-/// Load memory infomation
+/// Load memory information
 pub fn load() -> Mem {
     let sys = System::new_with_specifics(RefreshKind::new().with_memory());
     Mem {

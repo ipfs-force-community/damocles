@@ -17,7 +17,7 @@ pub struct GPUInfo {
     pub memory: u64,
 }
 
-/// Load GPU infomation
+/// Load GPU information
 pub fn load() -> Vec<GPUInfo> {
     Device::all()
         .iter()

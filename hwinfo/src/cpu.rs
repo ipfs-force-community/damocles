@@ -136,11 +136,11 @@ fn load_recursive(parent: &TopologyObject) -> Vec<TopologyNode> {
         .collect()
 }
 
-/// Unsupport Error
-pub struct Unsupport;
+/// Unsupported Error
+pub struct Unsupported;
 
 impl TryFrom<&TopologyObject> for TopologyType {
-    type Error = Unsupport;
+    type Error = Unsupported;
 
     fn try_from(hwloc2_topo_obj: &TopologyObject) -> Result<Self, Self::Error> {
         let get_cache_size = || {
@@ -181,7 +181,7 @@ impl TryFrom<&TopologyObject> for TopologyType {
             ObjectType::Memcache => TopologyType::Memcache,
             ObjectType::Die => TopologyType::Die,
 
-            _ => return Err(Unsupport),
+            _ => return Err(Unsupported),
         })
     }
 }

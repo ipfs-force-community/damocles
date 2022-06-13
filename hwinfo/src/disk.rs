@@ -20,7 +20,7 @@ pub struct Disk {
     pub is_removable: bool,
 }
 
-/// load disks infomation
+/// load disks information
 pub fn load() -> Vec<Disk> {
     let sys = System::new_with_specifics(RefreshKind::new().with_disks_list());
     sys.disks()
