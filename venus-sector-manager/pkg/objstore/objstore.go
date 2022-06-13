@@ -37,6 +37,7 @@ type InstanceInfo struct {
 	Used        uint64
 	UsedPercent float64
 	ReadOnly    bool
+	Meta        map[string]string
 }
 
 type Store interface {

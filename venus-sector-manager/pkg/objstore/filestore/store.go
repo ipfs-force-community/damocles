@@ -31,6 +31,7 @@ func DefaultConfig(path string, readonly bool) Config {
 	return Config{
 		Path:     path,
 		ReadOnly: readonly,
+		Meta:     map[string]string{},
 	}
 }
 
@@ -39,6 +40,7 @@ type Config struct {
 	Path     string
 	Strict   bool
 	ReadOnly bool
+	Meta     map[string]string
 }
 
 func OpenStores(cfgs []Config) ([]objstore.Store, error) {
@@ -204,6 +206,7 @@ func (s *Store) InstanceInfo(ctx context.Context) (objstore.InstanceInfo, error)
 		Used:        usage.Used,
 		UsedPercent: usage.UsedPercent,
 		ReadOnly:    s.cfg.ReadOnly,
+		Meta:        s.cfg.Meta,
 	}, nil
 }
 
