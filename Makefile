@@ -1,6 +1,6 @@
-all: build-smgr build-worker build-hwinfo
+all: build-smgr build-worker build-worker-util
 
-check-all: check-smgr check-worker check-hwinfo check-git
+check-all: check-smgr check-worker check-worker-util check-git
 
 test-smgr:
 	$(MAKE) -C ./venus-sector-manager/ test-all
@@ -26,13 +26,13 @@ build-worker:
 check-worker:
 	$(MAKE) -C ./venus-worker/ check-all
 
-build-hwinfo:
+build-worker-util:
 	mkdir -p ./dist/bin/
 	rm -rf ./dist/bin/hwinfo
 	$(MAKE) -C ./hwinfo/ build-all
 	cp $(shell cargo metadata --format-version=1 --manifest-path=./hwinfo/Cargo.toml | jq -r ".target_directory")/release/hwinfo ./dist/bin/
 
-check-hwinfo:
+check-worker-util:
 	$(MAKE) -C ./hwinfo/ check-all
 
 check-git:
