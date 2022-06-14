@@ -33,13 +33,7 @@ impl AttachedManager {
     pub fn available_instances(&self) -> Vec<String> {
         self.stores
             .values()
-            .filter_map(|st| {
-                if st.readonly() {
-                    None
-                } else {
-                    Some(st.instance())
-                }
-            })
+            .filter_map(|st| if st.readonly() { None } else { Some(st.instance()) })
             .collect()
     }
 }

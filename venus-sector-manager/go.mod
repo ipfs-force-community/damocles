@@ -31,11 +31,11 @@ require (
 	github.com/jbenet/go-random v0.0.0-20190219211222-123a90aedc0c
 	github.com/libp2p/go-libp2p-core v0.15.1
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/mroth/weightedrand v0.4.1 // indirect
+	github.com/mroth/weightedrand v0.4.1
 	github.com/multiformats/go-multiaddr v0.5.0
 	github.com/multiformats/go-multihash v0.1.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/shirou/gopsutil/v3 v3.22.5 // indirect
+	github.com/shirou/gopsutil/v3 v3.22.5
 	github.com/stretchr/testify v1.7.1
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/whyrusleeping/cbor-gen v0.0.0-20220323183124-98fa8256a799
@@ -196,7 +196,6 @@ require (
 	github.com/filecoin-project/specs-actors/v8 v8.0.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	go.uber.org/zap v1.19.1
-	golang.org/x/crypto v0.0.0-20211209193657-4570a0811e8b // indirect
 	golang.org/x/mod v0.5.0 // indirect
 	golang.org/x/tools v0.1.7 // indirect
 )
