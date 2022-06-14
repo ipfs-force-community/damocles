@@ -32,7 +32,7 @@ pub fn load() -> Vec<Disk> {
                     sysinfo::DiskType::SSD => DiskType::SSD,
                     sysinfo::DiskType::Unknown(_) => return None,
                 },
-                device_name: disk.name().to_string_lossy().to_string(),
+                device_name: disk.name().to_string_lossy().trim().to_string(),
                 filesystem: String::from_utf8_lossy(disk.file_system()).to_string(),
                 total_space: disk.total_space(),
                 available_space: disk.available_space(),

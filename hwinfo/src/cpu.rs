@@ -173,7 +173,7 @@ impl TryFrom<&TopologyObject> for TopologyType {
                 .infos()
                 .iter()
                 .find(|info| info.name().to_str() == Ok(key))
-                .map(|info| info.value().to_string_lossy().to_string())
+                .map(|info| info.value().to_string_lossy().trim().to_string())
         };
         Ok(match hwloc2_topo_obj.object_type() {
             ObjectType::Machine => TopologyType::Machine {
