@@ -73,7 +73,11 @@ fn render_disk() {
                     "{} / {} ({:.2}% used)",
                     byte_string(used_bytes, 2),
                     byte_string(disk.total_space, 2),
-                    (used_bytes as f32 / disk.total_space as f32 * 100.0)
+                    if disk.total_space == 0 {
+                        0.0
+                    } else {
+                        used_bytes as f32 / disk.total_space as f32 * 100.0
+                    }
                 )),
             ]))
         }
@@ -102,7 +106,7 @@ fn render_gpu() {
             table.add_row(Row::new(vec![
                 TableCell::new(gpu_info.name),
                 TableCell::new(gpu_info.vendor.as_ref()),
-                TableCell::new(format!("{:.2}%", byte_string(gpu_info.memory, 2))),
+                TableCell::new(format!("{}%", byte_string(gpu_info.memory, 2))),
             ]));
         }
     }
@@ -132,7 +136,11 @@ fn render_mem() {
         TableCell::new(format!(
             "{} ({:.2}%)",
             byte_string(mem_info.used_swap, 2),
-            (mem_info.used_swap as f32 / mem_info.total_swap as f32) * 100.0
+            if mem_info.total_swap == 0 {
+                0.0
+            } else {
+                mem_info.used_swap as f32 / mem_info.total_swap as f32 * 100.0
+            }
         )),
     ]));
     println!("{}", table.render());
