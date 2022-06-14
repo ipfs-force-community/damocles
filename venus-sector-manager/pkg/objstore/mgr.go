@@ -25,10 +25,9 @@ type StoreReserveSummary struct {
 	Stats map[string]*StoreReserveStat
 }
 
-func emptyStoreReserveStat() *StoreReserveStat {
-	return &StoreReserveStat{
-		ReservedSize: 0,
-		Reserved:     map[string]StoreReserved{},
+func emptyStoreReserveSummary() StoreReserveSummary {
+	return StoreReserveSummary{
+		Stats: map[string]*StoreReserveStat{},
 	}
 }
 
@@ -36,6 +35,13 @@ type StoreReserveStat struct {
 	ReservedSize uint64
 
 	Reserved map[string]StoreReserved
+}
+
+func emptyStoreReserveStat() *StoreReserveStat {
+	return &StoreReserveStat{
+		ReservedSize: 0,
+		Reserved:     map[string]StoreReserved{},
+	}
 }
 
 type StoreReserved struct {
@@ -241,6 +247,7 @@ func (m *StoreManager) ReleaseReserved(ctx context.Context, by string) (bool, er
 				}
 				delete(stat.Reserved, by)
 				changed = true
+				released = true
 			}
 		}
 
@@ -267,6 +274,8 @@ func (m *StoreManager) modifyReserved(ctx context.Context, modifier func(*StoreR
 		if !errors.Is(err, kvstore.ErrKeyNotFound) {
 			return fmt.Errorf("view store reserve summary: %w", err)
 		}
+
+		summary = emptyStoreReserveSummary()
 	}
 
 	changed, err := modifier(&summary)
