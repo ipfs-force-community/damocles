@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use clap::{Arg, ArgAction, Command};
 use hwinfo::{byte_string, cpu, disk, gpu, mem};
 use term_table::{
     row::Row,
@@ -7,8 +8,25 @@ use term_table::{
 };
 
 fn main() -> Result<()> {
+    let ver_string = format!(
+        "v{}-{}",
+        env!("CARGO_PKG_VERSION"),
+        option_env!("GIT_COMMIT").unwrap_or("dev")
+    );
+
+    let matches = Command::new("hwinfo")
+        .version(ver_string.as_str())
+        .about("Show hardware information")
+        .arg(
+            Arg::new("full")
+                .long("full")
+                .help("Show full CPU topology")
+                .action(ArgAction::SetTrue),
+        )
+        .get_matches();
+
     println!("CPU topology:");
-    render_cpu()?;
+    render_cpu(*matches.get_one::<bool>("full").unwrap_or(&false))?;
     println!();
     println!("Disks:");
     render_disk();
@@ -21,27 +39,65 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn render_cpu() -> Result<()> {
-    fn walk(parent: &cpu::TopologyNode, prefix: &str) {
+fn render_cpu(full: bool) -> Result<()> {
+    fn find_subnode(
+        parent: &cpu::TopologyNode,
+        filter_fn: fn(&cpu::TopologyNode) -> bool,
+    ) -> Vec<&cpu::TopologyNode> {
+        let mut s = Vec::new();
+        for child_topo_node in &parent.children {
+            if filter_fn(child_topo_node) {
+                s.push(child_topo_node)
+            }
+
+            s.extend(find_subnode(child_topo_node, filter_fn));
+        }
+        s
+    }
+
+    fn short(nodes: Vec<&cpu::TopologyNode>) -> String {
+        match nodes.as_slice() {
+            [first] => first.to_string(),
+            [first, last] => format!("{} + {}", first, last),
+            [first, .., last] => {
+                format!("{} + ... + {}", first, last)
+            }
+            _ => "".to_string(),
+        }
+    }
+
+    fn walk(parent: &cpu::TopologyNode, prefix: &str, full: bool) {
+        if matches!(parent.ty, cpu::TopologyType::Cache { .. }) && !full {
+            // output short view
+            println!(
+                "{}└── {}",
+                prefix,
+                short(find_subnode(parent, |topo| matches!(
+                    topo.ty,
+                    cpu::TopologyType::PU
+                )))
+            );
+            return;
+        }
+
         let mut index = parent.children.len();
 
         for child_topo_node in &parent.children {
             let info = child_topo_node.to_string();
             index -= 1;
-
             if index == 0 {
                 println!("{}└── {}", prefix, info);
-                walk(child_topo_node, &format!("{}    ", prefix));
+                walk(child_topo_node, &format!("{}    ", prefix), full);
             } else {
                 println!("{}├── {}", prefix, info);
-                walk(child_topo_node, &format!("{}│   ", prefix));
+                walk(child_topo_node, &format!("{}│   ", prefix), full);
             }
         }
     }
 
     let machine = cpu::load().context("Can not load cpu information")?;
     println!("{}", machine);
-    walk(&machine, "");
+    walk(&machine, "", full);
     Ok(())
 }
 
