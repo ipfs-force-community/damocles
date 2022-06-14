@@ -80,12 +80,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     info!("{} stores attached, {} writable", attached.len(), attached_writable);
 
-    let enable_space_weighted = cfg
-        .attached_selection
-        .as_ref()
-        .and_then(|c| c.enable_space_weighted.as_ref().cloned())
-        .unwrap_or(false);
-    let attached_mgr = AttachedManager::init(enable_space_weighted, attached).context("init attached manager")?;
+    let attached_mgr = AttachedManager::init(attached).context("init attached manager")?;
 
     let store_mgr = StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
 

@@ -185,9 +185,13 @@ func (s *Sealer) StoreReserveSpace(ctx context.Context, sid abi.SectorID, size u
 	}
 
 	selected := rand.Intn(len(candidates))
+	selectedName := candidates[selected]
+
+	log.Warnw("store for reserved space", "selected", selectedName)
+
 	return &core.StoreBasicInfo{
-		Name: candidates[selected],
-		Path: "",
+		Name: selectedName,
+		Path: selectedName,
 		Meta: map[string]string{},
 	}, nil
 }
