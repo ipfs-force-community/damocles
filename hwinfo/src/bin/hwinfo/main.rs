@@ -162,7 +162,7 @@ fn render_gpu() {
             table.add_row(Row::new(vec![
                 TableCell::new(gpu_info.name),
                 TableCell::new(gpu_info.vendor.as_ref()),
-                TableCell::new(format!("{}%", byte_string(gpu_info.memory, 2))),
+                TableCell::new(format!("{}", byte_string(gpu_info.memory, 2))),
             ]));
         }
     }
