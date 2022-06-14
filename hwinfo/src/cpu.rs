@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use hwloc2::{ObjectType, Topology, TopologyObject};
+use hwloc2::{ObjectType, Topology, TopologyObject, TopologyObjectInfo};
 use strum::AsRefStr;
 
 use crate::byte_string;
@@ -35,9 +35,15 @@ pub enum CacheType {
 pub enum TopologyType {
     /// The typical root object type. A set of processors and memory with cache
     /// coherency.
-    Machine,
+    Machine {
+        cpu_model: Option<String>,
+        total_memory: u64,
+    },
     /// Physical package, what goes into a socket. In the physical meaning,
-    Package { total_memory: u64 },
+    Package {
+        cpu_model: Option<String>,
+        total_memory: u64,
+    },
     /// A computation unit (may be shared by several logical processors).
     Core,
     /// Processing Unit, or (Logical) Processor.
@@ -96,11 +102,26 @@ impl Display for TopologyNode {
                 cache_type.as_ref(),
                 byte_string(*size, 0),
             )),
-            TopologyType::Package { total_memory } => f.write_fmt(format_args!(
-                "{} (total memory: {})",
-                self.ty.as_ref(),
-                byte_string(*total_memory, 2),
-            )),
+            TopologyType::Machine {
+                cpu_model,
+                total_memory,
+            }
+            | TopologyType::Package {
+                cpu_model,
+                total_memory,
+            } => match cpu_model {
+                Some(m) => f.write_fmt(format_args!(
+                    "{} (total memory: {}) ({})",
+                    self.ty.as_ref(),
+                    byte_string(*total_memory, 2),
+                    m
+                )),
+                None => f.write_fmt(format_args!(
+                    "{} (total memory: {})",
+                    self.ty.as_ref(),
+                    byte_string(*total_memory, 2)
+                )),
+            },
             _ => f.write_fmt(format_args!("{} #{}", self.ty.as_ref(), self.logical_index)),
         }
     }
@@ -109,9 +130,7 @@ impl Display for TopologyNode {
 /// load CPU Topology
 pub fn load() -> Option<TopologyNode> {
     let topo = Topology::new()?;
-
     let root_obj = topo.object_at_root();
-
     Some(TopologyNode {
         logical_index: root_obj.logical_index(),
         children: load_recursive(root_obj),
@@ -149,9 +168,20 @@ impl TryFrom<&TopologyObject> for TopologyType {
                 .map(|attr| attr.size())
                 .unwrap_or(0)
         };
+        let find_info_value = |key| {
+            hwloc2_topo_obj
+                .infos()
+                .iter()
+                .find(|info| info.name().to_str() == Ok(key))
+                .map(|info| info.value().to_string_lossy().to_string())
+        };
         Ok(match hwloc2_topo_obj.object_type() {
-            ObjectType::Machine => TopologyType::Machine,
+            ObjectType::Machine => TopologyType::Machine {
+                cpu_model: find_info_value(TopologyObjectInfo::NAME_OF_CPU_MODEL),
+                total_memory: hwloc2_topo_obj.total_memory(),
+            },
             ObjectType::Package => TopologyType::Package {
+                cpu_model: find_info_value(TopologyObjectInfo::NAME_OF_CPU_MODEL),
                 total_memory: hwloc2_topo_obj.total_memory(),
             },
             ObjectType::Core => TopologyType::Core,

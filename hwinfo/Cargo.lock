@@ -315,8 +315,7 @@ dependencies = [
 [[package]]
 name = "hwloc2"
 version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f2a4b6f52a58293f5a69375e8bedfc53b15e439f751d9d20a62689632fe348e"
+source = "git+https://github.com/ipfs-force-community/hwloc2-rs.git?rev=80b251c#80b251cf6927ee56daca9e676474103e7117479e"
 dependencies = [
  "bitflags",
  "errno",
