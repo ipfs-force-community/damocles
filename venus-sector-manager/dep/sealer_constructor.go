@@ -462,7 +462,14 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	pieceStoreCfg := scfg.Common.PieceStores
 	scfg.Unlock()
 
-	locals, err := filestore.OpenStores(pieceStoreCfg)
+	fullCfgs := make([]objstore.Config, len(pieceStoreCfg))
+	for pi := range pieceStoreCfg {
+		full := pieceStoreCfg[pi].ToConfig()
+		full.ReadOnly = true
+		fullCfgs[pi] = full
+	}
+
+	locals, err := filestore.OpenStores(fullCfgs)
 	if err != nil {
 		return MarketAPIRelatedComponets{}, fmt.Errorf("open local piece stores: %w", err)
 	}

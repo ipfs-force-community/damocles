@@ -79,25 +79,26 @@ func defaultCommonAPIConfig(example bool) CommonAPIConfig {
 
 type CommonConfig struct {
 	API           CommonAPIConfig
-	PieceStores   []objstore.Config
+	PieceStores   []objstore.CompactConfig
 	PersistStores []objstore.Config
 }
 
 func exampleFilestoreConfig() objstore.Config {
 	cfg := objstore.DefaultConfig("{store_path}", false)
 	cfg.Name = "{store_name}"
+	cfg.Meta["SomeKey"] = "SomeValue"
 	return cfg
 }
 
 func defaultCommonConfig(example bool) CommonConfig {
 	cfg := CommonConfig{
 		API:           defaultCommonAPIConfig(example),
-		PieceStores:   []objstore.Config{},
+		PieceStores:   []objstore.CompactConfig{},
 		PersistStores: []objstore.Config{},
 	}
 
 	if example {
-		cfg.PieceStores = append(cfg.PieceStores, exampleFilestoreConfig())
+		cfg.PieceStores = append(cfg.PieceStores, exampleFilestoreConfig().CompactConfig)
 		cfg.PersistStores = append(cfg.PersistStores, exampleFilestoreConfig())
 	}
 
