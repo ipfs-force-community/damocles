@@ -28,17 +28,23 @@ func TestStoreManagerReserverSpace(t *testing.T) {
 	storeNameReadOnly := "store-readonly"
 
 	store4K, err := NewMockStore(Config{
-		Name: storeName4K,
+		CompactConfig: CompactConfig{
+			Name: storeName4K,
+		},
 	}, 4<<10)
 	require.NoError(t, err, "construct store-4K")
 
 	store1M, err := NewMockStore(Config{
-		Name: storeName1M,
+		CompactConfig: CompactConfig{
+			Name: storeName1M,
+		},
 	}, 1<<20)
 	require.NoError(t, err, "construct store-1M")
 
 	storeRO, err := NewMockStore(Config{
-		Name:     storeNameReadOnly,
+		CompactConfig: CompactConfig{
+			Name: storeNameReadOnly,
+		},
 		ReadOnly: true,
 	}, 1<<30)
 	require.NoError(t, err, "construct store-RO")
@@ -181,19 +187,25 @@ func TestStoreManagerReserverSpaceWeighed(t *testing.T) {
 	storeNameReadOnly := "store-readonly"
 
 	store1, err := NewMockStore(Config{
-		Name:   storeName1,
+		CompactConfig: CompactConfig{
+			Name: storeName1,
+		},
 		Weight: 1,
 	}, 1<<20)
 	require.NoError(t, err, "construct store-1")
 
 	store1K, err := NewMockStore(Config{
-		Name:   storeName1K,
+		CompactConfig: CompactConfig{
+			Name: storeName1K,
+		},
 		Weight: 1000,
 	}, 1<<20)
 	require.NoError(t, err, "construct store-1K")
 
 	storeRO, err := NewMockStore(Config{
-		Name:     storeNameReadOnly,
+		CompactConfig: CompactConfig{
+			Name: storeNameReadOnly,
+		},
 		ReadOnly: true,
 	}, 1<<30)
 	require.NoError(t, err, "construct store-RO")

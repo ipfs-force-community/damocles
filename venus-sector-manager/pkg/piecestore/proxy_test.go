@@ -23,12 +23,10 @@ import (
 
 func setupStoreProxy(t *testing.T, resourceEndPoint string) *Proxy {
 	sts, err := filestore.OpenStores([]objstore.Config{
-		{
-			Name:     "mock test",
-			Path:     os.TempDir(),
-			Strict:   false,
-			ReadOnly: false,
-		},
+		objstore.CompactConfig{
+			Name: "mock test",
+			Path: os.TempDir(),
+		}.ToConfig(),
 	})
 
 	require.NoError(t, err, "open mock store")
