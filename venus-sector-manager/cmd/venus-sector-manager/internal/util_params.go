@@ -26,13 +26,14 @@ var utilFetchParamCmd = &cli.Command{
 		}
 		sectorSize := uint64(sectorSizeInt)
 
-		ps, err := asset.Asset("fixtures/_assets/proof-params/parameters.json")
+		ps, err := assets.GetProofParams()
 		if err != nil {
-			return err
+			return fmt.Errorf("get content of proof-params: %w", err)
 		}
-		srs, err := asset.Asset("fixtures/_assets/proof-params/srs-inner-product.json")
+
+		srs, err := assets.GetSrs()
 		if err != nil {
-			return err
+			return fmt.Errorf("get content of srs: %w", err)
 		}
 
 		err = paramfetch.GetParams(cctx.Context, ps, srs, sectorSize)
