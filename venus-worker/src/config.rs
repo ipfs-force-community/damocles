@@ -219,11 +219,6 @@ pub struct SectorManagerConfig {
     pub piece_token: Option<String>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct AttachedSelectionConfig {
-    pub enable_space_weighted: Option<bool>,
-}
-
 /// global configuration
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -244,9 +239,6 @@ pub struct Config {
 
     /// section for attached store
     pub attached: Option<Vec<Attached>>,
-
-    /// section for selection policy
-    pub attached_selection: Option<AttachedSelectionConfig>,
 
     /// section for processors
     pub processors: Processors,
@@ -300,9 +292,9 @@ impl Config {
             .unwrap_or(LOCAL_HOST);
 
         let port = self.worker_server_listen_port();
-        let addr = format!("{}:{}", host, port)
-            .parse()
-            .with_context(|| format!("parse connect address with host: {}, port: {}", host, port))?;
+        let addr = format!("{}:{}", host, port).parse().with_context(|| {
+            format!("parse connect address with host: {}, port: {}", host, port)
+        })?;
         Ok(addr)
     }
 
