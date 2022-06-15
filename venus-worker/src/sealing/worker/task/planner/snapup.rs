@@ -214,7 +214,7 @@ impl<'c, 't> SnapUp<'c, 't> {
         .context("link prepared tree_d")
         .crit()?;
 
-        // staged file shoud be already exists, do nothing
+        // staged file should be already exists, do nothing
         let staged_file = self.task.staged_file(sector_id);
 
         let snap_encode_out = self

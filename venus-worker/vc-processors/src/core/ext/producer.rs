@@ -287,7 +287,7 @@ where
             return Err(e);
         }
 
-        let mut output = output_rx.recv().map_err(|_| anyhow!("output channnel broken"))?;
+        let mut output = output_rx.recv().map_err(|_| anyhow!("output channel broken"))?;
         if let Some(err_msg) = output.err_msg.take() {
             return Err(anyhow!(err_msg));
         }
