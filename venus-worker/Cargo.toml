@@ -38,12 +38,12 @@ nix = "0.23"
 time = "0.3"
 
 [dependencies.filecoin-proofs-api]
-version = "11"
+version = "11.1"
 default-features = false
 features = ["opencl", "multicore-sdr"]
 
 [dependencies.filecoin-proofs]
-version = "11.0.2"
+version = "11.1"
 default-features = false
 features = ["opencl", "multicore-sdr"]
 
