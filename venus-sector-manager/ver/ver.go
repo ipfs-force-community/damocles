@@ -1,5 +1,5 @@
 package ver
 
-const Version = "0.4.0-nv15"
+const Version = "0.4.0-beta1"
 
 var Commit string
