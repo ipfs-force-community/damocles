@@ -119,7 +119,7 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
 
     let candidates = task.ctx.global.attached.available_instances();
     if candidates.is_empty() {
-        return Err(anyhow!("no availabe local persist store candidate")).perm();
+        return Err(anyhow!("no available local persist store candidate")).perm();
     }
 
     let ins_info = loop {

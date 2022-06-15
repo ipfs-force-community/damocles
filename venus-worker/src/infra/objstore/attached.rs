@@ -29,7 +29,7 @@ impl AttachedManager {
         self.stores.get(instance).map(|b| b.as_ref())
     }
 
-    /// get all availabe store instance names
+    /// get all available store instance names
     pub fn available_instances(&self) -> Vec<String> {
         self.stores
             .values()
