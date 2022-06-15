@@ -292,9 +292,9 @@ impl Config {
             .unwrap_or(LOCAL_HOST);
 
         let port = self.worker_server_listen_port();
-        let addr = format!("{}:{}", host, port).parse().with_context(|| {
-            format!("parse connect address with host: {}, port: {}", host, port)
-        })?;
+        let addr = format!("{}:{}", host, port)
+            .parse()
+            .with_context(|| format!("parse connect address with host: {}, port: {}", host, port))?;
         Ok(addr)
     }
 
