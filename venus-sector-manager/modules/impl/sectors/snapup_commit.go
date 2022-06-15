@@ -11,6 +11,8 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/go-state-types/builtin"
+	stminer "github.com/filecoin-project/go-state-types/builtin/v8/miner"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors/policy"
@@ -311,8 +313,8 @@ func (h *snapupCommitHandler) submitMessage() error {
 	}
 
 	enc := new(bytes.Buffer)
-	params := &miner.ProveReplicaUpdatesParams{
-		Updates: []miner.ReplicaUpdate{
+	params := &stminer.ProveReplicaUpdatesParams{
+		Updates: []stminer.ReplicaUpdate{
 			{
 				SectorID:           h.state.ID.Number,
 				Deadline:           sl.Deadline,
@@ -347,7 +349,7 @@ func (h *snapupCommitHandler) submitMessage() error {
 	msg := types.Message{
 		From:   mcfg.SnapUp.Sender.Std(),
 		To:     h.maddr,
-		Method: miner.Methods.ProveReplicaUpdates,
+		Method: builtin.MethodsMiner.ProveReplicaUpdates,
 		Params: enc.Bytes(),
 		Value:  msgValue,
 	}
@@ -398,7 +400,7 @@ func (h *snapupCommitHandler) calcCollateral(tsk types.TipSetKey, proofType abi.
 		return big.Int{}, fmt.Errorf("get seal proof type: %w", err)
 	}
 
-	virtualPCI := miner.SectorPreCommitInfo{
+	virtualPCI := stminer.SectorPreCommitInfo{
 		SealProof:    sealType,
 		SectorNumber: h.state.ID.Number,
 		SealedCID:    h.state.UpgradedInfo.SealedCID,

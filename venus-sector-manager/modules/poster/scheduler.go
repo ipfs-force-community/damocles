@@ -13,9 +13,10 @@ import (
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/hashicorp/go-multierror"
 
+	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
+	"github.com/filecoin-project/go-state-types/builtin/v8/miner"
 	"github.com/filecoin-project/venus/pkg/clock"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
-	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
@@ -427,7 +428,7 @@ func (s *scheduler) checkNextFaults(ctx context.Context, di *diPeriod, dlIdx uin
 
 	s.log.Errorw("DETECTED FAULTY SECTORS, declaring faults", "count", bad)
 
-	uid, waitCh, err := s.publishMessage(ctx, miner.Methods.DeclareFaults, params, di, true)
+	uid, waitCh, err := s.publishMessage(ctx, stbuiltin.MethodsMiner.DeclareFaults, params, di, true)
 	if err != nil {
 		return faults, err
 	}
@@ -501,7 +502,7 @@ func (s *scheduler) checkNextRecoveries(ctx context.Context, di *diPeriod, dlIdx
 		return recoveries, nil
 	}
 
-	_, resCh, err := s.publishMessage(ctx, miner.Methods.DeclareFaultsRecovered, params, di, true)
+	_, resCh, err := s.publishMessage(ctx, stbuiltin.MethodsMiner.DeclareFaultsRecovered, params, di, true)
 	if err != nil {
 		return recoveries, err
 	}
@@ -701,7 +702,7 @@ func (s *scheduler) runSubmitPoST(
 
 func (s *scheduler) submitPost(ctx context.Context, proof *miner.SubmitWindowedPoStParams) error {
 	// to avoid being cancelled by proving period detection, use context.Background here
-	uid, resCh, err := s.publishMessage(context.Background(), miner.Methods.SubmitWindowedPoSt, proof, nil, true)
+	uid, resCh, err := s.publishMessage(context.Background(), stbuiltin.MethodsMiner.SubmitWindowedPoSt, proof, nil, true)
 	if err != nil {
 		return fmt.Errorf("publish window post message: %w", err)
 	}

@@ -10,9 +10,10 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
+	miner0 "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
-	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -65,7 +66,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []c
 				deposit = big.Zero()
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, deposit, miner.Methods.PreCommitSector, p.msgClient, spec, enc.Bytes(), slog)
+			mcid, err := pushMessage(ctx, from, mid, deposit, stbuiltin.MethodsMiner.PreCommitSector, p.msgClient, spec, enc.Bytes(), slog)
 			if err != nil {
 				slog.Error("push pre-commit single failed: ", err)
 				return
@@ -121,7 +122,21 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	deposit := big.Zero()
 	if mcfg.Commitment.Pre.SendFund {
 		for i := range infos {
-			params.Sectors = append(params.Sectors, *infos[i].Pci)
+			pci := infos[i].Pci
+			// TODO: how to ensure the fields are matched here?
+			// for now, we can just rely on that miner0 won't change any more.
+			params.Sectors = append(params.Sectors, miner0.SectorPreCommitInfo{
+				SealProof:              pci.SealProof,
+				SectorNumber:           pci.SectorNumber,
+				SealedCID:              pci.SealedCID,
+				SealRandEpoch:          pci.SealRandEpoch,
+				DealIDs:                pci.DealIDs,
+				Expiration:             pci.Expiration,
+				ReplaceCapacity:        pci.ReplaceCapacity,
+				ReplaceSectorDeadline:  pci.ReplaceSectorDeadline,
+				ReplaceSectorPartition: pci.ReplaceSectorPartition,
+				ReplaceSectorNumber:    pci.ReplaceSectorNumber,
+			})
 			deposit = big.Add(deposit, infos[i].Deposit)
 		}
 	}
@@ -135,7 +150,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	spec.GasOverEstimation = mcfg.Commitment.Pre.Batch.GasOverEstimation
 	spec.MaxFeeCap = mcfg.Commitment.Pre.Batch.MaxFeeCap.Std()
 
-	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, miner.Methods.PreCommitSectorBatch,
+	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, stbuiltin.MethodsMiner.PreCommitSectorBatch,
 		p.msgClient, spec, enc.Bytes(), plog)
 	if err != nil {
 		return fmt.Errorf("push batch precommit message failed: %w", err)

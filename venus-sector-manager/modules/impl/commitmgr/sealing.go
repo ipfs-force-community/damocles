@@ -8,6 +8,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	stminer "github.com/filecoin-project/go-state-types/builtin/v8/miner"
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/ipfs/go-cid"
@@ -105,7 +106,7 @@ func (s SealingAPIImpl) StateComputeDataCommitment(ctx context.Context, maddr ad
 	return cid.Cid(cr.CommDs[0]), nil
 }
 
-func (s SealingAPIImpl) StateSectorPreCommitInfo(ctx context.Context, maddr address.Address, sectorNumber abi.SectorNumber, tok core.TipSetToken) (*miner.SectorPreCommitOnChainInfo, error) {
+func (s SealingAPIImpl) StateSectorPreCommitInfo(ctx context.Context, maddr address.Address, sectorNumber abi.SectorNumber, tok core.TipSetToken) (*stminer.SectorPreCommitOnChainInfo, error) {
 	tsk, err := types.TipSetKeyFromBytes(tok)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal TipSetToken to TipSetKey: %w", err)
@@ -157,7 +158,7 @@ func (s SealingAPIImpl) StateMinerSectorSize(ctx context.Context, maddr address.
 	return mi.SectorSize, nil
 }
 
-func (s SealingAPIImpl) StateMinerPreCommitDepositForPower(ctx context.Context, address address.Address, info miner.SectorPreCommitInfo, token core.TipSetToken) (big.Int, error) {
+func (s SealingAPIImpl) StateMinerPreCommitDepositForPower(ctx context.Context, address address.Address, info stminer.SectorPreCommitInfo, token core.TipSetToken) (big.Int, error) {
 	tsk, err := types.TipSetKeyFromBytes(token)
 	if err != nil {
 		return big.Zero(), fmt.Errorf("failed to unmarshal TipSetToken to TipSetKey: %w", err)
@@ -166,7 +167,7 @@ func (s SealingAPIImpl) StateMinerPreCommitDepositForPower(ctx context.Context, 
 	return s.api.StateMinerPreCommitDepositForPower(ctx, address, info, tsk)
 }
 
-func (s SealingAPIImpl) StateMinerInitialPledgeCollateral(ctx context.Context, address address.Address, info miner.SectorPreCommitInfo, token core.TipSetToken) (big.Int, error) {
+func (s SealingAPIImpl) StateMinerInitialPledgeCollateral(ctx context.Context, address address.Address, info stminer.SectorPreCommitInfo, token core.TipSetToken) (big.Int, error) {
 	tsk, err := types.TipSetKeyFromBytes(token)
 	if err != nil {
 		return big.Zero(), fmt.Errorf("failed to unmarshal TipSetToken to TipSetKey: %w", err)
@@ -189,10 +190,10 @@ func (s SealingAPIImpl) StateMarketStorageDealProposal(ctx context.Context, id a
 	return deal.Proposal, nil
 }
 
-func (s SealingAPIImpl) StateMinerInfo(ctx context.Context, address address.Address, token core.TipSetToken) (miner.MinerInfo, error) {
+func (s SealingAPIImpl) StateMinerInfo(ctx context.Context, address address.Address, token core.TipSetToken) (types.MinerInfo, error) {
 	tsk, err := types.TipSetKeyFromBytes(token)
 	if err != nil {
-		return miner.MinerInfo{}, fmt.Errorf("failed to unmarshal TipSetToken to TipSetKey: %w", err)
+		return types.MinerInfo{}, fmt.Errorf("failed to unmarshal TipSetToken to TipSetKey: %w", err)
 	}
 
 	// TODO: update storage-fsm to just StateMinerInfo

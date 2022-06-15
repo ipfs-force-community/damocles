@@ -12,7 +12,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
-	market7 "github.com/filecoin-project/specs-actors/v7/actors/builtin/market"
+	market8 "github.com/filecoin-project/specs-actors/v8/actors/builtin/market"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
@@ -23,7 +23,7 @@ import (
 )
 
 func sectorGoodForSnapup(sinfo *miner.SectorOnChainInfo, currentHeight abi.ChainEpoch) bool {
-	return sinfo.SectorKeyCID == nil && len(sinfo.DealIDs) == 0 && sinfo.Expiration-currentHeight >= market7.DealMinDuration
+	return sinfo.SectorKeyCID == nil && len(sinfo.DealIDs) == 0 && sinfo.Expiration-currentHeight >= market8.DealMinDuration
 }
 
 func kvKeyForMinerActorID(mid abi.ActorID) kvstore.Key {
