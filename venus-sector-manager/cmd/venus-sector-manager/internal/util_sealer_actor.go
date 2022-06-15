@@ -13,6 +13,7 @@ import (
 	rlepluslazy "github.com/filecoin-project/go-bitfield/rle"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 	"github.com/filecoin-project/go-state-types/network"
 
 	"github.com/filecoin-project/venus/app/submodule/chain"
@@ -24,6 +25,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
@@ -202,7 +204,7 @@ var utilSealerActorWithdrawCmd = &cli.Command{
 			To:     maddr,
 			From:   mi.Owner,
 			Value:  types.NewInt(0),
-			Method: miner.Methods.WithdrawBalance,
+			Method: stbuiltin.MethodsMiner.WithdrawBalance,
 			Params: params,
 		}, nil)
 		if err != nil {
@@ -314,7 +316,7 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 			return err
 		}
 
-		if !mi.IsController(fromID) {
+		if !util.IsController(mi, fromID) {
 			return fmt.Errorf("sender isn't a controller of miner: %s", fromID)
 		}
 
@@ -322,7 +324,7 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 			To:     maddr,
 			From:   fromID,
 			Value:  amount,
-			Method: miner.Methods.RepayDebt,
+			Method: stbuiltin.MethodsMiner.RepayDebt,
 			Params: nil,
 		}, nil)
 		if err != nil {
@@ -479,7 +481,7 @@ var utilSealerActorControlSet = &cli.Command{
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
 			From:   mi.Owner,
 			To:     maddr,
-			Method: miner.Methods.ChangeWorkerAddress,
+			Method: stbuiltin.MethodsMiner.ChangeWorkerAddress,
 
 			Value:  big.Zero(),
 			Params: sp,
@@ -563,7 +565,7 @@ var utilSealerActorSetOwnerCmd = &cli.Command{
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
 			From:   fromAddrID,
 			To:     maddr,
-			Method: miner.Methods.ChangeOwnerAddress,
+			Method: stbuiltin.MethodsMiner.ChangeOwnerAddress,
 			Value:  big.Zero(),
 			Params: sp,
 		}, nil)
@@ -661,7 +663,7 @@ var utilSealerActorProposeChangeWorker = &cli.Command{
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
 			From:   mi.Owner,
 			To:     maddr,
-			Method: miner.Methods.ChangeWorkerAddress,
+			Method: stbuiltin.MethodsMiner.ChangeWorkerAddress,
 			Value:  big.Zero(),
 			Params: sp,
 		}, nil)
@@ -760,7 +762,7 @@ var utilSealerActorConfirmChangeWorker = &cli.Command{
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
 			From:   mi.Owner,
 			To:     maddr,
-			Method: miner.Methods.ConfirmUpdateWorkerKey,
+			Method: stbuiltin.MethodsMiner.ConfirmUpdateWorkerKey,
 			Value:  big.Zero(),
 		}, nil)
 		if err != nil {
@@ -910,7 +912,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
 			From:   mi.Worker,
 			To:     maddr,
-			Method: miner.Methods.CompactSectorNumbers,
+			Method: stbuiltin.MethodsMiner.CompactSectorNumbers,
 			Value:  big.Zero(),
 			Params: sp,
 		}, nil)

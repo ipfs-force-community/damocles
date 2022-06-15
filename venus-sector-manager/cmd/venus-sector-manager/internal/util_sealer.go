@@ -17,6 +17,8 @@ import (
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
+	stminer "github.com/filecoin-project/go-state-types/builtin/v8/miner"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
@@ -515,7 +517,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 			return err
 		}
 
-		err = mas.ForEachPrecommittedSector(func(pci miner.SectorPreCommitOnChainInfo) error {
+		err = mas.ForEachPrecommittedSector(func(pci stminer.SectorPreCommitOnChainInfo) error {
 			toCheck.Unset(uint64(pci.Info.SectorNumber))
 			return nil
 		})
@@ -993,7 +995,7 @@ var utilSealerSectorsRenewCmd = &cli.Command{
 				From: mi.Worker,
 
 				To:     maddr,
-				Method: miner.Methods.ExtendSectorExpiration,
+				Method: stbuiltin.MethodsMiner.ExtendSectorExpiration,
 				Params: sp,
 
 				Value: big.Zero(),
@@ -1115,7 +1117,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 				}
 
 				// Set the new expiration to 48 hours less than the theoretical maximum lifetime
-				newExp := ml - (miner.WPoStProvingPeriod * 2) + si.Activation
+				newExp := ml - (stminer.WPoStProvingPeriod * 2) + si.Activation
 				if withinTolerance(si.Expiration, newExp) || si.Expiration >= newExp {
 					continue
 				}
@@ -1240,7 +1242,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 			mid, err := fapi.Messager.PushMessage(ctx, &types.Message{
 				From:   mi.Worker,
 				To:     maddr,
-				Method: miner.Methods.ExtendSectorExpiration,
+				Method: stbuiltin.MethodsMiner.ExtendSectorExpiration,
 
 				Value:  big.Zero(),
 				Params: sp,

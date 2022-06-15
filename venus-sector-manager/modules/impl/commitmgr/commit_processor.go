@@ -12,9 +12,9 @@ import (
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-
+	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
+	"github.com/filecoin-project/go-state-types/builtin/v8/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
-	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -78,7 +78,7 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []core
 				}
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, collateral, miner.Methods.ProveCommitSector, c.msgClient, spec, enc.Bytes(), slog)
+			mcid, err := pushMessage(ctx, from, mid, collateral, stbuiltin.MethodsMiner.ProveCommitSector, c.msgClient, spec, enc.Bytes(), slog)
 			if err != nil {
 				slog.Error("push commit single failed: ", err)
 				return
@@ -181,7 +181,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 	spec.GasOverEstimation = mcfg.Commitment.Prove.Batch.GasOverEstimation
 	spec.MaxFeeCap = mcfg.Commitment.Prove.Batch.MaxFeeCap.Std()
 
-	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, miner.Methods.ProveCommitAggregate,
+	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, stbuiltin.MethodsMiner.ProveCommitAggregate,
 		c.msgClient, spec, enc.Bytes(), plog)
 	if err != nil {
 		return fmt.Errorf("push aggregate prove message failed: %w", err)
