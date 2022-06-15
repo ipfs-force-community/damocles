@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shirou/gopsutil/v3/disk"
+
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
@@ -25,35 +27,23 @@ type statOrErr struct {
 	Err error
 }
 
-func DefaultConfig(path string, readonly bool) Config {
-	return Config{
-		Path:     path,
-		ReadOnly: readonly,
-	}
-}
+func OpenStores(cfgs []objstore.Config) ([]objstore.Store, error) {
+	stores := make([]objstore.Store, 0, len(cfgs))
 
-type Config struct {
-	Name     string
-	Path     string
-	Strict   bool
-	ReadOnly bool
-}
-
-func OpenMany(cfgs []Config) ([]*Store, error) {
-	stores := make([]*Store, 0, len(cfgs))
 	for _, cfg := range cfgs {
 		store, err := Open(cfg)
 		if err != nil {
 			return nil, err
 		}
 
+		log.Infow("load store", "name", store.cfg.Name, "path", store.cfg.Path)
 		stores = append(stores, store)
 	}
 
 	return stores, nil
 }
 
-func Open(cfg Config) (*Store, error) {
+func Open(cfg objstore.Config) (*Store, error) {
 	dirPath, err := filepath.Abs(cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("abs path for %s: %w", cfg.Path, err)
@@ -80,7 +70,7 @@ func Open(cfg Config) (*Store, error) {
 }
 
 type Store struct {
-	cfg Config
+	cfg objstore.Config
 	dir fs.FS
 }
 
@@ -186,6 +176,22 @@ func (s *Store) open(p string, r *objstore.Range) (io.ReadCloser, error) {
 }
 
 func (s *Store) Instance(context.Context) string { return s.cfg.Name }
+
+func (s *Store) InstanceInfo(ctx context.Context) (objstore.InstanceInfo, error) {
+	usage, err := disk.UsageWithContext(ctx, s.cfg.Path)
+	if err != nil {
+		return objstore.InstanceInfo{}, fmt.Errorf("get disk usage: %w", err)
+	}
+
+	return objstore.InstanceInfo{
+		Config:      s.cfg,
+		Type:        usage.Fstype,
+		Total:       usage.Total,
+		Free:        usage.Free,
+		Used:        usage.Used,
+		UsedPercent: usage.UsedPercent,
+	}, nil
+}
 
 func (s *Store) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 	res := s.openWithContext(ctx, p, nil)

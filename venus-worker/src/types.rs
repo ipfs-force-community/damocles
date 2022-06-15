@@ -7,11 +7,11 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::sealing::processor::{RegisteredSealProof, RegisteredUpdateProof};
 
-const SIZE_2K: u64 = 2 << 10;
-const SIZE_8M: u64 = 8 << 20;
-const SIZE_512M: u64 = 512 << 20;
-const SIZE_32G: u64 = 32 << 30;
-const SIZE_64G: u64 = 64 << 30;
+pub const SIZE_2K: u64 = 2 << 10;
+pub const SIZE_8M: u64 = 8 << 20;
+pub const SIZE_512M: u64 = 512 << 20;
+pub const SIZE_32G: u64 = 32 << 30;
+pub const SIZE_64G: u64 = 64 << 30;
 
 /// seal proof types with repr i64
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize_repr, Serialize_repr)]

@@ -2,27 +2,16 @@ package sectors
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/testutil"
 )
 
-func testKVStore(t *testing.T) (kvstore.KVStore, func()) {
-	tmpdir := os.TempDir()
-	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(tmpdir))
-	require.NoErrorf(t, err, "open badger at %s", tmpdir)
-	return store, func() {
-		store.Close(context.Background())
-		os.RemoveAll(tmpdir)
-	}
-}
-
 func TestAllocatorNext(t *testing.T) {
-	store, stop := testKVStore(t)
+	store, stop := testutil.TestKVStore(t)
 	defer stop()
 
 	allocator, err := NewNumerAllocator(store)

@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/docker/go-units"
 	"github.com/dtynn/dix"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -30,6 +32,8 @@ var utilStorageCmd = &cli.Command{
 	Subcommands: []*cli.Command{
 		utilStorageAttachCmd,
 		utilStorageFindCmd,
+		utilStorageListCmd,
+		utilStorageReleaseReservedCmd,
 	},
 }
 
@@ -74,12 +78,9 @@ var utilStorageAttachCmd = &cli.Command{
 		readOnly := cctx.Bool("read-only")
 		allowSplitted := cctx.Bool("allow-splitted")
 
-		scfg := filestore.Config{
-			Name:     name,
-			Path:     abs,
-			Strict:   strict,
-			ReadOnly: readOnly,
-		}
+		scfg := objstore.DefaultConfig(abs, readOnly)
+		scfg.Name = name
+		scfg.Strict = strict
 
 		store, err := filestore.Open(scfg)
 		if err != nil {
@@ -91,7 +92,7 @@ var utilStorageAttachCmd = &cli.Command{
 
 		cfgExample := struct {
 			Common struct {
-				PersistStores []filestore.Config
+				PersistStores []objstore.Config
 			}
 		}{}
 
@@ -404,6 +405,86 @@ var utilStorageFindCmd = &cli.Command{
 
 			iLog.Error("failed to get store instance")
 
+		}
+
+		return nil
+	},
+}
+
+var utilStorageListCmd = &cli.Command{
+	Name:      "list",
+	Flags:     []cli.Flag{},
+	ArgsUsage: "<actor id> <number>",
+	Action: func(cctx *cli.Context) error {
+		api, actx, astop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer astop()
+
+		details, err := api.Sealer.StoreList(actx)
+		if err != nil {
+			return RPCCallError("StoreList", err)
+		}
+
+		if len(details) == 0 {
+			fmt.Println("No Stores")
+			return nil
+		}
+
+		for _, detail := range details {
+			fmt.Printf("%s:\n", detail.Name)
+			fmt.Printf("\tPath: %s\n", detail.Path)
+			fmt.Printf("\tType: %s\n", detail.Type)
+			fmt.Printf("\tTotal: %s\n", units.BytesSize(float64(detail.Total)))
+			fmt.Printf("\tFree: %s\n", units.BytesSize(float64(detail.Free)))
+			fmt.Printf("\tUsed: %s\n", units.BytesSize(float64(detail.Used)))
+			fmt.Printf("\tUsedPercent: %.02f%%\n", detail.UsedPercent)
+			fmt.Printf("\tReserved: %s\n", units.BytesSize(float64(detail.Reserved)))
+			if len(detail.ReservedBy) > 0 {
+				fmt.Println("\tReserved Items:")
+				for i, res := range detail.ReservedBy {
+					fmt.Printf("\t\t#%d: %s, %s, %s ago\n", i, res.By, units.BytesSize(float64(res.Size)), time.Since(time.Unix(res.At, 0)))
+				}
+			}
+
+			fmt.Println("")
+		}
+
+		return nil
+	},
+}
+
+var utilStorageReleaseReservedCmd = &cli.Command{
+	Name:      "release-reserved",
+	Flags:     []cli.Flag{},
+	ArgsUsage: "<sector identifiers>...",
+	Action: func(cctx *cli.Context) error {
+		ids := cctx.Args().Slice()
+		if len(ids) == 0 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		api, actx, astop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer astop()
+
+		for _, id := range ids {
+			sid, ok := util.ScanSectorID(id)
+			if !ok {
+				Log.Warnf("%s is not a valid sector identifier", id)
+				continue
+			}
+
+			done, err := api.Sealer.StoreReleaseReserved(actx, sid)
+			if err != nil {
+				Log.Errorf("%s", RPCCallError("StoreReleaseReserved", err))
+				continue
+			}
+
+			Log.With("sector", id).Infof("released: %v", done)
 		}
 
 		return nil

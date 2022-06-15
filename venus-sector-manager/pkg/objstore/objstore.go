@@ -16,6 +16,36 @@ var (
 	ErrObjectNotFound              = fmt.Errorf("object not found")
 )
 
+type CompactConfig struct {
+	Name string
+	Path string
+}
+
+func (cc CompactConfig) ToConfig() Config {
+	return Config{
+		CompactConfig: cc,
+	}
+}
+
+type Config struct {
+	CompactConfig
+	Strict   bool
+	ReadOnly bool
+	Weight   uint
+	Meta     map[string]string
+}
+
+func DefaultConfig(path string, readonly bool) Config {
+	return Config{
+		CompactConfig: CompactConfig{
+			Path: path,
+		},
+		ReadOnly: readonly,
+		Weight:   1,
+		Meta:     map[string]string{},
+	}
+}
+
 type ReaderResult struct {
 	io.ReadCloser
 	Err error
@@ -30,16 +60,22 @@ type Stat struct {
 	Size int64
 }
 
+type InstanceInfo struct {
+	Config      Config
+	Type        string
+	Total       uint64
+	Free        uint64
+	Used        uint64
+	UsedPercent float64
+}
+
 type Store interface {
 	Instance(context.Context) string
+	InstanceInfo(context.Context) (InstanceInfo, error)
 	Get(context.Context, string) (io.ReadCloser, error)
 	Del(context.Context, string) error
 	Stat(context.Context, string) (Stat, error)
 	Put(context.Context, string, io.Reader) (int64, error)
 	GetChunks(context.Context, string, []Range) ([]ReaderResult, error)
 	FullPath(context.Context, string) string
-}
-
-type Manager interface {
-	GetInstance(ctx context.Context, name string) (Store, error)
 }

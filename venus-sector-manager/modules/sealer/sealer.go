@@ -311,6 +311,11 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Me
 		return core.Empty, sectorStateErr(err)
 	}
 
+	reservedBy := util.FormatSectorID(sid)
+	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, reservedBy); err != nil {
+		log.With("sector", reservedBy).Errorf("release reserved: %s", err)
+	}
+
 	return core.Empty, nil
 }
 
@@ -331,6 +336,11 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 
 	if err != nil {
 		return core.Empty, sectorStateErr(err)
+	}
+
+	reservedBy := util.FormatSectorID(sid)
+	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, reservedBy); err != nil {
+		log.With("sector", reservedBy).Errorf("release reserved: %s", err)
 	}
 
 	return core.Empty, nil
@@ -560,4 +570,24 @@ func (s *Sealer) WorkerPing(ctx context.Context, winfo core.WorkerInfo) (core.Me
 	}
 
 	return core.Empty, nil
+}
+
+func (s *Sealer) StoreReserveSpace(ctx context.Context, sid abi.SectorID, size uint64, candidates []string) (*core.StoreBasicInfo, error) {
+	// TODO: check state?
+	_, err := s.state.Load(ctx, sid, core.WorkerOnline)
+	if err != nil {
+		return nil, sectorStateErr(err)
+	}
+
+	storeCfg, err := s.sectorIdxer.StoreMgr().ReserveSpace(ctx, util.FormatSectorID(sid), size, candidates)
+	if err != nil {
+		return nil, fmt.Errorf("reserve space: %w", err)
+	}
+
+	if storeCfg == nil {
+		return nil, nil
+	}
+
+	basic := storeConfig2StoreBasic(storeCfg)
+	return &basic, nil
 }

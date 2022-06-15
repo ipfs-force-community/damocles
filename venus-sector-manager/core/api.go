@@ -53,6 +53,9 @@ type SealerAPI interface {
 	// Workers
 	WorkerPing(ctx context.Context, winfo WorkerInfo) (Meta, error)
 
+	// Store
+	StoreReserveSpace(ctx context.Context, sid abi.SectorID, size uint64, candidates []string) (*StoreBasicInfo, error)
+
 	// utils
 	SealerCliAPI
 }
@@ -83,6 +86,11 @@ type SealerCliAPI interface {
 	PollTerminateSectorState(context.Context, abi.SectorID) (TerminateInfo, error)
 
 	RemoveSector(context.Context, abi.SectorID) error
+
+	// Store
+	StoreReleaseReserved(ctx context.Context, sid abi.SectorID) (bool, error)
+
+	StoreList(ctx context.Context) ([]StoreDetailedInfo, error)
 }
 
 type RandomnessAPI interface {

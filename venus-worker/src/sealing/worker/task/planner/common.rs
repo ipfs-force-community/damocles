@@ -4,16 +4,17 @@ use std::fs::{remove_file, File, OpenOptions};
 use std::io::{self, prelude::*};
 use std::os::unix::fs::symlink;
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use vc_processors::builtin::tasks::STAGE_NAME_TREED;
 
-use super::super::{Entry, Task};
+use super::super::{call_rpc, Entry, Task};
 use crate::logging::{debug, warn_span};
 use crate::rpc::sealer::Deals;
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
     tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TreeDInput, UnpaddedBytesAmount,
 };
+use crate::types::SIZE_32G;
 
 pub fn add_pieces<'t>(
     task: &'t Task<'_>,
@@ -104,14 +105,45 @@ pub fn build_tree_d(task: &'_ Task<'_>, allow_static: bool) -> Result<(), Failur
 // acquire a persist store for sector files, copy the files and return the instance name of the
 // acquired store
 pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: Entry) -> Result<String, Failure> {
+    let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
     let sector_size = proof_type.sector_size();
+    // 1.02 * sector size
+    let required_size = if sector_size < SIZE_32G {
+        // 2x sector size for sector smaller than 32GiB
+        sector_size * 2
+    } else {
+        // 1.02x sector size for 32GiB, 64GiB
+        sector_size + sector_size / 50
+    };
+
+    let candidates = task.ctx.global.attached.available_instances();
+    if candidates.is_empty() {
+        return Err(anyhow!("no available local persist store candidate")).perm();
+    }
+
+    let ins_info = loop {
+        let res = call_rpc! {
+            task.ctx.global.rpc,
+            store_reserve_space,
+            sector_id.clone(),
+            required_size,
+            candidates.clone(),
+        }?;
+
+        if let Some(selected) = res {
+            break selected;
+        }
+
+        debug!("no persist store selected, wait for next polling");
+        task.wait_or_interruptted(task.store.config.rpc_polling_interval)?;
+    };
 
     let persist_store = task
         .ctx
         .global
         .attached
-        .acquire_persist(sector_size, None)
+        .get(&ins_info.name)
         .context("no available persist store")
         .perm()?;
 

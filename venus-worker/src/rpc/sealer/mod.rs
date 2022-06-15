@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
 use std::result::Result as StdResult;
@@ -388,6 +389,14 @@ pub struct WorkerInfo {
     pub summary: WorkerInfoSummary,
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct StoreBasicInfo {
+    pub name: String,
+    pub path: String,
+    pub meta: Option<HashMap<String, String>>,
+}
+
 /// defines the SealerRpc service
 #[rpc]
 pub trait Sealer {
@@ -446,4 +455,7 @@ pub trait Sealer {
 
     #[rpc(name = "Venus.WorkerPing")]
     fn worker_ping(&self, winfo: WorkerInfo) -> Result<()>;
+
+    #[rpc(name = "Venus.StoreReserveSpace")]
+    fn store_reserve_space(&self, id: SectorID, size: u64, candidates: Vec<String>) -> Result<Option<StoreBasicInfo>>;
 }

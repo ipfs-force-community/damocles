@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
 	"github.com/jbenet/go-random"
 	"github.com/stretchr/testify/assert"
@@ -21,21 +22,21 @@ import (
 )
 
 func setupStoreProxy(t *testing.T, resourceEndPoint string) *Proxy {
-	fs, err := filestore.OpenMany([]filestore.Config{
-		{
-			Name:     "mock test",
-			Path:     os.TempDir(),
-			Strict:   false,
-			ReadOnly: false,
-		},
+	sts, err := filestore.OpenStores([]objstore.Config{
+		objstore.CompactConfig{
+			Name: "mock test",
+			Path: os.TempDir(),
+		}.ToConfig(),
 	})
-	require.NoError(t, err)
+
+	require.NoError(t, err, "open mock store")
+
 	mc := gomock.NewController(t)
 	marketAPI := &market.WrappedAPI{
 		IMarket:          mock.NewMockIMarket(mc),
 		ResourceEndpoint: resourceEndPoint,
 	}
-	return NewProxy(fs, marketAPI)
+	return NewProxy(sts, marketAPI)
 }
 
 func TestStorePoxy(t *testing.T) {
