@@ -16,6 +16,7 @@ require (
 	github.com/filecoin-project/go-jsonrpc v0.1.5
 	github.com/filecoin-project/go-paramfetch v0.0.4
 	github.com/filecoin-project/go-state-types v0.1.8
+	github.com/filecoin-project/specs-actors v0.9.15
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
 	github.com/filecoin-project/specs-storage v0.4.1
 	github.com/filecoin-project/venus v1.6.0-pre-rc1.0.20220615012919-4ba9561172f5
@@ -70,7 +71,6 @@ require (
 	github.com/filecoin-project/go-hamt-ipld/v3 v3.1.0 // indirect
 	github.com/filecoin-project/go-padreader v0.0.1 // indirect
 	github.com/filecoin-project/pubsub v1.0.0 // indirect
-	github.com/filecoin-project/specs-actors v0.9.15 // indirect
 	github.com/filecoin-project/specs-actors/v3 v3.1.2 // indirect
 	github.com/filecoin-project/specs-actors/v4 v4.0.2 // indirect
 	github.com/filecoin-project/specs-actors/v5 v5.0.6 // indirect
@@ -189,7 +189,7 @@ require (
 )
 
 require (
-	github.com/filecoin-project/go-fil-markets v1.20.1 // indirect
+	github.com/filecoin-project/go-fil-markets v1.20.1-v16-1 // indirect
 	github.com/filecoin-project/specs-actors/v8 v8.0.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 )
