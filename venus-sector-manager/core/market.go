@@ -1,7 +1,7 @@
 package core
 
 import (
-	market7 "github.com/filecoin-project/specs-actors/v7/actors/builtin/market"
+	market8 "github.com/filecoin-project/specs-actors/v8/actors/builtin/market"
 )
 
-type DealProposal = market7.DealProposal
+type DealProposal = market8.DealProposal

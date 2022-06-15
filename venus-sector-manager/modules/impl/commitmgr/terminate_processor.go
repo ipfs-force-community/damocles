@@ -11,6 +11,8 @@ import (
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
+	stminer "github.com/filecoin-project/go-state-types/builtin/v8/miner"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
@@ -68,9 +70,9 @@ func (tp TerminateProcessor) processIndividually(ctx context.Context, sectors []
 			}
 
 			// don't send terminations for currently challenged sectors
-			if loc.Deadline == (dl.Index+1)%miner.WPoStPeriodDeadlines || // not in next (in case the terminate message takes a while to get on chain)
+			if loc.Deadline == (dl.Index+1)%stminer.WPoStPeriodDeadlines || // not in next (in case the terminate message takes a while to get on chain)
 				loc.Deadline == dl.Index || // not in current
-				(loc.Deadline+1)%miner.WPoStPeriodDeadlines == dl.Index { // not in previous
+				(loc.Deadline+1)%stminer.WPoStPeriodDeadlines == dl.Index { // not in previous
 				return
 			}
 
@@ -105,7 +107,7 @@ func (tp TerminateProcessor) processIndividually(ctx context.Context, sectors []
 				return
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, big.Zero(), miner.Methods.TerminateSectors, tp.msgClient, spec, enc.Bytes(), slog)
+			mcid, err := pushMessage(ctx, from, mid, big.Zero(), stbuiltin.MethodsMiner.TerminateSectors, tp.msgClient, spec, enc.Bytes(), slog)
 			if err != nil {
 				slog.Error("push terminate single failed: ", err)
 				return
@@ -197,9 +199,9 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 		}
 
 		// don't send terminations for currently challenged sectors
-		if loc.Deadline == (dl.Index+1)%miner.WPoStPeriodDeadlines || // not in next (in case the terminate message takes a while to get on chain)
+		if loc.Deadline == (dl.Index+1)%stminer.WPoStPeriodDeadlines || // not in next (in case the terminate message takes a while to get on chain)
 			loc.Deadline == dl.Index || // not in current
-			(loc.Deadline+1)%miner.WPoStPeriodDeadlines == dl.Index { // not in previous
+			(loc.Deadline+1)%stminer.WPoStPeriodDeadlines == dl.Index { // not in previous
 			continue
 		}
 
@@ -226,8 +228,8 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 			continue
 		}
 
-		if total+n > uint64(miner.AddressedSectorsMax) {
-			n = uint64(miner.AddressedSectorsMax) - total
+		if total+n > uint64(stminer.AddressedSectorsMax) {
+			n = uint64(stminer.AddressedSectorsMax) - total
 
 			toTerminate, err = toTerminate.Slice(0, n)
 			if err != nil {
@@ -251,7 +253,7 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 			Sectors:   toTerminate,
 		})
 
-		if total >= uint64(miner.AddressedSectorsMax) {
+		if total >= uint64(stminer.AddressedSectorsMax) {
 			break
 		}
 
@@ -274,7 +276,7 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 	spec.GasOverEstimation = mcfg.Commitment.Terminate.Batch.GasOverEstimation
 	spec.MaxFeeCap = mcfg.Commitment.Terminate.Batch.MaxFeeCap.Std()
 
-	mcid, err := pushMessage(ctx, ctrlAddr, mid, big.Zero(), miner.Methods.TerminateSectors, tp.msgClient, spec, enc.Bytes(), plog)
+	mcid, err := pushMessage(ctx, ctrlAddr, mid, big.Zero(), stbuiltin.MethodsMiner.TerminateSectors, tp.msgClient, spec, enc.Bytes(), plog)
 	if err != nil {
 		return fmt.Errorf("push aggregate terminate message failed: %w", err)
 	}

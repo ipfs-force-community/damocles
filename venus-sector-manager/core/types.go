@@ -4,10 +4,9 @@ import (
 	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/builtin/v8/miner"
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/ipfs/go-cid"
-
-	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 )
 
 type AllocateSectorSpec struct {

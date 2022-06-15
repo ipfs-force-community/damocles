@@ -8,7 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-paramfetch"
 
-	"github.com/filecoin-project/venus/fixtures/asset"
+	"github.com/filecoin-project/venus/fixtures/assets"
 )
 
 var utilFetchParamCmd = &cli.Command{
