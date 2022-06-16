@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use clap::{Arg, ArgAction, Command};
 use hwinfo::{byte_string, cpu, disk, gpu, mem};
+use itertools::Itertools;
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
@@ -56,14 +57,7 @@ fn render_cpu(full: bool) -> Result<()> {
     }
 
     fn short(nodes: Vec<&cpu::TopologyNode>) -> String {
-        match nodes.as_slice() {
-            [first] => first.to_string(),
-            [first, last] => format!("{} + {}", first, last),
-            [first, .., last] => {
-                format!("{} + ... + {}", first, last)
-            }
-            _ => "".to_string(),
-        }
+        nodes.iter().join(" + ")
     }
 
     fn walk(parent: &cpu::TopologyNode, prefix: &str, full: bool) {
