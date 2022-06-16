@@ -341,21 +341,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
-name = "hwinfo"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "byte-unit",
- "clap",
- "hwloc2",
- "itertools",
- "rust-gpu-tools",
- "strum",
- "sysinfo",
- "term-table",
-]
-
-[[package]]
 name = "hwloc2"
 version = "2.2.0"
 source = "git+https://github.com/ipfs-force-community/hwloc2-rs.git?rev=934c22d#934c22ddb436ede1a5c1435794c0f512963b05ae"
@@ -798,6 +783,21 @@ name = "utf8-width"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5190c9442dcdaf0ddd50f37420417d219ae5261bbf5db120d0f9bab996c9cba1"
+
+[[package]]
+name = "venus-worker-util"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byte-unit",
+ "clap",
+ "hwloc2",
+ "itertools",
+ "rust-gpu-tools",
+ "strum",
+ "sysinfo",
+ "term-table",
+]
 
 [[package]]
 name = "wasi"

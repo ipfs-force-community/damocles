@@ -1,6 +1,7 @@
 use rust_gpu_tools::Device;
 use strum::AsRefStr;
 
+/// GPU Vendor
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, AsRefStr)]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum Vendor {
@@ -12,8 +13,11 @@ pub enum Vendor {
 
 /// Information about the GPU
 pub struct GPUInfo {
+    /// The GPU name
     pub name: String,
+    /// The GPU vendor
     pub vendor: Vendor,
+    /// The GPU memory size, in bytes
     pub memory: u64,
 }
 

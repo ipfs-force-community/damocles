@@ -1,22 +1,17 @@
 use anyhow::{Context, Result};
-use clap::{Arg, ArgAction, Command};
-use hwinfo::{byte_string, cpu, disk, gpu, mem};
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use itertools::Itertools;
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
     Table, TableStyle,
 };
+use venus_worker_util::hwinfo::{byte_string, cpu, disk, gpu, mem};
 
-fn main() -> Result<()> {
-    let ver_string = format!(
-        "v{}-{}",
-        env!("CARGO_PKG_VERSION"),
-        option_env!("GIT_COMMIT").unwrap_or("dev")
-    );
+pub const SUB_CMD_NAME: &str = "hwinfo";
 
-    let matches = Command::new("hwinfo")
-        .version(ver_string.as_str())
+pub(crate) fn subcommand<'a>() -> Command<'a> {
+    Command::new(SUB_CMD_NAME)
         .about("Show hardware information")
         .arg(
             Arg::new("full")
@@ -24,10 +19,13 @@ fn main() -> Result<()> {
                 .help("Show full CPU topology")
                 .action(ArgAction::SetTrue),
         )
-        .get_matches();
+}
+
+pub(crate) fn submatch(subargs: &ArgMatches) -> Result<()> {
+    let full = *subargs.get_one::<bool>("full").unwrap_or(&false);
 
     println!("CPU topology:");
-    render_cpu(*matches.get_one::<bool>("full").unwrap_or(&false))?;
+    render_cpu(full)?;
     println!();
     println!("Disks:");
     render_disk();
@@ -56,6 +54,8 @@ fn render_cpu(full: bool) -> Result<()> {
     }
 
     fn short(nodes: Vec<&cpu::TopologyNode>) -> String {
+        // When the number of nodes is less than 8, complete output,
+        // otherwise only some nodes are output
         match nodes.as_slice() {
             n if nodes.len() <= 8 => n.iter().join(" + "),
             [f1, f2, f3, .., l3, l2, l1] => {

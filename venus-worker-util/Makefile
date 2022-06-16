@@ -1,5 +1,8 @@
 all: fmt clippy build-all
 
+test-all:
+	cargo test --release --workspace -- --nocapture
+
 check-all: check-fmt check-clippy
 
 build-all:

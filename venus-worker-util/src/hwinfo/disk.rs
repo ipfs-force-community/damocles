@@ -1,6 +1,7 @@
 use strum::AsRefStr;
 use sysinfo::{DiskExt, RefreshKind, System, SystemExt};
 
+/// Type of disk
 #[derive(Debug, PartialEq, Clone, Copy, AsRefStr)]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum DiskType {
@@ -12,11 +13,17 @@ pub enum DiskType {
 
 /// Information about the disk
 pub struct Disk {
+    /// The disk type.
     pub disk_type: DiskType,
+    /// The disk name.
     pub device_name: String,
+    /// The file system used on this disk (so for example: `EXT4`, `NTFS`, etc...).
     pub filesystem: String,
+    /// The total disk size, in bytes.
     pub total_space: u64,
+    /// The available disk size, in bytes.
     pub available_space: u64,
+    /// `true` if the disk is removable.
     pub is_removable: bool,
 }
 

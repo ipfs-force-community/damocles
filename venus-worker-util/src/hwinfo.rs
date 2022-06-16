@@ -1,8 +1,12 @@
 use byte_unit::Byte;
 
+/// CPU information
 pub mod cpu;
+/// Disk information
 pub mod disk;
+/// GPU information
 pub mod gpu;
+/// Memory information
 pub mod mem;
 
 /// Format the bytes to string.

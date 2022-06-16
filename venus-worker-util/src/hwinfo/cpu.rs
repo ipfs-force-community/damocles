@@ -3,8 +3,9 @@ use std::fmt::Display;
 use hwloc2::{ObjectType, Topology, TopologyObject, TopologyObjectInfo};
 use strum::AsRefStr;
 
-use crate::byte_string;
+use super::byte_string;
 
+/// Type of CPU Cache
 #[derive(Debug, AsRefStr)]
 #[strum(serialize_all = "PascalCase")]
 pub enum CacheType {
@@ -30,18 +31,23 @@ pub enum CacheType {
     L5,
 }
 
+/// Type of CPU topology
 #[derive(Debug, AsRefStr)]
 #[strum(serialize_all = "PascalCase")]
 pub enum TopologyType {
     /// The typical root object type. A set of processors and memory with cache
     /// coherency.
     Machine {
+        /// CPU model of this object if present
         cpu_model: Option<String>,
+        /// The memory attributes of the object, in bytes.
         total_memory: u64,
     },
     /// Physical package, what goes into a socket. In the physical meaning,
     Package {
+        /// CPU model of this object if present
         cpu_model: Option<String>,
+        /// The memory attributes of the object, in bytes.
         total_memory: u64,
     },
     /// A computation unit (may be shared by several logical processors).
@@ -55,7 +61,12 @@ pub enum TopologyType {
     PU,
     /// Cache
     #[strum(disabled)]
-    Cache { cache_type: CacheType, size: u64 },
+    Cache {
+        /// type of the CPU cache
+        cache_type: CacheType,
+        /// cache size in bytes
+        size: u64,
+    },
     /// Group objects.
     ///
     /// Objects which do not fit in the above but are detected by hwloc and
@@ -69,7 +80,10 @@ pub enum TopologyType {
     /// A set of processors around memory which the processors can directly
     /// access.
     #[strum(serialize = "NUMANode")]
-    NUMANode { total_memory: u64 },
+    NUMANode {
+        /// The memory attributes of the object, in bytes.
+        total_memory: u64,
+    },
     /// Memory-side cache
     ///
     /// Memory-side cache (filtered out by default).
@@ -90,8 +104,12 @@ pub enum TopologyType {
 
 /// Represents the type of a topology Node.
 pub struct TopologyNode {
+    /// Horizontal index in the whole list of similar objects, hence guaranteed
+    /// unique across the entire machine.
     pub logical_index: u32,
+    /// All direct children of this object.
     pub children: Vec<TopologyNode>,
+    /// Type of the CPU topology
     pub ty: TopologyType,
 }
 
