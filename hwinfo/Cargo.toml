@@ -12,7 +12,7 @@ cuda = ["rust-gpu-tools/cuda"]
 
 [dependencies]
 anyhow = "1"
-hwloc2 = { git = "https://github.com/ipfs-force-community/hwloc2-rs.git", rev = "80b251c" }
+hwloc2 = { git = "https://github.com/ipfs-force-community/hwloc2-rs.git", rev = "934c22d" }
 sysinfo = "0.23"
 byte-unit = { version = "4.0", default-features = false }
 strum = { version = "0.24", features = ["derive"] }

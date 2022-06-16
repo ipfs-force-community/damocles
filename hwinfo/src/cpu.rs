@@ -68,7 +68,8 @@ pub enum TopologyType {
     Group,
     /// A set of processors around memory which the processors can directly
     /// access.
-    NUMANode,
+    #[strum(serialize = "NUMANode")]
+    NUMANode { total_memory: u64 },
     /// Memory-side cache
     ///
     /// Memory-side cache (filtered out by default).
@@ -98,8 +99,9 @@ impl Display for TopologyNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.ty {
             TopologyType::Cache { cache_type, size } => f.write_fmt(format_args!(
-                "{} ({})",
+                "{} (#{} {})",
                 cache_type.as_ref(),
+                self.logical_index,
                 byte_string(*size, 0),
             )),
             TopologyType::Machine {
@@ -111,17 +113,23 @@ impl Display for TopologyNode {
                 total_memory,
             } => match cpu_model {
                 Some(m) => f.write_fmt(format_args!(
-                    "{} (total memory: {}) ({})",
+                    "{} ({}) ({})",
                     self.ty.as_ref(),
                     byte_string(*total_memory, 2),
                     m
                 )),
                 None => f.write_fmt(format_args!(
-                    "{} (total memory: {})",
+                    "{} ({})",
                     self.ty.as_ref(),
                     byte_string(*total_memory, 2)
                 )),
             },
+            TopologyType::NUMANode { total_memory } => f.write_fmt(format_args!(
+                "{} (#{} {})",
+                self.ty.as_ref(),
+                self.logical_index,
+                byte_string(*total_memory, 2)
+            )),
             _ => f.write_fmt(format_args!("{} #{}", self.ty.as_ref(), self.logical_index)),
         }
     }
@@ -139,20 +147,31 @@ pub fn load() -> Option<TopologyNode> {
 }
 
 fn load_recursive(parent: &TopologyObject) -> Vec<TopologyNode> {
-    parent
-        .children()
-        .into_iter()
-        .filter_map(|child_topo_obj| {
-            child_topo_obj
-                .try_into()
-                .ok()
-                .map(|topo_type| TopologyNode {
-                    logical_index: child_topo_obj.logical_index(),
-                    children: load_recursive(child_topo_obj),
-                    ty: topo_type,
-                })
-        })
-        .collect()
+    let mut nodes = Vec::new();
+
+    // traversal numa node
+    // see: https://www.open-mpi.org/projects/hwloc/doc/v2.3.0/a00360.php
+    for memory_child_obj in parent.memory_children() {
+        if let Ok(ty) = memory_child_obj.try_into() {
+            nodes.push(TopologyNode {
+                logical_index: memory_child_obj.logical_index(),
+                children: Vec::new(),
+                ty,
+            });
+        }
+    }
+
+    nodes.extend(parent.children().into_iter().filter_map(|child_topo_obj| {
+        child_topo_obj
+            .try_into()
+            .ok()
+            .map(|topo_type| TopologyNode {
+                logical_index: child_topo_obj.logical_index(),
+                children: load_recursive(child_topo_obj),
+                ty: topo_type,
+            })
+    }));
+    nodes
 }
 
 /// Unsupported Error
@@ -207,7 +226,9 @@ impl TryFrom<&TopologyObject> for TopologyType {
                 size: get_cache_size(),
             },
             ObjectType::Group => TopologyType::Group,
-            ObjectType::NUMANode => TopologyType::NUMANode,
+            ObjectType::NUMANode => TopologyType::NUMANode {
+                total_memory: hwloc2_topo_obj.total_memory(),
+            },
             ObjectType::Memcache => TopologyType::Memcache,
             ObjectType::Die => TopologyType::Die,
 

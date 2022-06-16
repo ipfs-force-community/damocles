@@ -50,14 +50,19 @@ fn render_cpu(full: bool) -> Result<()> {
             if filter_fn(child_topo_node) {
                 s.push(child_topo_node)
             }
-
             s.extend(find_subnode(child_topo_node, filter_fn));
         }
         s
     }
 
     fn short(nodes: Vec<&cpu::TopologyNode>) -> String {
-        nodes.iter().join(" + ")
+        match nodes.as_slice() {
+            [f1, f2, f3, .., l3, l2, l1] => {
+                format!("{} + {} + {} + ... + {} + {} + {}", f1, f2, f3, l3, l2, l1)
+            }
+            n if nodes.len() <= 8 => n.iter().join(" + "),
+            _ => unreachable!(),
+        }
     }
 
     fn walk(parent: &cpu::TopologyNode, prefix: &str, full: bool) {
