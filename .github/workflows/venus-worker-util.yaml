@@ -1,0 +1,52 @@
+name: venus-worker-util
+
+on:
+  pull_request:
+    branches: [ main, release/** ]
+
+  # push:
+  #   branches: [ main, release/** ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: dependencies
+        run: sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
+
+      - name: setup rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: '1.60.0'
+          override: true
+          components: rustfmt, clippy
+
+      - name: setup build cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            venus-worker/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('venus-worker-util/Cargo.lock') }}
+
+      - name: test venus-worker-util
+        run: make test-worker-util
+
+      - name: build venus-worker-util
+        run: make build-worker-util
+
+      - name: check venus-worker-util
+        run: make check-worker-util
+
+      - name: check git dirty
+        run: make check-git
+
+      - name: show bins
+        run: ls -lha ./dist/bin/
