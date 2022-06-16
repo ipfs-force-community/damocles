@@ -22,6 +22,7 @@ pub(super) struct SubProcessor<I: Input> {
     pub locks: Vec<String>,
     pub weight: u16,
     pub producer: Box<dyn Processor<I>>,
+    _cg: Option<cgroup::CtrlGroup>,
 }
 
 impl<I: Input> SubProcessor<I> {
@@ -125,6 +126,7 @@ pub(super) fn start_sub_processors<I: Input>(cfgs: &[config::Ext]) -> Result<Vec
             locks: sub_cfg.locks.as_ref().cloned().unwrap_or_default(),
             weight: sub_cfg.weight,
             producer: Box::new(producer),
+            _cg: cg,
         });
     }
 
