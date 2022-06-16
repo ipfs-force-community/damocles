@@ -57,10 +57,10 @@ fn render_cpu(full: bool) -> Result<()> {
 
     fn short(nodes: Vec<&cpu::TopologyNode>) -> String {
         match nodes.as_slice() {
+            n if nodes.len() <= 8 => n.iter().join(" + "),
             [f1, f2, f3, .., l3, l2, l1] => {
                 format!("{} + {} + {} + ... + {} + {} + {}", f1, f2, f3, l3, l2, l1)
             }
-            n if nodes.len() <= 8 => n.iter().join(" + "),
             _ => unreachable!(),
         }
     }
@@ -161,7 +161,7 @@ fn render_gpu() {
             table.add_row(Row::new(vec![
                 TableCell::new(gpu_info.name),
                 TableCell::new(gpu_info.vendor.as_ref()),
-                TableCell::new(format!("{}", byte_string(gpu_info.memory, 2))),
+                TableCell::new(byte_string(gpu_info.memory, 2)),
             ]));
         }
     }
