@@ -7,5 +7,3 @@ pub mod tasks;
 #[cfg(feature = "builtin-processors")]
 #[allow(missing_docs)]
 pub mod processors;
-
-pub(self) mod transfer;

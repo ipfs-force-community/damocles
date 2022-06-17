@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 
-use super::tasks::{SnapEncode, SnapProve, TreeD, C2, PC1, PC2};
+use super::tasks::{SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, C2, PC1, PC2};
 use crate::core::{Processor, Task};
 use crate::fil_proofs::{
     create_tree_d, seal_commit_phase2, seal_pre_commit_phase1, seal_pre_commit_phase2, snap_encode_into, snap_generate_sector_update_proof,
@@ -71,3 +71,13 @@ impl Processor<SnapProve> for BuiltinProcessor {
         )
     }
 }
+
+impl Processor<Transfer> for BuiltinProcessor {
+    fn process(&self, task: Transfer) -> Result<<Transfer as Task>::Output> {
+        task.routes.into_iter().try_for_each(|route| transfer::do_transfer(&route))?;
+
+        Ok(true)
+    }
+}
+
+mod transfer;

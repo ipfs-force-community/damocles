@@ -1,6 +1,7 @@
 //! Built-in tasks.
 //!
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -31,6 +32,9 @@ pub const STAGE_NAME_SNAP_ENCODE: &str = "snap_encode";
 
 /// name str for snap prove
 pub const STAGE_NAME_SNAP_PROVE: &str = "snap_prove";
+
+/// name str for data transfer
+pub const STAGE_NAME_TRANSFER: &str = "transfer";
 
 /// Task of tree_d
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -130,4 +134,44 @@ pub struct SnapProve {
 impl Task for SnapProve {
     const STAGE: &'static str = STAGE_NAME_SNAP_PROVE;
     type Output = SnapProveOutput;
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransferStoreInfo {
+    pub name: String,
+    pub loc: PathBuf,
+    pub meta: HashMap<String, String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TranferItem {
+    pub store_name: Option<String>,
+    pub uri: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransferOption {
+    pub allow_link: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransferRoute {
+    pub src: TranferItem,
+    pub dest: TranferItem,
+    pub opt: Option<TransferOption>,
+}
+
+/// Task of transfer
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Transfer {
+    /// store infos used in transfer items
+    pub stores: HashMap<String, TransferStoreInfo>,
+
+    pub routes: Vec<TransferRoute>,
+}
+
+impl Task for Transfer {
+    const STAGE: &'static str = STAGE_NAME_TRANSFER;
+
+    type Output = bool;
 }
