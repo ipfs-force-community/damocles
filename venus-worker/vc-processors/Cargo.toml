@@ -42,6 +42,9 @@ optional = true
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rand = "0.8"
+pretty_assertions = "1.2"
+hex = "0.4"
 
 [features]
 default = []

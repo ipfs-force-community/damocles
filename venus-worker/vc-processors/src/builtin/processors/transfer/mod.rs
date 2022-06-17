@@ -4,8 +4,12 @@ use std::os::unix::fs::symlink;
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
+use tracing::info;
 
 use super::TransferRoute;
+
+#[cfg(test)]
+mod tests;
 
 pub fn do_transfer(route: &TransferRoute) -> Result<()> {
     if route.src.uri.is_relative() {
@@ -36,14 +40,21 @@ pub fn do_transfer(route: &TransferRoute) -> Result<()> {
     }
 
     if let Some(true) = route.opt.as_ref().map(|opt| opt.allow_link) {
-        return link_entry(&route.src.uri, &route.dest.uri).context("link entry");
+        link_entry(&route.src.uri, &route.dest.uri).context("link entry")?;
+        info!(src=?&route.src.uri, dest=?&route.dest.uri, "entry linked");
+        return Ok(());
     }
 
     if src_is_dir {
-        copy_dir(&route.src.uri, &route.dest.uri).with_context(|| format!("transfer dir {:?} to {:?}", &route.src.uri, &route.dest.uri))
+        copy_dir(&route.src.uri, &route.dest.uri).with_context(|| format!("transfer dir {:?} to {:?}", &route.src.uri, &route.dest.uri))?;
+        info!(src=?&route.src.uri, dest=?&route.dest.uri, "dir copied");
     } else {
-        copy_file(&route.src.uri, &route.dest.uri).with_context(|| format!("transfer file {:?} to {:?}", &route.src.uri, &route.dest.uri))
+        let size = copy_file(&route.src.uri, &route.dest.uri)
+            .with_context(|| format!("transfer file {:?} to {:?}", &route.src.uri, &route.dest.uri))?;
+        info!(src=?&route.src.uri, dest=?&route.dest.uri, size, "file copied");
     }
+
+    Ok(())
 }
 
 fn ensure_dest_parent(dest: &Path) -> Result<()> {
@@ -60,7 +71,7 @@ fn link_entry(src: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
-fn copy_file(src: &Path, dest: &Path) -> Result<()> {
+fn copy_file(src: &Path, dest: &Path) -> Result<u64> {
     ensure_dest_parent(dest)?;
     let mut r = OpenOptions::new().read(true).open(src).context("open src file")?;
     let mut f = OpenOptions::new()
@@ -70,8 +81,7 @@ fn copy_file(src: &Path, dest: &Path) -> Result<()> {
         .truncate(true)
         .open(dest)
         .context("create dest file")?;
-    copy(&mut r, &mut f).context("copy from src to dest")?;
-    Ok(())
+    copy(&mut r, &mut f).context("copy from src to dest")
 }
 
 fn copy_dir(src: &Path, dest: &Path) -> Result<()> {
