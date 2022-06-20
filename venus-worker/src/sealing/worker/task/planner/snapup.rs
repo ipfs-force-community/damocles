@@ -167,12 +167,6 @@ impl<'c, 't> SnapUp<'c, 't> {
             self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
         );
 
-        field_required!(
-            cache_dir_instance,
-            self.task.sector.finalized.as_ref().map(|f| f.private.cache_dir_instance.as_ref())
-        );
-
-        let cache_dir_instance = cache_dir_instance.unwrap_or(access_instance);
         cloned_required!(piece_infos, self.task.sector.phases.pieces);
 
         debug!("find access store named {}", access_instance);
@@ -193,29 +187,6 @@ impl<'c, 't> SnapUp<'c, 't> {
         }?
         .with_context(|| format!("get basic info for store named {}", access_instance))
         .perm()?;
-
-        debug!("find cache dir store named {}", cache_dir_instance);
-        let cache_dir_store = self
-            .task
-            .ctx
-            .global
-            .attached
-            .get(cache_dir_instance)
-            .with_context(|| format!("get cache dir store instance named {}", cache_dir_instance))
-            .perm()?;
-
-        debug!("get basic info for cache dir store named {}", access_instance);
-        let cache_dir_store_basic_info = if access_instance == cache_dir_instance {
-            access_store_basic_info.clone()
-        } else {
-            call_rpc! {
-                self.task.ctx.global.rpc,
-                store_basic_info,
-                cache_dir_instance.clone(),
-            }?
-            .with_context(|| format!("get basic info for store named {}", cache_dir_instance))
-            .perm()?
-        };
 
         // sealed file & persisted cache files should be accessed inside persist store
         let sealed_file = self.task.sealed_file(sector_id);
@@ -245,10 +216,10 @@ impl<'c, 't> SnapUp<'c, 't> {
             },
             TransferRoute {
                 src: TranferItem {
-                    store_name: Some(cache_dir_instance.clone()),
-                    uri: cache_dir_store
+                    store_name: Some(access_instance.clone()),
+                    uri: access_store
                         .uri(cache_rel)
-                        .with_context(|| format!("get uri for cache dir {:?} in {}", cache_rel, cache_dir_instance))
+                        .with_context(|| format!("get uri for cache dir {:?} in {}", cache_rel, access_instance))
                         .perm()?,
                 },
                 dest: TranferItem {
@@ -263,22 +234,13 @@ impl<'c, 't> SnapUp<'c, 't> {
         ];
 
         let transfer = TransferInput {
-            stores: HashMap::from_iter([
-                (
-                    access_instance.clone(),
-                    TransferStoreInfo {
-                        name: access_instance.clone(),
-                        meta: access_store_basic_info.meta,
-                    },
-                ),
-                (
-                    cache_dir_instance.clone(),
-                    TransferStoreInfo {
-                        name: cache_dir_instance.clone(),
-                        meta: cache_dir_store_basic_info.meta,
-                    },
-                ),
-            ]),
+            stores: HashMap::from_iter([(
+                access_instance.clone(),
+                TransferStoreInfo {
+                    name: access_instance.clone(),
+                    meta: access_store_basic_info.meta,
+                },
+            )]),
             routes: transfer_routes,
         };
 
