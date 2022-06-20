@@ -99,7 +99,10 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
             .with_context(|| format!("request for store basic info of instance {}", st.instance()))?
             .is_none()
         {
-            return Err(anyhow!("store basic info of instance {} not found in venus-sector-manager"));
+            return Err(anyhow!(
+                "store basic info of instance {} not found in venus-sector-manager",
+                st.instance()
+            ));
         }
     }
 
