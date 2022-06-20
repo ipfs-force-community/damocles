@@ -14,11 +14,11 @@ pub fn display(
     let mut writer = csv::Writer::from_writer(io::stdout());
     writer.write_record(&[
         "time (mins)",
-        "sealing threads (free/total)",
-        "pc1 (free/total)",
-        "pc2 (free/total)",
+        "sealing threads (running/total)",
+        "pc1 (running/total)",
+        "pc2 (running/total)",
         "wait seed",
-        "c2 (free/total)",
+        "c2 (running/total)",
         "finished sectors",
     ])?;
 

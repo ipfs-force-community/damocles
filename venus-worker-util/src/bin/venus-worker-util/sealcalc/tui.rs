@@ -107,11 +107,11 @@ impl<'a> App<'a> {
         let normal_style = Style::default().bg(Color::Blue);
         let header_cells = [
             "time (mins)",
-            "sealing threads\n(free/total)",
-            "    pc1\n(free/total)",
-            "    pc2\n(free/total)",
+            "sealing threads\n(running/total)",
+            "    pc1\n(running/total)",
+            "    pc2\n(running/total)",
             "wait seed",
-            "    c2\n(free/total)",
+            "    c2\n(running/total)",
             "finished\nsectors",
         ]
         .iter()
