@@ -47,7 +47,8 @@ struct App<'a> {
 impl<'a> App<'a> {
     pub fn run(&mut self) -> Result<()> {
         let mut terminal = setup_terminal();
-
+        // select first row
+        self.state.select(Some(0));
         loop {
             terminal.inner_mut().draw(|f| self.ui(f))?;
 
@@ -55,8 +56,8 @@ impl<'a> App<'a> {
                 match key.code {
                     KeyCode::Char('q') => return Ok(()),
                     KeyCode::Down => self.next(1),
-                    KeyCode::Up => self.next(-1),
-                    KeyCode::Left => self.next(-20),
+                    KeyCode::Up => self.previous(1),
+                    KeyCode::Left => self.previous(20),
                     KeyCode::Char(' ') | KeyCode::Right => self.next(20),
                     _ => {}
                 }
@@ -64,20 +65,35 @@ impl<'a> App<'a> {
         }
     }
 
-    fn next(&mut self, size: isize) {
+    fn previous(&mut self, size: usize) {
         let i = match self.state.selected() {
             Some(i) => {
-                let i = i as isize;
-                let len = self.items.len() as isize;
+                if i == 0 {
+                    self.items.len() - 1
+                } else if i < size {
+                    0
+                } else {
+                    i - size
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+
+    fn next(&mut self, size: usize) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                let len = self.items.len();
                 if i == len - 1 {
                     0
                 } else if i >= len - size {
-                    (self.items.len() - 1) as isize
+                    len - 1
                 } else {
-                    (i + size + len) % len
+                    i + size
                 }
             }
-            None => size,
+            None => 0,
         };
         self.state.select(Some(i as usize));
     }

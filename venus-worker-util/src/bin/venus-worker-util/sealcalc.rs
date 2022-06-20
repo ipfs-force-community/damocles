@@ -24,7 +24,7 @@ pub(crate) fn subcommand<'a>() -> Command<'a> {
                 .takes_value(true)
                 .required(true)
                 .value_parser(value_parser!(usize))
-                .help("Specify the concurrent of pc1"),
+                .help("Specify the maximum concurrent of pc1"),
         )
         .arg(
             Arg::new("pc2_mins")
@@ -32,7 +32,7 @@ pub(crate) fn subcommand<'a>() -> Command<'a> {
                 .takes_value(true)
                 .required(true)
                 .value_parser(value_parser!(usize))
-                .help("time consuming of pc2 stage, in minutes"),
+                .help("Specify time consuming of pc2 stage, in minutes"),
         )
         .arg(
             Arg::new("pc2_concurrent")
@@ -40,7 +40,7 @@ pub(crate) fn subcommand<'a>() -> Command<'a> {
                 .takes_value(true)
                 .required(true)
                 .value_parser(value_parser!(usize))
-                .help("Specify the concurrent of pc2"),
+                .help("Specify the maximum concurrent of pc2"),
         )
         .arg(
             Arg::new("c2_mins")
@@ -48,7 +48,7 @@ pub(crate) fn subcommand<'a>() -> Command<'a> {
                 .takes_value(true)
                 .required(true)
                 .value_parser(value_parser!(usize))
-                .help("time consuming of c2 stage, in minutes"),
+                .help("Specify time consuming of c2 stage, in minutes"),
         )
         .arg(
             Arg::new("c2_concurrent")
@@ -56,7 +56,7 @@ pub(crate) fn subcommand<'a>() -> Command<'a> {
                 .takes_value(true)
                 .required(true)
                 .value_parser(value_parser!(usize))
-                .help("Specify the concurrent of c2"),
+                .help("Specify the maximum concurrent of c2"),
         )
         .arg(
             Arg::new("sealing_threads")
@@ -67,9 +67,16 @@ pub(crate) fn subcommand<'a>() -> Command<'a> {
                 .help("Specify the number of sealing_threads"),
         )
         .arg(
+            Arg::new("calculate_days")
+                .long("calculate_days")
+                .default_value("30")
+                .value_parser(value_parser!(usize))
+                .help("Calculation time, in days"),
+        )
+        .arg(
             Arg::new("csv")
                 .long("csv")
-                .help("Show full CPU topology")
+                .help("Output in CSV format")
                 .action(ArgAction::SetTrue),
         )
 }
@@ -82,17 +89,19 @@ pub(crate) fn submatch(subargs: &ArgMatches) -> Result<()> {
     let pc1_concurrent: usize = *subargs.get_one("pc1_concurrent").expect("required by clap");
     let pc2_concurrent: usize = *subargs.get_one("pc2_concurrent").expect("required by clap");
     let c2_concurrent: usize = *subargs.get_one("c2_concurrent").expect("required by clap");
+
+    let calculate_days: usize = *subargs.get_one("calculate_days").expect("required by clap");
+
     let sealing_threads: usize = *subargs
         .get_one("sealing_threads")
         .expect("required by clap");
 
-    let total_minutes = 60 * 24 * 30;
     let items = sealcalc::calc(
         (pc1_mins, pc1_concurrent),
         (pc2_mins, pc2_concurrent),
         (c2_mins, c2_concurrent),
         sealing_threads,
-        total_minutes,
+        calculate_days * 24 * 60,
     );
     let csv_mode = *subargs.get_one::<bool>("csv").unwrap_or(&false);
 
