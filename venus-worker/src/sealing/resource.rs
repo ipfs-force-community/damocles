@@ -255,9 +255,12 @@ mod tests {
         ($start:expr, $dur:expr, $($arg:tt)+) => {{
             let elapsed = $start.elapsed();
             // type ascription improves compiler error when wrong type is passed
-            let lower: std::time::Duration = $dur;
+            let mut lower: std::time::Duration = $dur;
 
             // Handles ms rounding
+            if lower > ms(1) {
+                lower -= ms(1)
+            }
             assert!(
                 elapsed >= lower,
                 "actual = {:?}, expected = {:?}. {}",
