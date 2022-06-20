@@ -29,7 +29,6 @@ pub fn display(
             format!("{}/{}", item.pc1_running, pc1_concurrent),
             format!("{}/{}", item.pc2_running, pc2_concurrent),
             item.seed_waiting.to_string(),
-            // item.seed_got.to_string(),
             format!("{}/{}", item.c2_running, c2_concurrent),
             item.finished_sectors.to_string(),
         ])?;
