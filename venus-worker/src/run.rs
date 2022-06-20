@@ -262,6 +262,7 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
         c2: Arc::new(c2),
         snap_encode: Arc::new(snap_encode),
         snap_prove: Arc::new(snap_prove),
+        transfer: Arc::new(Box::new(BuiltinProcessor::default())),
     })
 }
 
