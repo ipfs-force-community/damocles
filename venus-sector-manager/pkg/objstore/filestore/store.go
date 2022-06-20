@@ -177,6 +177,10 @@ func (s *Store) open(p string, r *objstore.Range) (io.ReadCloser, error) {
 
 func (s *Store) Instance(context.Context) string { return s.cfg.Name }
 
+func (s *Store) InstanceConfig(ctx context.Context) objstore.Config {
+	return s.cfg
+}
+
 func (s *Store) InstanceInfo(ctx context.Context) (objstore.InstanceInfo, error) {
 	usage, err := disk.UsageWithContext(ctx, s.cfg.Path)
 	if err != nil {

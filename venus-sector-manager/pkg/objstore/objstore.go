@@ -71,6 +71,7 @@ type InstanceInfo struct {
 
 type Store interface {
 	Instance(context.Context) string
+	InstanceConfig(ctx context.Context) Config
 	InstanceInfo(context.Context) (InstanceInfo, error)
 	Get(context.Context, string) (io.ReadCloser, error)
 	Del(context.Context, string) error

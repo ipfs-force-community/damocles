@@ -56,6 +56,8 @@ type SealerAPI interface {
 	// Store
 	StoreReserveSpace(ctx context.Context, sid abi.SectorID, size uint64, candidates []string) (*StoreBasicInfo, error)
 
+	StoreBasicInfo(ctx context.Context, instanceName string) (*StoreBasicInfo, error)
+
 	// utils
 	SealerCliAPI
 }

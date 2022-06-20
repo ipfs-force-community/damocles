@@ -203,3 +203,11 @@ func (s *Sealer) StoreReleaseReserved(ctx context.Context, sid abi.SectorID) (bo
 func (s *Sealer) StoreList(ctx context.Context) ([]core.StoreDetailedInfo, error) {
 	return nil, nil
 }
+
+func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core.StoreBasicInfo, error) {
+	return &core.StoreBasicInfo{
+		Name: instanceName,
+		Path: instanceName,
+		Meta: map[string]string{},
+	}, nil
+}

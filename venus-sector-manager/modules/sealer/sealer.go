@@ -591,3 +591,18 @@ func (s *Sealer) StoreReserveSpace(ctx context.Context, sid abi.SectorID, size u
 	basic := storeConfig2StoreBasic(storeCfg)
 	return &basic, nil
 }
+
+func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core.StoreBasicInfo, error) {
+	store, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, instanceName)
+	if err != nil {
+		if errors.Is(err, objstore.ErrObjectStoreInstanceNotFound) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("get store %s: %w", instanceName, err)
+	}
+
+	storeCfg := store.InstanceConfig(ctx)
+	basic := storeConfig2StoreBasic(&storeCfg)
+	return &basic, nil
+}
