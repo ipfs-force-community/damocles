@@ -72,7 +72,12 @@ var utilMinerInfoCmd = &cli.Command{
 
 		fmt.Printf("Multiaddrs(%d):\n", len(minfo.Multiaddrs))
 		for _, addr := range minfo.Multiaddrs {
-			fmt.Printf("\t%s\n", addr)
+			maddr, err := ma.NewMultiaddrBytes(addr)
+			if err != nil {
+				fmt.Printf("\tInvalid Multiaddrs: %s\n", err)
+			} else {
+				fmt.Printf("\t%s\n", maddr)
+			}
 		}
 
 		fmt.Printf("SectorSize: %s\n", minfo.SectorSize)
