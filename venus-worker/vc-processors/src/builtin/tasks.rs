@@ -139,7 +139,6 @@ impl Task for SnapProve {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransferStoreInfo {
     pub name: String,
-    pub loc: PathBuf,
     pub meta: Option<HashMap<String, String>>,
 }
 
@@ -151,6 +150,7 @@ pub struct TranferItem {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransferOption {
+    pub is_dir: bool,
     pub allow_link: bool,
 }
 

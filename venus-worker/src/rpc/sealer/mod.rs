@@ -343,7 +343,13 @@ pub struct SectorPublicInfo {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorPrivateInfo {
+    // persist store instance name for all sector files.
+    // if sealed file and cache dir are separated, then this store MUST contans sealed file
     pub access_instance: String,
+
+    // persist store instance name for cache dir
+    // if sector files are separated, then this store MUST contans sealed file
+    pub cache_dir_instance: Option<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -389,7 +395,7 @@ pub struct WorkerInfo {
     pub summary: WorkerInfoSummary,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct StoreBasicInfo {
     pub name: String,
@@ -458,4 +464,7 @@ pub trait Sealer {
 
     #[rpc(name = "Venus.StoreReserveSpace")]
     fn store_reserve_space(&self, id: SectorID, size: u64, candidates: Vec<String>) -> Result<Option<StoreBasicInfo>>;
+
+    #[rpc(name = "Venus.StoreBasicInfo")]
+    fn store_basic_info(&self, instance_name: String) -> Result<Option<StoreBasicInfo>>;
 }

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::os::unix::fs::symlink;
 
 use anyhow::{anyhow, Context, Result};
@@ -11,7 +12,8 @@ use crate::logging::{debug, warn};
 use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir, SnapEncodeInput, SnapProveInput,
+    snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir, SnapEncodeInput, SnapProveInput, TranferItem,
+    TransferInput, TransferOption, TransferRoute, TransferStoreInfo,
 };
 
 pub struct SnapUpPlanner;
@@ -164,32 +166,129 @@ impl<'c, 't> SnapUp<'c, 't> {
             access_instance,
             self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
         );
+
+        field_required!(
+            cache_dir_instance,
+            self.task.sector.finalized.as_ref().map(|f| f.private.cache_dir_instance.as_ref())
+        );
+
+        let cache_dir_instance = cache_dir_instance.unwrap_or(access_instance);
         cloned_required!(piece_infos, self.task.sector.phases.pieces);
 
-        debug!("trying to find access store named {}", access_instance);
+        debug!("find access store named {}", access_instance);
         let access_store = self
             .task
             .ctx
             .global
             .attached
-            .get(access_instance.as_str())
+            .get(access_instance)
             .with_context(|| format!("get access store instance named {}", access_instance))
             .perm()?;
 
-        // sealed file & persisted cache files should be accessed inside persist store
-        // TODO: make link type configurable
-        let sealed_file = self.task.sealed_file(sector_id);
-        sealed_file.prepare().perm()?;
-        access_store
-            .link_object(sealed_file.rel(), sealed_file.as_ref(), true)
-            .with_context(|| format!("link sealed file {:?} to {:?}", sealed_file.rel(), sealed_file.full()))
+        debug!("get basic info for access store named {}", access_instance);
+        let access_store_basic_info = call_rpc! {
+            self.task.ctx.global.rpc,
+            store_basic_info,
+            access_instance.clone(),
+        }?
+        .with_context(|| format!("get basic info for store named {}", access_instance))
+        .perm()?;
+
+        debug!("find cache dir store named {}", cache_dir_instance);
+        let cache_dir_store = self
+            .task
+            .ctx
+            .global
+            .attached
+            .get(cache_dir_instance)
+            .with_context(|| format!("get cache dir store instance named {}", cache_dir_instance))
             .perm()?;
 
+        debug!("get basic info for cache dir store named {}", access_instance);
+        let cache_dir_store_basic_info = if access_instance == cache_dir_instance {
+            access_store_basic_info.clone()
+        } else {
+            call_rpc! {
+                self.task.ctx.global.rpc,
+                store_basic_info,
+                cache_dir_instance.clone(),
+            }?
+            .with_context(|| format!("get basic info for store named {}", cache_dir_instance))
+            .perm()?
+        };
+
+        // sealed file & persisted cache files should be accessed inside persist store
+        let sealed_file = self.task.sealed_file(sector_id);
+        sealed_file.prepare().perm()?;
+        let sealed_rel = sealed_file.rel();
+
         let cache_dir = self.task.cache_dir(sector_id);
-        debug!("trying to link cache dir");
-        access_store
-            .link_dir(cache_dir.rel(), cache_dir.as_ref(), true)
-            .with_context(|| format!("link cache file {:?} to {:?}", cache_dir.rel(), cache_dir.full()))
+        let cache_rel = cache_dir.rel();
+
+        let transfer_routes = vec![
+            TransferRoute {
+                src: TranferItem {
+                    store_name: Some(access_instance.clone()),
+                    uri: access_store
+                        .uri(sealed_rel)
+                        .with_context(|| format!("get uri for sealed file {:?} in {}", sealed_rel, access_instance))
+                        .perm()?,
+                },
+                dest: TranferItem {
+                    store_name: None,
+                    uri: sealed_file.full().clone(),
+                },
+                opt: Some(TransferOption {
+                    is_dir: false,
+                    allow_link: true,
+                }),
+            },
+            TransferRoute {
+                src: TranferItem {
+                    store_name: Some(cache_dir_instance.clone()),
+                    uri: cache_dir_store
+                        .uri(cache_rel)
+                        .with_context(|| format!("get uri for cache dir {:?} in {}", cache_rel, cache_dir_instance))
+                        .perm()?,
+                },
+                dest: TranferItem {
+                    store_name: None,
+                    uri: cache_dir.full().clone(),
+                },
+                opt: Some(TransferOption {
+                    is_dir: true,
+                    allow_link: true,
+                }),
+            },
+        ];
+
+        let transfer = TransferInput {
+            stores: HashMap::from_iter([
+                (
+                    access_instance.clone(),
+                    TransferStoreInfo {
+                        name: access_instance.clone(),
+                        meta: access_store_basic_info.meta,
+                    },
+                ),
+                (
+                    cache_dir_instance.clone(),
+                    TransferStoreInfo {
+                        name: cache_dir_instance.clone(),
+                        meta: cache_dir_store_basic_info.meta,
+                    },
+                ),
+            ]),
+            routes: transfer_routes,
+        };
+
+        self.task
+            .ctx
+            .global
+            .processors
+            .transfer
+            .process(transfer)
+            .context("link snapup sector files")
             .perm()?;
 
         // init update file

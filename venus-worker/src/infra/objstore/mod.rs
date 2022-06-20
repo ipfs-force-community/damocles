@@ -66,9 +66,10 @@ pub trait ObjectStore: Send + Sync {
     /// instance name of the store
     fn instance(&self) -> String;
 
-    fn loc(&self) -> PathBuf;
-
-    fn uri(&self, rel: &Path) -> ObjResult<PathBuf>;
+    /// unique identifer of the given resource.
+    /// for fs-like stores, this should return an abs path.
+    /// for other stores, this may return a url, or path part of a url.
+    fn uri(&self, resource: &Path) -> ObjResult<PathBuf>;
 
     /// if this instance is read-only
     fn readonly(&self) -> bool;

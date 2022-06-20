@@ -72,10 +72,6 @@ impl ObjectStore for FileStore {
         self.instance.clone()
     }
 
-    fn loc(&self) -> PathBuf {
-        self.local_path.to_owned()
-    }
-
     fn uri(&self, rel: &Path) -> ObjResult<PathBuf> {
         self.path(rel)
     }

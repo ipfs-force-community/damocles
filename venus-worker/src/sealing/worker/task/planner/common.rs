@@ -178,6 +178,7 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
                     store_name: None,
                     uri: p.full().to_owned(),
                 },
+                // persist store
                 dest: TranferItem {
                     store_name: Some(ins_name.clone()),
                     uri: persist_store
@@ -192,16 +193,21 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
 
     let transfer_store_info = TransferStoreInfo {
         name: ins_name.clone(),
-        loc: persist_store.loc(),
         meta: ins_info.meta,
     };
 
     let transfer = TransferInput {
-        stores: HashMap::from_iter([(persist_store.instance(), transfer_store_info)]),
+        stores: HashMap::from_iter([(ins_name.clone(), transfer_store_info)]),
         routes: transfer_routes,
     };
 
-    task.ctx.global.processors.transfer.process(transfer).perm()?;
+    task.ctx
+        .global
+        .processors
+        .transfer
+        .process(transfer)
+        .context("transfer persist sector files")
+        .perm()?;
 
     Ok(ins_name)
 }
