@@ -205,6 +205,7 @@ func (s *Sealer) StoreList(ctx context.Context) ([]core.StoreDetailedInfo, error
 }
 
 func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core.StoreBasicInfo, error) {
+	log.Warnw("get store basic info", "instance", instanceName)
 	return &core.StoreBasicInfo{
 		Name: instanceName,
 		Path: instanceName,

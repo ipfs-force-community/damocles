@@ -17,6 +17,7 @@ use crate::{
         piecestore::{proxy::ProxyPieceStore, PieceStore},
     },
     logging::info,
+    rpc::sealer::SealerClient,
     sealing::{
         ping, processor,
         resource::{self, LimitItem},
@@ -35,6 +36,17 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path))?;
     info!("config loaded\n {:?}", cfg);
+
+    let dial_addr = rpc_addr(&cfg.sector_manager.rpc_client.addr, 0)?;
+    info!(
+        raw = %cfg.sector_manager.rpc_client.addr,
+        addr = %dial_addr.as_str(),
+        "rpc dial info"
+    );
+
+    let rpc_client: SealerClient = runtime
+        .block_on(async { http::connect(&dial_addr).await })
+        .map_err(|e| anyhow!("jsonrpc connect to {}: {:?}", &dial_addr, e))?;
 
     let mut attached: Vec<Box<dyn ObjectStore>> = Vec::new();
     let mut attached_writable = 0;
@@ -78,22 +90,24 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         return Err(anyhow!("no attached store available for writing"));
     }
 
+    // check all persist store exist in venus-sector-manager
+    for st in attached.iter() {
+        let ins_name = st.instance();
+        if runtime
+            .block_on(async { rpc_client.store_basic_info(ins_name).await })
+            .map_err(|e| anyhow!("rpc error: {:?}", e))
+            .with_context(|| format!("request for store basic info of instance {}", st.instance()))?
+            .is_none()
+        {
+            return Err(anyhow!("store basic info of instance {} not found in venus-sector-manager"));
+        }
+    }
+
     info!("{} stores attached, {} writable", attached.len(), attached_writable);
 
     let attached_mgr = AttachedManager::init(attached).context("init attached manager")?;
 
     let store_mgr = StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
-
-    let dial_addr = rpc_addr(&cfg.sector_manager.rpc_client.addr, 0)?;
-    info!(
-        raw = %cfg.sector_manager.rpc_client.addr,
-        addr = %dial_addr.as_str(),
-        "rpc dial info"
-    );
-
-    let rpc_client = runtime
-        .block_on(async { http::connect(&dial_addr).await })
-        .map_err(|e| anyhow!("jsonrpc connect to {}: {:?}", &dial_addr, e))?;
 
     let local_ip = socket_addr_from_url(&dial_addr)
         .with_context(|| format!("attempt to connect to sealer rpc service {}", &dial_addr))
