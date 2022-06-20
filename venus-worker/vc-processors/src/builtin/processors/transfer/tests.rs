@@ -187,7 +187,10 @@ fn transfer_test() {
             store_name: None,
             uri: dest_path.clone(),
         },
-        opt: Some(TransferOption { allow_link: true }),
+        opt: Some(TransferOption {
+            is_dir: true,
+            allow_link: true,
+        }),
     });
 
     assert!(res.is_ok(), "transfer dir {:?} to {:?}, allow_link", &src_path, &dest_path);
@@ -209,7 +212,10 @@ fn transfer_test() {
                 store_name: None,
                 uri: dfp.clone(),
             },
-            opt: Some(TransferOption { allow_link: true }),
+            opt: Some(TransferOption {
+                is_dir: false,
+                allow_link: true,
+            }),
         });
         assert!(res.is_ok(), "transfer file {:?} to {:?}, allow_link", sfp, dfp);
     }
