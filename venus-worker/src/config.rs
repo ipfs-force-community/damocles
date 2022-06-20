@@ -183,6 +183,9 @@ pub struct Processors {
 
     /// section for c2 processor
     pub snap_prove: Option<Vec<Ext>>,
+
+    /// section for transfer processor
+    pub transfer: Option<Vec<Ext>>,
 }
 
 impl Processors {

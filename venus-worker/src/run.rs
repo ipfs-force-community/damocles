@@ -255,6 +255,8 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
 
     let snap_prove: processor::BoxedSnapProveProcessor = construct_sub_processor!(snap_prove, cfg, locks);
 
+    let transfer: processor::BoxedTransferProcessor = construct_sub_processor!(transfer, cfg, locks);
+
     Ok(GloablProcessors {
         tree_d: Arc::new(tree_d),
         pc1: Arc::new(pc1),
@@ -262,7 +264,7 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
         c2: Arc::new(c2),
         snap_encode: Arc::new(snap_encode),
         snap_prove: Arc::new(snap_prove),
-        transfer: Arc::new(Box::new(BuiltinProcessor::default())),
+        transfer: Arc::new(transfer),
     })
 }
 

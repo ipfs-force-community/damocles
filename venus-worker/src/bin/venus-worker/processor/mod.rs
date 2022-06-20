@@ -4,8 +4,8 @@ use vc_processors::{
     builtin::{
         processors::BuiltinProcessor,
         tasks::{
-            SnapEncode, SnapProve, TreeD, C2, PC1, PC2, STAGE_NAME_C2, STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE,
-            STAGE_NAME_SNAP_PROVE, STAGE_NAME_TREED,
+            SnapEncode, SnapProve, Transfer, TreeD, C2, PC1, PC2, STAGE_NAME_C2, STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE,
+            STAGE_NAME_SNAP_PROVE, STAGE_NAME_TRANSFER, STAGE_NAME_TREED,
         },
     },
     core::ext::run_consumer,
@@ -20,6 +20,8 @@ pub(crate) fn subcommand<'a, 'b>() -> App<'a, 'b> {
     let c2_cmd = SubCommand::with_name(STAGE_NAME_C2);
     let snap_encode_cmd = SubCommand::with_name(STAGE_NAME_SNAP_ENCODE);
     let snap_prove_cmd = SubCommand::with_name(STAGE_NAME_SNAP_PROVE);
+    let transfer_cmd = SubCommand::with_name(STAGE_NAME_TRANSFER);
+
     SubCommand::with_name(SUB_CMD_NAME)
         .setting(AppSettings::ArgRequiredElseHelp)
         .subcommand(tree_d_cmd)
@@ -28,6 +30,7 @@ pub(crate) fn subcommand<'a, 'b>() -> App<'a, 'b> {
         .subcommand(c2_cmd)
         .subcommand(snap_encode_cmd)
         .subcommand(snap_prove_cmd)
+        .subcommand(transfer_cmd)
 }
 
 pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
@@ -43,6 +46,8 @@ pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
         (STAGE_NAME_SNAP_ENCODE, _) => run_consumer::<SnapEncode, BuiltinProcessor>(),
 
         (STAGE_NAME_SNAP_PROVE, _) => run_consumer::<SnapProve, BuiltinProcessor>(),
+
+        (STAGE_NAME_TRANSFER, _) => run_consumer::<Transfer, BuiltinProcessor>(),
 
         (other, _) => Err(anyhow!("unexpected subcommand `{}` of processor", other)),
     }
