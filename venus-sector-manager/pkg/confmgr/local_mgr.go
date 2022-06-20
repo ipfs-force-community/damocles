@@ -79,12 +79,21 @@ func (lm *localMgr) cfgpath(key string) string {
 }
 
 func (lm *localMgr) SetDefault(ctx context.Context, key string, c interface{}) error {
+	fname := lm.cfgpath(key)
+	_, err := os.Stat(fname)
+	if err == nil {
+		return fmt.Errorf("%s already exits", fname)
+	}
+
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("stat file %s: %w", fname, err)
+	}
+
 	content, err := ConfigComment(c)
 	if err != nil {
 		return fmt.Errorf("marshal default content: %w", err)
 	}
 
-	fname := lm.cfgpath(key)
 	return ioutil.WriteFile(fname, content, 0644)
 }
 
