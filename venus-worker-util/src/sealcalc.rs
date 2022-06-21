@@ -120,3 +120,87 @@ pub fn calc(
 
     all_data
 }
+
+#[cfg(test)]
+mod tests {
+    use super::TaskStatus;
+
+    #[test]
+    fn test_task_status_step() {
+        struct TestCase {
+            current_min: usize,
+            pending_tasks: usize,
+            expected_pending_tasks: usize,
+            expected_running_num: usize,
+            expected_done: usize,
+        }
+        let cases = vec![
+            (
+                TaskStatus::new(1, 2),
+                vec![
+                    TestCase {
+                        current_min: 0,
+                        pending_tasks: 5,
+                        expected_pending_tasks: 3,
+                        expected_running_num: 2,
+                        expected_done: 0,
+                    },
+                    TestCase {
+                        current_min: 1,
+                        pending_tasks: 5,
+                        expected_pending_tasks: 3,
+                        expected_running_num: 2,
+                        expected_done: 2,
+                    },
+                    TestCase {
+                        current_min: 2,
+                        pending_tasks: 1,
+                        expected_pending_tasks: 0,
+                        expected_running_num: 1,
+                        expected_done: 4,
+                    },
+                ],
+            ),
+            (
+                TaskStatus::new(2, 2),
+                vec![
+                    TestCase {
+                        current_min: 0,
+                        pending_tasks: 5,
+                        expected_pending_tasks: 3,
+                        expected_running_num: 2,
+                        expected_done: 0,
+                    },
+                    TestCase {
+                        current_min: 1,
+                        pending_tasks: 5,
+                        expected_pending_tasks: 5,
+                        expected_running_num: 2,
+                        expected_done: 0,
+                    },
+                ],
+            ),
+        ];
+
+        for (mut task_status, test_cases) in cases {
+            for mut test_case in test_cases {
+                task_status.step(test_case.current_min, &mut test_case.pending_tasks);
+                assert_eq!(
+                    test_case.pending_tasks, test_case.expected_pending_tasks,
+                    "expected pending_tasks: {}, got: {}",
+                    test_case.expected_pending_tasks, test_case.pending_tasks
+                );
+                assert_eq!(
+                    task_status.running_num, test_case.expected_running_num,
+                    "expected running_num: {}, got: {}",
+                    test_case.expected_running_num, task_status.running_num
+                );
+                assert_eq!(
+                    task_status.done, test_case.expected_done,
+                    "expected done: {}, got: {}",
+                    test_case.expected_done, task_status.done
+                );
+            }
+        }
+    }
+}
