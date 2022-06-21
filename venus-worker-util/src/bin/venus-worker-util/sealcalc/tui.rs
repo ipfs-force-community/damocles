@@ -18,6 +18,7 @@ use venus_worker_util::sealcalc;
 /// Display the status of tasks running at different times by tui's table
 pub fn display(
     items: &[sealcalc::Item],
+    tree_d_concurrent: usize,
     pc1_concurrent: usize,
     pc2_concurrent: usize,
     c2_concurrent: usize,
@@ -25,6 +26,7 @@ pub fn display(
 ) -> Result<()> {
     App {
         items,
+        tree_d_concurrent,
         pc1_concurrent,
         pc2_concurrent,
         c2_concurrent,
@@ -36,6 +38,7 @@ pub fn display(
 
 struct App<'a> {
     items: &'a [sealcalc::Item],
+    tree_d_concurrent: usize,
     pc1_concurrent: usize,
     pc2_concurrent: usize,
     c2_concurrent: usize,
@@ -106,11 +109,12 @@ impl<'a> App<'a> {
         let selected_style = Style::default().add_modifier(Modifier::REVERSED);
         let normal_style = Style::default().bg(Color::Blue);
         let header_cells = [
-            "time (mins)",
+            "time\n(mins)",
             "sealing threads\n(running/total)",
+            "  tree_d\n(running/total)",
             "    pc1\n(running/total)",
             "    pc2\n(running/total)",
-            "wait seed",
+            "wait\nseed",
             "    c2\n(running/total)",
             "finished\nsectors",
         ]
@@ -129,6 +133,10 @@ impl<'a> App<'a> {
                     "{}/{}",
                     item.sealing_threads_running, self.sealing_threads
                 )),
+                Cell::from(format!(
+                    "{}/{}",
+                    item.tree_d_running, self.tree_d_concurrent
+                )),
                 Cell::from(format!("{}/{}", item.pc1_running, self.pc1_concurrent)),
                 Cell::from(format!("{}/{}", item.pc2_running, self.pc2_concurrent)),
                 Cell::from(item.seed_waiting.to_string()),
@@ -136,6 +144,14 @@ impl<'a> App<'a> {
                 Cell::from(item.finished_sectors.to_string()),
             ])
         });
+        let widths = [
+            [Constraint::Ratio(1, 14)].as_slice(),
+            [Constraint::Ratio(1, 7); 4].as_slice(),
+            [Constraint::Ratio(1, 14)].as_slice(),
+            [Constraint::Ratio(1, 7); 2].as_slice(),
+        ]
+        .concat();
+
         let t = Table::new(rows)
             .header(header)
             .block(
@@ -144,7 +160,7 @@ impl<'a> App<'a> {
                     .title("sealing calculator"),
             )
             .highlight_style(selected_style)
-            .widths(&[Constraint::Ratio(1, 7); 7]);
+            .widths(widths.as_slice());
         f.render_stateful_widget(t, rects[0], &mut self.state);
     }
 }
