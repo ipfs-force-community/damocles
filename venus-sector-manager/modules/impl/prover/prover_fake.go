@@ -17,15 +17,19 @@ type verifier struct {
 }
 
 func (verifier) VerifySeal(context.Context, core.SealVerifyInfo) (bool, error) {
-	return true, nil
+	return false, nil
 }
 
 func (verifier) VerifyAggregateSeals(context.Context, core.AggregateSealVerifyProofAndInfos) (bool, error) {
-	return true, nil
+	return false, nil
 }
 
 func (verifier) VerifyWindowPoSt(ctx context.Context, info core.WindowPoStVerifyInfo) (bool, error) {
-	return true, nil
+	return false, nil
+}
+
+func (verifier) VerifyWinningPoSt(ctx context.Context, info core.WinningPoStVerifyInfo) (bool, error) {
+	return false, nil
 }
 
 type prover struct {
@@ -40,5 +44,17 @@ func (prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, secto
 }
 
 func (prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sectors SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
+	return nil, nil
+}
+
+func (prover) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
+	return nil, nil
+}
+
+func (prover) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
+	return nil, nil
+}
+
+func (prover) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
 	return nil, nil
 }
