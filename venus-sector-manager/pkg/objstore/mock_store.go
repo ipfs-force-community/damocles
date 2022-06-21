@@ -48,6 +48,12 @@ func (ms *MockStore) InstanceInfo(context.Context) (InstanceInfo, error) {
 	}, nil
 }
 
+func (ms *MockStore) InstanceConfig(ctx context.Context) Config {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	return ms.cfg
+}
+
 func (ms *MockStore) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()

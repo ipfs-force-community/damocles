@@ -1,6 +1,7 @@
 //! this module provides some common handlers
 
-use std::fs::{remove_file, File, OpenOptions};
+use std::collections::HashMap;
+use std::fs::{remove_file, File};
 use std::io::{self, prelude::*};
 use std::os::unix::fs::symlink;
 
@@ -8,11 +9,12 @@ use anyhow::{anyhow, Context};
 use vc_processors::builtin::tasks::STAGE_NAME_TREED;
 
 use super::super::{call_rpc, Entry, Task};
-use crate::logging::{debug, warn_span};
+use crate::logging::debug;
 use crate::rpc::sealer::Deals;
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TreeDInput, UnpaddedBytesAmount,
+    tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TransferInput, TransferItem, TransferRoute,
+    TransferStoreInfo, TreeDInput, UnpaddedBytesAmount,
 };
 use crate::types::SIZE_32G;
 
@@ -148,7 +150,7 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
         .perm()?;
 
     let ins_name = persist_store.instance();
-    debug!(name = ins_name.as_str(), "persist store acquired");
+    debug!(name = %ins_name, "persist store acquired");
 
     let mut wanted = vec![sealed_file];
 
@@ -166,27 +168,46 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
         }
     }
 
-    let mut opt = OpenOptions::new();
-    opt.read(true);
+    let transfer_routes = wanted
+        .into_iter()
+        .map(|p| {
+            let rel_path = p.rel();
+            Ok(TransferRoute {
+                // local
+                src: TransferItem {
+                    store_name: None,
+                    uri: p.full().to_owned(),
+                },
+                // persist store
+                dest: TransferItem {
+                    store_name: Some(ins_name.clone()),
+                    uri: persist_store
+                        .uri(rel_path)
+                        .with_context(|| format!("get uri for {:?}", rel_path))
+                        .perm()?,
+                },
+                opt: None,
+            })
+        })
+        .collect::<Result<Vec<_>, Failure>>()?;
 
-    for one in wanted {
-        let target_path = one.rel();
+    let transfer_store_info = TransferStoreInfo {
+        name: ins_name.clone(),
+        meta: ins_info.meta,
+    };
 
-        let copy_span = warn_span!(
-            "persist",
-            src = ?&one,
-            dst = ?&target_path,
-        );
+    let transfer = TransferInput {
+        stores: HashMap::from_iter([(ins_name.clone(), transfer_store_info)]),
+        routes: transfer_routes,
+    };
 
-        let copy_enter = copy_span.enter();
-
-        let source = opt.open(&one).crit()?;
-        let size = persist_store.put(target_path, Box::new(source)).crit()?;
-
-        debug!(size, "persist done");
-
-        drop(copy_enter);
-    }
+    task.ctx
+        .global
+        .processors
+        .transfer
+        .process(transfer)
+        .context("transfer persist sector files")
+        .perm()?;
 
     Ok(ins_name)
 }

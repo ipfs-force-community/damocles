@@ -343,6 +343,7 @@ pub struct SectorPublicInfo {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorPrivateInfo {
+    // for now, snap up allocator only allow non-splited sectors
     pub access_instance: String,
 }
 
@@ -389,7 +390,7 @@ pub struct WorkerInfo {
     pub summary: WorkerInfoSummary,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct StoreBasicInfo {
     pub name: String,
@@ -458,4 +459,7 @@ pub trait Sealer {
 
     #[rpc(name = "Venus.StoreReserveSpace")]
     fn store_reserve_space(&self, id: SectorID, size: u64, candidates: Vec<String>) -> Result<Option<StoreBasicInfo>>;
+
+    #[rpc(name = "Venus.StoreBasicInfo")]
+    fn store_basic_info(&self, instance_name: String) -> Result<Option<StoreBasicInfo>>;
 }

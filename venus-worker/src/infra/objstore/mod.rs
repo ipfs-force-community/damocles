@@ -2,8 +2,8 @@
 
 use std::error::Error;
 use std::fmt;
-use std::io::{self, Read};
-use std::path::Path;
+use std::io;
+use std::path::{Path, PathBuf};
 
 pub mod attached;
 pub mod filestore;
@@ -66,24 +66,11 @@ pub trait ObjectStore: Send + Sync {
     /// instance name of the store
     fn instance(&self) -> String;
 
-    /// get should return a reader for the given path
-    fn get(&self, path: &Path) -> ObjResult<Box<dyn Read>>;
-
-    /// put an object
-    fn put(&self, path: &Path, r: Box<dyn Read>) -> ObjResult<u64>;
-
-    /// get specified pieces
-    fn get_chunks(&self, path: &Path, ranges: &[Range]) -> ObjResult<Box<dyn Iterator<Item = ObjResult<Box<dyn Read>>>>>;
-
-    /// link a dir or a batch of files with the same prefix to a local path
-    fn link_dir(&self, path: &Path, dest: &Path, sym_only: bool) -> ObjResult<()>;
-
-    /// link a object to a local path
-    fn link_object(&self, path: &Path, dest: &Path, sym_only: bool) -> ObjResult<()>;
+    /// unique identifer of the given resource.
+    /// for fs-like stores, this should return an abs path.
+    /// for other stores, this may return a url, or path part of a url.
+    fn uri(&self, resource: &Path) -> ObjResult<PathBuf>;
 
     /// if this instance is read-only
     fn readonly(&self) -> bool;
-
-    /// return free space of the object store
-    fn free_space(&self) -> ObjResult<u64>;
 }
