@@ -3,7 +3,9 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"text/tabwriter"
 	"time"
@@ -21,6 +23,8 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	chain2 "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
@@ -42,6 +46,7 @@ var utilSealerProvingCmd = &cli.Command{
 		utilSealerProvingCheckProvableCmd,
 		utilSealerProvingSimulateWdPoStCmd,
 		utilSealerProvingSectorInfoCmd,
+		utilSealerProvingWinningVanillaCmd,
 	},
 }
 
@@ -658,6 +663,115 @@ var utilSealerProvingSectorInfoCmd = &cli.Command{
 				continue
 			}
 		}
+
+		return nil
+	},
+}
+
+var utilSealerProvingWinningVanillaCmd = &cli.Command{
+	Name: "winning-vanilla",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:     "sealed-file",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     "cache-dir",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name: "output",
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		api, actx, astop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer astop()
+
+		sealedFilePath, err := filepath.Abs(cctx.String("sealed-file"))
+		if err != nil {
+			return fmt.Errorf("abs path of sealed file: %w", err)
+		}
+
+		cacheDirPath, err := filepath.Abs(cctx.String("cache-dir"))
+		if err != nil {
+			return fmt.Errorf("abs path of cache dir: %w", err)
+		}
+
+		sealedFileName := filepath.Base(sealedFilePath)
+		sectorID, ok := util.ScanSectorID(sealedFileName)
+		if !ok {
+			return fmt.Errorf("invalid formatted sector id: %s", sealedFileName)
+		}
+
+		maddr, err := address.NewIDAddress(uint64(sectorID.Miner))
+		if err != nil {
+			return fmt.Errorf("generate miner address: %w", err)
+		}
+
+		sectorInfo, err := api.Chain.StateSectorGetInfo(actx, maddr, sectorID.Number, types.EmptyTSK)
+		if err != nil {
+			return fmt.Errorf("get sector on chain info: %w", err)
+		}
+
+		slog := Log.With("sector", sealedFileName)
+
+		randomness := make(abi.PoStRandomness, abi.RandomnessLength)
+		challenges, err := prover.Prover.GeneratePoStFallbackSectorChallenges(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, []abi.SectorNumber{sectorID.Number})
+		if err != nil {
+			return fmt.Errorf("generate challenge for sector %s: %w", sealedFileName, err)
+		}
+
+		challenge, ok := challenges.Challenges[sectorID.Number]
+		if !ok {
+			return fmt.Errorf("challenges for %s not found", sealedFileName)
+		}
+
+		slog.Infof("%d challenge generated", len(challenge))
+
+		vannilla, err := prover.Prover.GenerateSingleVanillaProof(actx, core.FFIPrivateSectorInfo{
+			SectorInfo: core.SectorInfo{
+				SealProof:    sectorInfo.SealProof,
+				SectorNumber: sectorInfo.SectorNumber,
+				SealedCID:    sectorInfo.SealedCID,
+			},
+			PoStProofType:    abi.RegisteredPoStProof_StackedDrgWinning32GiBV1,
+			CacheDirPath:     cacheDirPath,
+			SealedSectorPath: sealedFilePath,
+		}, challenge)
+		if err != nil {
+			return fmt.Errorf("generate vannilla proof for %s: %w", sealedFileName, err)
+		}
+
+		slog.Infof("vannilla generated with %d bytes", len(vannilla))
+
+		proof, err := prover.Prover.GenerateWinningPoStWithVanilla(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, [][]byte{vannilla})
+		if err != nil {
+			return fmt.Errorf("generate winning post with vannilla for %s: %w", sealedFileName, err)
+		}
+
+		slog.Infof("proof generated with %d bytes", len(proof))
+
+		verified, err := prover.Verifier.VerifyWinningPoSt(actx, core.WinningPoStVerifyInfo{})
+		if err != nil {
+			return fmt.Errorf("verify winning post proof: %w", err)
+		}
+
+		if !verified {
+			return fmt.Errorf("winning post not verified")
+		}
+
+		if output := cctx.String("output"); output != "" {
+			if err := ioutil.WriteFile(output, vannilla, 0644); err != nil {
+				return fmt.Errorf("write vannilla proof into file: %w", err)
+			}
+
+			slog.Info("vanilla proof output written")
+		}
+
+		slog.Info("done")
 
 		return nil
 	},
