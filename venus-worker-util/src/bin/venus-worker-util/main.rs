@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use clap::Command;
 
 mod hwinfo;
+mod sealcalc;
 
 fn main() -> Result<()> {
     let ver_string = format!(
@@ -15,10 +16,12 @@ fn main() -> Result<()> {
         .about("venus-worker utility collection")
         .arg_required_else_help(true)
         .subcommand(hwinfo::subcommand())
+        .subcommand(sealcalc::subcommand())
         .get_matches();
 
     match matches.subcommand() {
         Some((hwinfo::SUB_CMD_NAME, args)) => hwinfo::submatch(args),
+        Some((sealcalc::SUB_CMD_NAME, args)) => sealcalc::submatch(args),
         _ => Err(anyhow!("unexpected subcommand")),
     }
 }
