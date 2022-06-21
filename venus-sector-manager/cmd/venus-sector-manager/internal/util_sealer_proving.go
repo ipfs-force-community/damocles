@@ -711,9 +711,15 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 			return fmt.Errorf("generate miner address: %w", err)
 		}
 
-		sectorInfo, err := api.Chain.StateSectorGetInfo(actx, maddr, sectorID.Number, types.EmptyTSK)
+		sectorOnChainInfo, err := api.Chain.StateSectorGetInfo(actx, maddr, sectorID.Number, types.EmptyTSK)
 		if err != nil {
 			return fmt.Errorf("get sector on chain info: %w", err)
+		}
+
+		sectorInfo := core.SectorInfo{
+			SealProof:    sectorOnChainInfo.SealProof,
+			SectorNumber: sectorOnChainInfo.SectorNumber,
+			SealedCID:    sectorOnChainInfo.SealedCID,
 		}
 
 		slog := Log.With("sector", sealedFileName)
@@ -732,11 +738,7 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 		slog.Infof("%d challenge generated", len(challenge))
 
 		vannilla, err := prover.Prover.GenerateSingleVanillaProof(actx, core.FFIPrivateSectorInfo{
-			SectorInfo: core.SectorInfo{
-				SealProof:    sectorInfo.SealProof,
-				SectorNumber: sectorInfo.SectorNumber,
-				SealedCID:    sectorInfo.SealedCID,
-			},
+			SectorInfo:       sectorInfo,
 			PoStProofType:    abi.RegisteredPoStProof_StackedDrgWinning32GiBV1,
 			CacheDirPath:     cacheDirPath,
 			SealedSectorPath: sealedFilePath,
@@ -747,14 +749,19 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 
 		slog.Infof("vannilla generated with %d bytes", len(vannilla))
 
-		proof, err := prover.Prover.GenerateWinningPoStWithVanilla(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, [][]byte{vannilla})
+		proofs, err := prover.Prover.GenerateWinningPoStWithVanilla(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, [][]byte{vannilla})
 		if err != nil {
 			return fmt.Errorf("generate winning post with vannilla for %s: %w", sealedFileName, err)
 		}
 
-		slog.Infof("proof generated with %d bytes", len(proof))
+		slog.Infof("proof generated with %d bytes", len(proofs))
 
-		verified, err := prover.Verifier.VerifyWinningPoSt(actx, core.WinningPoStVerifyInfo{})
+		verified, err := prover.Verifier.VerifyWinningPoSt(actx, core.WinningPoStVerifyInfo{
+			Randomness:        randomness,
+			Proofs:            proofs,
+			ChallengedSectors: []core.SectorInfo{sectorInfo},
+			Prover:            sectorID.Miner,
+		})
 		if err != nil {
 			return fmt.Errorf("verify winning post proof: %w", err)
 		}
