@@ -13,7 +13,7 @@ use crate::logging::debug;
 use crate::rpc::sealer::Deals;
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TranferItem, TransferInput, TransferRoute, TransferStoreInfo,
+    tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TransferItem, TransferInput, TransferRoute, TransferStoreInfo,
     TreeDInput, UnpaddedBytesAmount,
 };
 use crate::types::SIZE_32G;
@@ -174,12 +174,12 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
             let rel_path = p.rel();
             Ok(TransferRoute {
                 // local
-                src: TranferItem {
+                src: TransferItem {
                     store_name: None,
                     uri: p.full().to_owned(),
                 },
                 // persist store
-                dest: TranferItem {
+                dest: TransferItem {
                     store_name: Some(ins_name.clone()),
                     uri: persist_store
                         .uri(rel_path)

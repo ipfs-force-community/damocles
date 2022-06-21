@@ -7,7 +7,7 @@ use rand::{rngs::OsRng, thread_rng, RngCore};
 
 use super::{
     super::{
-        super::tasks::{TranferItem, TransferOption},
+        super::tasks::{TransferItem, TransferOption},
         TransferRoute,
     },
     do_transfer, ensure_dest_parent,
@@ -75,11 +75,11 @@ fn transfer_failure_test() {
     let rel_dest = "dest/dir";
 
     let res = do_transfer(&TransferRoute {
-        src: TranferItem {
+        src: TransferItem {
             store_name: None,
             uri: rel_src.into(),
         },
-        dest: TranferItem {
+        dest: TransferItem {
             store_name: None,
             uri: rel_dest.into(),
         },
@@ -92,11 +92,11 @@ fn transfer_failure_test() {
 
     let src_path = tmp.0.join(rel_src);
     let res = do_transfer(&TransferRoute {
-        src: TranferItem {
+        src: TransferItem {
             store_name: None,
             uri: src_path.clone(),
         },
-        dest: TranferItem {
+        dest: TransferItem {
             store_name: None,
             uri: rel_dest.into(),
         },
@@ -106,11 +106,11 @@ fn transfer_failure_test() {
 
     tmp.create_dir(rel_src);
     let res = do_transfer(&TransferRoute {
-        src: TranferItem {
+        src: TransferItem {
             store_name: None,
             uri: src_path.clone(),
         },
-        dest: TranferItem {
+        dest: TransferItem {
             store_name: None,
             uri: "b/dir".into(),
         },
@@ -123,11 +123,11 @@ fn transfer_failure_test() {
 
     let dest_path = tmp.touch(&rel_dest, None);
     let res = do_transfer(&TransferRoute {
-        src: TranferItem {
+        src: TransferItem {
             store_name: None,
             uri: src_path.clone(),
         },
-        dest: TranferItem {
+        dest: TransferItem {
             store_name: None,
             uri: dest_path.clone(),
         },
@@ -142,11 +142,11 @@ fn transfer_failure_test() {
     create_dir_all(&dest_path).expect("create dest dir");
 
     let res = do_transfer(&TransferRoute {
-        src: TranferItem {
+        src: TransferItem {
             store_name: None,
             uri: src_path,
         },
-        dest: TranferItem {
+        dest: TransferItem {
             store_name: None,
             uri: dest_path,
         },
@@ -179,11 +179,11 @@ fn transfer_test() {
 
     // link dir
     let res = do_transfer(&TransferRoute {
-        src: TranferItem {
+        src: TransferItem {
             store_name: None,
             uri: src_path.clone(),
         },
-        dest: TranferItem {
+        dest: TransferItem {
             store_name: None,
             uri: dest_path.clone(),
         },
@@ -204,11 +204,11 @@ fn transfer_test() {
     remove_dir_all(&dest_path).expect("clean up dest dir");
     for (sfp, dfp) in file_pairs.iter() {
         let res = do_transfer(&TransferRoute {
-            src: TranferItem {
+            src: TransferItem {
                 store_name: None,
                 uri: sfp.clone(),
             },
-            dest: TranferItem {
+            dest: TransferItem {
                 store_name: None,
                 uri: dfp.clone(),
             },
@@ -228,11 +228,11 @@ fn transfer_test() {
     // copy dir
     remove_dir_all(&dest_path).expect("clean up dest dir");
     let res = do_transfer(&TransferRoute {
-        src: TranferItem {
+        src: TransferItem {
             store_name: None,
             uri: src_path.clone(),
         },
-        dest: TranferItem {
+        dest: TransferItem {
             store_name: None,
             uri: dest_path.clone(),
         },
@@ -250,11 +250,11 @@ fn transfer_test() {
     remove_dir_all(&dest_path).expect("clean up dest dir");
     for (sfp, dfp) in file_pairs.iter().take(3) {
         let res = do_transfer(&TransferRoute {
-            src: TranferItem {
+            src: TransferItem {
                 store_name: None,
                 uri: sfp.clone(),
             },
-            dest: TranferItem {
+            dest: TransferItem {
                 store_name: None,
                 uri: dfp.clone(),
             },

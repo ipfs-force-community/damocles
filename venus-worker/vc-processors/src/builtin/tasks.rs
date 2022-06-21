@@ -143,7 +143,7 @@ pub struct TransferStoreInfo {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct TranferItem {
+pub struct TransferItem {
     pub store_name: Option<String>,
     pub uri: PathBuf,
 }
@@ -156,8 +156,8 @@ pub struct TransferOption {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransferRoute {
-    pub src: TranferItem,
-    pub dest: TranferItem,
+    pub src: TransferItem,
+    pub dest: TransferItem,
     pub opt: Option<TransferOption>,
 }
 

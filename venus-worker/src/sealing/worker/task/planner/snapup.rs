@@ -12,7 +12,7 @@ use crate::logging::{debug, warn};
 use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir, SnapEncodeInput, SnapProveInput, TranferItem,
+    snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir, SnapEncodeInput, SnapProveInput, TransferItem,
     TransferInput, TransferOption, TransferRoute, TransferStoreInfo,
 };
 
@@ -198,14 +198,14 @@ impl<'c, 't> SnapUp<'c, 't> {
 
         let transfer_routes = vec![
             TransferRoute {
-                src: TranferItem {
+                src: TransferItem {
                     store_name: Some(access_instance.clone()),
                     uri: access_store
                         .uri(sealed_rel)
                         .with_context(|| format!("get uri for sealed file {:?} in {}", sealed_rel, access_instance))
                         .perm()?,
                 },
-                dest: TranferItem {
+                dest: TransferItem {
                     store_name: None,
                     uri: sealed_file.full().clone(),
                 },
@@ -215,14 +215,14 @@ impl<'c, 't> SnapUp<'c, 't> {
                 }),
             },
             TransferRoute {
-                src: TranferItem {
+                src: TransferItem {
                     store_name: Some(access_instance.clone()),
                     uri: access_store
                         .uri(cache_rel)
                         .with_context(|| format!("get uri for cache dir {:?} in {}", cache_rel, access_instance))
                         .perm()?,
                 },
-                dest: TranferItem {
+                dest: TransferItem {
                     store_name: None,
                     uri: cache_dir.full().clone(),
                 },
