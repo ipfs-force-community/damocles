@@ -13,8 +13,8 @@ use crate::logging::debug;
 use crate::rpc::sealer::Deals;
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TransferItem, TransferInput, TransferRoute, TransferStoreInfo,
-    TreeDInput, UnpaddedBytesAmount,
+    tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TransferInput, TransferItem, TransferRoute,
+    TransferStoreInfo, TreeDInput, UnpaddedBytesAmount,
 };
 use crate::types::SIZE_32G;
 

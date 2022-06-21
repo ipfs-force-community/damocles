@@ -12,8 +12,8 @@ use crate::logging::{debug, warn};
 use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir, SnapEncodeInput, SnapProveInput, TransferItem,
-    TransferInput, TransferOption, TransferRoute, TransferStoreInfo,
+    snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir, SnapEncodeInput, SnapProveInput, TransferInput,
+    TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
 };
 
 pub struct SnapUpPlanner;
