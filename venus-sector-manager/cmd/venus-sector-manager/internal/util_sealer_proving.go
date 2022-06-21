@@ -723,6 +723,12 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 		}
 
 		slog := Log.With("sector", sealedFileName, "commR", sectorInfo.SealedCID)
+		commR, err := util.CID2ReplicaCommitment(sectorInfo.SealedCID)
+		if err != nil {
+			return fmt.Errorf("parse commR: %w", err)
+		}
+
+		slog.Infof("commR: %v", commR)
 
 		randomness := make(abi.PoStRandomness, abi.RandomnessLength)
 		challenges, err := prover.Prover.GeneratePoStFallbackSectorChallenges(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, []abi.SectorNumber{sectorID.Number})
@@ -754,7 +760,7 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 			return fmt.Errorf("generate winning post with vannilla for %s: %w", sealedFileName, err)
 		}
 
-		slog.Infof("proof generated with %d bytes", len(proofs))
+		slog.Infof("proof generated with %d bytes", len(proofs[0].ProofBytes))
 
 		verified, err := prover.Verifier.VerifyWinningPoSt(actx, core.WinningPoStVerifyInfo{
 			Randomness:        randomness,
