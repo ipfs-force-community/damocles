@@ -356,8 +356,9 @@ github.com/filecoin-project/go-state-types v0.1.3/go.mod h1:ezYnPf0bNkTsDibL/psS
 github.com/filecoin-project/go-state-types v0.1.4/go.mod h1:xCA/WfKlC2zcn3fUmDv4IrzznwS98X5XW/irUP3Lhxg=
 github.com/filecoin-project/go-state-types v0.1.5/go.mod h1:UwGVoMsULoCK+bWjEdd/xLCvLAQFBC7EDT477SKml+Q=
 github.com/filecoin-project/go-state-types v0.1.6/go.mod h1:UwGVoMsULoCK+bWjEdd/xLCvLAQFBC7EDT477SKml+Q=
-github.com/filecoin-project/go-state-types v0.1.8 h1:mrPnqeOHkBXOUkYZdIee7F1VcjKw7dtpVam8VrTvpuI=
 github.com/filecoin-project/go-state-types v0.1.8/go.mod h1:UwGVoMsULoCK+bWjEdd/xLCvLAQFBC7EDT477SKml+Q=
+github.com/filecoin-project/go-state-types v0.1.10 h1:YrrJWWh2fU4VPhwHyPlDK5I4mB7bqgnRd3HCm9IOwIU=
+github.com/filecoin-project/go-state-types v0.1.10/go.mod h1:UwGVoMsULoCK+bWjEdd/xLCvLAQFBC7EDT477SKml+Q=
 github.com/filecoin-project/go-statemachine v0.0.0-20200925024713-05bd7c71fbfe/go.mod h1:FGwQgZAt2Gh5mjlwJUlVB62JeYdo+if0xWxSEfBD9ig=
 github.com/filecoin-project/go-statemachine v1.0.2-0.20220322104818-27f8fbb86dfd/go.mod h1:jZdXXiHa61n4NmgWFG4w8tnqgvZVHYbJ3yW7+y8bF54=
 github.com/filecoin-project/go-statemachine v1.0.2 h1:421SSWBk8GIoCoWYYTE/d+qCWccgmRH0uXotXRDjUbc=
@@ -699,6 +700,8 @@ github.com/ipfs-force-community/go-jsonrpc v0.1.4 h1:xTSwWWtT6oeu9kYRSLf28vefvql
 github.com/ipfs-force-community/go-jsonrpc v0.1.4/go.mod h1:XBBpuKIMaXIIzeqzO1iucq4GvbF8CxmXRFoezRh+Cx4=
 github.com/ipfs-force-community/metrics v1.0.0/go.mod h1:mn40SioMuKtjmRumHFy/fJ26Pn028XuDjUJE9dorjyw=
 github.com/ipfs-force-community/metrics v1.0.1-0.20211022060227-11142a08b729/go.mod h1:mn40SioMuKtjmRumHFy/fJ26Pn028XuDjUJE9dorjyw=
+github.com/ipfs-force-community/venus-cluster-assets v0.1.0 h1:K/0+OV9Jm7HjSa7O9MAtgfLDIudQYZUTymhJsp8rGXg=
+github.com/ipfs-force-community/venus-cluster-assets v0.1.0/go.mod h1:ZHXQBvLbsmZrG9Zccpqn6Oba2Q/+cRm3RsHj/SRYSwg=
 github.com/ipfs-force-community/venus-common-utils v0.0.0-20210924063144-1d3a5b30de87/go.mod h1:RTVEOzM+hkpqmcEWpyLDkx1oGO5r9ZWCgYxG/CsXzJQ=
 github.com/ipfs/bbloom v0.0.1/go.mod h1:oqo8CVWsJFMOZqTglBG4wydCE4IQA/G2/SEofB0rjUI=
 github.com/ipfs/bbloom v0.0.4 h1:Gi+8EGJ2y5qiD5FbsbpX/TMNcJw8gSqr7eyjHa4Fhvs=

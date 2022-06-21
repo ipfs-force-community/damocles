@@ -15,7 +15,7 @@ require (
 	github.com/filecoin-project/go-fil-commcid v0.1.0
 	github.com/filecoin-project/go-jsonrpc v0.1.5
 	github.com/filecoin-project/go-paramfetch v0.0.4
-	github.com/filecoin-project/go-state-types v0.1.8
+	github.com/filecoin-project/go-state-types v0.1.10
 	github.com/filecoin-project/specs-actors v0.9.15
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
 	github.com/filecoin-project/specs-storage v0.4.1
@@ -42,6 +42,8 @@ require (
 	go.uber.org/fx v1.15.0
 	go.uber.org/zap v1.21.0
 )
+
+require github.com/ipfs-force-community/venus-cluster-assets v0.1.0
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1 // indirect

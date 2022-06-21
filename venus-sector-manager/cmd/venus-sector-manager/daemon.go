@@ -80,6 +80,11 @@ var daemonRunCmd = &cli.Command{
 			Usage: "enable miner module",
 		},
 		&cli.BoolFlag{
+			Name:  "warmup",
+			Value: true,
+			Usage: "warmup for miner",
+		},
+		&cli.BoolFlag{
 			Name:  "ext-prover",
 			Value: false,
 			Usage: "enable external prover (wdpost only for now)",
@@ -109,6 +114,7 @@ var daemonRunCmd = &cli.Command{
 			),
 			dix.If(
 				cctx.Bool("miner"),
+				dix.Override(new(dep.WinningPoStWarmUp), dep.WinningPoStWarmUp(cctx.Bool("warmup"))),
 				dep.Miner(),
 			),
 			dix.If(cctx.Bool("ext-prover"), dep.ExtProver()),
