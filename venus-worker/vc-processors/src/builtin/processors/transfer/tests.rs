@@ -3,6 +3,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use hex::encode;
+use pretty_assertions::assert_eq;
 use rand::{rngs::OsRng, thread_rng, RngCore};
 
 use super::{
