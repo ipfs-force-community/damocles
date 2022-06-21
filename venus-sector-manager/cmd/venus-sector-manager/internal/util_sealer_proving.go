@@ -722,7 +722,7 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 			SealedCID:    sectorOnChainInfo.SealedCID,
 		}
 
-		slog := Log.With("sector", sealedFileName)
+		slog := Log.With("sector", sealedFileName, "commR", sectorInfo.SealedCID)
 
 		randomness := make(abi.PoStRandomness, abi.RandomnessLength)
 		challenges, err := prover.Prover.GeneratePoStFallbackSectorChallenges(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, []abi.SectorNumber{sectorID.Number})
