@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"text/tabwriter"
 
+	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/urfave/cli/v2"
 )
 
@@ -14,6 +15,7 @@ var utilSealerSnapCmd = &cli.Command{
 	Subcommands: []*cli.Command{
 		utilSealerSnapFetchCmd,
 		utilSealerSnapCandidatesCmd,
+		utilSealerSnapCancelCommitmentCmd,
 	},
 }
 
@@ -113,6 +115,47 @@ var utilSealerSnapCandidatesCmd = &cli.Command{
 			if count > 0 || showAll {
 				fmt.Fprintf(tw, "%d\t%d\n", i, count)
 			}
+		}
+
+		return nil
+	},
+}
+
+var utilSealerSnapCancelCommitmentCmd = &cli.Command{
+	Name:      "cancel-commit",
+	Usage:     "cancel inflight snapup commitment",
+	ArgsUsage: "<miner actor id/addr>",
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if args.Len() < 2 {
+			cli.ShowSubcommandHelpAndExit(cctx, 1)
+			return nil
+		}
+
+		mid, err := ShouldActor(args.Get(0), true)
+		if err != nil {
+			return fmt.Errorf("parse miner actor: %w", err)
+		}
+
+		num, err := ShouldSectorNumber(args.Get(1))
+		if err != nil {
+			return fmt.Errorf("parse sector number: %w", err)
+		}
+
+		api, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("extract api: %w", err)
+		}
+
+		defer stop()
+
+		err = api.Sealer.SnapUpCancelCommitment(gctx, abi.SectorID{
+			Miner:  mid,
+			Number: num,
+		})
+
+		if err != nil {
+			return RPCCallError("CancelCommitment", err)
 		}
 
 		return nil
