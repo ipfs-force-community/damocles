@@ -104,6 +104,11 @@ func (s *Sealer) SnapUpCandidates(ctx context.Context, mid abi.ActorID) ([]*bitf
 	return s.snapup.Candidates(ctx, mid)
 }
 
+func (s *Sealer) SnapUpCancelCommitment(ctx context.Context, sid abi.SectorID) error {
+	s.snapup.CancelCommitment(ctx, sid)
+	return nil
+}
+
 func (s *Sealer) ProvingSectorInfo(ctx context.Context, sid abi.SectorID) (core.ProvingSectorInfo, error) {
 	maddr, err := address.NewIDAddress(uint64(sid.Miner))
 	if err != nil {
