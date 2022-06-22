@@ -234,8 +234,10 @@ type AllocateSnapUpSpec struct {
 }
 
 type SectorPublicInfo struct {
-	CommR     [32]byte
-	SealedCID cid.Cid
+	CommR      [32]byte
+	SealedCID  cid.Cid
+	Activation abi.ChainEpoch
+	Expiration abi.ChainEpoch
 }
 
 type SectorPrivateInfo struct {
