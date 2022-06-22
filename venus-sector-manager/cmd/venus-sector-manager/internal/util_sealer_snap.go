@@ -124,7 +124,7 @@ var utilSealerSnapCandidatesCmd = &cli.Command{
 var utilSealerSnapCancelCommitmentCmd = &cli.Command{
 	Name:      "cancel-commit",
 	Usage:     "cancel inflight snapup commitment",
-	ArgsUsage: "<miner actor id/addr>",
+	ArgsUsage: "<miner actor id/addr> <sector number>",
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
 		if args.Len() < 2 {
