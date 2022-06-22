@@ -134,6 +134,10 @@ func (s *Sealer) SnapUpCandidates(ctx context.Context, mid abi.ActorID) ([]*bitf
 	return nil, nil
 }
 
+func (s *Sealer) SnapUpCancelCommitment(ctx context.Context, sid abi.SectorID) error {
+	return nil
+}
+
 func (s *Sealer) ProvingSectorInfo(ctx context.Context, sid abi.SectorID) (core.ProvingSectorInfo, error) {
 	return core.ProvingSectorInfo{}, nil
 }

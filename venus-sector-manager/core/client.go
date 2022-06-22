@@ -37,6 +37,10 @@ var UnavailableSealerCliClient = SealerCliClient{
 		panic("sealer client unavailable")
 	},
 
+	SnapUpCancelCommitment: func(ctx context.Context, sid abi.SectorID) error {
+		panic("sealer client unavailable")
+	},
+
 	ProvingSectorInfo: func(ctx context.Context, sid abi.SectorID) (ProvingSectorInfo, error) {
 		panic("sealer client unavailable")
 	},
@@ -82,6 +86,8 @@ type SealerCliClient struct {
 	SnapUpPreFetch func(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error)
 
 	SnapUpCandidates func(ctx context.Context, mid abi.ActorID) ([]*bitfield.BitField, error)
+
+	SnapUpCancelCommitment func(ctx context.Context, sid abi.SectorID) error
 
 	ProvingSectorInfo func(ctx context.Context, sid abi.SectorID) (ProvingSectorInfo, error)
 

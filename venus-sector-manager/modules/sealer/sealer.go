@@ -325,6 +325,10 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 			sectorLogger(sid).Debugw("deals released", "count", dealCount)
 		}
 
+		if st.Upgraded {
+			s.snapup.CancelCommitment(ctx, sid)
+		}
+
 		st.AbortReason = reason
 		return true, nil
 	})
@@ -386,6 +390,11 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 	err = checkPieces(pieces)
 	if err != nil {
 		return nil, fmt.Errorf("check pieces: %w", err)
+	}
+
+	if !checkForLifetime(candidateSector.Public, pieces) {
+		alog.Warn("lifetimes of deals and sector do not match")
+		return nil, nil
 	}
 
 	upgradePublic := core.SectorUpgradePublic(candidateSector.Public)
@@ -534,10 +543,35 @@ func checkPieces(pieces core.Deals) error {
 			if !expected.Equals(pinfo.Piece.Cid) {
 				return fmt.Errorf("got unexpected non-deal piece with seq=#%d, size=%d, cid=%s", pi, pinfo.Piece.Size, pinfo.Piece.Cid)
 			}
+		} else {
+			if pinfo.Proposal == nil {
+				return fmt.Errorf("get nil proposal for non-zero deal id: %d", pinfo.ID)
+			}
 		}
 	}
 
 	return nil
+}
+
+func checkForLifetime(public core.SectorPublicInfo, pieces core.Deals) bool {
+	// validate deals
+	for pi := range pieces {
+		// should be a pledge piece
+		pinfo := pieces[pi]
+		if pinfo.ID == 0 {
+			continue
+		}
+
+		if public.Activation > pinfo.Proposal.StartEpoch {
+			return false
+		}
+
+		if pinfo.Proposal.EndEpoch >= public.Expiration {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (s *Sealer) WorkerPing(ctx context.Context, winfo core.WorkerInfo) (core.Meta, error) {

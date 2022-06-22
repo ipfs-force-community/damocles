@@ -46,7 +46,7 @@ func NewSnapUpCommitter(
 		messager: messagerAPI,
 		state:    stateMgr,
 		scfg:     scfg,
-		jobs:     map[abi.SectorID]struct{}{},
+		jobs:     map[abi.SectorID]context.CancelFunc{},
 	}
 
 	return committer, nil
@@ -64,7 +64,7 @@ type SnapUpCommitter struct {
 	state    core.SectorStateManager
 	scfg     *modules.SafeConfig
 
-	jobs     map[abi.SectorID]struct{}
+	jobs     map[abi.SectorID]context.CancelFunc
 	jobsMu   sync.Mutex
 	jobsOnce sync.Once
 }
@@ -81,8 +81,9 @@ func (sc *SnapUpCommitter) Start() error {
 				return nil
 			}
 
-			sc.jobs[state.ID] = struct{}{}
-			go sc.commitSector(state)
+			ctx, cancel := context.WithCancel(sc.ctx)
+			sc.jobs[state.ID] = cancel
+			go sc.commitSector(ctx, state)
 			count++
 			return nil
 		})
@@ -99,10 +100,13 @@ func (sc *SnapUpCommitter) Stop() {
 }
 
 func (sc *SnapUpCommitter) Commit(ctx context.Context, sid abi.SectorID) error {
+	var jobCtx context.Context
 	sc.jobsMu.Lock()
 	_, exist := sc.jobs[sid]
 	if !exist {
-		sc.jobs[sid] = struct{}{}
+		var jobCancel context.CancelFunc
+		jobCtx, jobCancel = context.WithCancel(sc.ctx)
+		sc.jobs[sid] = jobCancel
 	}
 	sc.jobsMu.Unlock()
 
@@ -119,11 +123,26 @@ func (sc *SnapUpCommitter) Commit(ctx context.Context, sid abi.SectorID) error {
 		return fmt.Errorf("sector is not upgraded")
 	}
 
-	go sc.commitSector(*state)
+	go sc.commitSector(jobCtx, *state)
 	return nil
 }
 
-func (sc *SnapUpCommitter) commitSector(state core.SectorState) {
+func (sc *SnapUpCommitter) CancelCommitment(ctx context.Context, sid abi.SectorID) {
+	sc.jobsMu.Lock()
+	defer sc.jobsMu.Unlock()
+
+	cancel, exist := sc.jobs[sid]
+	if !exist {
+		return
+	}
+
+	delete(sc.jobs, sid)
+	cancel()
+
+	return
+}
+
+func (sc *SnapUpCommitter) commitSector(ctx context.Context, state core.SectorState) {
 	defer func() {
 		sc.jobsMu.Lock()
 		delete(sc.jobs, state.ID)
@@ -168,6 +187,10 @@ func (sc *SnapUpCommitter) commitSector(state core.SectorState) {
 	for {
 		wait := 30 * time.Second
 		select {
+		case <-ctx.Done():
+			slog.Info("commit job context done")
+			return
+
 		case <-sc.ctx.Done():
 			slog.Info("committer context done")
 			return

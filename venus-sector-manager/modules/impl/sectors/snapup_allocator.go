@@ -295,8 +295,10 @@ func (s *SnapUpAllocator) allocateForMiner(ctx context.Context, mcandidate *mine
 			ProofType: mcandidate.info.SealProofType,
 		},
 		Public: core.SectorPublicInfo{
-			CommR:     commR,
-			SealedCID: sinfo.SealedCID,
+			CommR:      commR,
+			SealedCID:  sinfo.SealedCID,
+			Activation: sinfo.Activation,
+			Expiration: sinfo.Expiration,
 		},
 		Private: core.SectorPrivateInfo{
 			AccessInstance: instances.SealedFile,
