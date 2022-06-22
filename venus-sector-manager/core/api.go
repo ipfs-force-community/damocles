@@ -75,6 +75,8 @@ type SealerCliAPI interface {
 
 	SnapUpCandidates(ctx context.Context, mid abi.ActorID) ([]*bitfield.BitField, error)
 
+	SnapUpCancelCommitment(ctx context.Context, sid abi.SectorID) error
+
 	ProvingSectorInfo(ctx context.Context, sid abi.SectorID) (ProvingSectorInfo, error)
 
 	WorkerGetPingInfo(ctx context.Context, name string) (*WorkerPingInfo, error)

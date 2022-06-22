@@ -71,6 +71,7 @@ type SnapUpSectorManager interface {
 	Allocate(ctx context.Context, spec AllocateSectorSpec) (*SnapUpCandidate, error)
 	Release(ctx context.Context, candidate *SnapUpCandidate) error
 	Commit(ctx context.Context, sid abi.SectorID) error
+	CancelCommitment(ctx context.Context, sid abi.SectorID)
 }
 
 type WorkerManager interface {
