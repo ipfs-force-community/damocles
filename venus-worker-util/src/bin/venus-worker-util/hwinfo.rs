@@ -107,6 +107,7 @@ fn render_disk() {
     table.add_row(Row::new(vec![
         TableCell::new_with_alignment("Disk type", 1, Alignment::Center),
         TableCell::new_with_alignment("Device name", 1, Alignment::Center),
+        TableCell::new_with_alignment("Mount point", 1, Alignment::Center),
         TableCell::new_with_alignment("Filesystem", 1, Alignment::Center),
         TableCell::new_with_alignment("Space", 1, Alignment::Center),
     ]));
@@ -123,6 +124,7 @@ fn render_disk() {
             table.add_row(Row::new(vec![
                 TableCell::new(disk.disk_type.as_ref()),
                 TableCell::new(&disk.device_name),
+                TableCell::new(&disk.mount_point),
                 TableCell::new(&disk.filesystem),
                 TableCell::new(format!(
                     "{} / {} ({:.2}% used)",

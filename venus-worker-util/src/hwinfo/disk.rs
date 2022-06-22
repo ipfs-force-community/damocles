@@ -15,6 +15,8 @@ pub enum DiskType {
 pub struct Disk {
     /// The disk type.
     pub disk_type: DiskType,
+    /// The mount point of the disk
+    pub mount_point: String,
     /// The disk name.
     pub device_name: String,
     /// The file system used on this disk (so for example: `EXT4`, `NTFS`, etc...).
@@ -39,6 +41,7 @@ pub fn load() -> Vec<Disk> {
                     sysinfo::DiskType::SSD => DiskType::SSD,
                     sysinfo::DiskType::Unknown(_) => return None,
                 },
+                mount_point: disk.mount_point().to_string_lossy().trim().to_string(),
                 device_name: disk.name().to_string_lossy().trim().to_string(),
                 filesystem: String::from_utf8_lossy(disk.file_system()).to_string(),
                 total_space: disk.total_space(),
