@@ -58,6 +58,7 @@ pub enum TopologyType {
     /// processors, e.g. in the case of an SMT core). Objects of this kind
     /// are always reported and can thus be used as fallback when others are
     /// not.
+    #[strum(serialize = "PU")]
     PU,
     /// Cache
     #[strum(disabled)]
