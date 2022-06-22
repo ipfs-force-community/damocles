@@ -30,6 +30,11 @@ func (verifier) VerifyWindowPoSt(ctx context.Context, info core.WindowPoStVerify
 	return ffi.VerifyWindowPoSt(info)
 }
 
+func (verifier) VerifyWinningPoSt(ctx context.Context, info core.WinningPoStVerifyInfo) (bool, error) {
+	info.Randomness[31] &= 0x3f
+	return ffi.VerifyWinningPoSt(info)
+}
+
 type prover struct {
 }
 
@@ -52,8 +57,22 @@ func (prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, secto
 	return proof, faultyIDs, err
 }
 
-func (p prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sectors SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
+func (prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sectors SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
 	randomness[31] &= 0x3f
 
 	return ffi.GenerateWinningPoSt(minerID, sectors, randomness)
+}
+
+func (prover) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
+	randomness[31] &= 0x3f
+	return ffi.GeneratePoStFallbackSectorChallenges(proofType, minerID, randomness, sectorIds)
+}
+
+func (prover) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
+	return ffi.GenerateSingleVanillaProof(replica, challenges)
+}
+
+func (prover) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
+	randomness[31] &= 0x3f
+	return ffi.GenerateWinningPoStWithVanilla(proofType, minerID, randomness, proofs)
 }

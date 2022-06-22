@@ -7,11 +7,14 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/filecoin-project/go-address"
+	assets "github.com/ipfs-force-community/venus-cluster-assets"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/miner"
 )
+
+type WinningPoStWarmUp bool
 
 func Miner() dix.Option {
 	return dix.Options(
@@ -19,7 +22,22 @@ func Miner() dix.Option {
 	)
 }
 
-func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover core.Prover, cfg *modules.SafeConfig, tracker core.SectorTracker) error {
+func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover core.Prover, cfg *modules.SafeConfig, tracker core.SectorTracker, warmup WinningPoStWarmUp) error {
+	if warmup {
+		log.Info("warm up for winning post")
+		_, err := prover.GenerateWinningPoStWithVanilla(
+			gctx,
+			assets.WinningPoStWarmUp.PoStProof,
+			assets.WinningPoStWarmUp.SectorID.Miner,
+			assets.WinningPoStWarmUp.Randomness,
+			[][]byte{assets.WinningPoStWarmUp.Vanilla},
+		)
+		if err != nil {
+			return fmt.Errorf("warmup proof: %w", err)
+		}
+
+	}
+
 	cfg.Lock()
 	urls, token, miners := cfg.Common.API.Gateway, cfg.Common.API.Token, cfg.Miners
 	cfg.Unlock()

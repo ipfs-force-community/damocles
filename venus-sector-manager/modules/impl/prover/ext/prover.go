@@ -324,6 +324,18 @@ func (*Prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sec
 	return prover.Prover.GenerateWinningPoSt(ctx, minerID, sectors, randomness)
 }
 
+func (*Prover) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
+	return prover.Prover.GeneratePoStFallbackSectorChallenges(ctx, proofType, minerID, randomness, sectorIds)
+}
+
+func (*Prover) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
+	return prover.Prover.GenerateSingleVanillaProof(ctx, replica, challenges)
+}
+
+func (*Prover) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
+	return prover.Prover.GenerateWinningPoStWithVanilla(ctx, proofType, minerID, randomness, proofs)
+}
+
 func (p *Prover) findCandidateProcessor() (*subProcessor, bool, error) {
 	if len(p.subs) == 0 {
 		return nil, false, nil
