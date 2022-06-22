@@ -325,6 +325,10 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 			sectorLogger(sid).Debugw("deals released", "count", dealCount)
 		}
 
+		if st.Upgraded {
+			s.snapup.CancelCommitment(ctx, sid)
+		}
+
 		st.AbortReason = reason
 		return true, nil
 	})
