@@ -272,3 +272,21 @@ fn create_tree_d_inner(registered_proof: RegisteredSealProof, in_path: Option<Pa
 
     Ok(())
 }
+
+pub fn cached_filenames_for_sector(registered_proof: RegisteredSealProof) -> Vec<PathBuf> {
+    use RegisteredSealProof::*;
+    let mut trees = match registered_proof {
+        StackedDrg2KiBV1 | StackedDrg8MiBV1 | StackedDrg512MiBV1 | StackedDrg2KiBV1_1 | StackedDrg8MiBV1_1 | StackedDrg512MiBV1_1 => {
+            vec!["sc-02-data-tree-r-last.dat".into()]
+        }
+
+        StackedDrg32GiBV1 | StackedDrg32GiBV1_1 => (0..8).map(|idx| format!("sc-02-data-tree-r-last-{}.dat", idx).into()).collect(),
+
+        StackedDrg64GiBV1 | StackedDrg64GiBV1_1 => (0..16).map(|idx| format!("sc-02-data-tree-r-last-{}.dat", idx).into()).collect(),
+    };
+
+    trees.push("p_aux".into());
+    trees.push("t_aux".into());
+
+    trees
+}
