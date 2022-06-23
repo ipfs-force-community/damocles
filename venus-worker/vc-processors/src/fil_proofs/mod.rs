@@ -19,6 +19,7 @@ use storage_proofs_core::{
 
 // re-exported
 pub use filecoin_proofs_api::{
+    post::generate_window_post,
     seal::{
         clear_cache, write_and_preprocess, Labels, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
         SealPreCommitPhase2Output,
@@ -27,12 +28,14 @@ pub use filecoin_proofs_api::{
         empty_sector_update_encode_into, generate_empty_sector_update_proof_with_vanilla, generate_partition_proofs,
         verify_empty_sector_update_proof, verify_partition_proofs,
     },
-    Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, ProverId, RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket,
-    UnpaddedBytesAmount,
+    ChallengeSeed, Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, ProverId, RegisteredPoStProof, RegisteredSealProof,
+    RegisteredUpdateProof, SectorId, Ticket, UnpaddedBytesAmount,
 };
 
 /// Identifier for Actors.
 pub type ActorID = u64;
+
+pub type SnarkProof = crate::b64serde::BytesArray32;
 
 macro_rules! safe_call {
     ($ex:expr) => {

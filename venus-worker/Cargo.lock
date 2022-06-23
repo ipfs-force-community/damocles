@@ -3956,6 +3956,8 @@ name = "vc-processors"
 version = "0.1.4"
 dependencies = [
  "anyhow",
+ "base64",
+ "base64-serde",
  "crossbeam-channel",
  "filecoin-proofs",
  "filecoin-proofs-api",
