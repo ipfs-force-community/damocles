@@ -1,5 +1,7 @@
 //! processor abstractions & implementations for sealing
 
+use std::sync::Arc;
+
 pub use vc_processors::{
     builtin::tasks::{
         SnapEncode as SnapEncodeInput, SnapProve as SnapProveInput, Transfer as TransferInput, TransferItem, TransferOption, TransferRoute,
@@ -13,11 +15,11 @@ pub mod external;
 mod safe;
 pub use safe::*;
 
-pub type BoxedProcessor<I> = Box<dyn Processor<I>>;
-pub type BoxedTreeDProcessor = BoxedProcessor<TreeDInput>;
-pub type BoxedPC1Processor = BoxedProcessor<PC1Input>;
-pub type BoxedPC2Processor = BoxedProcessor<PC2Input>;
-pub type BoxedC2Processor = BoxedProcessor<C2Input>;
-pub type BoxedSnapEncodeProcessor = BoxedProcessor<SnapEncodeInput>;
-pub type BoxedSnapProveProcessor = BoxedProcessor<SnapProveInput>;
-pub type BoxedTransferProcessor = BoxedProcessor<TransferInput>;
+pub type ArcProcessor<I> = Arc<dyn Processor<I>>;
+pub type ArcTreeDProcessor = ArcProcessor<TreeDInput>;
+pub type ArcPC1Processor = ArcProcessor<PC1Input>;
+pub type ArcPC2Processor = ArcProcessor<PC2Input>;
+pub type ArcC2Processor = ArcProcessor<C2Input>;
+pub type ArcSnapEncodeProcessor = ArcProcessor<SnapEncodeInput>;
+pub type ArcSnapProveProcessor = ArcProcessor<SnapProveInput>;
+pub type ArcTransferProcessor = ArcProcessor<TransferInput>;
