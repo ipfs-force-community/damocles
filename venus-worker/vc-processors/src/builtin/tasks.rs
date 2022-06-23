@@ -36,6 +36,9 @@ pub const STAGE_NAME_SNAP_PROVE: &str = "snap_prove";
 /// name str for data transfer
 pub const STAGE_NAME_TRANSFER: &str = "transfer";
 
+/// name str for data check
+pub const STAGE_NAME_DATA_CHECK: &str = "data_check";
+
 /// Task of tree_d
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TreeD {
@@ -174,4 +177,29 @@ impl Task for Transfer {
     const STAGE: &'static str = STAGE_NAME_TRANSFER;
 
     type Output = bool;
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DataCheckItem {
+    pub store_name: Option<String>,
+    pub uri: PathBuf,
+    pub size: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DataCheckFailure {
+    pub item: DataCheckItem,
+    pub failure: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DataCheck {
+    pub stores: HashMap<String, TransferStoreInfo>,
+    pub items: Vec<DataCheckItem>,
+}
+
+impl Task for DataCheck {
+    const STAGE: &'static str = STAGE_NAME_TRANSFER;
+
+    type Output = Vec<DataCheckFailure>;
 }
