@@ -10,8 +10,8 @@ use super::{
 use crate::logging::trace;
 use crate::rpc::sealer::{AllocatedSector, Deals, Seed, Ticket};
 use crate::sealing::processor::{
-    PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
-    SnapEncodeOutput,
+    to_prover_id, PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
+    SealPreCommitPhase2Output, SectorId, SnapEncodeOutput,
 };
 
 pub enum Event {
@@ -240,10 +240,7 @@ impl Event {
 
             // for snap up
             Self::AllocatedSnapUpSector(sector, deals, finalized) => {
-                let mut prover_id: ProverId = Default::default();
-                let actor_addr_payload = Address::new_id(sector.id.miner).payload_bytes();
-                prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
-
+                let prover_id = to_prover_id(sector.id.miner);
                 let sector_id = SectorId::from(sector.id.number);
 
                 let base = Base {

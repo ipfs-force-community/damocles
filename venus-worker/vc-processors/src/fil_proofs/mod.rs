@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use filecoin_proofs::{get_base_tree_leafs, get_base_tree_size, DefaultBinaryTree, DefaultPieceHasher, StoreConfig, BINARY_ARITY};
 use filecoin_proofs_api::seal;
+use forest_address::Address;
 use memmap::{Mmap, MmapOptions};
 use serde::{Deserialize, Serialize};
 use storage_proofs_core::{
@@ -289,4 +290,11 @@ pub fn cached_filenames_for_sector(registered_proof: RegisteredSealProof) -> Vec
     trees.push("t_aux".into());
 
     trees
+}
+
+pub fn to_prover_id(miner_id: ActorID) -> ProverId {
+    let mut prover_id: ProverId = Default::default();
+    let actor_addr_payload = Address::new_id(miner_id).payload_bytes();
+    prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
+    prover_id
 }

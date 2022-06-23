@@ -3959,6 +3959,7 @@ dependencies = [
  "crossbeam-channel",
  "filecoin-proofs",
  "filecoin-proofs-api",
+ "forest_address",
  "hex",
  "memmap",
  "pretty_assertions 1.2.1",
