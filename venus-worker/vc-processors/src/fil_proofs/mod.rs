@@ -28,14 +28,14 @@ pub use filecoin_proofs_api::{
         empty_sector_update_encode_into, generate_empty_sector_update_proof_with_vanilla, generate_partition_proofs,
         verify_empty_sector_update_proof, verify_partition_proofs,
     },
-    ChallengeSeed, Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, ProverId, RegisteredPoStProof, RegisteredSealProof,
-    RegisteredUpdateProof, SectorId, Ticket, UnpaddedBytesAmount,
+    ChallengeSeed, Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, PrivateReplicaInfo, ProverId, RegisteredPoStProof,
+    RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket, UnpaddedBytesAmount,
 };
 
 /// Identifier for Actors.
 pub type ActorID = u64;
 
-pub type SnarkProof = crate::b64serde::BytesArray32;
+pub type SnarkProof = crate::b64serde::BytesVec;
 
 macro_rules! safe_call {
     ($ex:expr) => {

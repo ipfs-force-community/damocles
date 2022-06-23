@@ -209,7 +209,7 @@ impl Task for DataCheck {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct WindowPoStReplicateInfo {
+pub struct WindowPoStReplicaInfo {
     pub sector_id: SectorId,
     pub comm_r: Commitment,
     pub cache_dir: PathBuf,
@@ -226,7 +226,7 @@ pub struct WindowPoStOutput {
 pub struct WindowPoSt {
     pub miner_id: ActorID,
     pub proof_type: RegisteredPoStProof,
-    pub replicas: Vec<WindowPoStReplicateInfo>,
+    pub replicas: Vec<WindowPoStReplicaInfo>,
     pub seed: ChallengeSeed,
 }
 
