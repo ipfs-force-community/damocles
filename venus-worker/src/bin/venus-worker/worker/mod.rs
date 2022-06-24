@@ -1,9 +1,12 @@
-use std::io::Write;
+use std::fs;
 use std::time::Duration;
+use std::{io::Write, path::PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 use clap::{value_t, App, AppSettings, Arg, ArgMatches, SubCommand};
 
+use jsonrpc_core::ErrorCode;
+use jsonrpc_core_client::RpcError;
 use venus_worker::{
     block_on,
     client::{connect, WorkerClient},
@@ -42,6 +45,31 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
                 .help("next state"),
         );
 
+    let enable_dump_cmd = SubCommand::with_name("enable_dump")
+        .args(&[
+            Arg::with_name("child_pid")
+                .long("child_pid")
+                .takes_value(true)
+                .required(true)
+                .help("Specify external processor pid"),
+            Arg::with_name("dump_dir")
+                .long("dump_dir")
+                .takes_value(true)
+                .required(true)
+                .help("Specify the dump directory"),
+        ])
+        .help("Enable external processor error response dump for debugging");
+
+    let disable_dump_cmd = SubCommand::with_name("disable_dump")
+        .arg(
+            Arg::with_name("child_pid")
+                .long("child_pid")
+                .takes_value(true)
+                .required(true)
+                .help("Specify external processor pid"),
+        )
+        .help("Disable external processor error response dump");
+
     SubCommand::with_name(SUB_CMD_NAME)
         .setting(AppSettings::ArgRequiredElseHelp)
         .arg(
@@ -55,6 +83,8 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
         .subcommand(list_cmd)
         .subcommand(pause_cmd)
         .subcommand(resume_cmd)
+        .subcommand(enable_dump_cmd)
+        .subcommand(disable_dump_cmd)
 }
 
 pub fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
@@ -98,6 +128,35 @@ pub fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
 
                 info!(done, ?state, "#{} worker resume", index);
                 Ok(())
+            })
+        }
+
+        ("enable_dump", Some(m)) => {
+            let child_pid = value_t!(m, "child_pid", u32)?;
+            let dump_dir: PathBuf = value_t!(m, "dump_dir", String)?.into();
+            if !dump_dir.is_dir() {
+                return Err(anyhow!("{} is not a directory", dump_dir.display()));
+            }
+            let dump_dir = fs::canonicalize(dump_dir)?;
+            let env_name = vc_processors::core::ext::dump_error_resp_env(child_pid);
+
+            get_client(subargs).and_then(|wcli| {
+                block_on(wcli.worker_set_env(env_name, dump_dir.to_string_lossy().to_string())).map_err(|rpc_err| match rpc_err {
+                    RpcError::JsonRpcError(e) if e.code == ErrorCode::InvalidParams => anyhow!(e.message),
+                    _ => anyhow!("rpc error: {:?}", rpc_err),
+                })
+            })
+        }
+
+        ("disable_dump", Some(m)) => {
+            let child_pid = value_t!(m, "child_pid", u32)?;
+            let env_name = vc_processors::core::ext::dump_error_resp_env(child_pid);
+
+            get_client(subargs).and_then(|wcli| {
+                block_on(wcli.worker_remove_env(env_name)).map_err(|rpc_err| match rpc_err {
+                    RpcError::JsonRpcError(e) if e.code == ErrorCode::InvalidParams => anyhow!(e.message),
+                    _ => anyhow!("rpc error: {:?}", rpc_err),
+                })
             })
         }
 
