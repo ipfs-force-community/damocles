@@ -91,20 +91,20 @@ fn dump(dt: &DumpType, child_pid: u32, data: &str) {
 
     match dt {
         DumpType::ToLog => {
-            error!(child_pid = child_pid, "failed to unmarshal response string: '{}'", truncate(data));
+            error!(child_pid = child_pid, "failed to unmarshal response string: '{}'.", truncate(data));
         }
         DumpType::ToFile(dir) => match dump_to_file(child_pid, dir, data.as_bytes()) {
             Ok(dump_file_path) => {
                 error!(
                     child_pid = child_pid,
-                    "failed to unmarshal response string. dump file '{}' generated",
+                    "failed to unmarshal response string. dump file '{}' generated.",
                     dump_file_path.display()
                 )
             }
             Err(e) => {
                 error!(
                     child_pid = child_pid,
-                    "failed to unmarshal response string; failed to generate dump file: {}", e
+                    "failed to unmarshal response string; failed to generate dump file: '{}'.", e
                 );
             }
         },
@@ -117,7 +117,7 @@ fn dump_to_file(child_pid: u32, dir: impl AsRef<Path>, data: &[u8]) -> Result<Pa
         if !dir.exists() {
             fs::create_dir_all(dir).with_context(|| format!("create directory '{}' for dump files", dir.display()))?;
         } else if !dir.is_dir() {
-            return Err(anyhow!("{} is not directory", dir.display()));
+            return Err(anyhow!("'{}' is not directory", dir.display()));
         }
         Ok(())
     }
