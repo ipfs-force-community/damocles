@@ -1,3 +1,4 @@
+use std::env;
 use std::sync::Arc;
 
 use crossbeam_channel::select;
@@ -95,6 +96,29 @@ impl Worker for ServiceImpl {
                 Ok(false)
             }
         }
+    }
+
+    fn worker_set_env(&self, name: String, value: String) -> Result<()> {
+        println!("{}, {}", name, value);
+        // Avoid panic of set_var function
+        // See: https://doc.rust-lang.org/stable/std/env/fn.set_var.html#panics
+        if !(name.is_empty() || name.contains(['=', '\0']) || value.contains('\0')) {
+            if std::panic::catch_unwind(|| env::set_var(name, value)).is_ok() {
+                return Ok(());
+            }
+        }
+        Err(Error::invalid_params("invalid environment variable name or value"))
+    }
+
+    fn worker_remove_env(&self, name: String) -> Result<()> {
+        // Avoid panic of remove_var function
+        // See: https://doc.rust-lang.org/std/env/fn.remove_var.html#panics
+        if !name.is_empty() && !name.contains(['=', '\0']) {
+            if std::panic::catch_unwind(|| env::remove_var(name)).is_ok() {
+                return Ok(());
+            }
+        }
+        Err(Error::invalid_params("invalid environment variable name"))
     }
 }
 
