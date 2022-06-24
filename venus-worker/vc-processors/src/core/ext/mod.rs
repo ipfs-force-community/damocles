@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "ext-producer")]
 mod producer;
 #[cfg(feature = "ext-producer")]
-pub use producer::{BoxedFinalizeHook, BoxedPrepareHook, Producer, ProducerBuilder};
+pub use producer::{dump_error_resp_env, BoxedFinalizeHook, BoxedPrepareHook, Producer, ProducerBuilder};
 
 mod consumer;
 pub use consumer::run as run_consumer;

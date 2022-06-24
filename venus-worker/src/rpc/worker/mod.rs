@@ -42,4 +42,12 @@ pub trait Worker {
     /// resume specific worker, with given state, if any
     #[rpc(name = "VenusWorker.WorkerResume")]
     fn worker_resume(&self, index: usize, set_to: Option<String>) -> Result<bool>;
+
+    /// set os environment
+    #[rpc(name = "VenusWorker.WorkerSetEnv")]
+    fn worker_set_env(&self, name: String, value: String) -> Result<()>;
+
+    /// remove os environment
+    #[rpc(name = "VenusWorker.WorkerRemoveEnv")]
+    fn worker_remove_env(&self, name: String) -> Result<()>;
 }

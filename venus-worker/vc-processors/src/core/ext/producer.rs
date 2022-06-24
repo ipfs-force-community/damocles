@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use std::env::vars;
+use std::env::{self, vars};
+use std::fs;
 use std::io::{BufRead, BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::{
     atomic::{AtomicU64, Ordering},
@@ -14,11 +15,21 @@ use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::{after, bounded, never, select, Sender};
 use serde_json::{from_str, to_string};
 use tracing::{debug, error, info, warn, warn_span};
+use uuid::Uuid;
 
 use super::{ready_msg, Request, Response};
 use crate::core::{Processor, Task};
 
-pub fn start_response_handler<T: Task>(stdout: ChildStdout, out_txes: Arc<Mutex<HashMap<u64, Sender<Response<T::Output>>>>>) -> Result<()> {
+/// Dump error resp env key
+pub fn dump_error_resp_env(pid: u32) -> String {
+    format!("DUMP_ERR_RESP_{}", pid)
+}
+
+pub fn start_response_handler<T: Task>(
+    child_pid: u32,
+    stdout: ChildStdout,
+    out_txes: Arc<Mutex<HashMap<u64, Sender<Response<T::Output>>>>>,
+) -> Result<()> {
     let mut reader = BufReader::new(stdout);
     let mut line_buf = String::new();
 
@@ -33,8 +44,8 @@ pub fn start_response_handler<T: Task>(stdout: ChildStdout, out_txes: Arc<Mutex<
 
         let resp: Response<T::Output> = match from_str(line_buf.as_str()) {
             Ok(r) => r,
-            Err(e) => {
-                error!("failed to unmarshal response string: {:?}", e);
+            Err(_) => {
+                dump(&DumpType::from_env(child_pid), child_pid, line_buf.as_str());
                 continue;
             }
         };
@@ -45,6 +56,78 @@ pub fn start_response_handler<T: Task>(stdout: ChildStdout, out_txes: Arc<Mutex<
             let _ = out_tx.send(resp);
         }
     }
+}
+
+/// Dump type of the error format response of the processor
+#[derive(Debug, Clone)]
+enum DumpType {
+    /// Dump error format response fragments to the log
+    ToLog,
+    /// Dump error format response to the file
+    ToFile(PathBuf),
+}
+
+impl DumpType {
+    fn from_env(pid: u32) -> Self {
+        match env::var(dump_error_resp_env(pid)) {
+            Ok(path) => Self::ToFile(path.into()),
+            Err(_) => Self::ToLog,
+        }
+    }
+}
+
+fn dump(dt: &DumpType, child_pid: u32, data: &str) {
+    #[inline]
+    fn truncate(data: &str) -> String {
+        const TRUNCATE_SIZE: usize = 100;
+
+        if data.len() <= TRUNCATE_SIZE {
+            return data.to_string();
+        }
+
+        let trunc_len = (0..TRUNCATE_SIZE + 1).rposition(|index| data.is_char_boundary(index)).unwrap_or(0);
+        format!("{}...", &data[..trunc_len])
+    }
+
+    match dt {
+        DumpType::ToLog => {
+            error!(child_pid = child_pid, "failed to unmarshal response string: '{}'.", truncate(data));
+        }
+        DumpType::ToFile(dir) => match dump_to_file(child_pid, dir, data.as_bytes()) {
+            Ok(dump_file_path) => {
+                error!(
+                    child_pid = child_pid,
+                    "failed to unmarshal response string. dump file '{}' generated.",
+                    dump_file_path.display()
+                )
+            }
+            Err(e) => {
+                error!(
+                    child_pid = child_pid,
+                    "failed to unmarshal response string; failed to generate dump file: '{}'.", e
+                );
+            }
+        },
+    }
+}
+
+fn dump_to_file(child_pid: u32, dir: impl AsRef<Path>, data: &[u8]) -> Result<PathBuf> {
+    #[inline]
+    fn ensure_dir(dir: &Path) -> Result<()> {
+        if !dir.exists() {
+            fs::create_dir_all(dir).with_context(|| format!("create directory '{}' for dump files", dir.display()))?;
+        } else if !dir.is_dir() {
+            return Err(anyhow!("'{}' is not directory", dir.display()));
+        }
+        Ok(())
+    }
+
+    let dir = dir.as_ref();
+    ensure_dir(dir)?;
+    let filename = format!("ext-processor-err-resp-{}-{}.json", child_pid, Uuid::new_v4().as_simple());
+    let path = dir.join(&filename);
+    fs::write(&path, data)?;
+    Ok(path)
 }
 
 pub struct Hooks<P, F> {
@@ -220,9 +303,10 @@ where
         let stdout = self.stdout.take().context("stdout lost")?;
 
         let out_txes = self.out_txes.clone();
+        let pid = self.child_pid();
         thread::spawn(move || {
             let _span = warn_span!("response handler");
-            if let Err(e) = start_response_handler::<T>(stdout, out_txes) {
+            if let Err(e) = start_response_handler::<T>(pid, stdout, out_txes) {
                 error!("unexpected: {:?}", e);
             }
         });
@@ -303,5 +387,70 @@ impl<F: FnMut()> Drop for Defer<F> {
         if self.0 {
             (self.1)();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use pretty_assertions::assert_eq;
+    use tracing_test::traced_test;
+
+    use super::{dump, dump_to_file, DumpType};
+
+    #[test]
+    #[traced_test]
+    fn test_dump_to_log() {
+        let cases = vec![
+            ("abcdefg".to_string(), format!("'{}'", "abcdefg")),
+            ("一二三四五123".to_string(), format!("'{}'", "一二三四五123")),
+            ("a".repeat(100), format!("'{}'", "a".repeat(100))),
+            ("a".repeat(101), format!("'{}...'", "a".repeat(100))),
+            ("a".repeat(200), format!("'{}...'", "a".repeat(100))),
+            ("💗".repeat(100), format!("'{}...'", "💗".repeat(25))),
+        ];
+
+        for (data, expected_log) in cases {
+            dump(&DumpType::ToLog, 1, &data);
+            assert!(logs_contain(&expected_log));
+        }
+    }
+
+    #[test]
+    fn test_dump_to_file() {
+        use tempfile::tempdir;
+
+        let tmpdir = tempdir().expect("couldn't create temp dir");
+
+        let dumpfile = dump_to_file(1, tmpdir.path(), "hello world".as_bytes());
+        assert!(dumpfile.is_ok(), "dump_to_file: {:?}", dumpfile.err());
+        let dumpfile = dumpfile.unwrap();
+        assert_eq!(tmpdir.path(), dumpfile.parent().unwrap());
+        assert_eq!("hello world", fs::read_to_string(dumpfile).unwrap());
+    }
+
+    #[test]
+    fn test_dump_to_file_when_dir_not_exist() {
+        use tempfile::tempdir;
+
+        let tmpdir = tempdir().expect("couldn't create temp dir");
+        let not_exist_dir = tmpdir.path().join("test");
+
+        let dumpfile = dump_to_file(1, &not_exist_dir, "hello world".as_bytes());
+        assert!(dumpfile.is_ok(), "dump_to_file: {:?}", dumpfile.err());
+        let dumpfile = dumpfile.unwrap();
+        assert_eq!(not_exist_dir, dumpfile.parent().unwrap());
+        assert_eq!("hello world", fs::read_to_string(dumpfile).unwrap());
+    }
+
+    #[test]
+    fn test_dump_to_file_when_not_dir() {
+        use tempfile::tempdir;
+        let tmpdir = tempdir().expect("couldn't create temp dir");
+        let tmpfile = tmpdir.path().join("test.json");
+        fs::write(&tmpfile, "oops").unwrap();
+
+        assert!(dump_to_file(1, &tmpfile, "hello world".as_bytes()).is_err());
     }
 }

@@ -252,36 +252,36 @@ macro_rules! construct_sub_processor {
     ($field:ident, $cfg:ident, $locks:ident) => {
         if let Some(ext) = $cfg.processors.$field.as_ref() {
             let proc = processor::external::ExtProcessor::build(ext, $locks.clone())?;
-            Box::new(proc)
+            Arc::new(proc)
         } else {
-            Box::new(BuiltinProcessor::default())
+            Arc::new(BuiltinProcessor::default())
         }
     };
 }
 
 fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<GloablProcessors> {
-    let tree_d: processor::BoxedTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks);
+    let tree_d: processor::ArcTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks);
 
-    let pc1: processor::BoxedPC1Processor = construct_sub_processor!(pc1, cfg, locks);
+    let pc1: processor::ArcPC1Processor = construct_sub_processor!(pc1, cfg, locks);
 
-    let pc2: processor::BoxedPC2Processor = construct_sub_processor!(pc2, cfg, locks);
+    let pc2: processor::ArcPC2Processor = construct_sub_processor!(pc2, cfg, locks);
 
-    let c2: processor::BoxedC2Processor = construct_sub_processor!(c2, cfg, locks);
+    let c2: processor::ArcC2Processor = construct_sub_processor!(c2, cfg, locks);
 
-    let snap_encode: processor::BoxedSnapEncodeProcessor = construct_sub_processor!(snap_encode, cfg, locks);
+    let snap_encode: processor::ArcSnapEncodeProcessor = construct_sub_processor!(snap_encode, cfg, locks);
 
-    let snap_prove: processor::BoxedSnapProveProcessor = construct_sub_processor!(snap_prove, cfg, locks);
+    let snap_prove: processor::ArcSnapProveProcessor = construct_sub_processor!(snap_prove, cfg, locks);
 
-    let transfer: processor::BoxedTransferProcessor = construct_sub_processor!(transfer, cfg, locks);
+    let transfer: processor::ArcTransferProcessor = construct_sub_processor!(transfer, cfg, locks);
 
     Ok(GloablProcessors {
-        tree_d: Arc::new(tree_d),
-        pc1: Arc::new(pc1),
-        pc2: Arc::new(pc2),
-        c2: Arc::new(c2),
-        snap_encode: Arc::new(snap_encode),
-        snap_prove: Arc::new(snap_prove),
-        transfer: Arc::new(transfer),
+        tree_d,
+        pc1,
+        pc2,
+        c2,
+        snap_encode,
+        snap_prove,
+        transfer,
     })
 }
 

@@ -14,8 +14,8 @@ use crate::{
     rpc::sealer::SealerClient,
     sealing::{
         processor::{
-            BoxedC2Processor, BoxedPC1Processor, BoxedPC2Processor, BoxedSnapEncodeProcessor, BoxedSnapProveProcessor,
-            BoxedTransferProcessor, BoxedTreeDProcessor,
+            ArcC2Processor, ArcPC1Processor, ArcPC2Processor, ArcSnapEncodeProcessor, ArcSnapProveProcessor, ArcTransferProcessor,
+            ArcTreeDProcessor,
         },
         resource::Pool,
     },
@@ -51,13 +51,13 @@ pub struct GlobalModules {
 
 #[derive(Clone)]
 pub struct GloablProcessors {
-    pub tree_d: Arc<BoxedTreeDProcessor>,
-    pub pc1: Arc<BoxedPC1Processor>,
-    pub pc2: Arc<BoxedPC2Processor>,
-    pub c2: Arc<BoxedC2Processor>,
-    pub snap_encode: Arc<BoxedSnapEncodeProcessor>,
-    pub snap_prove: Arc<BoxedSnapProveProcessor>,
-    pub transfer: Arc<BoxedTransferProcessor>,
+    pub tree_d: ArcTreeDProcessor,
+    pub pc1: ArcPC1Processor,
+    pub pc2: ArcPC2Processor,
+    pub c2: ArcC2Processor,
+    pub snap_encode: ArcSnapEncodeProcessor,
+    pub snap_prove: ArcSnapProveProcessor,
+    pub transfer: ArcTransferProcessor,
 }
 
 impl Module for Box<dyn Module> {
