@@ -182,3 +182,19 @@ args = ["args1", "args2", "args3"]
 那么出现这种错误，通常表示目标文件不存在，或为空文件。
 
 例如，在 `WindowPoSt` 场景，如果没有准备好参数文件或密钥文件。
+
+## Q: `vc_processors::core::ext::producer: failed to unmarshal response string` 是什么错误？ 如何处理？
+
+**A**：发生这种错误是因为外部处理器产生了错误格式的响应。可以通过 venus-worker 提供的命令运行时的开启或关闭 dump 功能，查看错误格式的响应。
+
+开启 dump
+```
+venus-worker worker --config="path/to/your_config_file.toml" enable_dump --child_pid=<target_ext_processor_pid> --dump_dir="path/to/dump_dir"
+```
+
+关闭 dump
+```
+venus-worker worker --config="path/to/your_config_file.toml" disable_dump --child_pid=<target_ext_processor_pid>
+```
+
+可根据 dump 文件进行 debug。

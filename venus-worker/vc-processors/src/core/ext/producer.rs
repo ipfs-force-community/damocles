@@ -58,12 +58,12 @@ pub fn start_response_handler<T: Task>(
     }
 }
 
-/// Dump type of the error response of the processor
+/// Dump type of the error format response of the processor
 #[derive(Debug, Clone)]
 enum DumpType {
-    /// Dump error response fragments to the log
+    /// Dump error format response fragments to the log
     ToLog,
-    /// Dump error response fragments to the file
+    /// Dump error format response to the file
     ToFile(PathBuf),
 }
 

@@ -58,7 +58,7 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
                 .required(true)
                 .help("Specify the dump directory"),
         ])
-        .help("Enable external processor error response dump for debugging");
+        .help("Enable external processor error format response dump for debugging");
 
     let disable_dump_cmd = SubCommand::with_name("disable_dump")
         .arg(
@@ -68,7 +68,7 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
                 .required(true)
                 .help("Specify external processor pid"),
         )
-        .help("Disable external processor error response dump");
+        .help("Disable external processor error format response dump");
 
     SubCommand::with_name(SUB_CMD_NAME)
         .setting(AppSettings::ArgRequiredElseHelp)
