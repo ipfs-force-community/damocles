@@ -11,7 +11,6 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover/ext"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 )
 
@@ -42,8 +41,8 @@ var daemonInitCmd = &cli.Command{
 			return fmt.Errorf("init sealer config: %w", err)
 		}
 
-		extCfg := ext.DefaultConfig(true)
-		if err := cfgmgr.SetDefault(cctx.Context, ext.ConfigKey, extCfg); err != nil {
+		procCfg := modules.DefaultProcessorConfig(true)
+		if err := cfgmgr.SetDefault(cctx.Context, modules.ProcessorConfigKey, procCfg); err != nil {
 			return fmt.Errorf("init ext prover config: %w", err)
 		}
 

@@ -21,12 +21,12 @@ const VenusWorkerBin = "venus-worker"
 
 var log = logging.New("extproc")
 
-func New(ctx context.Context, taskName string, cfgs []ExtProcessorConfig) (*Processor, error) {
+func New(ctx context.Context, stageName string, cfgs []ExtProcessorConfig) (*Processor, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	exts := make([]*ExtProcessor, 0, len(cfgs))
 	for ci := range cfgs {
-		ext, err := newExtProcessor(ctx, taskName, cfgs[ci])
+		ext, err := newExtProcessor(ctx, stageName, cfgs[ci])
 		if err != nil {
 			cancel()
 			return nil, fmt.Errorf("start ext processor #%d: %w", ci, err)
@@ -139,7 +139,7 @@ func (rwc *reqWithChan) response(ctx context.Context, resp Response) {
 	}
 }
 
-func waitForReady(ctx context.Context, reader *bufio.Reader, taskName string, timeout time.Duration) error {
+func waitForReady(ctx context.Context, reader *bufio.Reader, stageName string, timeout time.Duration) error {
 	ready := make(chan error, 1)
 	go func() {
 		defer close(ready)
@@ -149,7 +149,7 @@ func waitForReady(ctx context.Context, reader *bufio.Reader, taskName string, ti
 			return
 		}
 
-		if msg != ReadyMessage(taskName) {
+		if msg != ReadyMessage(stageName) {
 			ready <- fmt.Errorf("unexpected ready message %q", msg)
 			return
 		}
@@ -168,9 +168,9 @@ func waitForReady(ctx context.Context, reader *bufio.Reader, taskName string, ti
 	}
 }
 
-func newExtProcessor(ctx context.Context, taskName string, cfg ExtProcessorConfig) (*ExtProcessor, error) {
+func newExtProcessor(ctx context.Context, stageName string, cfg ExtProcessorConfig) (*ExtProcessor, error) {
 	bin := filepath.Join(filepath.Dir(os.Args[0]), VenusWorkerBin)
-	args := []string{"processor", taskName}
+	args := []string{"processor", stageName}
 
 	if cfg.Bin != nil {
 		bin = *cfg.Bin
@@ -211,7 +211,7 @@ func newExtProcessor(ctx context.Context, taskName string, cfg ExtProcessorConfi
 		readySecs = 5
 	}
 
-	err = waitForReady(ctx, stdreader, taskName, time.Duration(readySecs)*time.Second)
+	err = waitForReady(ctx, stdreader, stageName, time.Duration(readySecs)*time.Second)
 	if err != nil {
 		cmd.Process.Kill()
 		return nil, fmt.Errorf("wait for ready: %w", err)
@@ -223,10 +223,10 @@ func newExtProcessor(ctx context.Context, taskName string, cfg ExtProcessorConfi
 	}
 
 	return &ExtProcessor{
-		taskName: taskName,
-		cfg:      cfg,
-		limiter:  make(chan struct{}, concurrentLimit),
-		cmd:      cmd,
+		stageName: stageName,
+		cfg:       cfg,
+		limiter:   make(chan struct{}, concurrentLimit),
+		cmd:       cmd,
 
 		rawStdIn:  stdin,
 		rawStdOut: stdout,
@@ -241,10 +241,10 @@ func newExtProcessor(ctx context.Context, taskName string, cfg ExtProcessorConfi
 }
 
 type ExtProcessor struct {
-	taskName string
-	cfg      ExtProcessorConfig
-	limiter  chan struct{}
-	cmd      *exec.Cmd
+	stageName string
+	cfg       ExtProcessorConfig
+	limiter   chan struct{}
+	cmd       *exec.Cmd
 
 	rawStdIn  io.WriteCloser
 	rawStdOut io.ReadCloser
@@ -274,7 +274,7 @@ func (ep *ExtProcessor) stop() {
 }
 
 func (ep *ExtProcessor) handleResponse(ctx context.Context) {
-	splog := log.With("pid", ep.cmd.Process.Pid, "ppid", os.Getpid(), "task", ep.taskName, "loop", "resp")
+	splog := log.With("pid", ep.cmd.Process.Pid, "ppid", os.Getpid(), "stage", ep.stageName, "loop", "resp")
 	splog.Info("response loop start")
 	defer splog.Info("response loop stop")
 
@@ -310,7 +310,7 @@ func (ep *ExtProcessor) handleResponse(ctx context.Context) {
 }
 
 func (ep *ExtProcessor) handleRequest(ctx context.Context) {
-	splog := log.With("pid", ep.cmd.Process.Pid, "ppid", os.Getpid(), "task", ep.taskName, "loop", "req")
+	splog := log.With("pid", ep.cmd.Process.Pid, "ppid", os.Getpid(), "stage", ep.stageName, "loop", "req")
 	splog.Info("request loop start")
 	defer splog.Info("request loop stop")
 

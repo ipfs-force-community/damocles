@@ -5,10 +5,6 @@ import (
 	"fmt"
 )
 
-const (
-	ProcessorNameWindostPoSt = "wdpost"
-)
-
 type Request struct {
 	ID   uint64          `json:"id"`
 	Data json.RawMessage `json:"data"`

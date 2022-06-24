@@ -12,7 +12,7 @@ func DefaultExtProcessorConfig(example bool) ExtProcessorConfig {
 	if example {
 		bin := "venus-worker"
 		pcfg.Bin = &bin
-		pcfg.Args = append(pcfg.Args, ProcessorNameWindostPoSt)
+		pcfg.Args = []string{"abc"}
 		pcfg.Envs["KEY"] = "VAL"
 	}
 
