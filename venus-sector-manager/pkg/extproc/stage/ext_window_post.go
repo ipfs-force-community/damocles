@@ -1,4 +1,4 @@
-package extproc
+package stage
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 )
 
-const StageNameWindowPoSt = "window_post"
+const NameWindowPoSt = "window_post"
 
 func ProofType2String(proofType abi.RegisteredPoStProof) string {
 	switch proofType {

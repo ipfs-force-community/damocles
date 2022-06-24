@@ -10,6 +10,7 @@ import (
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/extproc/stage"
 )
 
 type SectorRef = storage.SectorRef
@@ -62,4 +63,8 @@ type Prover interface {
 	GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*FallbackChallenges, error)
 	GenerateSingleVanillaProof(ctx context.Context, replica FFIPrivateSectorInfo, challenges []uint64) ([]byte, error)
 	GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]PoStProof, error)
+}
+
+type ProveDataChecker interface {
+	Check(ctx context.Context, task stage.DataCheck) (*stage.DataCheckFailure, error)
 }

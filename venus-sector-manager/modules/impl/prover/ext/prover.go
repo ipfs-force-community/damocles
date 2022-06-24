@@ -11,12 +11,13 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/extproc"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/extproc/stage"
 )
 
 var _ core.Prover = (*Prover)(nil)
 
 func New(ctx context.Context, cfgs []extproc.ExtProcessorConfig) (*Prover, error) {
-	proc, err := extproc.New(ctx, extproc.StageNameWindowPoSt, cfgs)
+	proc, err := extproc.New(ctx, stage.NameWindowPoSt, cfgs)
 	if err != nil {
 		return nil, fmt.Errorf("construct Processor: %w", err)
 	}
@@ -49,9 +50,9 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, se
 	}
 
 	proofType := sectorInners[0].PoStProofType
-	data := extproc.WindowPoSt{
+	data := stage.WindowPoSt{
 		MinerID:   minerID,
-		ProofType: extproc.ProofType2String(proofType),
+		ProofType: stage.ProofType2String(proofType),
 	}
 	copy(data.Seed[:], randomness[:])
 
@@ -59,7 +60,7 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, se
 		inner := sectorInners[i]
 
 		if pt := inner.PoStProofType; pt != proofType {
-			return nil, nil, fmt.Errorf("proof type not match for sector %d of miner %d: want %s, got %s", inner.SectorNumber, minerID, extproc.ProofType2String(proofType), extproc.ProofType2String(pt))
+			return nil, nil, fmt.Errorf("proof type not match for sector %d of miner %d: want %s, got %s", inner.SectorNumber, minerID, stage.ProofType2String(proofType), stage.ProofType2String(pt))
 		}
 
 		commR, err := util.CID2ReplicaCommitment(inner.SealedCID)
@@ -67,7 +68,7 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, se
 			return nil, nil, fmt.Errorf("invalid selaed cid %s for sector %d of miner %d: %w", inner.SealedCID, inner.SectorNumber, minerID, err)
 		}
 
-		data.Replicas = append(data.Replicas, extproc.WindowPoStReplicaInfo{
+		data.Replicas = append(data.Replicas, stage.WindowPoStReplicaInfo{
 			SectorID:   inner.SectorNumber,
 			CommR:      commR,
 			CacheDir:   inner.CacheDirPath,
@@ -75,7 +76,7 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, se
 		})
 	}
 
-	var res extproc.WindowPoStOutput
+	var res stage.WindowPoStOutput
 
 	err := p.proc.Process(ctx, data, &res)
 	if err != nil {
