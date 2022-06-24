@@ -133,9 +133,9 @@ pub fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
 
         ("enable_dump", Some(m)) => {
             let child_pid = value_t!(m, "child_pid", u32)?;
-            let dump_dir: PathBuf = value_t!(m, "dump_dir", String)?.into();
+            let dump_dir = value_t!(m, "dump_dir", PathBuf)?;
             if !dump_dir.is_dir() {
-                return Err(anyhow!("{} is not a directory", dump_dir.display()));
+                return Err(anyhow!("'{}' is not a directory", dump_dir.display()));
             }
             let dump_dir = fs::canonicalize(dump_dir)?;
             let env_name = vc_processors::core::ext::dump_error_resp_env(child_pid);
