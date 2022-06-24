@@ -99,7 +99,6 @@ impl Worker for ServiceImpl {
     }
 
     fn worker_set_env(&self, name: String, value: String) -> Result<()> {
-        println!("{}, {}", name, value);
         // Avoid panic of set_var function
         // See: https://doc.rust-lang.org/stable/std/env/fn.set_var.html#panics
         if name.is_empty()
