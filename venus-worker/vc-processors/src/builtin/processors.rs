@@ -6,10 +6,7 @@ use std::collections::BTreeMap;
 use anyhow::Result;
 use filecoin_proofs_api::StorageProofsError;
 
-use super::tasks::{
-    DataCheck, DataCheckFailure, DataCheckItem, SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, WindowPoSt, WindowPoStOutput, C2,
-    PC1, PC2,
-};
+use super::tasks::{SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, WindowPoSt, WindowPoStOutput, C2, PC1, PC2};
 use crate::core::{Processor, Task};
 use crate::fil_proofs::{
     create_tree_d, generate_window_post, seal_commit_phase2, seal_pre_commit_phase1, seal_pre_commit_phase2, snap_encode_into,
@@ -85,34 +82,6 @@ impl Processor<Transfer> for BuiltinProcessor {
         task.routes.into_iter().try_for_each(|route| transfer::do_transfer(&route))?;
 
         Ok(true)
-    }
-}
-
-impl Processor<DataCheck> for BuiltinProcessor {
-    fn process(&self, task: DataCheck) -> Result<<DataCheck as Task>::Output> {
-        let check = |item: &DataCheckItem| -> Result<(), String> {
-            if !item.uri.is_absolute() {
-                return Err("relative path not allowed".to_owned());
-            }
-
-            let meta = item.uri.metadata().map_err(|e| e.to_string())?;
-            if let Some(size) = item.size {
-                let meta_len = meta.len();
-                if size != meta_len {
-                    return Err(format!("file size: expect {}, actual {}", size, meta_len));
-                }
-            }
-
-            Ok(())
-        };
-
-        let failures = task
-            .items
-            .into_iter()
-            .filter_map(|item| check(&item).err().map(|failure| DataCheckFailure { item, failure }))
-            .collect();
-
-        Ok(failures)
     }
 }
 
