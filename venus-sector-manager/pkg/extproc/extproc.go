@@ -213,7 +213,7 @@ func newExtProcessor(ctx context.Context, stageName string, cfg ExtProcessorConf
 
 	err = waitForReady(ctx, stdreader, stageName, time.Duration(readySecs)*time.Second)
 	if err != nil {
-		cmd.Process.Kill()
+		cmd.Process.Kill() // nolint: errcheck
 		return nil, fmt.Errorf("wait for ready: %w", err)
 	}
 
