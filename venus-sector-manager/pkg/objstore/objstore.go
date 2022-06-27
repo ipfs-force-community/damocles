@@ -72,11 +72,10 @@ type InstanceInfo struct {
 type Store interface {
 	Instance(context.Context) string
 	InstanceConfig(ctx context.Context) Config
-	InstanceInfo(context.Context) (InstanceInfo, error)
-	Get(context.Context, string) (io.ReadCloser, error)
-	Del(context.Context, string) error
-	Stat(context.Context, string) (Stat, error)
-	Put(context.Context, string, io.Reader) (int64, error)
-	GetChunks(context.Context, string, []Range) ([]ReaderResult, error)
-	FullPath(context.Context, string) string
+	InstanceInfo(ctx context.Context) (InstanceInfo, error)
+	Get(ctx context.Context, p string) (io.ReadCloser, error)
+	Del(ctx context.Context, p string) error
+	Stat(ctx context.Context, p string) (Stat, error)
+	Put(ctx context.Context, p string, r io.Reader) (int64, error)
+	FullPath(ctx context.Context, p string) string
 }
