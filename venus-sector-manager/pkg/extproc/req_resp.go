@@ -7,7 +7,7 @@ import (
 
 type Request struct {
 	ID   uint64          `json:"id"`
-	Data json.RawMessage `json:"data"`
+	Data json.RawMessage `json:"task"`
 }
 
 func (r *Request) SetData(data interface{}) error {
@@ -32,7 +32,7 @@ func (r *Request) DecodeInto(v interface{}) error {
 type Response struct {
 	ID     uint64          `json:"id"`
 	ErrMsg *string         `json:"err_msg"`
-	Result json.RawMessage `json:"result"`
+	Result json.RawMessage `json:"output"`
 }
 
 func (r *Response) SetResult(res interface{}) {
