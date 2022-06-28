@@ -63,7 +63,7 @@ type SealerAPI interface {
 }
 
 type SealerCliAPI interface {
-	ListSectors(context.Context, SectorWorkerState) ([]*SectorState, error)
+	ListSectors(context.Context, SectorWorkerState, SectorWorkerJob) ([]*SectorState, error)
 
 	RestoreSector(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
 

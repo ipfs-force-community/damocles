@@ -11,7 +11,9 @@ import (
 )
 
 var UnavailableSealerCliClient = SealerCliClient{
-	ListSectors: func(context.Context, SectorWorkerState) ([]*SectorState, error) { panic("sealer client unavailable") },
+	ListSectors: func(context.Context, SectorWorkerState, SectorWorkerJob) ([]*SectorState, error) {
+		panic("sealer client unavailable")
+	},
 
 	RestoreSector: func(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error) {
 		panic("sealer client unavailable")
@@ -79,7 +81,7 @@ var UnavailableSealerCliClient = SealerCliClient{
 }
 
 type SealerCliClient struct {
-	ListSectors func(context.Context, SectorWorkerState) ([]*SectorState, error)
+	ListSectors func(context.Context, SectorWorkerState, SectorWorkerJob) ([]*SectorState, error)
 
 	RestoreSector func(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
 
