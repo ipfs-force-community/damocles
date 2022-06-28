@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shirou/gopsutil/v3/disk"
@@ -27,6 +26,16 @@ type statOrErr struct {
 	Err error
 }
 
+type readerResult struct {
+	io.ReadCloser
+	Err error
+}
+
+type readRange struct {
+	Offset int64
+	Size   int64
+}
+
 func OpenStores(cfgs []objstore.Config) ([]objstore.Store, error) {
 	stores := make([]objstore.Store, 0, len(cfgs))
 
@@ -36,14 +45,13 @@ func OpenStores(cfgs []objstore.Config) ([]objstore.Store, error) {
 			return nil, err
 		}
 
-		log.Infow("load store", "name", store.cfg.Name, "path", store.cfg.Path)
 		stores = append(stores, store)
 	}
 
 	return stores, nil
 }
 
-func Open(cfg objstore.Config) (*Store, error) {
+func Open(cfg objstore.Config) (objstore.Store, error) {
 	dirPath, err := filepath.Abs(cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("abs path for %s: %w", cfg.Path, err)
@@ -63,6 +71,7 @@ func Open(cfg objstore.Config) (*Store, error) {
 		cfg.Name = dirPath
 	}
 
+	log.Infow("load store", "name", cfg.Name, "path", cfg.Path)
 	return &Store{
 		cfg: cfg,
 		dir: os.DirFS(dirPath),
@@ -83,8 +92,8 @@ func (lf *limitedFile) Close() error {
 	return lf.file.Close()
 }
 
-func (s *Store) openWithContext(ctx context.Context, p string, r *objstore.Range) objstore.ReaderResult {
-	resCh := make(chan objstore.ReaderResult, 1)
+func (s *Store) openWithContext(ctx context.Context, p string, r *readRange) readerResult {
+	resCh := make(chan readerResult, 1)
 
 	go func() {
 		defer close(resCh)
@@ -112,7 +121,7 @@ func (s *Store) openWithContext(ctx context.Context, p string, r *objstore.Range
 			err = fmt.Errorf("obj %s: %w", p, objstore.ErrObjectNotFound)
 		}
 
-		resCh <- objstore.ReaderResult{
+		resCh <- readerResult{
 			ReadCloser: r,
 			Err:        err,
 		}
@@ -121,14 +130,14 @@ func (s *Store) openWithContext(ctx context.Context, p string, r *objstore.Range
 
 	select {
 	case <-ctx.Done():
-		return objstore.ReaderResult{Err: fmt.Errorf("obj %s: %w", p, ctx.Err())}
+		return readerResult{Err: fmt.Errorf("obj %s: %w", p, ctx.Err())}
 
 	case res := <-resCh:
 		return res
 	}
 }
 
-func (s *Store) open(p string, r *objstore.Range) (io.ReadCloser, error) {
+func (s *Store) open(p string, r *readRange) (io.ReadCloser, error) {
 	file, err := s.dir.Open(p)
 	if err != nil {
 		return nil, fmt.Errorf("obj %s: open: %w", p, err)
@@ -277,32 +286,6 @@ func (s *Store) Put(ctx context.Context, p string, r io.Reader) (int64, error) {
 	defer file.Close()
 
 	return io.Copy(file, r)
-}
-
-func (s *Store) GetChunks(ctx context.Context, p string, ranges []objstore.Range) ([]objstore.ReaderResult, error) {
-	origin := s.openWithContext(ctx, p, nil)
-	if origin.Err != nil {
-		return nil, origin.Err
-	}
-
-	if err := origin.Close(); err != nil {
-		return nil, err
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(len(ranges))
-
-	results := make([]objstore.ReaderResult, len(ranges))
-	for i := range ranges {
-		go func(i int) {
-			defer wg.Done()
-			results[i] = s.openWithContext(ctx, p, &ranges[i])
-		}(i)
-	}
-
-	wg.Wait()
-
-	return results, nil
 }
 
 func (s *Store) FullPath(ctx context.Context, sub string) string {

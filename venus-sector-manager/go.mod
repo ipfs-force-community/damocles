@@ -43,7 +43,10 @@ require (
 	go.uber.org/zap v1.21.0
 )
 
-require github.com/ipfs-force-community/venus-cluster-assets v0.1.0
+require (
+	github.com/ipfs-force-community/venus-cluster-assets v0.1.0
+	github.com/ipfs-force-community/venus-objstore v0.0.1
+)
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1 // indirect
