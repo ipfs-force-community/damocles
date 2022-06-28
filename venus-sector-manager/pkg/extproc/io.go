@@ -1,10 +1,28 @@
-package ext
+package extproc
 
 import (
 	"bufio"
 	"encoding/json"
 	"fmt"
 )
+
+func ReadyMessage(taskName string) string {
+	return fmt.Sprintf("%s processor ready\n", taskName)
+}
+
+func WriteReadyMessage(w *bufio.Writer, taskName string) error {
+	_, err := w.WriteString(ReadyMessage(taskName))
+	if err != nil {
+		return fmt.Errorf("write ready message: %w", err)
+	}
+
+	err = w.Flush()
+	if err != nil {
+		return fmt.Errorf("flush ready message: %w", err)
+	}
+
+	return nil
+}
 
 func WriteData(w *bufio.Writer, data interface{}) (int, error) {
 	b, err := json.Marshal(data)

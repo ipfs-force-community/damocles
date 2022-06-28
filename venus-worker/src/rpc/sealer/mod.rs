@@ -1,11 +1,6 @@
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::path::PathBuf;
-use std::result::Result as StdResult;
 
-use anyhow::{anyhow, Error};
-use base64::STANDARD;
-use base64_serde::base64_serde_type;
 use fil_clock::ChainEpoch;
 use fil_types::{ActorID, PaddedPieceSize, SectorNumber};
 use forest_cid::json::CidJson;
@@ -13,65 +8,14 @@ use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use vc_processors::b64serde::{BytesArray32, BytesVec};
 
 use super::super::types::SealProof;
-
-base64_serde_type! {B64SerDe, STANDARD}
-
-/// randomness with base64 ser & de
-#[derive(Copy, Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
-#[serde(into = "B64Vec")]
-#[serde(try_from = "B64Vec")]
-pub struct BytesArray32(pub [u8; 32]);
 
 /// type alias for BytesArray32
 pub type Randomness = BytesArray32;
 
-impl From<[u8; 32]> for BytesArray32 {
-    fn from(val: [u8; 32]) -> Self {
-        BytesArray32(val)
-    }
-}
-
-impl TryFrom<B64Vec> for BytesArray32 {
-    type Error = Error;
-
-    fn try_from(v: B64Vec) -> StdResult<Self, Self::Error> {
-        if v.0.len() != 32 {
-            return Err(anyhow!("expected 32 bytes, got {}", v.0.len()));
-        }
-
-        let mut a = [0u8; 32];
-        a.copy_from_slice(&v.0[..]);
-
-        Ok(BytesArray32(a))
-    }
-}
-
-impl From<BytesArray32> for B64Vec {
-    fn from(r: BytesArray32) -> Self {
-        let mut v = vec![0; 32];
-        v.copy_from_slice(&r.0[..]);
-        B64Vec(v)
-    }
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
-#[serde(transparent)]
-/// bytes with base64 ser & de
-pub struct B64Vec(#[serde(with = "B64SerDe")] pub Vec<u8>);
-
-impl From<Vec<u8>> for B64Vec {
-    fn from(val: Vec<u8>) -> B64Vec {
-        B64Vec(val)
-    }
-}
-
-impl From<&Vec<u8>> for B64Vec {
-    fn from(val: &Vec<u8>) -> B64Vec {
-        B64Vec(val.clone())
-    }
-}
+pub type B64Vec = BytesVec;
 
 /// type alias for u64
 pub type DealID = u64;

@@ -1,295 +1,42 @@
 package ext
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"math/rand"
-	"os"
-	"os/exec"
-	"sync"
-	"sync/atomic"
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/extproc"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/extproc/stage"
 )
 
 var _ core.Prover = (*Prover)(nil)
 
-var log = logging.New("porver-ext")
-
-type reqWithChan struct {
-	req    Request
-	respCh chan Response
-}
-
-func (rwc *reqWithChan) response(ctx context.Context, resp Response) {
-	select {
-	case <-ctx.Done():
-
-	case rwc.respCh <- resp:
-	}
-}
-
-func newSubProcessor(ctx context.Context, name string, cfg ProcessorConfig) (*subProcessor, error) {
-	bin := os.Args[0]
-	args := []string{"processor", name}
-
-	if cfg.Bin != nil {
-		bin = *cfg.Bin
-		args = cfg.Args
-	}
-
-	env := os.Environ()
-	for key, val := range cfg.Envs {
-		env = append(env, fmt.Sprintf("%s=%s", key, val))
-	}
-
-	cmd := exec.CommandContext(ctx, bin, args...)
-	cmd.Env = env
-
-	stdin, err := cmd.StdinPipe()
+func New(ctx context.Context, cfgs []extproc.ExtProcessorConfig) (*Prover, error) {
+	proc, err := extproc.New(ctx, stage.NameWindowPoSt, cfgs)
 	if err != nil {
-		return nil, fmt.Errorf("set stdin pipe: %w", err)
-	}
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, fmt.Errorf("set stdout pipe: %w", err)
-	}
-
-	cmd.Stderr = os.Stderr
-
-	err = cmd.Start()
-	if err != nil {
-		return nil, fmt.Errorf("start cmd: %w", err)
-	}
-
-	concurrentLimit := int(cfg.Concurrent)
-	if concurrentLimit == 0 {
-		concurrentLimit = 1
-	}
-
-	return &subProcessor{
-		cfg:     cfg,
-		limiter: make(chan struct{}, concurrentLimit),
-		cmd:     cmd,
-		stdin:   stdin,
-		stdout:  stdout,
-
-		reqCh:  make(chan reqWithChan, 1),
-		respCh: make(chan Response, 1),
-		reqSeq: 0,
-	}, nil
-
-}
-
-type subProcessor struct {
-	cfg     ProcessorConfig
-	limiter chan struct{}
-	cmd     *exec.Cmd
-	stdin   io.WriteCloser
-	stdout  io.ReadCloser
-
-	startOnce sync.Once
-
-	reqCh  chan reqWithChan
-	respCh chan Response
-	reqSeq uint64
-}
-
-func (sp *subProcessor) start(ctx context.Context) {
-	sp.startOnce.Do(func() {
-		go sp.handleRequest(ctx)
-		go sp.handleResponse(ctx)
-	})
-}
-
-func (sp *subProcessor) stop() {
-	_ = sp.cmd.Process.Kill()
-	_ = sp.cmd.Wait()
-	sp.stdin.Close()
-	sp.stdout.Close()
-}
-
-func (sp *subProcessor) handleResponse(ctx context.Context) {
-	splog := log.With("pid", sp.cmd.Process.Pid, "ppid", os.Getpid(), "loop", "resp")
-	splog.Info("response loop start")
-	defer splog.Info("response loop stop")
-
-	reader := bufio.NewReaderSize(sp.stdout, 1<<20)
-	var readErr error
-
-	for {
-		b, err := reader.ReadBytes('\n')
-		if err != nil {
-			readErr = err
-			break
-		}
-
-		var resp Response
-		err = json.Unmarshal(b, &resp)
-		if err != nil {
-			splog.Warnf("decode response from stdout of sub: %s", err)
-			continue
-		}
-
-		splog.Debugw("response received", "id", resp.ID, "bytes", len(b))
-
-		select {
-		case <-ctx.Done():
-			return
-
-		case sp.respCh <- resp:
-			splog.Debugw("response sent", "id", resp.ID)
-		}
-	}
-
-	if readErr != nil {
-		splog.Warnf("sub stdout scanner error: %s", readErr)
-	}
-
-}
-
-func (sp *subProcessor) handleRequest(ctx context.Context) {
-	splog := log.With("pid", sp.cmd.Process.Pid, "ppid", os.Getpid(), "loop", "req")
-	splog.Info("request loop start")
-	defer splog.Info("request loop stop")
-
-	requests := map[uint64]reqWithChan{}
-	writer := bufio.NewWriter(sp.stdin)
-
-LOOP:
-	for {
-		select {
-		case <-ctx.Done():
-			splog.Debug("context done")
-			return
-
-		case req := <-sp.reqCh:
-			splog.Debugw("request received", "id", req.req.ID)
-			n, err := WriteData(writer, req.req)
-			if err != nil {
-				errMsg := err.Error()
-				req.response(ctx, Response{
-					ID:     req.req.ID,
-					ErrMsg: &errMsg,
-					Result: nil,
-				})
-				continue LOOP
-			}
-
-			splog.Debugw("request sent", "id", req.req.ID, "bytes", n)
-			requests[req.req.ID] = req
-
-		case resp := <-sp.respCh:
-			req, ok := requests[resp.ID]
-			if !ok {
-				splog.Warnw("request not found", "id", resp.ID)
-				continue LOOP
-			}
-
-			req.response(ctx, resp)
-		}
-	}
-}
-
-func (sp *subProcessor) process(ctx context.Context, data interface{}, res interface{}) error {
-	req := Request{
-		ID: atomic.AddUint64(&sp.reqSeq, 1),
-	}
-
-	if err := req.SetData(data); err != nil {
-		return fmt.Errorf("set data in request: %w", err)
-	}
-
-	select {
-	case sp.limiter <- struct{}{}:
-
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	defer func() {
-		<-sp.limiter
-	}()
-
-	respCh := make(chan Response, 1)
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-
-	case sp.reqCh <- reqWithChan{
-		req:    req,
-		respCh: respCh,
-	}:
-
-	}
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-
-	case resp := <-respCh:
-		if resp.ErrMsg != nil {
-			return fmt.Errorf(*resp.ErrMsg)
-		}
-
-		if res != nil {
-			err := resp.DecodeInto(res)
-			if err != nil {
-				return fmt.Errorf("decode into result: %w", err)
-			}
-		}
-
-		return nil
-	}
-}
-
-func New(ctx context.Context, procCfgs []ProcessorConfig) (*Prover, error) {
-	ctx, cancel := context.WithCancel(ctx)
-
-	subs := make([]*subProcessor, 0, len(procCfgs))
-	for pi := range procCfgs {
-		sub, err := newSubProcessor(ctx, ProcessorNameWindostPoSt, procCfgs[pi])
-		if err != nil {
-			cancel()
-			return nil, fmt.Errorf("start sub processor #%d: %w", pi, err)
-		}
-
-		subs = append(subs, sub)
+		return nil, fmt.Errorf("construct Processor: %w", err)
 	}
 
 	return &Prover{
-		ctx:    ctx,
-		cancel: cancel,
-		subs:   subs,
+		proc: proc,
 	}, nil
 }
 
 type Prover struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	mu     sync.Mutex
-	subs   []*subProcessor
+	proc *extproc.Processor
 }
 
 func (p *Prover) Run() {
-	for si := range p.subs {
-		p.subs[si].start(p.ctx)
-	}
+	p.proc.Run()
 }
 
 func (p *Prover) Close() {
-	p.cancel()
-	for si := range p.subs {
-		p.subs[si].stop()
-	}
+	p.proc.Close()
 }
 
 func (*Prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
@@ -297,27 +44,65 @@ func (*Prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.Aggre
 }
 
 func (p *Prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, sectors prover.SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, []abi.SectorID, error) {
-	sub, ok, err := p.findCandidateProcessor()
+	sectorInners := sectors.Values()
+	if len(sectorInners) == 0 {
+		return nil, nil, nil
+	}
+
+	proofType := sectorInners[0].PoStProofType
+	data := stage.WindowPoSt{
+		MinerID:   minerID,
+		ProofType: stage.ProofType2String(proofType),
+	}
+	copy(data.Seed[:], randomness[:])
+
+	for i := range sectorInners {
+		inner := sectorInners[i]
+
+		if pt := inner.PoStProofType; pt != proofType {
+			return nil, nil, fmt.Errorf("proof type not match for sector %d of miner %d: want %s, got %s", inner.SectorNumber, minerID, stage.ProofType2String(proofType), stage.ProofType2String(pt))
+		}
+
+		commR, err := util.CID2ReplicaCommitment(inner.SealedCID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid selaed cid %s for sector %d of miner %d: %w", inner.SealedCID, inner.SectorNumber, minerID, err)
+		}
+
+		data.Replicas = append(data.Replicas, stage.WindowPoStReplicaInfo{
+			SectorID:   inner.SectorNumber,
+			CommR:      commR,
+			CacheDir:   inner.CacheDirPath,
+			SealedFile: inner.SealedSectorPath,
+		})
+	}
+
+	var res stage.WindowPoStOutput
+
+	err := p.proc.Process(ctx, data, &res)
 	if err != nil {
-		return nil, nil, fmt.Errorf("find candidate sub processor: %w", err)
+		return nil, nil, fmt.Errorf("Processor.Process: %w", err)
 	}
 
-	if !ok {
-		return nil, nil, fmt.Errorf("no available sub processor")
+	if faultCount := len(res.Faults); faultCount != 0 {
+		faults := make([]abi.SectorID, faultCount)
+		for fi := range res.Faults {
+			faults[fi] = abi.SectorID{
+				Miner:  minerID,
+				Number: res.Faults[fi],
+			}
+		}
+
+		return nil, faults, fmt.Errorf("got %d fault sectors", faultCount)
 	}
 
-	var res WindowPoStResult
-
-	err = sub.process(ctx, WindowPoStData{
-		Miner:      minerID,
-		Sectors:    sectors,
-		Randomness: randomness,
-	}, &res)
-	if err != nil {
-		return nil, nil, fmt.Errorf("sub process: %w", err)
+	proofs := make([]builtin.PoStProof, len(res.Proofs))
+	for pi := range res.Proofs {
+		proofs[pi] = builtin.PoStProof{
+			PoStProof:  proofType,
+			ProofBytes: res.Proofs[pi],
+		}
 	}
-
-	return res.Proof, res.Skipped, nil
+	return proofs, nil, nil
 }
 
 func (*Prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sectors prover.SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
@@ -334,50 +119,4 @@ func (*Prover) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIP
 
 func (*Prover) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
 	return prover.Prover.GenerateWinningPoStWithVanilla(ctx, proofType, minerID, randomness, proofs)
-}
-
-func (p *Prover) findCandidateProcessor() (*subProcessor, bool, error) {
-	if len(p.subs) == 0 {
-		return nil, false, nil
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	var available []*subProcessor
-	for _, sub := range p.subs {
-		if cap(sub.limiter) > len(sub.limiter) {
-			available = append(available, sub)
-		}
-	}
-
-	if len(available) == 0 {
-		available = p.subs
-	}
-
-	var totalWeight int
-	weights := make([]int, len(available))
-
-	for i, sub := range available {
-		weight := int(sub.cfg.Weight)
-		if weight == 0 {
-			weight = 1
-		}
-
-		totalWeight += weight
-		weights[i] = totalWeight
-	}
-
-	choice := rand.Intn(totalWeight)
-	chosenIdx := 0
-	for i := 0; i < len(weights)-1; i++ {
-		if choice < weights[i+1] {
-			chosenIdx = i
-			break
-		}
-	}
-
-	log.Debugw("sub processor selected", "candidates", len(available), "weights-max", totalWeight, "weight-selected", choice, "candidate-index", chosenIdx)
-
-	return available[chosenIdx], true, nil
 }

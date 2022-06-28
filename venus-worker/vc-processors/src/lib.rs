@@ -22,3 +22,7 @@ pub mod fil_proofs;
 
 #[cfg(any(feature = "builtin-tasks", feature = "builtin-processors"))]
 pub mod builtin;
+
+#[cfg(feature = "b64serde")]
+#[allow(missing_docs)]
+pub mod b64serde;

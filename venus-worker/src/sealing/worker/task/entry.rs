@@ -88,6 +88,13 @@ impl Entry {
         }
     }
 
+    pub fn join<P: AsRef<Path>>(&self, part: P) -> Entry {
+        match self {
+            Entry::Dir(p, (base, rel)) => Entry::Dir(p.join(part.as_ref()), (base.clone(), rel.join(part.as_ref()))),
+            Entry::File(p, (base, rel)) => Entry::File(p.join(part.as_ref()), (base.clone(), rel.join(part.as_ref()))),
+        }
+    }
+
     pub fn read_dir(&self) -> Result<ReadDir> {
         let p = self.dir_path()?;
         let inner = p.read_dir().with_context(|| format!("read dir for {:?}", p))?;

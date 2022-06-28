@@ -10,19 +10,20 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover/ext"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 )
 
 func ExtProver() dix.Option {
 	return dix.Options(
-		dix.Override(new(*ext.Config), ProvideExtProverConfig),
+		dix.Override(new(*modules.ProcessorConfig), ProvideExtProverConfig),
 		dix.Override(new(*ext.Prover), BuildExtProver),
 		dix.Override(new(core.Prover), dix.From(new(*ext.Prover))),
 	)
 }
 
-func BuildExtProver(gctx GlobalContext, lc fx.Lifecycle, cfg *ext.Config) (*ext.Prover, error) {
+func BuildExtProver(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.ProcessorConfig) (*ext.Prover, error) {
 	p, err := ext.New(gctx, cfg.WdPost)
 	if err != nil {
 		return nil, fmt.Errorf("construct ext prover: %w", err)
@@ -43,9 +44,9 @@ func BuildExtProver(gctx GlobalContext, lc fx.Lifecycle, cfg *ext.Config) (*ext.
 	return p, nil
 }
 
-func ProvideExtProverConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigManager, locker confmgr.WLocker) (*ext.Config, error) {
-	cfg := ext.DefaultConfig(false)
-	if err := cfgmgr.Load(gctx, ext.ConfigKey, &cfg); err != nil {
+func ProvideExtProverConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigManager, locker confmgr.WLocker) (*modules.ProcessorConfig, error) {
+	cfg := modules.DefaultProcessorConfig(false)
+	if err := cfgmgr.Load(gctx, modules.ProcessorConfigKey, &cfg); err != nil {
 		return nil, err
 	}
 
@@ -61,8 +62,8 @@ func ProvideExtProverConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.
 
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			return cfgmgr.Watch(gctx, ext.ConfigKey, &cfg, locker, func() interface{} {
-				c := ext.DefaultConfig(false)
+			return cfgmgr.Watch(gctx, modules.ProcessorConfigKey, &cfg, locker, func() interface{} {
+				c := modules.DefaultProcessorConfig(false)
 				return &c
 			})
 		},

@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use filecoin_proofs::{get_base_tree_leafs, get_base_tree_size, DefaultBinaryTree, DefaultPieceHasher, StoreConfig, BINARY_ARITY};
 use filecoin_proofs_api::seal;
+use forest_address::Address;
 use memmap::{Mmap, MmapOptions};
 use serde::{Deserialize, Serialize};
 use storage_proofs_core::{
@@ -18,6 +19,7 @@ use storage_proofs_core::{
 
 // re-exported
 pub use filecoin_proofs_api::{
+    post::generate_window_post,
     seal::{
         clear_cache, write_and_preprocess, Labels, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
         SealPreCommitPhase2Output,
@@ -26,12 +28,14 @@ pub use filecoin_proofs_api::{
         empty_sector_update_encode_into, generate_empty_sector_update_proof_with_vanilla, generate_partition_proofs,
         verify_empty_sector_update_proof, verify_partition_proofs,
     },
-    Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, ProverId, RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket,
-    UnpaddedBytesAmount,
+    ChallengeSeed, Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, PrivateReplicaInfo, ProverId, RegisteredPoStProof,
+    RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket, UnpaddedBytesAmount,
 };
 
 /// Identifier for Actors.
 pub type ActorID = u64;
+
+pub type SnarkProof = crate::b64serde::BytesVec;
 
 macro_rules! safe_call {
     ($ex:expr) => {
@@ -271,4 +275,29 @@ fn create_tree_d_inner(registered_proof: RegisteredSealProof, in_path: Option<Pa
     create_base_merkle_tree::<BinaryMerkleTree<DefaultPieceHasher>>(Some(cfg), tree_leafs, data.as_ref())?;
 
     Ok(())
+}
+
+pub fn cached_filenames_for_sector(registered_proof: RegisteredSealProof) -> Vec<PathBuf> {
+    use RegisteredSealProof::*;
+    let mut trees = match registered_proof {
+        StackedDrg2KiBV1 | StackedDrg8MiBV1 | StackedDrg512MiBV1 | StackedDrg2KiBV1_1 | StackedDrg8MiBV1_1 | StackedDrg512MiBV1_1 => {
+            vec!["sc-02-data-tree-r-last.dat".into()]
+        }
+
+        StackedDrg32GiBV1 | StackedDrg32GiBV1_1 => (0..8).map(|idx| format!("sc-02-data-tree-r-last-{}.dat", idx).into()).collect(),
+
+        StackedDrg64GiBV1 | StackedDrg64GiBV1_1 => (0..16).map(|idx| format!("sc-02-data-tree-r-last-{}.dat", idx).into()).collect(),
+    };
+
+    trees.push("p_aux".into());
+    trees.push("t_aux".into());
+
+    trees
+}
+
+pub fn to_prover_id(miner_id: ActorID) -> ProverId {
+    let mut prover_id: ProverId = Default::default();
+    let actor_addr_payload = Address::new_id(miner_id).payload_bytes();
+    prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
+    prover_id
 }

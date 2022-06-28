@@ -3953,12 +3953,15 @@ dependencies = [
 
 [[package]]
 name = "vc-processors"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
+ "base64",
+ "base64-serde",
  "crossbeam-channel",
  "filecoin-proofs",
  "filecoin-proofs-api",
+ "forest_address",
  "hex",
  "memmap",
  "pretty_assertions 1.2.1",

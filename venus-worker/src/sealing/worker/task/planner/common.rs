@@ -13,8 +13,8 @@ use crate::logging::debug;
 use crate::rpc::sealer::Deals;
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TransferInput, TransferItem, TransferRoute,
-    TransferStoreInfo, TreeDInput, UnpaddedBytesAmount,
+    cached_filenames_for_sector, tree_d_path_in_dir, write_and_preprocess, PieceInfo, RegisteredSealProof, TransferInput, TransferItem,
+    TransferRoute, TransferStoreInfo, TreeDInput, UnpaddedBytesAmount,
 };
 use crate::types::SIZE_32G;
 
@@ -153,20 +153,11 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
     debug!(name = %ins_name, "persist store acquired");
 
     let mut wanted = vec![sealed_file];
-
-    // here we treat fs err as temp
-    for entry_res in cache_dir.read_dir().temp()? {
-        let entry = entry_res.temp()?;
-        if let Some(fname_str) = entry.rel().file_name().and_then(|name| name.to_str()) {
-            let should = fname_str == "p_aux" || fname_str == "t_aux" || fname_str.contains("tree-r-last");
-
-            if !should {
-                continue;
-            }
-
-            wanted.push(entry);
-        }
-    }
+    wanted.extend(
+        cached_filenames_for_sector(proof_type.into())
+            .into_iter()
+            .map(|fname| cache_dir.join(fname)),
+    );
 
     let transfer_routes = wanted
         .into_iter()

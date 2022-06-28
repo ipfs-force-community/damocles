@@ -1,14 +1,19 @@
 //! Built-in processors.
 //!
 
-use anyhow::Result;
+use std::collections::BTreeMap;
 
-use super::tasks::{SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, C2, PC1, PC2};
+use anyhow::Result;
+use filecoin_proofs_api::StorageProofsError;
+
+use super::tasks::{SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, WindowPoSt, WindowPoStOutput, C2, PC1, PC2};
 use crate::core::{Processor, Task};
 use crate::fil_proofs::{
-    create_tree_d, seal_commit_phase2, seal_pre_commit_phase1, seal_pre_commit_phase2, snap_encode_into, snap_generate_sector_update_proof,
-    PartitionProofBytes,
+    create_tree_d, generate_window_post, seal_commit_phase2, seal_pre_commit_phase1, seal_pre_commit_phase2, snap_encode_into,
+    snap_generate_sector_update_proof, to_prover_id, PartitionProofBytes, PrivateReplicaInfo,
 };
+
+mod transfer;
 
 #[derive(Copy, Clone, Default, Debug)]
 pub struct BuiltinProcessor;
@@ -80,4 +85,29 @@ impl Processor<Transfer> for BuiltinProcessor {
     }
 }
 
-mod transfer;
+impl Processor<WindowPoSt> for BuiltinProcessor {
+    fn process(&self, task: WindowPoSt) -> Result<<WindowPoSt as Task>::Output> {
+        let replicas = BTreeMap::from_iter(task.replicas.into_iter().map(|rep| {
+            (
+                rep.sector_id,
+                PrivateReplicaInfo::new(task.proof_type, rep.comm_r, rep.cache_dir, rep.sealed_file),
+            )
+        }));
+
+        generate_window_post(&task.seed, &replicas, to_prover_id(task.miner_id))
+            .map(|proofs| WindowPoStOutput {
+                proofs: proofs.into_iter().map(|r| r.1.into()).collect(),
+                faults: vec![],
+            })
+            .or_else(|e| {
+                if let Some(StorageProofsError::FaultySectors(sectors)) = e.downcast_ref::<StorageProofsError>() {
+                    return Ok(WindowPoStOutput {
+                        proofs: vec![],
+                        faults: sectors.iter().map(|id| (*id).into()).collect(),
+                    });
+                }
+
+                Err(e)
+            })
+    }
+}

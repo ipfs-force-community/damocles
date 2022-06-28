@@ -1,22 +1,13 @@
-package ext
+package extproc
 
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover"
-
-	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
-)
-
-const (
-	ProcessorNameWindostPoSt = "wdpost"
 )
 
 type Request struct {
 	ID   uint64          `json:"id"`
-	Data json.RawMessage `json:"data"`
+	Data json.RawMessage `json:"task"`
 }
 
 func (r *Request) SetData(data interface{}) error {
@@ -41,7 +32,7 @@ func (r *Request) DecodeInto(v interface{}) error {
 type Response struct {
 	ID     uint64          `json:"id"`
 	ErrMsg *string         `json:"err_msg"`
-	Result json.RawMessage `json:"result"`
+	Result json.RawMessage `json:"output"`
 }
 
 func (r *Response) SetResult(res interface{}) {
@@ -62,15 +53,4 @@ func (r *Response) DecodeInto(v interface{}) error {
 	}
 
 	return nil
-}
-
-type WindowPoStData struct {
-	Miner      abi.ActorID
-	Sectors    prover.SortedPrivateSectorInfo
-	Randomness abi.PoStRandomness
-}
-
-type WindowPoStResult struct {
-	Proof   []builtin.PoStProof
-	Skipped []abi.SectorID
 }

@@ -67,6 +67,7 @@ func ScanSectorID(s string) (abi.SectorID, bool) {
 func CachedFilesForSectorSize(cacheDir string, ssize abi.SectorSize) []string {
 	paths := []string{
 		filepath.Join(cacheDir, "p_aux"),
+		filepath.Join(cacheDir, "t_aux"),
 	}
 	switch ssize {
 	case ss2KiB, ss8MiB, ss512MiB:

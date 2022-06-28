@@ -12,8 +12,8 @@ use crate::logging::{debug, warn};
 use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir, SnapEncodeInput, SnapProveInput, TransferInput,
-    TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
+    cached_filenames_for_sector, snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir, SnapEncodeInput,
+    SnapProveInput, TransferInput, TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
 };
 
 pub struct SnapUpPlanner;
@@ -194,44 +194,52 @@ impl<'c, 't> SnapUp<'c, 't> {
         let sealed_rel = sealed_file.rel();
 
         let cache_dir = self.task.cache_dir(sector_id);
-        let cache_rel = cache_dir.rel();
 
-        let transfer_routes = vec![
-            TransferRoute {
-                src: TransferItem {
-                    store_name: Some(access_instance.clone()),
-                    uri: access_store
-                        .uri(sealed_rel)
-                        .with_context(|| format!("get uri for sealed file {:?} in {}", sealed_rel, access_instance))
-                        .perm()?,
-                },
-                dest: TransferItem {
-                    store_name: None,
-                    uri: sealed_file.full().clone(),
-                },
-                opt: Some(TransferOption {
-                    is_dir: false,
-                    allow_link: true,
-                }),
+        let cached_file_routes = cached_filenames_for_sector(proof_type.into())
+            .into_iter()
+            .map(|fname| {
+                let cached_file = cache_dir.join(fname);
+                let cached_rel = cached_file.rel();
+
+                Ok(TransferRoute {
+                    src: TransferItem {
+                        store_name: Some(access_instance.clone()),
+                        uri: access_store
+                            .uri(cached_rel)
+                            .with_context(|| format!("get uri for cache dir {:?} in {}", cached_rel, access_instance))
+                            .perm()?,
+                    },
+                    dest: TransferItem {
+                        store_name: None,
+                        uri: cached_file.full().clone(),
+                    },
+                    opt: Some(TransferOption {
+                        is_dir: false,
+                        allow_link: true,
+                    }),
+                })
+            })
+            .collect::<Result<Vec<_>, Failure>>()?;
+
+        let mut transfer_routes = vec![TransferRoute {
+            src: TransferItem {
+                store_name: Some(access_instance.clone()),
+                uri: access_store
+                    .uri(sealed_rel)
+                    .with_context(|| format!("get uri for sealed file {:?} in {}", sealed_rel, access_instance))
+                    .perm()?,
             },
-            TransferRoute {
-                src: TransferItem {
-                    store_name: Some(access_instance.clone()),
-                    uri: access_store
-                        .uri(cache_rel)
-                        .with_context(|| format!("get uri for cache dir {:?} in {}", cache_rel, access_instance))
-                        .perm()?,
-                },
-                dest: TransferItem {
-                    store_name: None,
-                    uri: cache_dir.full().clone(),
-                },
-                opt: Some(TransferOption {
-                    is_dir: true,
-                    allow_link: true,
-                }),
+            dest: TransferItem {
+                store_name: None,
+                uri: sealed_file.full().clone(),
             },
-        ];
+            opt: Some(TransferOption {
+                is_dir: false,
+                allow_link: true,
+            }),
+        }];
+
+        transfer_routes.extend(cached_file_routes.into_iter());
 
         let transfer = TransferInput {
             stores: HashMap::from_iter([(

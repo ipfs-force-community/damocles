@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::Task;
 use crate::fil_proofs::{
-    ActorID, Commitment, PieceInfo, ProverId, RegisteredSealProof, RegisteredUpdateProof, SealCommitPhase1Output, SealCommitPhase2Output,
-    SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId, SnapEncodeOutput, SnapProveOutput, Ticket,
+    ActorID, ChallengeSeed, Commitment, PieceInfo, ProverId, RegisteredPoStProof, RegisteredSealProof, RegisteredUpdateProof,
+    SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId, SnapEncodeOutput,
+    SnapProveOutput, SnarkProof, Ticket,
 };
 
 /// name str for tree_d
@@ -35,6 +36,9 @@ pub const STAGE_NAME_SNAP_PROVE: &str = "snap_prove";
 
 /// name str for data transfer
 pub const STAGE_NAME_TRANSFER: &str = "transfer";
+
+/// name str for window post
+pub const STAGE_NAME_WINDOW_POST: &str = "window_post";
 
 /// Task of tree_d
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -174,4 +178,32 @@ impl Task for Transfer {
     const STAGE: &'static str = STAGE_NAME_TRANSFER;
 
     type Output = bool;
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WindowPoStReplicaInfo {
+    pub sector_id: SectorId,
+    pub comm_r: Commitment,
+    pub cache_dir: PathBuf,
+    pub sealed_file: PathBuf,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WindowPoStOutput {
+    pub proofs: Vec<SnarkProof>,
+    pub faults: Vec<u64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WindowPoSt {
+    pub miner_id: ActorID,
+    pub proof_type: RegisteredPoStProof,
+    pub replicas: Vec<WindowPoStReplicaInfo>,
+    pub seed: ChallengeSeed,
+}
+
+impl Task for WindowPoSt {
+    const STAGE: &'static str = STAGE_NAME_WINDOW_POST;
+
+    type Output = WindowPoStOutput;
 }
