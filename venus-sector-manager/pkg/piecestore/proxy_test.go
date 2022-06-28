@@ -22,12 +22,10 @@ import (
 )
 
 func setupStoreProxy(t *testing.T, resourceEndPoint string) *Proxy {
-	sts, err := filestore.OpenStores([]objstore.Config{
-		objstore.CompactConfig{
-			Name: "mock test",
-			Path: os.TempDir(),
-		}.ToConfig(),
-	})
+	st, err := filestore.Open(objstore.Config{
+		Name: "mock test",
+		Path: os.TempDir(),
+	}, false)
 
 	require.NoError(t, err, "open mock store")
 
@@ -36,7 +34,7 @@ func setupStoreProxy(t *testing.T, resourceEndPoint string) *Proxy {
 		IMarket:          mock.NewMockIMarket(mc),
 		ResourceEndpoint: resourceEndPoint,
 	}
-	return NewProxy(sts, marketAPI)
+	return NewProxy([]objstore.Store{st}, marketAPI)
 }
 
 func TestStorePoxy(t *testing.T) {
