@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
+	objstore "github.com/ipfs-force-community/venus-objstore"
 	"github.com/shirou/gopsutil/v3/disk"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
 var log = logging.New("objstore-fs")
