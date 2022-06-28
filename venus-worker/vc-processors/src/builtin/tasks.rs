@@ -185,7 +185,7 @@ pub struct WindowPoStReplicaInfo {
     pub sector_id: SectorId,
     pub comm_r: Commitment,
     pub cache_dir: PathBuf,
-    pub selaed_file: PathBuf,
+    pub sealed_file: PathBuf,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -41,7 +41,7 @@ type WindowPoStReplicaInfo struct {
 	SectorID   abi.SectorNumber `json:"sector_id"`
 	CommR      [32]byte         `json:"comm_r"`
 	CacheDir   string           `json:"cache_dir"`
-	SealedFile string           `json:"selaed_file"`
+	SealedFile string           `json:"sealed_file"`
 }
 
 type WindowPoStOutput struct {

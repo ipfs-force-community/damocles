@@ -90,7 +90,7 @@ impl Processor<WindowPoSt> for BuiltinProcessor {
         let replicas = BTreeMap::from_iter(task.replicas.into_iter().map(|rep| {
             (
                 rep.sector_id,
-                PrivateReplicaInfo::new(task.proof_type, rep.comm_r, rep.cache_dir, rep.selaed_file),
+                PrivateReplicaInfo::new(task.proof_type, rep.comm_r, rep.cache_dir, rep.sealed_file),
             )
         }));
 
