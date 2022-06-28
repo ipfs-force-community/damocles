@@ -43,10 +43,27 @@ var utilSealerCmd = &cli.Command{
 	},
 }
 
+var flagListOffline = &cli.BoolFlag{
+	Name:  "offline",
+	Usage: "show offline data in listing",
+	Value: false,
+}
+
+var flagListEnableSealing = &cli.BoolFlag{
+	Name:  "sealing",
+	Usage: "enable sealing jobs in listing",
+	Value: true,
+}
+
+var flagListEnableSnapup = &cli.BoolFlag{
+	Name:  "snapup",
+	Usage: "enable snapup jobs in listing",
+	Value: false,
+}
+
 var utilSealerSectorsCmd = &cli.Command{
 	Name: "sectors",
 	Subcommands: []*cli.Command{
-		utilSealerSectorsWorkerStatesCmd,
 		utilSealerSectorsAbortCmd,
 		utilSealerSectorsListCmd,
 		utilSealerSectorsRestoreCmd,
@@ -59,86 +76,32 @@ var utilSealerSectorsCmd = &cli.Command{
 	},
 }
 
-var utilSealerSectorsWorkerStatesCmd = &cli.Command{
-	Name: "worker-states",
-	Action: func(cctx *cli.Context) error {
-		cli, gctx, stop, err := extractAPI(cctx)
-		if err != nil {
-			return err
-		}
+func extractListWorkerState(cctx *cli.Context) core.SectorWorkerState {
+	if cctx.Bool(flagListOffline.Name) {
+		return core.WorkerOffline
+	}
 
-		defer stop()
+	return core.WorkerOnline
+}
 
-		states, err := cli.Sealer.ListSectors(gctx, core.WorkerOnline)
-		if err != nil {
-			return err
-		}
+func extractListWorkerJob(cctx *cli.Context) core.SectorWorkerJob {
+	enableSealing := cctx.Bool(flagListEnableSealing.Name)
+	enableSnapup := cctx.Bool(flagListEnableSnapup.Name)
 
-		fmt.Fprintf(os.Stdout, "Sectors(%d):\n", len(states))
-		for _, state := range states {
-			fmt.Fprintf(os.Stdout, "m-%d-s-%d:\n", state.ID.Miner, state.ID.Number)
-			if state.LatestState == nil {
-				fmt.Fprintln(os.Stdout, "NULL")
-				continue
-			}
+	if enableSealing && enableSnapup {
+		return core.SectorWorkerJobAll
+	}
 
-			fmt.Fprintln(os.Stdout, "\tWorker:")
-			fmt.Fprintf(os.Stdout, "\t\tInstance: %s\n", state.LatestState.Worker.Instance)
-			fmt.Fprintf(os.Stdout, "\t\tLocation: %s\n", state.LatestState.Worker.Location)
+	if enableSnapup {
+		return core.SectorWorkerJobSnapUp
+	}
 
-			fmt.Fprintln(os.Stdout, "\tDeals:")
-			deals := state.Deals()
-			if len(deals) == 0 {
-				fmt.Fprintln(os.Stdout, "\t\tNULL")
-			} else {
-				for _, deal := range deals {
-					fmt.Fprintf(os.Stdout, "\t\tID: %d\n", deal.ID)
-					fmt.Fprintf(os.Stdout, "\t\tPiece: %v\n", deal.Piece)
-				}
-			}
-
-			fmt.Fprintln(os.Stdout, "\tTicket:")
-			if state.Ticket != nil {
-				fmt.Fprintf(os.Stdout, "\t\tHeight: %d\n", state.Ticket.Epoch)
-				fmt.Fprintf(os.Stdout, "\t\tValue: %x\n", state.Ticket.Ticket)
-			}
-
-			fmt.Fprintln(os.Stdout, "\tSeed:")
-			if state.Seed != nil {
-				fmt.Fprintf(os.Stdout, "\t\tHeight: %d\n", state.Seed.Epoch)
-				fmt.Fprintf(os.Stdout, "\t\tValue: %x\n", state.Seed.Seed)
-			}
-
-			fmt.Fprintln(os.Stdout, "\tMessageInfo:")
-			if state.MessageInfo.PreCommitCid != nil {
-				fmt.Fprintf(os.Stdout, "\t\tPre: %s\n", state.MessageInfo.PreCommitCid.String())
-			}
-			if state.MessageInfo.CommitCid != nil {
-				fmt.Fprintf(os.Stdout, "\t\tProve: %s\n", state.MessageInfo.CommitCid.String())
-			}
-
-			fmt.Fprintln(os.Stdout, "\tState:")
-			fmt.Fprintf(os.Stdout, "\t\tPrev: %s\n", state.LatestState.StateChange.Prev)
-			fmt.Fprintf(os.Stdout, "\t\tCurrent: %s\n", state.LatestState.StateChange.Next)
-			fmt.Fprintf(os.Stdout, "\t\tEvent: %s\n", state.LatestState.StateChange.Event)
-
-			fmt.Fprintln(os.Stdout, "\tFailure:")
-			if state.LatestState.Failure == nil {
-				fmt.Fprintln(os.Stdout, "\t\tNULL")
-			} else {
-				fmt.Fprintf(os.Stdout, "\t\tLevel: %s\n", state.LatestState.Failure.Level)
-				fmt.Fprintf(os.Stdout, "\t\tDesc: %s\n", state.LatestState.Failure.Desc)
-			}
-
-			fmt.Fprintln(os.Stdout, "")
-		}
-
-		return nil
-	},
+	return core.SectorWorkerJobSealing
 }
 
 var utilSealerSectorsAbortCmd = &cli.Command{
 	Name:      "abort",
+	Usage:     "abort specified online sector job",
 	ArgsUsage: "<miner actor> <sector number>",
 	Action: func(cctx *cli.Context) error {
 		if count := cctx.Args().Len(); count < 2 {
@@ -176,7 +139,12 @@ var utilSealerSectorsAbortCmd = &cli.Command{
 
 var utilSealerSectorsListCmd = &cli.Command{
 	Name:  "list",
-	Usage: "Print sector data in completed state",
+	Usage: "Print sector data",
+	Flags: []cli.Flag{
+		flagListOffline,
+		flagListEnableSealing,
+		flagListEnableSnapup,
+	},
 	Action: func(cctx *cli.Context) error {
 		cli, gctx, stop, err := extractAPI(cctx)
 		if err != nil {
@@ -185,7 +153,7 @@ var utilSealerSectorsListCmd = &cli.Command{
 
 		defer stop()
 
-		states, err := cli.Sealer.ListSectors(gctx, core.WorkerOffline)
+		states, err := cli.Sealer.ListSectors(gctx, extractListWorkerState(cctx), extractListWorkerJob(cctx))
 		if err != nil {
 			return err
 		}
@@ -197,6 +165,12 @@ var utilSealerSectorsListCmd = &cli.Command{
 				fmt.Fprintln(os.Stdout, "NULL")
 				continue
 			}
+
+			fmt.Fprintf(os.Stdout, "\tUpgraded: %v\n", state.Upgraded)
+
+			fmt.Fprintln(os.Stdout, "\tWorker:")
+			fmt.Fprintf(os.Stdout, "\t\tInstance: %s\n", state.LatestState.Worker.Instance)
+			fmt.Fprintf(os.Stdout, "\t\tLocation: %s\n", state.LatestState.Worker.Location)
 
 			fmt.Fprintln(os.Stdout, "\tDeals:")
 			deals := state.Deals()
@@ -459,7 +433,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 		toCheck := bitfield.New()
 		toCheckSectors := make(map[abi.SectorNumber]*core.SectorState)
 		{
-			sectors, err := extAPI.Sealer.ListSectors(ctx, core.WorkerOffline)
+			sectors, err := extAPI.Sealer.ListSectors(ctx, core.WorkerOffline, core.SectorWorkerJobAll)
 			if err != nil {
 				return fmt.Errorf("getting sector list: %w", err)
 			}

@@ -23,8 +23,8 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
-func (s *Sealer) ListSectors(ctx context.Context, ws core.SectorWorkerState) ([]*core.SectorState, error) {
-	return s.state.All(ctx, ws, core.SectorWorkerJobSealing)
+func (s *Sealer) ListSectors(ctx context.Context, ws core.SectorWorkerState, job core.SectorWorkerJob) ([]*core.SectorState, error) {
+	return s.state.All(ctx, ws, job)
 }
 
 func (s *Sealer) RestoreSector(ctx context.Context, sid abi.SectorID, forced bool) (core.Meta, error) {
