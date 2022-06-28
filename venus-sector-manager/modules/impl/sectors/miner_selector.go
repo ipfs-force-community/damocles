@@ -26,7 +26,7 @@ type minerSelector struct {
 	minfo core.MinerInfoAPI
 }
 
-func (m *minerSelector) candidates(ctx context.Context, allowedMiners []abi.ActorID, allowedProofs []abi.RegisteredSealProof, check func(mcfg modules.MinerConfig) bool) []*minerCandidate {
+func (m *minerSelector) candidates(ctx context.Context, allowedMiners []abi.ActorID, allowedProofs []abi.RegisteredSealProof, check func(mcfg modules.MinerConfig) bool, usage string) []*minerCandidate {
 	m.scfg.Lock()
 	miners := m.scfg.Miners
 	m.scfg.Unlock()
@@ -48,7 +48,7 @@ func (m *minerSelector) candidates(ctx context.Context, allowedMiners []abi.Acto
 			defer wg.Done()
 
 			if !check(miners[mi]) {
-				log.Warnw("sector allocator disabled", "miner", miners[mi].Actor)
+				log.Warnw("sector allocator disabled", "miner", miners[mi].Actor, "usage", usage)
 				errs[mi] = errMinerDisabled
 				return
 			}

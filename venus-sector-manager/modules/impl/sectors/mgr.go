@@ -42,7 +42,7 @@ func (m *Manager) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*
 
 	candidates := m.msel.candidates(ctx, allowedMiners, allowedProofs, func(mcfg modules.MinerConfig) bool {
 		return mcfg.Sector.Enabled
-	})
+	}, "sealing")
 
 	for {
 		candidateCount := len(candidates)

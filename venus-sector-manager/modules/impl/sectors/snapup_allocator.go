@@ -134,7 +134,7 @@ func (s *SnapUpAllocator) Candidates(ctx context.Context, mid abi.ActorID) ([]*b
 func (s *SnapUpAllocator) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*core.SnapUpCandidate, error) {
 	mcandidates := s.msel.candidates(ctx, spec.AllowedMiners, spec.AllowedProofTypes, func(mcfg modules.MinerConfig) bool {
 		return mcfg.SnapUp.Enabled
-	})
+	}, "snapup")
 
 	if len(mcandidates) == 0 {
 		return nil, nil
