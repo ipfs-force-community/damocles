@@ -77,10 +77,22 @@ func defaultCommonAPIConfig(example bool) CommonAPIConfig {
 	return cfg
 }
 
+type PieceStoreConfig struct {
+	Name   string
+	Path   string
+	Meta   map[string]string
+	Plugin string
+}
+
+type PersistStoreConfig struct {
+	objstore.Config
+	Plugin string
+}
+
 type CommonConfig struct {
 	API           CommonAPIConfig
-	PieceStores   []objstore.CompactConfig
-	PersistStores []objstore.Config
+	PieceStores   []PieceStoreConfig
+	PersistStores []PersistStoreConfig
 }
 
 func exampleFilestoreConfig() objstore.Config {
@@ -93,13 +105,27 @@ func exampleFilestoreConfig() objstore.Config {
 func defaultCommonConfig(example bool) CommonConfig {
 	cfg := CommonConfig{
 		API:           defaultCommonAPIConfig(example),
-		PieceStores:   []objstore.CompactConfig{},
-		PersistStores: []objstore.Config{},
+		PieceStores:   []PieceStoreConfig{},
+		PersistStores: []PersistStoreConfig{},
 	}
 
 	if example {
-		cfg.PieceStores = append(cfg.PieceStores, exampleFilestoreConfig().CompactConfig)
-		cfg.PersistStores = append(cfg.PersistStores, exampleFilestoreConfig())
+		exampleCfg := exampleFilestoreConfig()
+		cfg.PieceStores = append(cfg.PieceStores, PieceStoreConfig{
+			Name:   exampleCfg.Name,
+			Path:   exampleCfg.Path,
+			Meta:   exampleCfg.Meta,
+			Plugin: "path/to/objstore-plugin",
+		})
+
+		cfg.PersistStores = append(cfg.PersistStores, PersistStoreConfig{
+			Config: objstore.Config{
+				Name: exampleCfg.Name,
+				Path: exampleCfg.Path,
+				Meta: exampleCfg.Meta,
+			},
+			Plugin: "path/to/objstore-plugin",
+		})
 	}
 
 	return cfg

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"path/filepath"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -382,14 +383,51 @@ func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedi
 	return store, nil
 }
 
+func openObjStore(cfg objstore.Config, pluginPath string) (objstore.Store, error) {
+	if cfg.Name == "" {
+		cfg.Name = cfg.Path
+	}
+
+	if pluginPath == "" {
+		st, err := filestore.Open(cfg, false)
+		if err != nil {
+			return nil, fmt.Errorf("open filestore: %w", err)
+		}
+
+		return st, nil
+	}
+
+	absPath, err := filepath.Abs(pluginPath)
+	if err != nil {
+		return nil, fmt.Errorf("get abs path of objstore plugin %s: %w", pluginPath, err)
+	}
+
+	constructor, err := objstore.LoadConstructor(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("load objstore constructor from %s: %w", absPath, err)
+	}
+
+	st, err := constructor(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("construct objstore use plugin %s: %w", absPath, err)
+	}
+
+	return st, nil
+}
+
 func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker, globalStore CommonMetaStore) (PersistedObjectStoreManager, error) {
 	locker.Lock()
 	persistCfg := scfg.Common.PersistStores
 	locker.Unlock()
 
-	stores, err := filestore.OpenStores(persistCfg)
-	if err != nil {
-		return nil, fmt.Errorf("open stores: %w", err)
+	stores := make([]objstore.Store, 0, len(persistCfg))
+	for pi := range persistCfg {
+		st, err := openObjStore(persistCfg[pi].Config, persistCfg[pi].Plugin)
+		if err != nil {
+			return nil, fmt.Errorf("construct #%d persist store: %w", pi, err)
+		}
+
+		stores = append(stores, st)
 	}
 
 	wrapped, err := kvstore.NewWrappedKVStore([]byte("objstore"), globalStore)
@@ -462,19 +500,24 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	pieceStoreCfg := scfg.Common.PieceStores
 	scfg.Unlock()
 
-	fullCfgs := make([]objstore.Config, len(pieceStoreCfg))
+	stores := make([]objstore.Store, 0, len(pieceStoreCfg))
 	for pi := range pieceStoreCfg {
-		full := pieceStoreCfg[pi].ToConfig()
-		full.ReadOnly = true
-		fullCfgs[pi] = full
+		pcfg := pieceStoreCfg[pi]
+		cfg := objstore.Config{
+			Name:     pcfg.Name,
+			Path:     pcfg.Path,
+			Meta:     pcfg.Meta,
+			ReadOnly: true,
+		}
+		st, err := openObjStore(cfg, pcfg.Plugin)
+		if err != nil {
+			return MarketAPIRelatedComponets{}, fmt.Errorf("construct #%d piece store: %w", pi, err)
+		}
+
+		stores = append(stores, st)
 	}
 
-	locals, err := filestore.OpenStores(fullCfgs)
-	if err != nil {
-		return MarketAPIRelatedComponets{}, fmt.Errorf("open local piece stores: %w", err)
-	}
-
-	proxy := piecestore.NewProxy(locals, mapi)
+	proxy := piecestore.NewProxy(stores, mapi)
 	http.DefaultServeMux.Handle(HTTPEndpointPiecestore, http.StripPrefix(HTTPEndpointPiecestore, proxy))
 	log.Info("piecestore proxy has been registered into default mux")
 

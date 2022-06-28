@@ -36,22 +36,7 @@ type readRange struct {
 	Size   int64
 }
 
-func OpenStores(cfgs []objstore.Config) ([]objstore.Store, error) {
-	stores := make([]objstore.Store, 0, len(cfgs))
-
-	for _, cfg := range cfgs {
-		store, err := Open(cfg)
-		if err != nil {
-			return nil, err
-		}
-
-		stores = append(stores, store)
-	}
-
-	return stores, nil
-}
-
-func Open(cfg objstore.Config) (objstore.Store, error) {
+func Open(cfg objstore.Config, isPlugin bool) (objstore.Store, error) {
 	dirPath, err := filepath.Abs(cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("abs path for %s: %w", cfg.Path, err)
@@ -71,7 +56,7 @@ func Open(cfg objstore.Config) (objstore.Store, error) {
 		cfg.Name = dirPath
 	}
 
-	log.Infow("load store", "name", cfg.Name, "path", cfg.Path)
+	log.Infow("load store", "name", cfg.Name, "path", cfg.Path, "plugin", isPlugin)
 	return &Store{
 		cfg: cfg,
 		dir: os.DirFS(dirPath),

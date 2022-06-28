@@ -21,8 +21,7 @@ var (
 )
 
 type (
-	CompactConfig = objstore.CompactConfig
-	Config        = objstore.Config
+	Config = objstore.Config
 
 	Stat         = objstore.Stat
 	InstanceInfo = objstore.InstanceInfo

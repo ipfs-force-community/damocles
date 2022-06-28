@@ -82,7 +82,7 @@ var utilStorageAttachCmd = &cli.Command{
 		scfg.Name = name
 		scfg.Strict = strict
 
-		store, err := filestore.Open(scfg)
+		store, err := filestore.Open(scfg, false)
 		if err != nil {
 			return fmt.Errorf("open file store: %w", err)
 		}
