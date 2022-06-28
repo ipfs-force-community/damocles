@@ -6,3 +6,4 @@
 /tmp
 /mock-tmp
 /venus-worker/target
+*.so

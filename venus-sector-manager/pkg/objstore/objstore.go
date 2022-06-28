@@ -1,82 +1,34 @@
 package objstore
 
 import (
-	"context"
-	"fmt"
-	"io"
+	objstore "github.com/ipfs-force-community/venus-objstore"
 )
 
+// errors
 var (
-	ErrNotRegularFile              = fmt.Errorf("not a regular file")
-	ErrNotSeekable                 = fmt.Errorf("not seekable")
-	ErrNotOpened                   = fmt.Errorf("not opened")
-	ErrReadOnlyStore               = fmt.Errorf("read only store")
-	ErrInvalidObjectPath           = fmt.Errorf("invalid object path")
-	ErrObjectStoreInstanceNotFound = fmt.Errorf("instance not found")
-	ErrObjectNotFound              = fmt.Errorf("object not found")
+	ErrNotRegularFile              = objstore.ErrNotRegularFile
+	ErrNotSeekable                 = objstore.ErrNotSeekable
+	ErrNotOpened                   = objstore.ErrNotOpened
+	ErrReadOnlyStore               = objstore.ErrReadOnlyStore
+	ErrInvalidObjectPath           = objstore.ErrInvalidObjectPath
+	ErrObjectStoreInstanceNotFound = objstore.ErrObjectStoreInstanceNotFound
+	ErrObjectNotFound              = objstore.ErrObjectNotFound
 )
 
-type CompactConfig struct {
-	Name string
-	Path string
-}
+// for store
+var (
+	DefaultConfig = objstore.DefaultConfig
+)
 
-func (cc CompactConfig) ToConfig() Config {
-	return Config{
-		CompactConfig: cc,
-	}
-}
+type (
+	Config = objstore.Config
 
-type Config struct {
-	CompactConfig
-	Strict   bool
-	ReadOnly bool
-	Weight   uint
-	Meta     map[string]string
-}
+	Stat         = objstore.Stat
+	InstanceInfo = objstore.InstanceInfo
+	Store        = objstore.Store
+)
 
-func DefaultConfig(path string, readonly bool) Config {
-	return Config{
-		CompactConfig: CompactConfig{
-			Path: path,
-		},
-		ReadOnly: readonly,
-		Weight:   1,
-		Meta:     map[string]string{},
-	}
-}
+// for plugin
+type Constructor = objstore.Constructor
 
-type ReaderResult struct {
-	io.ReadCloser
-	Err error
-}
-
-type Range struct {
-	Offset int64
-	Size   int64
-}
-
-type Stat struct {
-	Size int64
-}
-
-type InstanceInfo struct {
-	Config      Config
-	Type        string
-	Total       uint64
-	Free        uint64
-	Used        uint64
-	UsedPercent float64
-}
-
-type Store interface {
-	Instance(context.Context) string
-	InstanceConfig(ctx context.Context) Config
-	InstanceInfo(context.Context) (InstanceInfo, error)
-	Get(context.Context, string) (io.ReadCloser, error)
-	Del(context.Context, string) error
-	Stat(context.Context, string) (Stat, error)
-	Put(context.Context, string, io.Reader) (int64, error)
-	GetChunks(context.Context, string, []Range) ([]ReaderResult, error)
-	FullPath(context.Context, string) string
-}
+var LoadConstructor = objstore.LoadConstructor

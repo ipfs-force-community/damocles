@@ -136,45 +136,6 @@ func (ms *MockStore) Put(ctx context.Context, p string, r io.Reader) (int64, err
 	return written, nil
 }
 
-func (ms *MockStore) GetChunks(ctx context.Context, p string, ranges []Range) ([]ReaderResult, error) {
-	if ms.cfg.ReadOnly {
-		return nil, ErrReadOnlyStore
-	}
-
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
-
-	buf, ok := ms.objects[p]
-	if !ok {
-		return nil, ErrObjectNotFound
-	}
-
-	data := buf.Bytes()
-	dataSize := int64(buf.Len())
-	results := make([]ReaderResult, 0, len(ranges))
-	for _, r := range ranges {
-		if r.Offset < 0 || r.Size < 0 {
-			results = append(results, ReaderResult{
-				Err: fmt.Errorf("invalid range: offset %d, size %d", r.Offset, r.Size),
-			})
-			continue
-		}
-
-		if r.Offset > dataSize || (r.Offset+r.Size) > dataSize {
-			results = append(results, ReaderResult{
-				Err: fmt.Errorf("invalid range: offset %d, size %d", r.Offset, r.Size),
-			})
-			continue
-		}
-
-		results = append(results, ReaderResult{
-			ReadCloser: io.NopCloser(bytes.NewBuffer(data[r.Offset : r.Offset+r.Size])),
-		})
-	}
-
-	return results, nil
-}
-
 func (ms *MockStore) FullPath(ctx context.Context, p string) string {
 	return p
 }
