@@ -1,9 +1,9 @@
 **Hardware resource**
 
 ```tex
-cpu: 48 core
+CPU: 48 core
 RAM: 1 TiB
-nvme: 20 TiB
+NVMe: 20 TiB
 GPU: 1
 ```
 
@@ -257,6 +257,7 @@ envs={RUST_LOG="Info"}
 
 3090GPU：
 ```bash
+### worker-DB1
 gpuproxy/target/release/gpuproxy \
 --url 0.0.0.0:7788 \
 --log-level info  \
@@ -266,10 +267,18 @@ run--db-dsn mysql://venus-gpuproxy:xxxxxx@192.168.28.32:3306/venus_gpuproxy\
 --resource-type fs\
 --fs-resource-path /data/gpuproxy-store
 
+gpuproxy/target/release/gpuproxy_worker run \
+--gpuproxy-url http://<gpuproxy_ip>:7788 \
+--db-dsn=mysql://venus-gpuproxy:xxxxxx@192.168.28.32:3306/venus_gpuproxy?parseTime=true&loc=Local \
+--max-tasks=2 \
+--allow-type=0 \
+--fs-resource-path=/data/gpuproxy-store \
+--resource-type=fs
 ```
 
 3090GPU：
 ```bash
+### worker-DB2
 gpuproxy/target/release/gpuproxy \
 --url 0.0.0.0:7788 \
 --log-level info \
@@ -278,6 +287,14 @@ run--db-dsn 'mysql://venus-gpuproxy:xxxxxx@192.168.28.32:3306/venus_gpuproxy_x18
 --max-tasks 1\
 --resource-type fs\
 --fs-resource-path /data/gpuproxy-store
+
+gpuproxy/target/release/gpuproxy_worker run \
+--gpuproxy-url http://<gpuproxy_ip>:7788 \
+--db-dsn=mysql://venus-gpuproxy:xxxxxx@192.168.28.32:3306/venus_gpuproxy_x1803?parseTime=true&loc=Local \
+--max-tasks=2 \
+--allow-type=0 \
+--fs-resource-path=/data/gpuproxy-store \
+--resource-type=fs
 ```
 **This scheme is currently the best scheme with strong scalability. The disadvantage is that the configuration is complex. All C2 machines need to use the same shared directory**
 

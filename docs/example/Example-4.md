@@ -1,9 +1,9 @@
 ### **Hardware resource**
 
 ```tex
-cpu: 16 core
+CPU: 16 core
 RAM: 512 GiB + swap 96G(on nvme)
-nvme: 7.5 TiB
+NVMe: 7.5 TiB
 GPU: 1
 ```
 
