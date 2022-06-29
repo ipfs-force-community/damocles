@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use hwloc2::{ObjectType, Topology, TopologyObject, TopologyObjectInfo};
+use hwloc2::{get_api_version, ObjectType, Topology, TopologyObject, TopologyObjectInfo};
 use strum::AsRefStr;
 
 use super::byte_string;
@@ -154,8 +154,19 @@ impl Display for TopologyNode {
     }
 }
 
+/// Check hwloc version, make sure the hwloc version is at least 2.0.0
+fn check_hwloc_version() -> bool {
+    let hwloc_api_version = get_api_version();
+    // (X<<16)+(Y<<8)+Z represents X.Y.Z
+    let hwloc_x_version = hwloc_api_version >> 16;
+    hwloc_x_version >= 2
+}
+
 /// load CPU Topology
 pub fn load() -> Option<TopologyNode> {
+    if !check_hwloc_version() {
+        return None;
+    }
     let topo = Topology::new()?;
     let root_obj = topo.object_at_root();
     Some(TopologyNode {
