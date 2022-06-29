@@ -22,6 +22,7 @@ import (
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 
 	"github.com/filecoin-project/venus/app/submodule/chain"
@@ -62,6 +63,8 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsExtendCmd,
 		utilSealerSectorsTerminateCmd,
 		utilSealerSectorsRemoveCmd,
+		utilSealerSectorsStateCmd,
+		utilSealerSectorsFindDealCmd,
 	},
 }
 
@@ -1343,6 +1346,187 @@ var utilSealerSectorsRemoveCmd = &cli.Command{
 		}
 
 		fmt.Println("remove succeed")
+		return nil
+	},
+}
+
+var utilSealerSectorsStateCmd = &cli.Command{
+	Name:      "state",
+	Usage:     "load and display the detailed sector state",
+	ArgsUsage: "<minerID> <sectorNum>",
+	Flags: []cli.Flag{
+		flagListOffline,
+	},
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if args.Len() < 2 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		minerID, err := ShouldActor(args.Get(0), true)
+		if err != nil {
+			return err
+		}
+
+		sectorNumber, err := ShouldSectorNumber(args.Get(1))
+		if err != nil {
+			return err
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		sid := abi.SectorID{
+			Miner:  minerID,
+			Number: sectorNumber,
+		}
+
+		state, err := cli.Sealer.FindSector(gctx, extractListWorkerState(cctx), sid)
+		if err != nil {
+			return RPCCallError("FindSector", err)
+		}
+
+		fmt.Fprintf(os.Stdout, "Sector %s: \n", util.FormatSectorID(sid))
+		// Common
+		fmt.Fprintln(os.Stdout, "\nCommon:")
+		fmt.Fprintf(os.Stdout, "\tFinalized: %v\n", state.Finalized)
+		fmt.Fprintf(os.Stdout, "\tRemoved: %v\n", state.Removed)
+		abortReason := state.AbortReason
+		if abortReason == "" {
+			abortReason = "NULL"
+		}
+		fmt.Fprintf(os.Stdout, "\tAborting: \n\t\t%s\n", strings.ReplaceAll(abortReason, "\n", "\n\t\t"))
+
+		// LatestState
+		fmt.Fprintln(os.Stdout, "\nLatestState:")
+		fmt.Fprintf(os.Stdout, "\tState Change: %s\n", FormatOrNull(state.LatestState, func() string {
+			return fmt.Sprintf("%s => %s, by %s", state.LatestState.StateChange.Prev, state.LatestState.StateChange.Next, state.LatestState.StateChange.Event)
+		}))
+		fmt.Fprintf(os.Stdout, "\tWorker: %s\n", FormatOrNull(state.LatestState, func() string {
+			return fmt.Sprintf("%s(%s)", state.LatestState.Worker.Instance, state.LatestState.Worker.Location)
+		}))
+		fmt.Fprintf(os.Stdout, "\tFailure: %s\n", FormatOrNull(state.LatestState, func() string {
+			return FormatOrNull(state.LatestState.Failure, func() string {
+				return fmt.Sprintf("\n\t\t[%s] %s", state.LatestState.Failure.Level, strings.ReplaceAll(state.LatestState.Failure.Desc, "\n", "\n\t\t"))
+			})
+		}))
+
+		// Deals
+		fmt.Fprintln(os.Stdout, "\nDeals:")
+		deals := state.Deals()
+		if len(deals) == 0 {
+			fmt.Fprintln(os.Stdout, "\tNULL")
+		} else {
+			for _, deal := range deals {
+				fmt.Fprintf(os.Stdout, "\tID: %d\n", deal.ID)
+				fmt.Fprintf(os.Stdout, "\tPiece: %v\n", deal.Piece)
+			}
+		}
+
+		// Sealing
+		fmt.Fprintln(os.Stdout, "\nSealing:")
+		fmt.Fprintf(os.Stdout, "\tTicket: %s\n", FormatOrNull(state.Ticket, func() string {
+			return fmt.Sprintf("(%d) %x", state.Ticket.Epoch, state.Ticket.Ticket)
+		}))
+
+		fmt.Fprintf(os.Stdout, "\tPreCommit Info:\n\t\t%s\n", FormatOrNull(state.Pre, func() string {
+			return fmt.Sprintf("CommD: %s\n\t\tCommR: %s", state.Pre.CommD, state.Pre.CommR)
+		}))
+
+		fmt.Fprintf(os.Stdout, "\tPreCommit Message: %s\n", FormatOrNull(state.MessageInfo.PreCommitCid, func() string {
+			return state.MessageInfo.PreCommitCid.String()
+		}))
+
+		fmt.Fprintf(os.Stdout, "\tSeed: %s\n", FormatOrNull(state.Seed, func() string {
+			return fmt.Sprintf("(%d) %x", state.Seed.Epoch, state.Seed.Seed)
+		}))
+
+		fmt.Fprintf(os.Stdout, "\tProveCommit Info:\n\t\t%s\n", FormatOrNull(state.Proof, func() string {
+			return fmt.Sprintf("Proof: %x", state.Proof.Proof)
+		}))
+
+		fmt.Fprintf(os.Stdout, "\tProveCommit Message: %s\n", FormatOrNull(state.MessageInfo.CommitCid, func() string {
+			return state.MessageInfo.CommitCid.String()
+		}))
+
+		fmt.Fprintf(os.Stdout, "\tMessage NeedSend: %v\n", state.MessageInfo.NeedSend)
+
+		// Upgrading
+		fmt.Fprintln(os.Stdout, "\nSnapUp:")
+		fmt.Fprintf(os.Stdout, "\tUpgraded: %v\n", state.Upgraded)
+		if state.Upgraded {
+			if state.UpgradedInfo != nil {
+				fmt.Fprintf(os.Stdout, "\tUnsealedCID: %s\n", state.UpgradedInfo.UnsealedCID)
+				fmt.Fprintf(os.Stdout, "\tSealedCID: %s\n", state.UpgradedInfo.UnsealedCID)
+				fmt.Fprintf(os.Stdout, "\tProof: %x\n", state.UpgradedInfo.Proof[:])
+			}
+
+			if state.UpgradeMessageID != nil {
+				fmt.Fprintf(os.Stdout, "\tUpgrade Message: %s\n", *state.UpgradeMessageID)
+			}
+
+			if state.UpgradeLandedEpoch != nil {
+				fmt.Fprintf(os.Stdout, "\tLanded Epoch: %d\n", *state.UpgradeLandedEpoch)
+			}
+		}
+
+		// Termination
+		fmt.Fprintln(os.Stdout, "\nTermination:")
+		fmt.Fprintf(os.Stdout, "\tTerminate Message: %s\n", FormatOrNull(state.TerminateInfo.TerminateCid, func() string {
+			return state.TerminateInfo.TerminateCid.String()
+		}))
+
+		fmt.Fprintln(os.Stdout, "")
+
+		return nil
+	},
+}
+
+var utilSealerSectorsFindDealCmd = &cli.Command{
+	Name:      "find-deal",
+	Usage:     "find the sectors to which the deal was assigned",
+	ArgsUsage: "<dealID>",
+	Flags: []cli.Flag{
+		flagListOffline,
+	},
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if args.Len() < 1 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		dealID, err := strconv.ParseUint(args.First(), 10, 64)
+		if err != nil {
+			return fmt.Errorf("parse deal id: %w", err)
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		sectors, err := cli.Sealer.FindSectorsWithDeal(gctx, extractListWorkerState(cctx), abi.DealID(dealID))
+		if err != nil {
+			return RPCCallError("FindSectorsWithDeal", err)
+		}
+
+		if len(sectors) == 0 {
+			fmt.Fprintln(os.Stdout, "Not Found")
+			return nil
+		}
+
+		for _, sector := range sectors {
+			fmt.Fprintln(os.Stdout, util.FormatSectorID(sector.ID))
+		}
+
+		fmt.Fprintln(os.Stdout, "")
+
 		return nil
 	},
 }
