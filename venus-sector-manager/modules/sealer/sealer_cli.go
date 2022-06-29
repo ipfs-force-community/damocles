@@ -319,3 +319,36 @@ func storeConfig2StoreBasic(ocfg *objstore.Config) core.StoreBasicInfo {
 		Meta: ocfg.Meta,
 	}
 }
+
+func (s *Sealer) FindSector(ctx context.Context, state core.SectorWorkerState, sid abi.SectorID) (*core.SectorState, error) {
+	return s.state.Load(ctx, sid, state)
+}
+
+func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorkerState, dealID abi.DealID) ([]*core.SectorState, error) {
+	if dealID == 0 {
+		return nil, fmt.Errorf("empty deal id")
+	}
+
+	var sectors []*core.SectorState
+	err := s.state.ForEach(ctx, state, core.SectorWorkerJobAll, func(ss core.SectorState) error {
+		dids := ss.DealIDs()
+		if len(dids) == 0 {
+			return nil
+		}
+
+		for _, did := range dids {
+			if did == dealID {
+				sectors = append(sectors, &ss)
+				break
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("iterate sectors: %w", err)
+	}
+
+	return sectors, nil
+}

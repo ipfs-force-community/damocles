@@ -65,6 +65,10 @@ type SealerAPI interface {
 type SealerCliAPI interface {
 	ListSectors(context.Context, SectorWorkerState, SectorWorkerJob) ([]*SectorState, error)
 
+	FindSector(ctx context.Context, state SectorWorkerState, sid abi.SectorID) (*SectorState, error)
+
+	FindSectorsWithDeal(ctx context.Context, state SectorWorkerState, dealID abi.DealID) ([]*SectorState, error)
+
 	RestoreSector(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
 
 	CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error)
