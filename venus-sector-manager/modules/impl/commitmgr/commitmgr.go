@@ -704,10 +704,6 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 	}
 
 	// check for duplicate actions
-	if err == nil && loadedSector.TerminateInfo.AddedHeight > 0 {
-		errMsg := "duplicate submit"
-		return core.SubmitTerminateResp{Res: core.SubmitDuplicateSubmit, Desc: &errMsg}, nil
-	}
 
 	var sector core.SectorState
 	newTerminateInfo := core.TerminateInfo{
@@ -726,6 +722,11 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 		}
 
 	} else {
+		if loadedSector.TerminateInfo.AddedHeight > 0 {
+			errMsg := "duplicate submit"
+			return core.SubmitTerminateResp{Res: core.SubmitDuplicateSubmit, Desc: &errMsg}, nil
+		}
+
 		sector = *loadedSector
 		err = c.smgr.Update(ctx, sid, core.WorkerOffline, newTerminateInfo)
 		if err != nil {
