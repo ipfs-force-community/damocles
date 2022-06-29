@@ -90,6 +90,14 @@ func (s *Sealer) ListSectors(context.Context, core.SectorWorkerState, core.Secto
 	return nil, nil
 }
 
+func (s *Sealer) FindSector(ctx context.Context, state core.SectorWorkerState, sid abi.SectorID) (*core.SectorState, error) {
+	return nil, nil
+}
+
+func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorkerState, dealID abi.DealID) ([]*core.SectorState, error) {
+	return nil, nil
+}
+
 func (s *Sealer) RestoreSector(context.Context, abi.SectorID, bool) (core.Meta, error) {
 	return core.Empty, nil
 }
