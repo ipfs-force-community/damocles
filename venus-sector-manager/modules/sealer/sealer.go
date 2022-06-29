@@ -127,7 +127,7 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 		return nil, fmt.Errorf("%w: m-%d-s-%d", ErrSectorAllocated, sector.ID.Miner, sector.ID.Number)
 	}
 
-	if err := s.state.Init(ctx, sector.ID, sector.ProofType); err != nil {
+	if err := s.state.Init(ctx, sector.ID, sector.ProofType, core.WorkerOnline); err != nil {
 		return nil, err
 	}
 
@@ -422,7 +422,7 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 	}
 
 	if err != nil {
-		ierr := s.state.InitWith(ctx, candidateSector.Sector.ID, candidateSector.Sector.ProofType, core.SectorUpgraded(true), pieces, &upgradePublic)
+		ierr := s.state.InitWith(ctx, candidateSector.Sector.ID, candidateSector.Sector.ProofType, core.WorkerOnline, core.SectorUpgraded(true), pieces, &upgradePublic)
 		if ierr != nil {
 			return nil, fmt.Errorf("init non-exist snapup sector: %w", err)
 		}
