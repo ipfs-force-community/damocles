@@ -203,11 +203,14 @@ func (s *Sealer) SubmitPreCommit(ctx context.Context, sector core.AllocatedSecto
 	if err != nil {
 		return core.SubmitPreCommitResp{}, err
 	}
-	return s.commit.SubmitPreCommit(ctx, sector.ID, pinfo, hardReset)
+
+	resp, err := s.commit.SubmitPreCommit(ctx, sector.ID, pinfo, hardReset)
+	return resp, sectorStateErr(err)
 }
 
 func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (core.PollPreCommitStateResp, error) {
-	return s.commit.PreCommitState(ctx, sid)
+	resp, err := s.commit.PreCommitState(ctx, sid)
+	return resp, sectorStateErr(err)
 }
 
 func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) (bool, error) {
@@ -283,11 +286,13 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedR
 }
 
 func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info core.ProofOnChainInfo, hardReset bool) (core.SubmitProofResp, error) {
-	return s.commit.SubmitProof(ctx, sid, info, hardReset)
+	resp, err := s.commit.SubmitProof(ctx, sid, info, hardReset)
+	return resp, sectorStateErr(err)
 }
 
 func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (core.PollProofStateResp, error) {
-	return s.commit.ProofState(ctx, sid)
+	resp, err := s.commit.ProofState(ctx, sid)
+	return resp, sectorStateErr(err)
 }
 
 func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.ReportStateReq) (core.Meta, error) {
