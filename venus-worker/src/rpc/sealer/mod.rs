@@ -389,6 +389,10 @@ pub trait Sealer {
     #[rpc(name = "Venus.ReportFinalized")]
     fn report_finalized(&self, id: SectorID) -> Result<()>;
 
+    /// api definition
+    #[rpc(name = "Venus.ReportAborted")]
+    fn report_aborted(&self, id: SectorID, reason: String) -> Result<()>;
+
     // snap up
     /// api definition
     #[rpc(name = "Venus.AllocateSanpUpSector")]

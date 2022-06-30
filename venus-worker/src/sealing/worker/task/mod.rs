@@ -139,6 +139,22 @@ impl<'c> Task<'c> {
         Ok(())
     }
 
+    fn report_aborted(&self, reason: String) -> Result<(), Failure> {
+        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
+            Some(sid) => sid,
+            None => return Ok(()),
+        };
+
+        let _ = call_rpc! {
+            self.ctx.global.rpc,
+            report_aborted,
+            sector_id,
+            reason,
+        }?;
+
+        Ok(())
+    }
+
     fn interruptted(&self) -> Result<(), Failure> {
         select! {
             recv(self.ctx.done) -> _done_res => {
@@ -254,8 +270,8 @@ impl<'c> Task<'c> {
                 }
 
                 Err(Failure(Level::Abort, aerr)) => {
-                    if let Err(rerr) = self.report_finalized() {
-                        error!("report aborted sector finalized failed: {:?}", rerr);
+                    if let Err(rerr) = self.report_aborted(aerr.to_string()) {
+                        error!("report aborted sector failed: {:?}", rerr);
                     }
 
                     warn!("cleanup aborted sector");

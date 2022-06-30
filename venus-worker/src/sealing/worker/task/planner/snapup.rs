@@ -78,8 +78,7 @@ impl Planner for SnapUpPlanner {
             State::Finished => return Ok(None),
 
             State::Aborted => {
-                warn!("sector aborted");
-                return Ok(None);
+                return Err(TaskAborted.into());
             }
 
             other => return Err(anyhow!("unexpected state {:?} in snapup planner", other).abort()),

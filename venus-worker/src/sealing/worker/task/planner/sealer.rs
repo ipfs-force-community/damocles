@@ -135,8 +135,7 @@ impl Planner for SealerPlanner {
             State::Finished => return Ok(None),
 
             State::Aborted => {
-                warn!("sector aborted");
-                return Ok(None);
+                return Err(TaskAborted.into());
             }
 
             other => return Err(anyhow!("unexpected state {:?} in sealer planner", other).abort()),

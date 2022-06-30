@@ -204,3 +204,20 @@ impl From<Interrupt> for Failure {
         Failure(Level::Permanent, int.into())
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct TaskAborted;
+
+impl std::fmt::Display for TaskAborted {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("task aborted")
+    }
+}
+
+impl StdError for TaskAborted {}
+
+impl From<TaskAborted> for Failure {
+    fn from(abort: TaskAborted) -> Self {
+        Failure(Level::Abort, abort.into())
+    }
+}
