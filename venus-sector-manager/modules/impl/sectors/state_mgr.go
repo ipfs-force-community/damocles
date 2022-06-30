@@ -166,11 +166,11 @@ func (sm *StateManager) ForEach(ctx context.Context, ws core.SectorWorkerState, 
 	return nil
 }
 
-func (sm *StateManager) Init(ctx context.Context, sid abi.SectorID, st abi.RegisteredSealProof) error {
-	return sm.InitWith(ctx, sid, st)
+func (sm *StateManager) Init(ctx context.Context, sid abi.SectorID, st abi.RegisteredSealProof, ws core.SectorWorkerState) error {
+	return sm.InitWith(ctx, sid, st, ws)
 }
 
-func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, fieldvals ...interface{}) error {
+func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, ws core.SectorWorkerState, fieldvals ...interface{}) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
@@ -179,8 +179,18 @@ func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofTyp
 		SectorType: proofType,
 	}
 
+	var kv kvstore.KVStore
+	switch ws {
+	case core.WorkerOnline:
+		kv = sm.online
+	case core.WorkerOffline:
+		kv = sm.offline
+	default:
+		return fmt.Errorf("state %s does not exist", ws)
+	}
+
 	key := makeSectorKey(sid)
-	err := sm.online.View(ctx, key, func([]byte) error { return nil })
+	err := kv.View(ctx, key, func([]byte) error { return nil })
 	if err == nil {
 		return fmt.Errorf("sector %s already initialized", string(key))
 	}
@@ -196,7 +206,7 @@ func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofTyp
 		}
 	}
 
-	return sm.save(ctx, key, state, core.WorkerOnline)
+	return sm.save(ctx, key, state, ws)
 }
 
 func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID, ws core.SectorWorkerState) (*core.SectorState, error) {

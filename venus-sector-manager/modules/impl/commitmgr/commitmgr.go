@@ -18,6 +18,7 @@ import (
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
@@ -648,17 +649,6 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 		return core.SubmitTerminateResp{}, err
 	}
 
-	sector, err := c.smgr.Load(ctx, sid, core.WorkerOffline)
-	if err != nil {
-		return core.SubmitTerminateResp{}, err
-	}
-
-	// check for duplicate actions
-	if sector.TerminateInfo.AddedHeight > 0 {
-		errMsg := "duplicate submit"
-		return core.SubmitTerminateResp{Res: core.SubmitDuplicateSubmit, Desc: &errMsg}, nil
-	}
-
 	_, err = c.terminateSender(sid.Miner)
 	if err != nil {
 		return core.SubmitTerminateResp{}, err
@@ -708,16 +698,46 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 		return core.SubmitTerminateResp{}, fmt.Errorf("already terminated")
 	}
 
-	sector.TerminateInfo.TerminatedAt = abi.ChainEpoch(0)
-	sector.TerminateInfo.TerminateCid = nil
-	sector.TerminateInfo.AddedHeight = height
-	err = c.smgr.Update(ctx, sid, core.WorkerOffline, sector.TerminateInfo)
-	if err != nil {
+	loadedSector, err := c.smgr.Load(ctx, sid, core.WorkerOffline)
+	if err != nil && !errors.Is(err, kvstore.ErrKeyNotFound) {
 		return core.SubmitTerminateResp{}, err
 	}
 
+	// check for duplicate actions
+
+	var sector core.SectorState
+	newTerminateInfo := core.TerminateInfo{
+		TerminatedAt: abi.ChainEpoch(0),
+		TerminateCid: nil,
+		AddedHeight:  height,
+	}
+
+	if err != nil {
+		sector.ID = sid
+		sector.SectorType = si.SealProof
+
+		ierr := c.smgr.InitWith(ctx, sid, si.SealProof, core.WorkerOffline, newTerminateInfo)
+		if ierr != nil {
+			return core.SubmitTerminateResp{}, fmt.Errorf("init non-exist snapup sector: %w", err)
+		}
+
+	} else {
+		if loadedSector.TerminateInfo.AddedHeight > 0 {
+			errMsg := "duplicate submit"
+			return core.SubmitTerminateResp{Res: core.SubmitDuplicateSubmit, Desc: &errMsg}, nil
+		}
+
+		sector = *loadedSector
+		err = c.smgr.Update(ctx, sid, core.WorkerOffline, newTerminateInfo)
+		if err != nil {
+			return core.SubmitTerminateResp{}, err
+		}
+	}
+
+	sector.TerminateInfo = newTerminateInfo
+
 	go func() {
-		c.terminatePendingChan <- *sector
+		c.terminatePendingChan <- sector
 	}()
 
 	return core.SubmitTerminateResp{
