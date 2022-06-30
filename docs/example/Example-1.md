@@ -242,10 +242,12 @@ envs={RUST_LOG="Info"}
 #GPU outsourcing to other hosts [https://github.com/ipfs-force-community/gpuproxy]
 #fieldsforc2processor
 [[processors.c2]]
+# see: https://github.com/ipfs-force-community/gpuproxy
 bin="/home/c2cdeployer/venus/cluster_c2_plugin"
 args=["run","--gpuproxy-url","http://192.168.28.32:7788","--log-level","info","--poll-task-interval","60"]
 
 [[processors.c2]]
+# see: https://github.com/ipfs-force-community/gpuproxy
 bin="/home/c2cdeployer/venus/cluster_c2_plugin"
 args=["run","--gpuproxy-url","http://192.168.28.36:7788","--log-level","info","--poll-task-interval","60"]
 
