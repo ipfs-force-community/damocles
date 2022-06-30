@@ -94,7 +94,7 @@ fn render_cpu(full: bool) {
         Some(m) => m,
         None => {
             eprintln!(
-                "Can not load cpu information, Please make sure `hwloc` is version 2.0 or higher."
+                "Can not load cpu information, Please make sure that hwloc 2.x is installed."
             );
             return;
         }
