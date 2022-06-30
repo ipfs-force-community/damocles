@@ -159,7 +159,7 @@ fn check_hwloc_version() -> bool {
     let hwloc_api_version = get_api_version();
     // (X<<16)+(Y<<8)+Z represents X.Y.Z
     let hwloc_x_version = hwloc_api_version >> 16;
-    hwloc_x_version >= 2
+    hwloc_x_version == 2
 }
 
 /// load CPU Topology
