@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use itertools::Itertools;
 use term_table::{
@@ -24,21 +24,17 @@ pub(crate) fn subcommand<'a>() -> Command<'a> {
 pub(crate) fn submatch(subargs: &ArgMatches) -> Result<()> {
     let full = *subargs.get_one::<bool>("full").unwrap_or(&false);
 
-    println!("CPU topology:");
-    render_cpu(full)?;
+    render_cpu(full);
     println!();
-    println!("Disks:");
     render_disk();
     println!();
-    println!("GPU:");
     render_gpu();
     println!();
-    println!("Memory:");
     render_mem();
     Ok(())
 }
 
-fn render_cpu(full: bool) -> Result<()> {
+fn render_cpu(full: bool) {
     fn find_subnode(
         parent: &cpu::TopologyNode,
         filter_fn: fn(&cpu::TopologyNode) -> bool,
@@ -94,10 +90,18 @@ fn render_cpu(full: bool) -> Result<()> {
         }
     }
 
-    let machine = cpu::load().context("Can not load cpu information")?;
+    let machine = match cpu::load() {
+        Some(m) => m,
+        None => {
+            eprintln!(
+                "Can not load cpu information, Please make sure that hwloc 2.x is installed."
+            );
+            return;
+        }
+    };
+    println!("CPU topology:");
     println!("{}", machine);
     walk(&machine, "", full);
-    Ok(())
 }
 
 fn render_disk() {
@@ -140,6 +144,7 @@ fn render_disk() {
         }
     }
 
+    println!("Disks:");
     println!("{}", table.render());
 }
 
@@ -168,6 +173,7 @@ fn render_gpu() {
         }
     }
 
+    println!("GPU:");
     println!("{}", table.render());
 }
 
@@ -200,5 +206,7 @@ fn render_mem() {
             }
         )),
     ]));
+
+    println!("Memory:");
     println!("{}", table.render());
 }
