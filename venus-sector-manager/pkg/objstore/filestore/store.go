@@ -15,6 +15,7 @@ import (
 	"github.com/shirou/gopsutil/v3/disk"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/ver"
 )
 
 var log = logging.New("objstore-fs")
@@ -56,16 +57,17 @@ func Open(cfg objstore.Config, isPlugin bool) (objstore.Store, error) {
 		cfg.Name = dirPath
 	}
 
-	log.Infow("load store", "name", cfg.Name, "path", cfg.Path, "plugin", isPlugin)
 	return &Store{
-		cfg: cfg,
-		dir: os.DirFS(dirPath),
+		isPlugin: isPlugin,
+		cfg:      cfg,
+		dir:      os.DirFS(dirPath),
 	}, nil
 }
 
 type Store struct {
-	cfg objstore.Config
-	dir fs.FS
+	isPlugin bool
+	cfg      objstore.Config
+	dir      fs.FS
 }
 
 type limitedFile struct {
@@ -167,6 +169,18 @@ func (s *Store) open(p string, r *readRange) (io.ReadCloser, error) {
 
 	hold = true
 	return reader, nil
+}
+
+func (s *Store) Type() string {
+	if s.isPlugin {
+		return "plugin-fs"
+	}
+
+	return "embed-fs"
+}
+
+func (*Store) Version() string {
+	return ver.VersionStr()
 }
 
 func (s *Store) Instance(context.Context) string { return s.cfg.Name }

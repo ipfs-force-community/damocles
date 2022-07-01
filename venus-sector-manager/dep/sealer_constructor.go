@@ -394,6 +394,7 @@ func openObjStore(cfg objstore.Config, pluginPath string) (objstore.Store, error
 			return nil, fmt.Errorf("open filestore: %w", err)
 		}
 
+		log.Infow("embed store constructed", "type", st.Type(), "ver", st.Version(), "instance", st.Instance(context.Background()))
 		return st, nil
 	}
 
@@ -411,6 +412,8 @@ func openObjStore(cfg objstore.Config, pluginPath string) (objstore.Store, error
 	if err != nil {
 		return nil, fmt.Errorf("construct objstore use plugin %s: %w", absPath, err)
 	}
+
+	log.Infow("store constructed", "type", st.Type(), "ver", st.Version(), "instance", st.Instance(context.Background()))
 
 	return st, nil
 }
