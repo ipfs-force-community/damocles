@@ -31,6 +31,14 @@ type MockStore struct {
 	mu      sync.RWMutex
 }
 
+func (ms *MockStore) Type() string {
+	return "mock"
+}
+
+func (ms *MockStore) Version() string {
+	return "mock"
+}
+
 func (ms *MockStore) Instance(context.Context) string {
 	return ms.cfg.Name
 }

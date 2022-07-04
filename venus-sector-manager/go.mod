@@ -45,7 +45,7 @@ require (
 
 require (
 	github.com/ipfs-force-community/venus-cluster-assets v0.1.0
-	github.com/ipfs-force-community/venus-objstore v0.0.2
+	github.com/ipfs-force-community/venus-objstore v0.0.3
 )
 
 require (

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	_ "net/http/pprof"
 
 	"github.com/urfave/cli/v2"
@@ -19,7 +18,7 @@ func main() {
 
 	app := &cli.App{
 		Name:    "venus-sector-manager",
-		Version: fmt.Sprintf("v%s-%s-%s", ver.Version, ver.Prover, ver.Commit),
+		Version: ver.VersionStr(),
 		Commands: []*cli.Command{
 			mockCmd,
 			daemonCmd,
