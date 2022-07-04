@@ -202,7 +202,6 @@ require (
 require (
 	github.com/filecoin-project/go-fil-markets v1.20.1-v16-2 // indirect
 	github.com/filecoin-project/specs-actors/v8 v8.0.1
-	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 )
 
 replace (
