@@ -1,8 +1,9 @@
 # Changelog
 
-## v0.3.0-rc1
+## v0.3.0
 
 - venus-sector-manager：
+  - 适配和支持 nv16
   - 对于一些特定类型的异常，返回特殊结果，方便 venus-worker 处理：
     - c2 消息上链成功，但扇区未上链 [#88](https://github.com/ipfs-force-community/venus-cluster/issues/88)
     - 对于能够确定感知到 ticket expired 的场景，直接终止当前扇区 [#143](https://github.com/ipfs-force-community/venus-cluster/issues/143)
