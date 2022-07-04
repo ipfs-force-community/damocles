@@ -40,3 +40,11 @@ check-clippy:
 
 dev-env:
 	rustup component add --toolchain $(shell cat rust-toolchain) rls rust-analysis rust-src rustc-dev clippy rustfmt
+
+upgrade-filecoin-proofs:
+	cargo update -p filecoin-proofs
+	cargo update -p storage-proofs-core
+	cargo update -p storage-proofs-porep
+	cargo update -p storage-proofs-post
+	cargo update -p storage-proofs-update
+	cargo update -p filecoin-proofs-api
