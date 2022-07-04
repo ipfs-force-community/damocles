@@ -48,3 +48,11 @@ dev-env:
 
 publish-vc-processors:
 	cargo publish -p vc-processors --features="builtin ext-producer"
+
+upgrade-filecoin-proofs:
+	cargo update -p filecoin-proofs
+	cargo update -p storage-proofs-core
+	cargo update -p storage-proofs-porep
+	cargo update -p storage-proofs-post
+	cargo update -p storage-proofs-update
+	cargo update -p filecoin-proofs-api

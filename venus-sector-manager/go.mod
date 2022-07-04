@@ -19,7 +19,7 @@ require (
 	github.com/filecoin-project/specs-actors v0.9.15
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.6.0-rc1
+	github.com/filecoin-project/venus v1.6.0
 	github.com/golang/mock v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
@@ -200,8 +200,9 @@ require (
 )
 
 require (
-	github.com/filecoin-project/go-fil-markets v1.20.1-v16-1 // indirect
-	github.com/filecoin-project/specs-actors/v8 v8.0.0
+	github.com/filecoin-project/go-fil-markets v1.20.1-v16-2 // indirect
+	github.com/filecoin-project/specs-actors/v8 v8.0.1
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 )
 
 replace (
