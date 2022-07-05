@@ -96,7 +96,7 @@ impl Processor<WindowPoSt> for BuiltinProcessor {
 
         generate_window_post(&task.seed, &replicas, to_prover_id(task.miner_id))
             .map(|proofs| WindowPoStOutput {
-                proofs: proofs.into_iter().map(|r| r.1.into()).collect(),
+                proofs: proofs.into_iter().map(|r| r.1).collect(),
                 faults: vec![],
             })
             .or_else(|e| {
