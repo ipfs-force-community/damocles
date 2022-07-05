@@ -6,11 +6,13 @@ use std::collections::BTreeMap;
 use anyhow::Result;
 use filecoin_proofs_api::StorageProofsError;
 
-use super::tasks::{SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, WindowPoSt, WindowPoStOutput, C2, PC1, PC2};
+use super::tasks::{
+    SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, WindowPoSt, WindowPoStOutput, WinningPoSt, WinningPoStOutput, C2, PC1, PC2,
+};
 use crate::core::{Processor, Task};
 use crate::fil_proofs::{
-    create_tree_d, generate_window_post, seal_commit_phase2, seal_pre_commit_phase1, seal_pre_commit_phase2, snap_encode_into,
-    snap_generate_sector_update_proof, to_prover_id, PartitionProofBytes, PrivateReplicaInfo,
+    create_tree_d, generate_window_post, generate_winning_post, seal_commit_phase2, seal_pre_commit_phase1, seal_pre_commit_phase2,
+    snap_encode_into, snap_generate_sector_update_proof, to_prover_id, PartitionProofBytes, PrivateReplicaInfo,
 };
 
 mod transfer;
@@ -109,5 +111,20 @@ impl Processor<WindowPoSt> for BuiltinProcessor {
 
                 Err(e)
             })
+    }
+}
+
+impl Processor<WinningPoSt> for BuiltinProcessor {
+    fn process(&self, task: WinningPoSt) -> Result<<WinningPoSt as Task>::Output> {
+        let replicas = BTreeMap::from_iter(task.replicas.into_iter().map(|rep| {
+            (
+                rep.sector_id,
+                PrivateReplicaInfo::new(task.proof_type, rep.comm_r, rep.cache_dir, rep.sealed_file),
+            )
+        }));
+
+        generate_winning_post(&task.seed, &replicas, to_prover_id(task.miner_id)).map(|proofs| WinningPoStOutput {
+            proofs: proofs.into_iter().map(|r| r.1).collect(),
+        })
     }
 }
