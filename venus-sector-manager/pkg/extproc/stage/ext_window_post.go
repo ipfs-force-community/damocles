@@ -37,7 +37,7 @@ func ProofType2String(proofType abi.RegisteredPoStProof) string {
 	}
 }
 
-type WindowPoStReplicaInfo struct {
+type PoStReplicaInfo struct {
 	SectorID   abi.SectorNumber `json:"sector_id"`
 	CommR      [32]byte         `json:"comm_r"`
 	CacheDir   string           `json:"cache_dir"`
@@ -50,8 +50,8 @@ type WindowPoStOutput struct {
 }
 
 type WindowPoSt struct {
-	MinerID   abi.ActorID             `json:"miner_id"`
-	ProofType string                  `json:"proof_type"`
-	Replicas  []WindowPoStReplicaInfo `json:"replicas"`
-	Seed      [32]byte                `json:"seed"`
+	MinerID   abi.ActorID       `json:"miner_id"`
+	ProofType string            `json:"proof_type"`
+	Replicas  []PoStReplicaInfo `json:"replicas"`
+	Seed      [32]byte          `json:"seed"`
 }

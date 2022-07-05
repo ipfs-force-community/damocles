@@ -24,7 +24,7 @@ func ExtProver() dix.Option {
 }
 
 func BuildExtProver(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.ProcessorConfig) (*ext.Prover, error) {
-	p, err := ext.New(gctx, cfg.WdPost)
+	p, err := ext.New(gctx, cfg.WdPost, cfg.WinPost)
 	if err != nil {
 		return nil, fmt.Errorf("construct ext prover: %w", err)
 	}
