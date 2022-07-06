@@ -56,13 +56,23 @@ type Prover struct {
 }
 
 func (p *Prover) Run() {
-	p.windowProc.Run()
-	p.winningPorc.Run()
+	if p.windowProc != nil {
+		p.windowProc.Run()
+	}
+
+	if p.winningPorc != nil {
+		p.winningPorc.Run()
+	}
 }
 
 func (p *Prover) Close() {
-	p.windowProc.Close()
-	p.winningPorc.Close()
+	if p.windowProc != nil {
+		p.windowProc.Close()
+	}
+
+	if p.winningPorc != nil {
+		p.winningPorc.Close()
+	}
 }
 
 func (*Prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
