@@ -1,12 +1,14 @@
 //! This module provides types and apis re-exported from rust-fil-proofs
 //!
 
+use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use filecoin_proofs::{get_base_tree_leafs, get_base_tree_size, DefaultBinaryTree, DefaultPieceHasher, StoreConfig, BINARY_ARITY};
+use filecoin_proofs_api::post;
 use filecoin_proofs_api::seal;
 use forest_address::Address;
 use memmap::{Mmap, MmapOptions};
@@ -19,7 +21,6 @@ use storage_proofs_core::{
 
 // re-exported
 pub use filecoin_proofs_api::{
-    post::generate_window_post,
     seal::{
         clear_cache, write_and_preprocess, Labels, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
         SealPreCommitPhase2Output,
@@ -300,4 +301,34 @@ pub fn to_prover_id(miner_id: ActorID) -> ProverId {
     let actor_addr_payload = Address::new_id(miner_id).payload_bytes();
     prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
     prover_id
+}
+
+pub fn generate_window_post(
+    randomness: &ChallengeSeed,
+    replicas: &BTreeMap<SectorId, PrivateReplicaInfo>,
+    prover_id: ProverId,
+) -> Result<Vec<(RegisteredPoStProof, SnarkProof)>> {
+    safe_call! {
+        post::generate_window_post(
+            randomness,
+            replicas,
+            prover_id,
+        )
+    }
+    .map(|proofs| proofs.into_iter().map(|(r, p)| (r, p.into())).collect())
+}
+
+pub fn generate_winning_post(
+    randomness: &ChallengeSeed,
+    replicas: &BTreeMap<SectorId, PrivateReplicaInfo>,
+    prover_id: ProverId,
+) -> Result<Vec<(RegisteredPoStProof, SnarkProof)>> {
+    safe_call! {
+        post::generate_winning_post(
+            randomness,
+            replicas,
+            prover_id,
+        )
+    }
+    .map(|proofs| proofs.into_iter().map(|(r, p)| (r, p.into())).collect())
 }

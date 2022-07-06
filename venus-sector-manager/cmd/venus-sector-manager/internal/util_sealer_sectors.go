@@ -65,6 +65,8 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsRemoveCmd,
 		utilSealerSectorsStateCmd,
 		utilSealerSectorsFindDealCmd,
+		utilSealerSectorsResendPreCommitCmd,
+		utilSealerSectorsResendProveCommitCmd,
 	},
 }
 
@@ -1527,6 +1529,144 @@ var utilSealerSectorsFindDealCmd = &cli.Command{
 
 		fmt.Fprintln(os.Stdout, "")
 
+		return nil
+	},
+}
+
+var utilSealerSectorsResendPreCommitCmd = &cli.Command{
+	Name:      "resend-pre",
+	Usage:     "resend the pre commit on chain info for the specified sector, should only be used in situations that won't recover automatically",
+	ArgsUsage: "<minerID> <sectorNum>",
+	Flags:     []cli.Flag{},
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if args.Len() < 2 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		minerID, err := ShouldActor(args.Get(0), true)
+		if err != nil {
+			return err
+		}
+
+		sectorNumber, err := ShouldSectorNumber(args.Get(1))
+		if err != nil {
+			return err
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		sid := abi.SectorID{
+			Miner:  minerID,
+			Number: sectorNumber,
+		}
+
+		state, err := cli.Sealer.FindSector(gctx, core.WorkerOnline, sid)
+		if err != nil {
+			return RPCCallError("FindSector", err)
+		}
+
+		if state.Proof != nil {
+			return fmt.Errorf("the sector has been reached later stages, unable to resend")
+		}
+
+		if state.Pre == nil {
+			return fmt.Errorf("no pre commit on chain info available")
+		}
+
+		if state.MessageInfo.NeedSend {
+			return fmt.Errorf("sector is still being marked as 'Need To Be Send' in the state machine")
+		}
+
+		onChainInfo, err := state.Pre.IntoPreCommitOnChainInfo()
+		if err != nil {
+			return fmt.Errorf("convert to pre commit on chain info: %w", err)
+		}
+
+		resp, err := cli.Sealer.SubmitPreCommit(gctx, core.AllocatedSector{
+			ID:        sid,
+			ProofType: state.SectorType,
+		}, onChainInfo, true)
+
+		if err != nil {
+			return RPCCallError("SubmitPreCommit", err)
+		}
+
+		if resp.Res != core.SubmitAccepted {
+			return fmt.Errorf("unexpected submit result: %d, err: %s", resp.Res, FormatOrNull(resp.Desc, func() string {
+				return *resp.Desc
+			}))
+		}
+
+		Log.Info("pre commit on chain info reset")
+		return nil
+	},
+}
+
+var utilSealerSectorsResendProveCommitCmd = &cli.Command{
+	Name:      "resend-prove",
+	Usage:     "resend the prove commit on chain info for the specified sector, should only be used in situations that won't recover automatically",
+	ArgsUsage: "<minerID> <sectorNum>",
+	Flags:     []cli.Flag{},
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if args.Len() < 2 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		minerID, err := ShouldActor(args.Get(0), true)
+		if err != nil {
+			return err
+		}
+
+		sectorNumber, err := ShouldSectorNumber(args.Get(1))
+		if err != nil {
+			return err
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		sid := abi.SectorID{
+			Miner:  minerID,
+			Number: sectorNumber,
+		}
+
+		state, err := cli.Sealer.FindSector(gctx, core.WorkerOnline, sid)
+		if err != nil {
+			return RPCCallError("FindSector", err)
+		}
+
+		if state.Proof == nil {
+			return fmt.Errorf("no prove commit on chain info available")
+		}
+
+		if state.MessageInfo.NeedSend {
+			return fmt.Errorf("sector is still being marked as 'Need To Be Send' in the state machine")
+		}
+
+		resp, err := cli.Sealer.SubmitProof(gctx, sid, *state.Proof, true)
+
+		if err != nil {
+			return RPCCallError("SubmitProof", err)
+		}
+
+		if resp.Res != core.SubmitAccepted {
+			return fmt.Errorf("unexpected submit result: %d, err: %s", resp.Res, FormatOrNull(resp.Desc, func() string {
+				return *resp.Desc
+			}))
+		}
+
+		Log.Info("prove commit on chain info reset")
 		return nil
 	},
 }
