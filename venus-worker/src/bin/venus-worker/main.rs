@@ -34,7 +34,7 @@ pub fn main() -> Result<()> {
     let store_cmd = store::subcommand();
     let worker_cmd = worker::subcommand();
 
-    let ver_string = format!("v{}-{}", env!("CARGO_PKG_VERSION"), env!("GIT_COMMIT"));
+    let ver_string = format!("v{}-{}", env!("CARGO_PKG_VERSION"), option_env!("GIT_COMMIT").unwrap_or("dev"));
 
     let app = App::new("vc-worker")
         .version(ver_string.as_str())
