@@ -1,6 +1,8 @@
 package core
 
 import (
+	"fmt"
+
 	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -169,6 +171,27 @@ type PreCommitInfo struct {
 	CommD  cid.Cid
 	Ticket Ticket
 	Deals  []abi.DealID
+}
+
+func (pc PreCommitInfo) IntoPreCommitOnChainInfo() (PreCommitOnChainInfo, error) {
+	commR, err := commcid.CIDToReplicaCommitmentV1(pc.CommR)
+	if err != nil {
+		return PreCommitOnChainInfo{}, fmt.Errorf("convert to replica commitment: %w", err)
+	}
+
+	commD, err := commcid.CIDToDataCommitmentV1(pc.CommD)
+	if err != nil {
+		return PreCommitOnChainInfo{}, fmt.Errorf("convert to data commitment: %w", err)
+	}
+
+	info := PreCommitOnChainInfo{
+		Ticket: pc.Ticket,
+		Deals:  pc.Deals,
+	}
+	copy(info.CommR[:], commR)
+	copy(info.CommD[:], commD)
+
+	return info, nil
 }
 
 type ProofInfo = ProofOnChainInfo
