@@ -40,6 +40,9 @@ pub const STAGE_NAME_TRANSFER: &str = "transfer";
 /// name str for window post
 pub const STAGE_NAME_WINDOW_POST: &str = "window_post";
 
+/// name str for window post
+pub const STAGE_NAME_WINNING_POST: &str = "winning_post";
+
 /// Task of tree_d
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TreeD {
@@ -181,7 +184,7 @@ impl Task for Transfer {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct WindowPoStReplicaInfo {
+pub struct PoStReplicaInfo {
     pub sector_id: SectorId,
     pub comm_r: Commitment,
     pub cache_dir: PathBuf,
@@ -198,7 +201,7 @@ pub struct WindowPoStOutput {
 pub struct WindowPoSt {
     pub miner_id: ActorID,
     pub proof_type: RegisteredPoStProof,
-    pub replicas: Vec<WindowPoStReplicaInfo>,
+    pub replicas: Vec<PoStReplicaInfo>,
     pub seed: ChallengeSeed,
 }
 
@@ -206,4 +209,23 @@ impl Task for WindowPoSt {
     const STAGE: &'static str = STAGE_NAME_WINDOW_POST;
 
     type Output = WindowPoStOutput;
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WinningPoStOutput {
+    pub proofs: Vec<SnarkProof>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WinningPoSt {
+    pub miner_id: ActorID,
+    pub proof_type: RegisteredPoStProof,
+    pub replicas: Vec<PoStReplicaInfo>,
+    pub seed: ChallengeSeed,
+}
+
+impl Task for WinningPoSt {
+    const STAGE: &'static str = STAGE_NAME_WINNING_POST;
+
+    type Output = WinningPoStOutput;
 }
