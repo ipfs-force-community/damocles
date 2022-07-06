@@ -86,7 +86,7 @@ var daemonRunCmd = &cli.Command{
 		&cli.BoolFlag{
 			Name:  "ext-prover",
 			Value: false,
-			Usage: "enable external prover (wdpost only for now)",
+			Usage: "enable external prover",
 		},
 		daemonRunProxyFlag,
 		daemonRunProxySectorIndexerOffFlag,
