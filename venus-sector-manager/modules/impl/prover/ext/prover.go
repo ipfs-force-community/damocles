@@ -204,6 +204,7 @@ func (p *Prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, s
 }
 
 func (*Prover) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
+	randomness[31] &= 0x3f
 	return prover.Prover.GeneratePoStFallbackSectorChallenges(ctx, proofType, minerID, randomness, sectorIds)
 }
 
