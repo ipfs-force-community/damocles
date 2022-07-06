@@ -12,7 +12,10 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/extproc"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/extproc/stage"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
+
+var log = logging.New("ext-prover")
 
 var _ core.Prover = (*Prover)(nil)
 
@@ -24,6 +27,8 @@ func New(ctx context.Context, windowCfgs []extproc.ExtProcessorConfig, winningCf
 		if err != nil {
 			return nil, fmt.Errorf("construct WindowPoSt Processor: %w", err)
 		}
+
+		log.Info("WindowPoSt ext prover constructed")
 	}
 
 	if len(winningCfgs) > 0 {
@@ -31,6 +36,8 @@ func New(ctx context.Context, windowCfgs []extproc.ExtProcessorConfig, winningCf
 		if err != nil {
 			return nil, fmt.Errorf("construct WinningPoSt Processor: %w", err)
 		}
+
+		log.Info("WinningPoSt ext prover constructed")
 	}
 
 	if windowProc == nil && winningPorc == nil {
