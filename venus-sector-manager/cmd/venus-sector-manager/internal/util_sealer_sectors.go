@@ -138,6 +138,10 @@ var utilSealerSectorsListCmd = &cli.Command{
 		flagListOffline,
 		flagListEnableSealing,
 		flagListEnableSnapup,
+		&cli.StringFlag{
+			Name:  "miner",
+			Usage: "show sectors of the given miner only ",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		cli, gctx, stop, err := extractAPI(cctx)
@@ -152,79 +156,45 @@ var utilSealerSectorsListCmd = &cli.Command{
 			return err
 		}
 
-		fmt.Fprintf(os.Stdout, "Sectors(%d):\n", len(states))
+		var minerID *abi.ActorID
+		if m := cctx.String("miner"); m != "" {
+			mid, err := ShouldActor(m, true)
+			if err != nil {
+				return fmt.Errorf("invalid miner actor id: %w", err)
+			}
+
+			minerID = &mid
+		}
+
+		count := 0
+		fmt.Fprintln(os.Stdout, "Sectors:")
 		for _, state := range states {
-			fmt.Fprintf(os.Stdout, "m-%d-s-%d:\n", state.ID.Miner, state.ID.Number)
+			if minerID != nil && state.ID.Miner != *minerID {
+				continue
+			}
+
+			count++
+
+			var upMark string
+			if state.Upgraded {
+				upMark = "(up)"
+			}
+
+			fmt.Fprintf(os.Stdout, "%s%s:\n", util.FormatSectorID(state.ID), upMark)
 			if state.LatestState == nil {
 				fmt.Fprintln(os.Stdout, "NULL")
 				continue
 			}
 
-			fmt.Fprintf(os.Stdout, "\tUpgraded: %v\n", state.Upgraded)
+			fmt.Fprintf(os.Stdout, "\tWorker: %s @ %s\n", state.LatestState.Worker.Instance, state.LatestState.Worker.Location)
+			fmt.Fprintf(os.Stdout, "\tState: %s => %s @%s\n", state.LatestState.StateChange.Prev, state.LatestState.StateChange.Next, state.LatestState.StateChange.Event)
 
-			fmt.Fprintln(os.Stdout, "\tWorker:")
-			fmt.Fprintf(os.Stdout, "\t\tInstance: %s\n", state.LatestState.Worker.Instance)
-			fmt.Fprintf(os.Stdout, "\t\tLocation: %s\n", state.LatestState.Worker.Location)
-
-			fmt.Fprintln(os.Stdout, "\tDeals:")
-			deals := state.Deals()
-			if len(deals) == 0 {
-				fmt.Fprintln(os.Stdout, "\t\tNULL")
-			} else {
-				for _, deal := range deals {
-					fmt.Fprintf(os.Stdout, "\t\tID: %d\n", deal.ID)
-					fmt.Fprintf(os.Stdout, "\t\tPiece: %v\n", deal.Piece)
-				}
-			}
-
-			fmt.Fprintln(os.Stdout, "\tTicket:")
-			if state.Ticket != nil {
-				fmt.Fprintf(os.Stdout, "\t\tHeight: %d\n", state.Ticket.Epoch)
-				fmt.Fprintf(os.Stdout, "\t\tValue: %x\n", state.Ticket.Ticket)
-			} else {
-				fmt.Fprintln(os.Stdout, "\t\tNULL")
-			}
-
-			fmt.Fprintln(os.Stdout, "\tSeed:")
-			if state.Seed != nil {
-				fmt.Fprintf(os.Stdout, "\t\tHeight: %d\n", state.Seed.Epoch)
-				fmt.Fprintf(os.Stdout, "\t\tValue: %x\n", state.Seed.Seed)
-			} else {
-				fmt.Fprintln(os.Stdout, "\t\tNULL")
-			}
-
-			fmt.Fprintln(os.Stdout, "\tMessageInfo:")
-			if state.MessageInfo.PreCommitCid != nil {
-				fmt.Fprintf(os.Stdout, "\t\tPre: %s\n", state.MessageInfo.PreCommitCid.String())
-			} else {
-				fmt.Fprintln(os.Stdout, "\t\tPre: NULL")
-			}
-			if state.MessageInfo.CommitCid != nil {
-				fmt.Fprintf(os.Stdout, "\t\tProve: %s\n", state.MessageInfo.CommitCid.String())
-			} else {
-				fmt.Fprintln(os.Stdout, "\t\tProve: NULL")
-			}
-			fmt.Fprintf(os.Stdout, "\t\tNeedSeed: %v\n", state.MessageInfo.NeedSend)
-
-			fmt.Fprintln(os.Stdout, "\tTerminateInfo:")
-			if state.TerminateInfo.TerminateCid != nil {
-				fmt.Fprintf(os.Stdout, "\t\tUid: %s\n", state.TerminateInfo.TerminateCid.String())
-				fmt.Fprintf(os.Stdout, "\t\tHeight: %v\n", state.TerminateInfo.TerminatedAt)
-				fmt.Fprintf(os.Stdout, "\t\tAddedHeight: %v\n", state.TerminateInfo.AddedHeight)
-			} else {
-				fmt.Fprintln(os.Stdout, "\t\tNULL")
-			}
-
-			fmt.Fprintln(os.Stdout, "\tState:")
-			fmt.Fprintf(os.Stdout, "\t\tPrev: %s\n", state.LatestState.StateChange.Prev)
-			fmt.Fprintf(os.Stdout, "\t\tCurrent: %s\n", state.LatestState.StateChange.Next)
-			fmt.Fprintf(os.Stdout, "\t\tEvent: %s\n", state.LatestState.StateChange.Event)
-
-			fmt.Fprintf(os.Stdout, "\tFinalized: %v\n", state.Finalized)
-			fmt.Fprintf(os.Stdout, "\tRemoved: %v\n", state.Removed)
+			fmt.Fprintf(os.Stdout, "\tFinalized: %v, Removed: %v\n", state.Finalized, state.Removed)
 
 			fmt.Fprintln(os.Stdout, "")
 		}
+
+		fmt.Fprintf(os.Stdout, "Count: %d\n", count)
 
 		return nil
 	},
