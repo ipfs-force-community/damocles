@@ -21,6 +21,10 @@ type ConfigUnmarshaller interface {
 	UnmarshalConfig([]byte) error
 }
 
+type CommentAll interface {
+	CommentAllInExample()
+}
+
 type RLocker interface {
 	sync.Locker
 }
@@ -47,6 +51,11 @@ func ConfigComment(t interface{}) ([]byte, error) {
 	}
 	b := buf.Bytes()
 	b = bytes.ReplaceAll(b, []byte("\n"), []byte("\n#"))
-	b = bytes.ReplaceAll(b, []byte("#["), []byte("["))
+
+	_, yes := t.(CommentAll)
+	if !yes {
+		b = bytes.ReplaceAll(b, []byte("#["), []byte("["))
+	}
+
 	return b, nil
 }

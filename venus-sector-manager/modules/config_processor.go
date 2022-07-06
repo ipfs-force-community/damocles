@@ -22,11 +22,16 @@ func DefaultProcessorConfig(example bool) ProcessorConfig {
 	}
 
 	if example {
-		cfg.WdPost = append(cfg.WdPost, extproc.DefaultExtProcessorConfig(example))
+		examCfg := extproc.DefaultExtProcessorConfig(example)
+		cfg.WdPost = append(cfg.WdPost, examCfg)
+		cfg.WinPost = append(cfg.WinPost, examCfg)
 	}
 
 	return cfg
 }
+
+// comment all content
+func (ProcessorConfig) CommentAllInExample() {}
 
 func (c *ProcessorConfig) UnmarshalConfig(data []byte) error {
 	primitive := struct {

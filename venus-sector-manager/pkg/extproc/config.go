@@ -10,10 +10,10 @@ func DefaultExtProcessorConfig(example bool) ExtProcessorConfig {
 	}
 
 	if example {
-		bin := "venus-worker"
+		bin := "/path/to/custom/bin"
 		pcfg.Bin = &bin
-		pcfg.Args = []string{"abc"}
-		pcfg.Envs["KEY"] = "VAL"
+		pcfg.Args = []string{"args1", "args2", "args3"}
+		pcfg.Envs["ENV_KEY"] = "ENV_VAL"
 	}
 
 	return pcfg
