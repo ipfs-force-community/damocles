@@ -151,7 +151,7 @@ const ALL_ZERO_PIECE_COMMS: [Commitment; 35] = [
 fn sector_size_to_commitment_index(sector_size: u64) -> Result<usize> {
     let idx = sector_size.trailing_zeros() as usize - 2 - 5;
     if idx >= 35 {
-        return Err(anyhow!("sector size {} too large"));
+        return Err(anyhow!("sector size {} too large", sector_size));
     }
 
     Ok(idx)
