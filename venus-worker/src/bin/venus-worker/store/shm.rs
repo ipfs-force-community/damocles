@@ -1,5 +1,5 @@
 use std::{
-    fs::{remove_file, File, OpenOptions},
+    fs::{self, remove_file, File, OpenOptions},
     io, mem,
     path::{Path, PathBuf},
 };
@@ -8,14 +8,21 @@ use anyhow::{Context, Result};
 use bytesize::ByteSize;
 use time::OffsetDateTime;
 use tracing::{debug, warn};
+use vc_processors::sys::numa::Numa;
 
-pub fn init_shm_files(numa_node_idx: u32, size: ByteSize, num: usize, shm_numa_dir_pattern: String) -> Result<Vec> {
+pub fn init_shm_files(numa_node_idx: u32, size: ByteSize, num: usize, shm_numa_dir_pattern: String) -> Result<Vec<PathBuf>> {
+    // bind NUMA node
+    let numa = Numa::new().context("NUMA not available")?;
+    numa.bind(numa_node_idx)
+        .with_context(|| format!("invalid NUMA node: {}", numa_node_idx));
+
     let mut dir = PathBuf::from("/dev/shm");
     dir.push(
         shm_numa_dir_pattern
             .trim_matches('/')
             .replacen("$NUMA_NODE_INDEX", &numa_node_idx.to_string(), 1),
     );
+    fs::create_dir_all(&dir).with_context(|| format!("create shm directory: '{}'", dir.display()))?;
 
     let filename = size.to_string_as(true).replace(' ', "_");
 

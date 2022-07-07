@@ -40,37 +40,33 @@ extern "C" {
     fn numa_bind(nodemask: *mut NumaBitmask);
 }
 
+#[derive(Debug)]
+pub struct NumaNotAvailable;
+
 pub struct Numa;
 
-enum Error {
-    NumaNotAvailable,
-    OutOfBounds,
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
 impl Numa {
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Self, NumaNotAvailable> {
         if *NUMA_AVAILABLE {
             Ok(Self)
         } else {
-            Err(Error::NumaNotAvailable)
+            Err(NumaNotAvailable)
         }
     }
 
-    pub fn alloc_nodemask() -> Bitmask {
+    pub fn alloc_nodemask(&self) -> Bitmask {
         Bitmask::alloc_nodemask()
     }
 
-    pub fn alloc_cpumask() -> Bitmask {
+    pub fn alloc_cpumask(&self) -> Bitmask {
         Bitmask::alloc_cpumask()
     }
 
-    pub fn bind(&self, node: u32) {
-        bind(node);
+    pub fn bind(&self, node: u32) -> Result<(), u64> {
+        bind(node)
     }
 
-    pub fn bind_with_nodemask(nodemask: &mut Bitmask) {
+    pub fn bind_with_nodemask(&self, nodemask: &mut Bitmask) {
         bind_with_nodemask(nodemask)
     }
 }
@@ -116,10 +112,11 @@ impl Drop for Bitmask {
     }
 }
 
-fn bind(node: u32) -> Result<()> {
+fn bind(node: u32) -> Result<(), u64> {
     let mut nodemask = Bitmask::alloc_nodemask();
-    if node >= nodemask.size() {
-        return Err(Error::OutOfBounds);
+    if node as u64 >= nodemask.size() {
+        // out of bounds
+        return Err(nodemask.size());
     }
     nodemask.set_bit(node);
     bind_with_nodemask(&mut nodemask);
@@ -128,7 +125,7 @@ fn bind(node: u32) -> Result<()> {
 
 fn bind_with_nodemask(nodemask: &mut Bitmask) {
     unsafe {
-        numa_bind(nodemask);
+        numa_bind(nodemask.inner);
     }
 }
 
