@@ -122,5 +122,5 @@ fn shm_init(m: &ArgMatches) -> Result<()> {
 
 #[cfg(not(target_os = "linux"))]
 fn shm_init(_m: &ArgMatches) -> Result<()> {
-    Err(anyhow!("This operation is only supported for the Linux operating system"))
+    Err(anyhow!("This command is only supported for the Linux operating system"))
 }

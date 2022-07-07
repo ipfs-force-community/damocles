@@ -72,7 +72,7 @@ impl<'a> Drop for ShmFile<'a> {
 fn allocate_file(file: &File, size: u64) -> io::Result<()> {
     use std::os::unix::io::AsRawFd;
 
-    file.set_len(size)?;
+    // file.set_len(size)?;
 
     let fd = file.as_raw_fd();
     let size: libc::off_t = size.try_into().unwrap();
@@ -90,7 +90,7 @@ fn handle_enospc(s: &str) -> io::Result<()> {
     let errno = err.raw_os_error().unwrap_or(0);
     debug!("allocate_file: {} failed errno={}", s, errno);
     if errno == libc::ENOSPC {
-        return Err(err.into());
+        return Err(err);
     }
     Ok(())
 }
