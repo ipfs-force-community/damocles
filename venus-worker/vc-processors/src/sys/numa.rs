@@ -1,3 +1,5 @@
+//! Bindings for the NUMA library.
+
 use std::env::var;
 use std::os::raw::{c_int, c_uint, c_ulong};
 
@@ -18,7 +20,7 @@ extern "C" {
     fn numa_set_preferred(node: c_int);
     fn numa_max_node() -> c_int;
 
-    /// returns a bitmask of a size equal to the kernel's node mask (kernel type nodemask_t).
+    /// Returns a bitmask of a size equal to the kernel's node mask (kernel type nodemask_t).
     /// In other words, large enough to represent MAX_NUMNODES nodes.
     fn numa_allocate_nodemask() -> *mut NumaBitmask;
 
@@ -40,32 +42,42 @@ extern "C" {
     fn numa_bind(nodemask: *mut NumaBitmask);
 }
 
+/// Error type for NUMA not available
 #[derive(Debug)]
-pub struct NumaNotAvailable;
+pub struct ErrNumaNotAvailable;
 
+/// Helper for NUMA apis
 pub struct Numa;
 
 impl Numa {
-    pub fn new() -> Result<Self, NumaNotAvailable> {
+    /// Creates a `Numa` If NUMA is Available
+    pub fn new() -> Result<Self, ErrNumaNotAvailable> {
         if *NUMA_AVAILABLE {
             Ok(Self)
         } else {
-            Err(NumaNotAvailable)
+            Err(ErrNumaNotAvailable)
         }
     }
 
+    /// Returns a `Bitmask` of a size equal to the number of NUMA nodes.
     pub fn alloc_nodemask(&self) -> Bitmask {
         Bitmask::alloc_nodemask()
     }
 
+    /// Returns a bitmask of a size equal to the number of cpus
+    /// In other words, large enough to represent NR_CPUS cpus.
     pub fn alloc_cpumask(&self) -> Bitmask {
         Bitmask::alloc_cpumask()
     }
 
+    /// Binds the current task and its children to the specified NUMA node
+    /// They will only run on the CPUs of the specified nodes and only be able to allocate memory from them.
     pub fn bind(&self, node: u32) -> Result<(), u64> {
         bind(node)
     }
 
+    /// Binds the current task and its children to the nodes specified in NUMA nodemask.
+    /// They will only run on the CPUs of the specified nodes and only be able to allocate memory from them.
     pub fn bind_with_nodemask(&self, nodemask: &mut Bitmask) {
         bind_with_nodemask(nodemask)
     }
@@ -78,6 +90,8 @@ struct NumaBitmask {
     maskp: *mut c_ulong,
 }
 
+/// Bitmask points to underlying bitmask
+/// which contains the CPU Indexes or NUMA node Indexes
 pub struct Bitmask {
     inner: *mut NumaBitmask,
 }
@@ -95,12 +109,14 @@ impl Bitmask {
         }
     }
 
-    pub fn set_bit(&mut self, bit: u32) {
+    /// Set the n bit in bitmask to 1
+    pub fn set_bit(&mut self, n: u32) {
         unsafe {
-            numa_bitmask_setbit(self.inner, bit as c_uint);
+            numa_bitmask_setbit(self.inner, n as c_uint);
         }
     }
 
+    /// Returns size of the Bitmask
     pub fn size(&self) -> u64 {
         unsafe { (*self.inner).size as u64 }
     }

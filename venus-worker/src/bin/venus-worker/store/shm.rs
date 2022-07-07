@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use bytesize::ByteSize;
 use time::OffsetDateTime;
 use tracing::{debug, warn};
@@ -12,9 +12,9 @@ use vc_processors::sys::numa::Numa;
 
 pub fn init_shm_files(numa_node_idx: u32, size: ByteSize, num: usize, shm_numa_dir_pattern: String) -> Result<Vec<PathBuf>> {
     // bind NUMA node
-    let numa = Numa::new().context("NUMA not available")?;
+    let numa = Numa::new().map_err(|_| anyhow!("NUMA not available"))?;
     numa.bind(numa_node_idx)
-        .with_context(|| format!("invalid NUMA node: {}", numa_node_idx));
+        .map_err(|_| anyhow!("invalid NUMA node: {}", numa_node_idx))?;
 
     let mut dir = PathBuf::from("/dev/shm");
     dir.push(
