@@ -316,9 +316,8 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Me
 		return core.Empty, sectorStateErr(err)
 	}
 
-	reservedBy := util.FormatSectorID(sid)
-	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, reservedBy); err != nil {
-		log.With("sector", reservedBy).Errorf("release reserved: %s", err)
+	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, sid); err != nil {
+		log.With("sector", util.FormatSectorID(sid)).Errorf("release reserved: %s", err)
 	}
 
 	return core.Empty, nil
@@ -347,9 +346,8 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 		return core.Empty, sectorStateErr(err)
 	}
 
-	reservedBy := util.FormatSectorID(sid)
-	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, reservedBy); err != nil {
-		log.With("sector", reservedBy).Errorf("release reserved: %s", err)
+	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, sid); err != nil {
+		log.With("sector", util.FormatSectorID(sid)).Errorf("release reserved: %s", err)
 	}
 
 	return core.Empty, nil
@@ -618,7 +616,7 @@ func (s *Sealer) StoreReserveSpace(ctx context.Context, sid abi.SectorID, size u
 		return nil, sectorStateErr(err)
 	}
 
-	storeCfg, err := s.sectorIdxer.StoreMgr().ReserveSpace(ctx, util.FormatSectorID(sid), size, candidates)
+	storeCfg, err := s.sectorIdxer.StoreMgr().ReserveSpace(ctx, sid, size, candidates)
 	if err != nil {
 		return nil, fmt.Errorf("reserve space: %w", err)
 	}
