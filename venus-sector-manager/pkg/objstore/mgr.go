@@ -78,8 +78,8 @@ func (p StoreSelectPolicy) Allowed(miner abi.ActorID) bool {
 		}
 	}
 
-	if len(p.DenyMiners) > 0 {
-		for _, allow := range p.DenyMiners {
+	if len(p.AllowMiners) > 0 {
+		for _, allow := range p.AllowMiners {
 			if allow == miner {
 				return true
 			}

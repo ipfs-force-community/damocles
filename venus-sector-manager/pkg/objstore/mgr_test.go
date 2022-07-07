@@ -234,3 +234,110 @@ func TestStoreManagerReserverSpaceWeighed(t *testing.T) {
 		require.NoError(t, err, "reset reserved")
 	}
 }
+
+func TestStoreSelectPolicy(t *testing.T) {
+	cases := []struct {
+		policy StoreSelectPolicy
+		miner  abi.ActorID
+		allow  bool
+	}{
+		// nils
+		{
+			policy: StoreSelectPolicy{},
+			miner:  1,
+			allow:  true,
+		},
+
+		// emptys
+		{
+			policy: StoreSelectPolicy{
+				AllowMiners: []abi.ActorID{},
+				DenyMiners:  []abi.ActorID{},
+			},
+			miner: 2,
+			allow: true,
+		},
+
+		// allowed by whitelist
+		{
+			policy: StoreSelectPolicy{
+				AllowMiners: []abi.ActorID{2},
+			},
+			miner: 2,
+			allow: true,
+		},
+
+		// denied by whitelist
+		{
+			policy: StoreSelectPolicy{
+				AllowMiners: []abi.ActorID{2},
+			},
+			miner: 3,
+			allow: false,
+		},
+
+		// denied by blacklist
+		{
+			policy: StoreSelectPolicy{
+				DenyMiners: []abi.ActorID{2},
+			},
+			miner: 2,
+			allow: false,
+		},
+
+		// allowed as not in blacklist
+		{
+			policy: StoreSelectPolicy{
+				DenyMiners: []abi.ActorID{2},
+			},
+			miner: 3,
+			allow: true,
+		},
+
+		// both set case1
+		{
+			policy: StoreSelectPolicy{
+				AllowMiners: []abi.ActorID{2},
+				DenyMiners:  []abi.ActorID{3},
+			},
+			miner: 2,
+			allow: true,
+		},
+
+		// both set case2
+		{
+			policy: StoreSelectPolicy{
+				AllowMiners: []abi.ActorID{2},
+				DenyMiners:  []abi.ActorID{3},
+			},
+			miner: 3,
+			allow: false,
+		},
+
+		// both set case3
+		{
+			policy: StoreSelectPolicy{
+				AllowMiners: []abi.ActorID{2},
+				DenyMiners:  []abi.ActorID{3},
+			},
+			miner: 4,
+			allow: false,
+		},
+
+		// blacklist has the priority
+		{
+			policy: StoreSelectPolicy{
+				AllowMiners: []abi.ActorID{2},
+				DenyMiners:  []abi.ActorID{2, 3},
+			},
+			miner: 2,
+			allow: false,
+		},
+	}
+
+	for i := range cases {
+		c := cases[i]
+		got := c.policy.Allowed(c.miner)
+		require.Equalf(t, c.allow, got, "#%d policy checks for %d with allow: %v, deny: %v", i, c.miner, c.policy.AllowMiners, c.policy.DenyMiners)
+	}
+}
