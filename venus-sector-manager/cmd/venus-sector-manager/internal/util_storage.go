@@ -458,10 +458,10 @@ var utilStorageListCmd = &cli.Command{
 var utilStorageReleaseReservedCmd = &cli.Command{
 	Name:      "release-reserved",
 	Flags:     []cli.Flag{},
-	ArgsUsage: "<sector identifiers>...",
+	ArgsUsage: "<actor id> <number>",
 	Action: func(cctx *cli.Context) error {
-		ids := cctx.Args().Slice()
-		if len(ids) == 0 {
+		args := cctx.Args()
+		if args.Len() < 2 {
 			return cli.ShowSubcommandHelp(cctx)
 		}
 
@@ -471,21 +471,25 @@ var utilStorageReleaseReservedCmd = &cli.Command{
 		}
 		defer astop()
 
-		for _, id := range ids {
-			sid, ok := util.ScanSectorID(id)
-			if !ok {
-				Log.Warnf("%s is not a valid sector identifier", id)
-				continue
-			}
-
-			done, err := api.Sealer.StoreReleaseReserved(actx, sid)
-			if err != nil {
-				Log.Errorf("%s", RPCCallError("StoreReleaseReserved", err))
-				continue
-			}
-
-			Log.With("sector", id).Infof("released: %v", done)
+		minerID, err := ShouldActor(args.Get(0), true)
+		if err != nil {
+			return fmt.Errorf("extract miner id: %w", err)
 		}
+
+		num, err := ShouldSectorNumber(args.Get(1))
+		if err != nil {
+			return fmt.Errorf("extract sector number: %w", err)
+		}
+		sid := abi.SectorID{
+			Miner:  minerID,
+			Number: num,
+		}
+		done, err := api.Sealer.StoreReleaseReserved(actx, sid)
+		if err != nil {
+			return RPCCallError("StoreReleaseReserved", err)
+		}
+
+		Log.With("sector", util.FormatSectorID(sid)).Infof("released: %v", done)
 
 		return nil
 	},

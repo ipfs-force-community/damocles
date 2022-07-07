@@ -87,6 +87,7 @@ type PieceStoreConfig struct {
 type PersistStoreConfig struct {
 	objstore.Config
 	Plugin string
+	objstore.StoreSelectPolicy
 }
 
 type CommonConfig struct {
@@ -125,6 +126,10 @@ func defaultCommonConfig(example bool) CommonConfig {
 				Meta: exampleCfg.Meta,
 			},
 			Plugin: "path/to/objstore-plugin",
+			StoreSelectPolicy: objstore.StoreSelectPolicy{
+				AllowMiners: []abi.ActorID{1, 2},
+				DenyMiners:  []abi.ActorID{3, 4},
+			},
 		})
 	}
 

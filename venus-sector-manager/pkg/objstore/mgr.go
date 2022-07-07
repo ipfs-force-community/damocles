@@ -9,8 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/mroth/weightedrand"
 
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
@@ -58,11 +60,38 @@ type StoreInfo struct {
 type Manager interface {
 	GetInstance(ctx context.Context, name string) (Store, error)
 	ListInstances(ctx context.Context) ([]StoreInfo, error)
-	ReserveSpace(ctx context.Context, by string, size uint64, candidates []string) (*Config, error)
-	ReleaseReserved(ctx context.Context, by string) (bool, error)
+	ReserveSpace(ctx context.Context, by abi.SectorID, size uint64, candidates []string) (*Config, error)
+	ReleaseReserved(ctx context.Context, by abi.SectorID) (bool, error)
 }
 
-func NewStoreManager(stores []Store, metadb kvstore.KVStore) (*StoreManager, error) {
+type StoreSelectPolicy struct {
+	AllowMiners []abi.ActorID
+	DenyMiners  []abi.ActorID
+}
+
+func (p StoreSelectPolicy) Allowed(miner abi.ActorID) bool {
+	if len(p.DenyMiners) > 0 {
+		for _, deny := range p.DenyMiners {
+			if deny == miner {
+				return false
+			}
+		}
+	}
+
+	if len(p.AllowMiners) > 0 {
+		for _, allow := range p.AllowMiners {
+			if allow == miner {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	return true
+}
+
+func NewStoreManager(stores []Store, policy map[string]StoreSelectPolicy, metadb kvstore.KVStore) (*StoreManager, error) {
 	idxes := map[string]int{}
 	for i, st := range stores {
 		idxes[st.Instance(context.Background())] = i
@@ -71,8 +100,10 @@ func NewStoreManager(stores []Store, metadb kvstore.KVStore) (*StoreManager, err
 	mgr := &StoreManager{
 		storeIdxes: idxes,
 		stores:     stores,
-		resRand:    rand.New(rand.NewSource(time.Now().UnixNano())),
-		metadb:     metadb,
+		policy:     policy,
+
+		resRand: rand.New(rand.NewSource(time.Now().UnixNano())),
+		metadb:  metadb,
 	}
 
 	return mgr, nil
@@ -81,6 +112,7 @@ func NewStoreManager(stores []Store, metadb kvstore.KVStore) (*StoreManager, err
 type StoreManager struct {
 	storeIdxes map[string]int
 	stores     []Store
+	policy     map[string]StoreSelectPolicy
 
 	resRand   *rand.Rand
 	reserveMu sync.Mutex
@@ -131,7 +163,8 @@ type storeCandidate struct {
 	InstanceInfo
 }
 
-func (m *StoreManager) ReserveSpace(ctx context.Context, by string, size uint64, candidates []string) (*Config, error) {
+func (m *StoreManager) ReserveSpace(ctx context.Context, sid abi.SectorID, size uint64, candidates []string) (*Config, error) {
+	by := util.FormatSectorID(sid)
 	rlog := mgrLog.With("by", by, "size", size)
 
 	var cand map[string]bool
@@ -149,6 +182,13 @@ func (m *StoreManager) ReserveSpace(ctx context.Context, by string, size uint64,
 		for si := range m.stores {
 			st := m.stores[si]
 			insName := st.Instance(ctx)
+
+			if policy, ok := m.policy[insName]; ok {
+				if !policy.Allowed(sid.Miner) {
+					continue
+				}
+			}
+
 			if len(cand) == 0 || cand[insName] {
 				info, err := st.InstanceInfo(ctx)
 				if err != nil {
@@ -234,7 +274,8 @@ func (m *StoreManager) ReserveSpace(ctx context.Context, by string, size uint64,
 	return selected, nil
 }
 
-func (m *StoreManager) ReleaseReserved(ctx context.Context, by string) (bool, error) {
+func (m *StoreManager) ReleaseReserved(ctx context.Context, sid abi.SectorID) (bool, error) {
+	by := util.FormatSectorID(sid)
 	released := false
 	err := m.modifyReserved(ctx, func(summary *StoreReserveSummary) (bool, error) {
 		changed := false

@@ -424,6 +424,7 @@ func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker, gl
 	locker.Unlock()
 
 	stores := make([]objstore.Store, 0, len(persistCfg))
+	policy := map[string]objstore.StoreSelectPolicy{}
 	for pi := range persistCfg {
 		st, err := openObjStore(persistCfg[pi].Config, persistCfg[pi].Plugin)
 		if err != nil {
@@ -431,6 +432,7 @@ func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker, gl
 		}
 
 		stores = append(stores, st)
+		policy[st.Instance(context.Background())] = persistCfg[pi].StoreSelectPolicy
 	}
 
 	wrapped, err := kvstore.NewWrappedKVStore([]byte("objstore"), globalStore)
@@ -438,7 +440,7 @@ func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker, gl
 		return nil, fmt.Errorf("construct wrapped kv store for objstore: %w", err)
 	}
 
-	return objstore.NewStoreManager(stores, wrapped)
+	return objstore.NewStoreManager(stores, policy, wrapped)
 }
 
 func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (core.SectorIndexer, error) {
