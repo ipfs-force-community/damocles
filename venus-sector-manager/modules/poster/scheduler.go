@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/filecoin-project/go-address"
@@ -153,7 +155,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 			return
 		}
 
-		if _, err = s.checkNextRecoveries(context.TODO(), &diPeriod{index: di.Index, open: di.Open}, declDeadline, partitions, ts.Key()); err != nil {
+		if err = s.checkNextRecoveries(context.TODO(), &diPeriod{index: di.Index, open: di.Open}, declDeadline, partitions, ts.Key()); err != nil {
 			// TODO: This is potentially quite bad, but not even trying to post when this fails is objectively worse
 			s.log.Errorf("checking sector recoveries: %v", err)
 		}
@@ -448,21 +450,59 @@ func (s *scheduler) checkNextFaults(ctx context.Context, di *diPeriod, dlIdx uin
 	return faults, nil
 }
 
-func (s *scheduler) checkNextRecoveries(ctx context.Context, di *diPeriod, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) ([]miner.RecoveryDeclaration, error) {
+func (s *scheduler) checkNextRecoveries(ctx context.Context, di *diPeriod, dlIdx uint64, partitions []chain.Partition, tsk types.TipSetKey) error {
+	mcfg, err := s.cfg.MinerConfig(s.actor.ID)
+	if err != nil {
+		return err
+	}
+
 	faulty := uint64(0)
-	params := &miner.DeclareFaultsRecoveredParams{
+	currentParams := &miner.DeclareFaultsRecoveredParams{
 		Recoveries: []miner.RecoveryDeclaration{},
 	}
+
+	handleRecoverMessage := func(params *miner.DeclareFaultsRecoveredParams) {
+		if len(params.Recoveries) == 0 {
+			return
+		}
+
+		partitionIndexs := make([]string, len(params.Recoveries))
+		for ri := range params.Recoveries {
+			partitionIndexs[ri] = strconv.FormatUint(params.Recoveries[ri].Partition, 10)
+		}
+
+		rlog := log.With("miner", s.actor.ID, "stage", "recover", "dlIdx", dlIdx, "partitions", strings.Join(partitionIndexs, ", "))
+
+		_, resCh, err := s.publishMessage(ctx, stbuiltin.MethodsMiner.DeclareFaultsRecovered, params, di, true)
+		if err != nil {
+			rlog.Errorf("publish message: %s", err)
+			return
+		}
+
+		res := <-resCh
+
+		if res.err != nil {
+			rlog.Errorf("declare faults recovered wait error: %s", res.err)
+			return
+		}
+
+		if res.Message.Receipt.ExitCode != 0 {
+			rlog.Errorf("declare faults recovered %s got non-0 exit code: %d", res.Message.SignedCid, res.Message.Receipt.ExitCode)
+			return
+		}
+	}
+
+	var recoverTotal uint64
 
 	for partIdx, partition := range partitions {
 		unrecovered, err := bitfield.SubtractBitField(partition.FaultySectors, partition.RecoveringSectors)
 		if err != nil {
-			return nil, fmt.Errorf("subtracting recovered set from fault set: %w", err)
+			return fmt.Errorf("subtracting recovered set from fault set: %w", err)
 		}
 
 		uc, err := unrecovered.Count()
 		if err != nil {
-			return nil, fmt.Errorf("counting unrecovered sectors: %w", err)
+			return fmt.Errorf("counting unrecovered sectors: %w", err)
 		}
 
 		if uc == 0 {
@@ -473,51 +513,44 @@ func (s *scheduler) checkNextRecoveries(ctx context.Context, di *diPeriod, dlIdx
 
 		recovered, err := s.checkSectors(ctx, unrecovered, tsk)
 		if err != nil {
-			return nil, fmt.Errorf("checking unrecovered sectors: %w", err)
+			return fmt.Errorf("checking unrecovered sectors: %w", err)
 		}
 
 		// if all sectors failed to recover, don't declare recoveries
 		recoveredCount, err := recovered.Count()
 		if err != nil {
-			return nil, fmt.Errorf("counting recovered sectors: %w", err)
+			return fmt.Errorf("counting recovered sectors: %w", err)
 		}
 
 		if recoveredCount == 0 {
 			continue
 		}
 
-		params.Recoveries = append(params.Recoveries, miner.RecoveryDeclaration{
+		recoverTotal += recoveredCount
+
+		currentParams.Recoveries = append(currentParams.Recoveries, miner.RecoveryDeclaration{
 			Deadline:  dlIdx,
 			Partition: uint64(partIdx),
 			Sectors:   recovered,
 		})
-	}
 
-	recoveries := params.Recoveries
-	if len(recoveries) == 0 {
-		if faulty != 0 {
-			s.log.Warnw("No recoveries to declare", "deadline", dlIdx, "faulty", faulty)
+		if mcfg.PoSt.MaxPartitionsPerRecoveryMessage > 0 &&
+			len(currentParams.Recoveries) >= int(mcfg.PoSt.MaxPartitionsPerRecoveryMessage) {
+
+			go handleRecoverMessage(currentParams)
+			currentParams = &miner.DeclareFaultsRecoveredParams{
+				Recoveries: []miner.RecoveryDeclaration{},
+			}
 		}
-
-		return recoveries, nil
 	}
 
-	_, resCh, err := s.publishMessage(ctx, stbuiltin.MethodsMiner.DeclareFaultsRecovered, params, di, true)
-	if err != nil {
-		return recoveries, err
+	if recoverTotal == 0 && faulty != 0 {
+		s.log.Warnw("No recoveries to declare", "deadline", dlIdx, "faulty", faulty)
 	}
 
-	res := <-resCh
+	go handleRecoverMessage(currentParams)
 
-	if res.err != nil {
-		return recoveries, fmt.Errorf("declare faults recovered wait error: %w", res.err)
-	}
-
-	if res.Message.Receipt.ExitCode != 0 {
-		return recoveries, fmt.Errorf("declare faults recovered %s got non-0 exit code: %d", res.Message.SignedCid, res.Message.Receipt.ExitCode)
-	}
-
-	return recoveries, nil
+	return nil
 }
 
 func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, tsk types.TipSetKey) (bitfield.BitField, error) {
