@@ -72,6 +72,7 @@ impl Numa {
 
     /// Binds the current task and its children to the specified NUMA node
     /// They will only run on the CPUs of the specified nodes and only be able to allocate memory from them.
+    /// Return max size of the nodemask of Err if `node` greater than the size of the nodemask.
     pub fn bind(&self, node: u32) -> Result<(), u64> {
         bind(node)
     }
