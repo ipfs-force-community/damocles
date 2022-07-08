@@ -269,7 +269,7 @@ func (s *Sealer) RemoveSector(ctx context.Context, sid abi.SectorID) error {
 }
 
 func (s *Sealer) StoreReleaseReserved(ctx context.Context, sid abi.SectorID) (bool, error) {
-	done, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, util.FormatSectorID(sid))
+	done, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, sid)
 	if err != nil {
 		return false, fmt.Errorf("release reserved: %w", err)
 	}

@@ -87,6 +87,7 @@ type PieceStoreConfig struct {
 type PersistStoreConfig struct {
 	objstore.Config
 	Plugin string
+	objstore.StoreSelectPolicy
 }
 
 type CommonConfig struct {
@@ -125,6 +126,10 @@ func defaultCommonConfig(example bool) CommonConfig {
 				Meta: exampleCfg.Meta,
 			},
 			Plugin: "path/to/objstore-plugin",
+			StoreSelectPolicy: objstore.StoreSelectPolicy{
+				AllowMiners: []abi.ActorID{1, 2},
+				DenyMiners:  []abi.ActorID{3, 4},
+			},
 		})
 	}
 
@@ -287,17 +292,21 @@ type MinerPoStConfig struct {
 	Enabled     bool
 	StrictCheck bool
 	FeeConfig
-	Confidence          uint64
-	ChallengeConfidence uint64
+	Confidence                      uint64
+	ChallengeConfidence             uint64
+	MaxPartitionsPerPoStMessage     uint64
+	MaxPartitionsPerRecoveryMessage uint64
 }
 
 func defaultMinerPoStConfig(example bool) MinerPoStConfig {
 	cfg := MinerPoStConfig{
-		Enabled:             true,
-		StrictCheck:         true,
-		FeeConfig:           defaultFeeConfig(),
-		Confidence:          10,
-		ChallengeConfidence: 10,
+		Enabled:                         true,
+		StrictCheck:                     true,
+		FeeConfig:                       defaultFeeConfig(),
+		Confidence:                      10,
+		ChallengeConfidence:             10,
+		MaxPartitionsPerPoStMessage:     0,
+		MaxPartitionsPerRecoveryMessage: 0,
 	}
 
 	if example {

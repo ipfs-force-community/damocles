@@ -144,7 +144,7 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.A
 		return state.Pieces, nil
 	}
 
-	pieces, err := s.deal.Acquire(ctx, sid, spec, core.SectorWorkerJobSealing)
+	pieces, err := s.deal.Acquire(ctx, sid, spec, nil, core.SectorWorkerJobSealing)
 	if err != nil {
 		return nil, err
 	}
@@ -316,9 +316,8 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Me
 		return core.Empty, sectorStateErr(err)
 	}
 
-	reservedBy := util.FormatSectorID(sid)
-	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, reservedBy); err != nil {
-		log.With("sector", reservedBy).Errorf("release reserved: %s", err)
+	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, sid); err != nil {
+		log.With("sector", util.FormatSectorID(sid)).Errorf("release reserved: %s", err)
 	}
 
 	return core.Empty, nil
@@ -347,9 +346,8 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 		return core.Empty, sectorStateErr(err)
 	}
 
-	reservedBy := util.FormatSectorID(sid)
-	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, reservedBy); err != nil {
-		log.With("sector", reservedBy).Errorf("release reserved: %s", err)
+	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, sid); err != nil {
+		log.With("sector", util.FormatSectorID(sid)).Errorf("release reserved: %s", err)
 	}
 
 	return core.Empty, nil
@@ -380,7 +378,10 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 		}
 	}()
 
-	pieces, err := s.deal.Acquire(ctx, candidateSector.Sector.ID, spec.Deals, core.SectorWorkerJobSnapUp)
+	pieces, err := s.deal.Acquire(ctx, candidateSector.Sector.ID, spec.Deals, &core.AcquireDealsLifetime{
+		Start: candidateSector.Public.Activation,
+		End:   candidateSector.Public.Expiration,
+	}, core.SectorWorkerJobSnapUp)
 	if err != nil {
 		return nil, fmt.Errorf("acquire deals: %w", err)
 	}
@@ -618,7 +619,7 @@ func (s *Sealer) StoreReserveSpace(ctx context.Context, sid abi.SectorID, size u
 		return nil, sectorStateErr(err)
 	}
 
-	storeCfg, err := s.sectorIdxer.StoreMgr().ReserveSpace(ctx, util.FormatSectorID(sid), size, candidates)
+	storeCfg, err := s.sectorIdxer.StoreMgr().ReserveSpace(ctx, sid, size, candidates)
 	if err != nil {
 		return nil, fmt.Errorf("reserve space: %w", err)
 	}
