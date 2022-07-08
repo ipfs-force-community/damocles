@@ -144,7 +144,7 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.A
 		return state.Pieces, nil
 	}
 
-	pieces, err := s.deal.Acquire(ctx, sid, spec, core.SectorWorkerJobSealing)
+	pieces, err := s.deal.Acquire(ctx, sid, spec, nil, core.SectorWorkerJobSealing)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +378,10 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 		}
 	}()
 
-	pieces, err := s.deal.Acquire(ctx, candidateSector.Sector.ID, spec.Deals, core.SectorWorkerJobSnapUp)
+	pieces, err := s.deal.Acquire(ctx, candidateSector.Sector.ID, spec.Deals, &core.AcquireDealsLifetime{
+		Start: candidateSector.Public.Activation,
+		End:   candidateSector.Public.Expiration,
+	}, core.SectorWorkerJobSnapUp)
 	if err != nil {
 		return nil, fmt.Errorf("acquire deals: %w", err)
 	}

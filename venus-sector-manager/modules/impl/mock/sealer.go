@@ -40,7 +40,7 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 }
 
 func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.Deals, error) {
-	return s.deal.Acquire(ctx, sid, spec, core.SectorWorkerJobSealing)
+	return s.deal.Acquire(ctx, sid, spec, nil, core.SectorWorkerJobSealing)
 }
 
 func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (core.Ticket, error) {

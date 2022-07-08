@@ -48,6 +48,11 @@ type AcquireDealsSpec struct {
 	MinUsedSpace *uint64
 }
 
+type AcquireDealsLifetime struct {
+	Start abi.ChainEpoch
+	End   abi.ChainEpoch
+}
+
 type Ticket struct {
 	Ticket abi.Randomness
 	Epoch  abi.ChainEpoch
