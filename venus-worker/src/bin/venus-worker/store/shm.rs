@@ -25,7 +25,7 @@ pub fn init_shm_files(numa_node_idx: u32, size: ByteSize, num: usize, shm_numa_d
 
     let filename = size.to_string_as(true).replace(' ', "_");
 
-    let paths = (0..num).map(|i| dir.join(format!("{}_{}", filename, now, i))).collect::<Vec<_>>();
+    let paths = (0..num).map(|i| dir.join(format!("{}_{}", filename, i))).collect::<Vec<_>>();
 
     let files = paths
         .iter()

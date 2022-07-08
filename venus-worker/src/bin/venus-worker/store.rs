@@ -40,7 +40,6 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
             .short("s")
             .required(true)
             .takes_value(true)
-            .possible_values(&["32GiB", "64GiB"])
             .help("Specify the size of each shm file. (e.g., 1B, 2KB, 3kiB, 1MB, 2MiB, 3GB, 1GiB, ...)"),
         Arg::with_name("number_of_files")
             .long("num")
