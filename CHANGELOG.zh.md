@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.1
+- venus-sector-manager：
+  - 支持用于调节 PoSt 环节消息发送策略的 `MaxPartitionsPerPoStMessage` 和 `MaxPartitionsPerRecoveryMessage` 配置项
+
 ## v0.3.0
 
 - venus-sector-manager：
