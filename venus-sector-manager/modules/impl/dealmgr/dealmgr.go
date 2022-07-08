@@ -32,7 +32,7 @@ type DealManager struct {
 	acquireMu sync.Mutex
 }
 
-func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec, job core.SectorWorkerJob) (core.Deals, error) {
+func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec, lifetime *core.AcquireDealsLifetime, job core.SectorWorkerJob) (core.Deals, error) {
 	mcfg, err := dm.scfg.MinerConfig(sid.Miner)
 	if err != nil {
 		return nil, fmt.Errorf("get miner config: %w", err)
@@ -64,6 +64,11 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.
 
 	if spec.MinUsedSpace != nil {
 		mspec.MinUsedSpace = *spec.MinUsedSpace
+	}
+
+	if lifetime != nil {
+		mspec.StartEpoch = lifetime.Start
+		mspec.EndEpoch = lifetime.End
 	}
 
 	dm.acquireMu.Lock()

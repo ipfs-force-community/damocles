@@ -16,7 +16,7 @@ type SectorManager interface {
 }
 
 type DealManager interface {
-	Acquire(ctx context.Context, sid abi.SectorID, spec AcquireDealsSpec, job SectorWorkerJob) (Deals, error)
+	Acquire(ctx context.Context, sid abi.SectorID, spec AcquireDealsSpec, lifetime *AcquireDealsLifetime, job SectorWorkerJob) (Deals, error)
 	Release(ctx context.Context, sid abi.SectorID, acquired Deals) error
 }
 
