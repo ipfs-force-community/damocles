@@ -591,6 +591,11 @@ func (s *scheduler) sectorsForProof(ctx context.Context, goodSectors, allSectors
 }
 
 func (s *scheduler) batchPartitions(partitions []chain.Partition, nv network.Version) ([][]chain.Partition, error) {
+	mcfg, err := s.cfg.MinerConfig(s.actor.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	// We don't want to exceed the number of sectors allowed in a message.
 	// So given the number of sectors in a partition, work out the number of
 	// partitions that can be in a message without exceeding sectors per
@@ -613,6 +618,12 @@ func (s *scheduler) batchPartitions(partitions []chain.Partition, nv network.Ver
 	}
 	if partitionsPerMsg > declMax {
 		partitionsPerMsg = declMax
+	}
+
+	if max := int(mcfg.PoSt.MaxPartitionsPerPoStMessage); max > 0 {
+		if partitionsPerMsg > max {
+			partitionsPerMsg = max
+		}
 	}
 
 	// The number of messages will be:
