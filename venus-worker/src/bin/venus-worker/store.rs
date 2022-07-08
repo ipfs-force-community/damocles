@@ -52,7 +52,7 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
             .long("pat")
             .short("p")
             .required(false)
-            .default_value("filecoin-proof-label/numa_$NUMA_NODE_INDEX")
+            .default_value(default_shm_numa_dir_pattern())
             .help("Specify the shared memory directory pattern"),
     ]);
 
@@ -123,4 +123,17 @@ fn shm_init(m: &ArgMatches) -> Result<()> {
 #[cfg(not(target_os = "linux"))]
 fn shm_init(_m: &ArgMatches) -> Result<()> {
     Err(anyhow!("This command is only supported for the Linux operating system"))
+}
+
+fn default_shm_numa_dir_pattern() -> &'static str {
+    use std::sync::Once;
+
+    use vc_processors::fil_proofs::settings::ShmNumaDirPattern;
+
+    static mut PAT: String = String::new();
+    static INIT: Once = Once::new();
+
+    INIT.call_once(|| unsafe { PAT = format!("filecoin-proof-label/numa_{}", ShmNumaDirPattern::NUMA_NODE_IDX_VAR_NAME) });
+
+    unsafe { PAT.as_str() }
 }

@@ -6,9 +6,8 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use bytesize::ByteSize;
-use time::OffsetDateTime;
 use tracing::{debug, warn};
-use vc_processors::sys::numa::Numa;
+use vc_processors::{fil_proofs::settings::ShmNumaDirPattern, sys::numa::Numa};
 
 pub fn init_shm_files(numa_node_idx: u32, size: ByteSize, num: usize, shm_numa_dir_pattern: String) -> Result<Vec<PathBuf>> {
     // bind NUMA node
@@ -20,19 +19,13 @@ pub fn init_shm_files(numa_node_idx: u32, size: ByteSize, num: usize, shm_numa_d
     dir.push(
         shm_numa_dir_pattern
             .trim_matches('/')
-            .replacen("$NUMA_NODE_INDEX", &numa_node_idx.to_string(), 1),
+            .replacen(ShmNumaDirPattern::NUMA_NODE_IDX_VAR_NAME, &numa_node_idx.to_string(), 1),
     );
     fs::create_dir_all(&dir).with_context(|| format!("create shm directory: '{}'", dir.display()))?;
 
     let filename = size.to_string_as(true).replace(' ', "_");
 
-    let now = OffsetDateTime::now_local()
-        .unwrap_or_else(|_| OffsetDateTime::now_utc())
-        .unix_timestamp();
-
-    let paths = (0..num)
-        .map(|i| dir.join(format!("{}_{}_{}", filename, now, i)))
-        .collect::<Vec<_>>();
+    let paths = (0..num).map(|i| dir.join(format!("{}_{}", filename, now, i))).collect::<Vec<_>>();
 
     let files = paths
         .iter()
