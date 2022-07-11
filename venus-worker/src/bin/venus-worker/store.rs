@@ -47,12 +47,6 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
             .required(true)
             .takes_value(true)
             .help("Specify the number of shm files to be created"),
-        Arg::with_name("shm_numa_dir_pattern")
-            .long("pat")
-            .short("p")
-            .required(false)
-            .default_value(default_shm_numa_dir_pattern())
-            .help("Specify the shared memory directory pattern"),
     ]);
 
     SubCommand::with_name(SUB_CMD_NAME)
@@ -110,8 +104,8 @@ fn shm_init(m: &ArgMatches) -> Result<()> {
     let numa_node_idx = value_t!(m, "numa_node_index", u32).context("invalid NUMA node index")?;
     let size = value_t!(m, "size", bytesize::ByteSize).context("invalid file size")?;
     let num = value_t!(m, "number_of_files", usize).context("invalid number_of_files")?;
-    let pat = value_t!(m, "shm_numa_dir_pattern", String)?;
-    let files = shm::init_shm_files(numa_node_idx, size, num, pat)?;
+
+    let files = shm::init_shm_files(numa_node_idx, size, num)?;
     println!("Created SHM files:");
     for file in files {
         println!("{}", file.display())
@@ -122,17 +116,4 @@ fn shm_init(m: &ArgMatches) -> Result<()> {
 #[cfg(not(target_os = "linux"))]
 fn shm_init(_m: &ArgMatches) -> Result<()> {
     Err(anyhow!("This command is only supported for the Linux operating system"))
-}
-
-fn default_shm_numa_dir_pattern() -> &'static str {
-    use std::sync::Once;
-
-    use vc_processors::fil_proofs::settings::ShmNumaDirPattern;
-
-    static mut PAT: String = String::new();
-    static INIT: Once = Once::new();
-
-    INIT.call_once(|| unsafe { PAT = format!("filecoin-proof-label/numa_{}", ShmNumaDirPattern::NUMA_NODE_IDX_VAR_NAME) });
-
-    unsafe { PAT.as_str() }
 }

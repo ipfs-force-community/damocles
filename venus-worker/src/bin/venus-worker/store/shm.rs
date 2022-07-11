@@ -7,20 +7,23 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use bytesize::ByteSize;
 use tracing::{debug, warn};
-use vc_processors::{fil_proofs::settings::ShmNumaDirPattern, sys::numa::Numa};
+use vc_processors::{
+    fil_proofs::settings::{ShmNumaDirPattern, SETTINGS},
+    sys::numa::Numa,
+};
 
-pub fn init_shm_files(numa_node_idx: u32, size: ByteSize, num: usize, shm_numa_dir_pattern: String) -> Result<Vec<PathBuf>> {
+pub fn init_shm_files(numa_node_idx: u32, size: ByteSize, num: usize) -> Result<Vec<PathBuf>> {
     // bind NUMA node
     let numa = Numa::new().map_err(|_| anyhow!("NUMA not available"))?;
     numa.bind(numa_node_idx)
         .map_err(|_| anyhow!("invalid NUMA node: {}", numa_node_idx))?;
 
     let mut dir = PathBuf::from("/dev/shm");
-    dir.push(
-        shm_numa_dir_pattern
-            .trim_matches('/')
-            .replacen(ShmNumaDirPattern::NUMA_NODE_IDX_VAR_NAME, &numa_node_idx.to_string(), 1),
-    );
+    dir.push(SETTINGS.multicore_sdr_shm_numa_dir_pattern.trim_matches('/').replacen(
+        ShmNumaDirPattern::NUMA_NODE_IDX_VAR_NAME,
+        &numa_node_idx.to_string(),
+        1,
+    ));
     fs::create_dir_all(&dir).with_context(|| format!("create shm directory: '{}'", dir.display()))?;
 
     let filename = size.to_string_as(true).replace(' ', "_");
