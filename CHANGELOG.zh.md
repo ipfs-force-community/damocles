@@ -18,7 +18,7 @@
     - 改善手动 Abort 的扇区任务的处理
     - 针对 SysErrOutOfGas 类信息特殊处理
   - 重构持久化存储管理，包括：
-    - ·将持久化存储分配和管理逻辑从 venus-worker 上剥离，统一集中到 venus-sector-manager 上
+    - 将持久化存储分配和管理逻辑从 venus-worker 上剥离，统一集中到 venus-sector-manager 上
     - 通过 golang plugin 的方式支持自定义持久化存储管理
     - 存储实例分配支持根据 MinerID 白名单/黑名单执行相应策略
   - 修复外部导入的扇区无法 terminate 的问题
