@@ -33,6 +33,8 @@ pub use filecoin_proofs_api::{
     RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket, UnpaddedBytesAmount,
 };
 
+pub use storage_proofs_core::settings;
+
 /// Identifier for Actors.
 pub type ActorID = u64;
 

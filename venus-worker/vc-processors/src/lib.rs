@@ -14,7 +14,7 @@
 //!
 
 pub mod core;
-pub(crate) mod sys;
+pub mod sys;
 
 #[cfg(feature = "fil-proofs")]
 #[allow(missing_docs)]
