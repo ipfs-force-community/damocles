@@ -1,5 +1,68 @@
 # Changelog
 
+## v0.4.0-rc1
+
+- venus-sector-manager
+  - 支持为 `SP` 设置最小扇区序号，并可以实时生效，用以替代仅能在第一次分配时生效的 `InitNumber` 配置项
+  - 修复使用 `bufio.Scanner` 带来的，在交互数据量较大时，无法正常与外部处理器通信的问题
+  - 启用 `jsonrpc` 客户端的自动重试机制
+  - 修复 `util miner info` 中 `Multiaddr` 显式乱码的问题
+  - 修复重复执行 `daemon init` 覆盖已存在的配置文件的问题
+  - 增加 winning post 的预热功能
+  - 优化 SnapUp 任务流程，包括：
+    - 支持根据候选扇区生命周期筛选订单（需要 venus-market 相应版本支持）
+    - 改善终止 SnapUp 任务时的清理
+    - 完善 SnapUp 任务完成时的旧扇区数据清理
+  - 优化封装任务流程，包括：
+    - 完善对于无法获取扇区信息记录的场景的处理
+    - 改善手动 Abort 的扇区任务的处理
+    - 针对 SysErrOutOfGas 类信息特殊处理
+  - 重构持久化存储管理，包括：
+    - ·将持久化存储分配和管理逻辑从 venus-worker 上剥离，统一集中到 venus-sector-manager 上
+    - 通过 golang plugin 的方式支持自定义持久化存储管理
+    - 存储实例分配支持根据 MinerID 白名单/黑名单执行相应策略
+  - 修复外部导入的扇区无法 terminate 的问题
+  - 支持使用外部 `winning post` 处理器
+  - CLI 工具相关：
+    - 调整 扇区列表 子命令，支持输出不同任务类型、活跃和非活跃数据、根据 MinerID 过滤等
+    - 增加用于输出指定扇区的全量信息的子命令
+    - 增加查询订单所属扇区的子命令
+    - 增加用于重发 pre / prove 上链信息的子命令
+  - 配置调整：
+    - 增加 `[[Common.PersistStores]]` 中的 `AllowMiners ` 和 `DenyMiners` 配置项
+    - 增加 `[[Common.PersistStores]]` 中的 `Meta` 配置项
+    - 增加 `[[Common.PersistStores]]` 中的 `Plugin` 配置项
+    - 增加 `[[Common.PersistStores]]` 中的 `ReadOnly` 配置项
+    - 增加 `[[Common.PersistStores]]` 中的 `Weight` 配置项
+    - 增加 `[[Common.PieceStores]]` 中的 `Meta` 配置项
+    - 增加 `[[Common.PieceStores]]` 中的 `Plugin` 配置项
+    - 增加 `[[Miners.Sector]]` 中的 `MinNumber` 配置项
+
+
+
+- venus-worker
+  - 将外部处理器相关代码剥离形成独立的公开库，以方便集成第三方定制算法
+  - 增加 PoSt 相关的外部处理器类型，供 venus-sector-manager 使用
+  - 增加数据传输相关的外部处理器类型，以方便集成非文件系统存储方案
+  - 修复 `cgroup` 配置生命周期异常的问题
+  - 支持将与外部处理器交互的数据 dump 成文件，方便 debug
+  - 引入对应 filecoins-proofs v11 系列版本对应的自定义封装算法，支持 pc1 多核模式下，CPU核与预分配内存基于 numa 区域强绑定，以提升时间表现稳定性
+  - 配置调整：
+    - `[[processors.{stage_name}]]` 新增 `transfer` 阶段，配置用于数据传输的外部处理器相关
+- 工具链
+  - 支持在 macOS 上编译
+  - 提供本机硬件嗅探工具
+  - 提供封装生产循环计算器
+  - 提供生成预分配在指定 numa 区域的整块内存文件的工具
+- 文档
+  - 新增关于 venus-worker-util 工具的使用文档
+  - 新增关于自定义算法和存储方法的概述文档
+- 其他改善和修复
+
+详细的 PRs 和 Issues 可以参考 [venus-cluster milestone v0.4.0](https://github.com/ipfs-force-community/venus-cluster/milestone/4?closed=1)。
+
+
+
 ## v0.3.1
 - venus-sector-manager：
   - 支持用于调节 PoSt 环节消息发送策略的 `MaxPartitionsPerPoStMessage` 和 `MaxPartitionsPerRecoveryMessage` 配置项
