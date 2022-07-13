@@ -62,15 +62,21 @@ type StateManager struct {
 	locker *sectorsLocker
 }
 
-func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.SectorState, ws core.SectorWorkerState) error {
-	var kv kvstore.KVStore
+func (sm *StateManager) pickStore(ws core.SectorWorkerState) (kvstore.KVStore, error) {
 	switch ws {
 	case core.WorkerOnline:
-		kv = sm.online
+		return sm.online, nil
 	case core.WorkerOffline:
-		kv = sm.offline
+		return sm.offline, nil
 	default:
-		return fmt.Errorf("state %s does not exist", ws)
+		return nil, fmt.Errorf("kv for worker state %s does not exist", ws)
+	}
+}
+
+func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.SectorState, ws core.SectorWorkerState) error {
+	kv, err := sm.pickStore(ws)
+	if err != nil {
+		return fmt.Errorf("load: %w", err)
 	}
 
 	if err := kv.View(ctx, key, func(content []byte) error {
@@ -83,14 +89,9 @@ func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.S
 }
 
 func (sm *StateManager) save(ctx context.Context, key kvstore.Key, state core.SectorState, ws core.SectorWorkerState) error {
-	var kv kvstore.KVStore
-	switch ws {
-	case core.WorkerOnline:
-		kv = sm.online
-	case core.WorkerOffline:
-		kv = sm.offline
-	default:
-		return fmt.Errorf("state %s does not exist", ws)
+	kv, err := sm.pickStore(ws)
+	if err != nil {
+		return fmt.Errorf("save: %w", err)
 	}
 
 	b, err := json.Marshal(state)
@@ -102,15 +103,12 @@ func (sm *StateManager) save(ctx context.Context, key kvstore.Key, state core.Se
 }
 
 func (sm *StateManager) getIter(ctx context.Context, ws core.SectorWorkerState) (kvstore.Iter, error) {
-	switch ws {
-	case core.WorkerOnline:
-		return sm.online.Scan(ctx, nil)
-	case core.WorkerOffline:
-		return sm.offline.Scan(ctx, nil)
-
-	default:
-		return nil, fmt.Errorf("unexpected state store type %s", ws)
+	kv, err := sm.pickStore(ws)
+	if err != nil {
+		return nil, fmt.Errorf("get iter: %w", err)
 	}
+
+	return kv.Scan(ctx, nil)
 }
 
 func (sm *StateManager) All(ctx context.Context, ws core.SectorWorkerState, job core.SectorWorkerJob) ([]*core.SectorState, error) {
@@ -166,6 +164,33 @@ func (sm *StateManager) ForEach(ctx context.Context, ws core.SectorWorkerState, 
 	return nil
 }
 
+func (sm *StateManager) Import(ctx context.Context, ws core.SectorWorkerState, state *core.SectorState) (bool, error) {
+	lock := sm.locker.lock(state.ID)
+	defer lock.unlock()
+
+	kv, err := sm.pickStore(ws)
+	if err != nil {
+		return false, fmt.Errorf("import: %w", err)
+	}
+
+	key := makeSectorKey(state.ID)
+	err = kv.View(ctx, key, func([]byte) error { return nil })
+	if err == nil {
+		return false, nil
+	}
+
+	if err != kvstore.ErrKeyNotFound {
+		return false, err
+	}
+
+	err = sm.save(ctx, key, *state, ws)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (sm *StateManager) Init(ctx context.Context, sid abi.SectorID, st abi.RegisteredSealProof, ws core.SectorWorkerState) error {
 	return sm.InitWith(ctx, sid, st, ws)
 }
@@ -179,18 +204,13 @@ func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofTyp
 		SectorType: proofType,
 	}
 
-	var kv kvstore.KVStore
-	switch ws {
-	case core.WorkerOnline:
-		kv = sm.online
-	case core.WorkerOffline:
-		kv = sm.offline
-	default:
-		return fmt.Errorf("state %s does not exist", ws)
+	kv, err := sm.pickStore(ws)
+	if err != nil {
+		return fmt.Errorf("init: %w", err)
 	}
 
 	key := makeSectorKey(sid)
-	err := kv.View(ctx, key, func([]byte) error { return nil })
+	err = kv.View(ctx, key, func([]byte) error { return nil })
 	if err == nil {
 		return fmt.Errorf("sector %s already initialized", string(key))
 	}

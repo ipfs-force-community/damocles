@@ -98,6 +98,10 @@ func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorke
 	return nil, nil
 }
 
+func (s *Sealer) ImportSector(ctx context.Context, ws core.SectorWorkerState, state *core.SectorState) (bool, error) {
+	return false, nil
+}
+
 func (s *Sealer) RestoreSector(context.Context, abi.SectorID, bool) (core.Meta, error) {
 	return core.Empty, nil
 }

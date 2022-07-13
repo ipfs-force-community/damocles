@@ -36,6 +36,7 @@ type SectorNumberAllocator interface {
 }
 
 type SectorStateManager interface {
+	Import(ctx context.Context, ws SectorWorkerState, state *SectorState) (bool, error)
 	Init(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, ws SectorWorkerState) error
 	InitWith(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, ws SectorWorkerState, fields ...interface{}) error
 	Load(ctx context.Context, sid abi.SectorID, ws SectorWorkerState) (*SectorState, error)
