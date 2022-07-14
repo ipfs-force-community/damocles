@@ -6,7 +6,21 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api"
+	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 	vapi "github.com/filecoin-project/venus/venus-shared/api"
+)
+
+const (
+	FinalizeSector        = sealing.FinalizeSector
+	FinalizeReplicaUpdate = sealing.FinalizeReplicaUpdate
+	UpdateActivating      = sealing.UpdateActivating
+	ReleaseSectorKey      = sealing.ReleaseSectorKey
+)
+
+type (
+	StorageMiner = api.StorageMiner
+	SectorInfo   = api.SectorInfo
+	SectorState  = sealing.SectorState
 )
 
 func New(ctx context.Context, addr string, token string) (StorageMiner, jsonrpc.ClientCloser, error) {
@@ -25,5 +39,3 @@ func New(ctx context.Context, addr string, token string) (StorageMiner, jsonrpc.
 
 	return &a, closer, nil
 }
-
-type StorageMiner = api.StorageMiner

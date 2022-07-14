@@ -39,6 +39,10 @@ type DealInfo struct {
 	PayloadSize uint64
 	Piece       PieceInfo
 	Proposal    *DealProposal
+
+	// this is the flag for pieces from original implmentations
+	// if true, workers should use the piece data directly, instead of padding themselves
+	IsCompatible bool
 }
 
 type Deals []DealInfo

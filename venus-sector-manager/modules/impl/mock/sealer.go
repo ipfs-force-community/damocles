@@ -98,7 +98,7 @@ func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorke
 	return nil, nil
 }
 
-func (s *Sealer) ImportSector(ctx context.Context, ws core.SectorWorkerState, state *core.SectorState) (bool, error) {
+func (s *Sealer) ImportSector(ctx context.Context, ws core.SectorWorkerState, state *core.SectorState, override bool) (bool, error) {
 	return false, nil
 }
 

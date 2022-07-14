@@ -164,26 +164,28 @@ func (sm *StateManager) ForEach(ctx context.Context, ws core.SectorWorkerState, 
 	return nil
 }
 
-func (sm *StateManager) Import(ctx context.Context, ws core.SectorWorkerState, state *core.SectorState) (bool, error) {
+func (sm *StateManager) Import(ctx context.Context, ws core.SectorWorkerState, state *core.SectorState, override bool) (bool, error) {
 	lock := sm.locker.lock(state.ID)
 	defer lock.unlock()
 
-	kv, err := sm.pickStore(ws)
-	if err != nil {
-		return false, fmt.Errorf("import: %w", err)
-	}
-
 	key := makeSectorKey(state.ID)
-	err = kv.View(ctx, key, func([]byte) error { return nil })
-	if err == nil {
-		return false, nil
+	if !override {
+		kv, err := sm.pickStore(ws)
+		if err != nil {
+			return false, fmt.Errorf("import: %w", err)
+		}
+
+		err = kv.View(ctx, key, func([]byte) error { return nil })
+		if err == nil {
+			return false, nil
+		}
+
+		if err != kvstore.ErrKeyNotFound {
+			return false, err
+		}
 	}
 
-	if err != kvstore.ErrKeyNotFound {
-		return false, err
-	}
-
-	err = sm.save(ctx, key, *state, ws)
+	err := sm.save(ctx, key, *state, ws)
 	if err != nil {
 		return false, err
 	}

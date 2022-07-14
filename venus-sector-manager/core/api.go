@@ -69,7 +69,7 @@ type SealerCliAPI interface {
 
 	FindSectorsWithDeal(ctx context.Context, state SectorWorkerState, dealID abi.DealID) ([]*SectorState, error)
 
-	ImportSector(ctx context.Context, ws SectorWorkerState, state *SectorState) (bool, error)
+	ImportSector(ctx context.Context, ws SectorWorkerState, state *SectorState, override bool) (bool, error)
 
 	RestoreSector(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
 
