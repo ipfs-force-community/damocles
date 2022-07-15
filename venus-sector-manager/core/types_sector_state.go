@@ -26,6 +26,7 @@ func SectorWinningPoSt(proofType abi.RegisteredSealProof) (abi.RegisteredPoStPro
 type SectorFinalized bool
 type SectorUpgraded bool
 type SectorRemoved bool
+type SectorImported bool
 type SectorUpgradeLandedEpoch abi.ChainEpoch
 type SectorUpgradeMessageID string
 type SectorUpgradePublic SectorPublicInfo
@@ -63,6 +64,9 @@ type SectorState struct {
 	UpgradedInfo       *SectorUpgradedInfo
 	UpgradeMessageID   *SectorUpgradeMessageID
 	UpgradeLandedEpoch *SectorUpgradeLandedEpoch
+
+	// Imported
+	Imported SectorImported
 }
 
 func (s SectorState) DealIDs() []abi.DealID {

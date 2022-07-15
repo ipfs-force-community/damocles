@@ -23,6 +23,10 @@ var UnavailableSealerCliClient = SealerCliClient{
 		panic("sealer client unavailable")
 	},
 
+	ImportSector: func(ctx context.Context, ws SectorWorkerState, state *SectorState, override bool) (bool, error) {
+		panic("sealer client unavailable")
+	},
+
 	RestoreSector: func(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error) {
 		panic("sealer client unavailable")
 	},
@@ -103,6 +107,8 @@ type SealerCliClient struct {
 	FindSector func(ctx context.Context, state SectorWorkerState, sid abi.SectorID) (*SectorState, error)
 
 	FindSectorsWithDeal func(ctx context.Context, state SectorWorkerState, dealID abi.DealID) ([]*SectorState, error)
+
+	ImportSector func(ctx context.Context, ws SectorWorkerState, state *SectorState, override bool) (bool, error)
 
 	RestoreSector func(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
 

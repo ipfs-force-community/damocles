@@ -352,3 +352,11 @@ func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorke
 
 	return sectors, nil
 }
+
+func (s *Sealer) ImportSector(ctx context.Context, ws core.SectorWorkerState, state *core.SectorState, override bool) (bool, error) {
+	if state == nil {
+		return false, nil
+	}
+
+	return s.state.Import(ctx, ws, state, override)
+}
