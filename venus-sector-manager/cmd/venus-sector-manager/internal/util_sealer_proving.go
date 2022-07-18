@@ -17,8 +17,12 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/big"
+	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
+	miner8 "github.com/filecoin-project/go-state-types/builtin/v8/miner"
 
 	"github.com/filecoin-project/venus/pkg/chain"
+	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -28,6 +32,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	chain2 "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
 var utilSealerProvingCmd = &cli.Command{
@@ -47,6 +52,7 @@ var utilSealerProvingCmd = &cli.Command{
 		utilSealerProvingSimulateWdPoStCmd,
 		utilSealerProvingSectorInfoCmd,
 		utilSealerProvingWinningVanillaCmd,
+		utilSealerProvingCompactPartitionsCmd,
 	},
 }
 
@@ -785,6 +791,100 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 		}
 
 		slog.Info("done")
+
+		return nil
+	},
+}
+
+var utilSealerProvingCompactPartitionsCmd = &cli.Command{
+	Name:  "compact-partitions",
+	Usage: "removes dead sectors from partitions and reduces the number of partitions used if possible",
+	Flags: []cli.Flag{
+		&cli.Uint64Flag{
+			Name:     "deadline",
+			Usage:    "the deadline to compact the partitions in",
+			Required: true,
+		},
+		&cli.Int64SliceFlag{
+			Name:     "partitions",
+			Usage:    "list of partitions to compact sectors in",
+			Required: true,
+		},
+		&cli.BoolFlag{
+			Name:  "really-do-it",
+			Usage: "Actually send transaction performing the action",
+			Value: false,
+		},
+		&cli.StringFlag{
+			Name:  "miner",
+			Usage: "Specify the address of the miner to run this command",
+		},
+		&cli.StringFlag{
+			Name:  "exid",
+			Usage: "external identifier of the message, ensure that we could make the message unique, or we could catch up with a previous message",
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		api, actx, astop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer astop()
+
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		if err != nil {
+			return fmt.Errorf("extract miner address: %w", err)
+		}
+
+		minfo, err := api.Chain.StateMinerInfo(actx, maddr, types.EmptyTSK)
+		if err != nil {
+			return err
+		}
+
+		deadline := cctx.Uint64("deadline")
+		if deadline > miner8.WPoStPeriodDeadlines {
+			return fmt.Errorf("deadline %d out of range", deadline)
+		}
+
+		parts := cctx.Int64Slice("partitions")
+		if len(parts) == 0 {
+			return fmt.Errorf("must include at least one partition to compact")
+		}
+
+		Log.Info("compacting %d paritions", len(parts))
+
+		partitions := bitfield.New()
+		for _, partition := range parts {
+			partitions.Set(uint64(partition))
+		}
+
+		params := miner8.CompactPartitionsParams{
+			Deadline:   deadline,
+			Partitions: partitions,
+		}
+
+		sp, err := actors.SerializeParams(&params)
+		if err != nil {
+			return fmt.Errorf("serializing params: %w", err)
+		}
+
+		if !cctx.Bool("really-do-it") {
+			Log.Warn("Pass --really-do-it to actually execute this action")
+			return nil
+		}
+
+		msg := &messager.UnsignedMessage{
+			From:   minfo.Worker,
+			To:     maddr,
+			Method: stbuiltin.MethodsMiner.CompactPartitions,
+			Value:  big.Zero(),
+			Params: sp,
+		}
+
+		err = waitMessage(actx, api, msg, cctx.String("exid"), nil, nil)
+		if err != nil {
+			return fmt.Errorf("wait message: %w", err)
+		}
 
 		return nil
 	},
