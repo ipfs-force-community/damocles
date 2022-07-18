@@ -106,19 +106,21 @@ func updateSector(ctx context.Context, stmgr core.SectorStateManager, sector []c
 }
 
 func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, value abi.TokenAmount, method abi.MethodNum,
-	msgClient messager.API, spec messager.MsgMeta, params []byte, mlog *logging.ZapLogger) (cid.Cid, error) {
+	msgClient messager.API, feeCfg *modules.FeeConfig, params []byte, mlog *logging.ZapLogger) (cid.Cid, error) {
 
 	to, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
 		return cid.Undef, err
 	}
 
+	spec := feeCfg.GetSendSpec()
 	msg := types.Message{
-		To:     to,
-		From:   from,
-		Value:  value,
-		Method: method,
-		Params: params,
+		To:        to,
+		From:      from,
+		Value:     value,
+		Method:    method,
+		Params:    params,
+		GasFeeCap: feeCfg.GetGasFeeCap().Std(),
 	}
 
 	bk, err := msg.ToStorageBlock()

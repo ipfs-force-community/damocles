@@ -9,6 +9,8 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/big"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
@@ -137,14 +139,38 @@ func defaultCommonConfig(example bool) CommonConfig {
 }
 
 type FeeConfig struct {
+	//included in msg send spec
 	GasOverEstimation float64
-	MaxFeeCap         FIL
+	GasOverPremium    float64
+	MaxFee            FIL
+	//set to msg directly
+	GasFeeCap FIL
+	MaxFeeCap FIL //兼容老字段， FeeConfig用在embed字段， 使用TextUnmarshaler会影响上层结构体解析
+}
+
+func (feeCfg *FeeConfig) GetGasFeeCap() FIL {
+	gasFeeCap := feeCfg.GasFeeCap
+	if (*big.Int)(&feeCfg.GasFeeCap).NilOrZero() && !(*big.Int)(&feeCfg.MaxFeeCap).NilOrZero() {
+		//if not set GasFeeCap but set MaxFeecap use MaxFeecap as GasFeecap
+		gasFeeCap = feeCfg.MaxFeeCap
+	}
+	return gasFeeCap
+}
+
+func (feeCfg *FeeConfig) GetSendSpec() messager.MsgMeta {
+	return messager.MsgMeta{
+		GasOverEstimation: feeCfg.GasOverEstimation,
+		MaxFee:            feeCfg.MaxFee.Std(),
+		GasOverPremium:    feeCfg.GasOverPremium,
+	}
 }
 
 func defaultFeeConfig() FeeConfig {
 	return FeeConfig{
 		GasOverEstimation: 1.2,
-		MaxFeeCap:         NanoFIL.Mul(5),
+		GasOverPremium:    0,
+		GasFeeCap:         NanoFIL.Mul(5),
+		MaxFee:            FIL{},
 	}
 }
 
@@ -172,7 +198,6 @@ func defaultMinerSectorConfig(example bool) MinerSectorConfig {
 		cfg.MinNumber = &min
 		cfg.MaxNumber = &max
 	}
-
 	return cfg
 }
 
