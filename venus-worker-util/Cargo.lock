@@ -408,7 +408,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 [[package]]
 name = "hwloc2"
 version = "2.2.0"
-source = "git+https://github.com/ipfs-force-community/hwloc2-rs.git?branch=force_main#81106ef7ebb65a4d7f3e24bfb34fa7c1469679c6"
+source = "git+https://github.com/ipfs-force-community/hwloc2-rs.git?branch=force_main#93167d3b8add176cd2b8a81797c8f4680ef9d472"
 dependencies = [
  "bitflags",
  "errno",
