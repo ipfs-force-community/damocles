@@ -318,6 +318,7 @@ type MinerPoStConfig struct {
 	StrictCheck bool
 	FeeConfig
 	Confidence                      uint64
+	SubmitConfidence                uint64
 	ChallengeConfidence             uint64
 	MaxPartitionsPerPoStMessage     uint64
 	MaxPartitionsPerRecoveryMessage uint64
@@ -329,6 +330,7 @@ func defaultMinerPoStConfig(example bool) MinerPoStConfig {
 		StrictCheck:                     true,
 		FeeConfig:                       defaultFeeConfig(),
 		Confidence:                      10,
+		SubmitConfidence:                4,
 		ChallengeConfidence:             10,
 		MaxPartitionsPerPoStMessage:     0,
 		MaxPartitionsPerRecoveryMessage: 0,
