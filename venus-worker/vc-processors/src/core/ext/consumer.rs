@@ -7,15 +7,13 @@ use tracing::{debug, error, info, warn_span};
 use super::{ready_msg, Request, Response};
 use crate::core::{Processor, Task};
 
-/// Starts the consumer.
+/// Starts the consumer with the given processor.
 /// In most cases, this is used in a sub-process
 /// Please be awrae that you should let the logs output into stderr, or just disable all logs
 /// from this process, otherwise the producer colud be confused.
-pub fn run<T: Task, P: Processor<T> + Default + Send + Sync + Copy + 'static>() -> Result<()> {
+pub fn run_with_processor<T: Task, P: Processor<T> + Send + Sync + Clone + 'static>(proc: P) -> Result<()> {
     #[cfg(feature = "numa")]
     crate::sys::numa::try_set_preferred();
-
-    let proc = P::default();
 
     let _span = warn_span!("sub", name = %T::STAGE, pid = std::process::id()).entered();
 
@@ -42,13 +40,21 @@ pub fn run<T: Task, P: Processor<T> + Default + Send + Sync + Copy + 'static>() 
             }
         };
 
+        let cloned = proc.clone();
         std::thread::spawn(move || {
             let _req_span = warn_span!("request", id = req.id, size = size).entered();
-            if let Err(e) = process_request(proc, req) {
+            if let Err(e) = process_request(cloned, req) {
                 error!("failed: {:?}", e);
             }
         });
     }
+}
+
+/// Starts the consumer with the processor impl with Default.
+pub fn run<T: Task, P: Processor<T> + Default + Send + Sync + Copy + 'static>() -> Result<()> {
+    let proc = P::default();
+
+    run_with_processor(proc)
 }
 
 fn process_request<T: Task, P: Processor<T>>(proc: P, req: Request<T>) -> Result<()> {
