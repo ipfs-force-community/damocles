@@ -39,10 +39,6 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []c
 		return
 	}
 
-	var spec messager.MsgMeta
-	spec.GasOverEstimation = mcfg.Commitment.Pre.GasOverEstimation
-	spec.MaxFeeCap = mcfg.Commitment.Pre.MaxFeeCap.Std()
-
 	wg := sync.WaitGroup{}
 	wg.Add(len(sectors))
 	for i := range sectors {
@@ -66,7 +62,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []c
 				deposit = big.Zero()
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, deposit, stbuiltin.MethodsMiner.PreCommitSector, p.msgClient, spec, enc.Bytes(), slog)
+			mcid, err := pushMessage(ctx, from, mid, deposit, stbuiltin.MethodsMiner.PreCommitSector, p.msgClient, &mcfg.Commitment.Pre.FeeConfig, enc.Bytes(), slog)
 			if err != nil {
 				slog.Error("push pre-commit single failed: ", err)
 				return
@@ -146,12 +142,8 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 		return fmt.Errorf("couldn't serialize PreCommitSectorBatchParams: %w", err)
 	}
 
-	var spec messager.MsgMeta
-	spec.GasOverEstimation = mcfg.Commitment.Pre.Batch.GasOverEstimation
-	spec.MaxFeeCap = mcfg.Commitment.Pre.Batch.MaxFeeCap.Std()
-
 	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, stbuiltin.MethodsMiner.PreCommitSectorBatch,
-		p.msgClient, spec, enc.Bytes(), plog)
+		p.msgClient, &mcfg.Commitment.Pre.Batch.FeeConfig, enc.Bytes(), plog)
 	if err != nil {
 		return fmt.Errorf("push batch precommit message failed: %w", err)
 	}

@@ -10,8 +10,6 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	mtypes "github.com/filecoin-project/venus/venus-shared/types/messager"
-
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
 type msgOrErr struct {
@@ -36,19 +34,16 @@ func (s *scheduler) publishMessage(ctx context.Context, method abi.MethodNum, pa
 	}
 
 	msg := types.Message{
-		From:   mcfg.PoSt.Sender.Std(),
-		To:     s.actor.Addr,
-		Method: method,
-		Params: encoded,
-		Value:  types.NewInt(0),
-	}
-
-	spec := messager.MsgMeta{
-		GasOverEstimation: mcfg.PoSt.GasOverEstimation,
-		MaxFeeCap:         mcfg.PoSt.MaxFeeCap.Std(),
+		From:      mcfg.PoSt.Sender.Std(),
+		To:        s.actor.Addr,
+		Method:    method,
+		Params:    encoded,
+		Value:     types.NewInt(0),
+		GasFeeCap: mcfg.PoSt.GetGasFeeCap().Std(),
 	}
 
 	mid := ""
+	spec := mcfg.PoSt.FeeConfig.GetSendSpec()
 	if di == nil {
 		mid = msg.Cid().String()
 	} else {
