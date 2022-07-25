@@ -41,11 +41,13 @@ pub fn run_with_processor<T: Task, P: Processor<T> + Send + Sync + Clone + 'stat
         };
 
         let cloned = proc.clone();
+        let req_span = warn_span!("request", id = req.id, size = size);
         std::thread::spawn(move || {
-            let _req_span = warn_span!("request", id = req.id, size = size).entered();
-            if let Err(e) = process_request(cloned, req) {
-                error!("failed: {:?}", e);
-            }
+            req_span.in_scope(|| {
+                if let Err(e) = process_request(cloned, req) {
+                    error!("failed: {:?}", e);
+                }
+            })
         });
     }
 }
