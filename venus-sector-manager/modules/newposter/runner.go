@@ -103,7 +103,7 @@ func (ir *innerRunner) submit(pcfg *modules.MinerPoStConfig, ts *types.TipSet) {
 	}
 
 	ir.submitOnce.Do(func() {
-		ir.submitPoStProofs(pcfg, ts, proofs)
+		go ir.submitPoSts(pcfg, ts, proofs)
 	})
 }
 
@@ -113,8 +113,74 @@ func (ir *innerRunner) abort() {
 	})
 }
 
-func (ir *innerRunner) submitPoStProofs(pcfg *modules.MinerPoStConfig, ts *types.TipSet, proofs []miner.SubmitWindowedPoStParams) {
+func (ir *innerRunner) submitPoSts(pcfg *modules.MinerPoStConfig, ts *types.TipSet, proofs []miner.SubmitWindowedPoStParams) {
+	if len(proofs) == 0 {
+		return
+	}
 
+	tsk := ts.Key()
+	tsh := ts.Height()
+	slog := ir.log.With("stage", "submit-post", "posts", len(proofs), "tsk", tsk, "tsh", tsh)
+
+	// Get randomness from tickets
+	// use the challenge epoch if we've upgraded to network version 4
+	// (actors version 2). We want to go back as far as possible to be safe.
+	commEpoch := ir.dinfo.Open
+	if ver, err := ir.pctx.chain.StateNetworkVersion(ir.ctx, ts.Key()); err != nil {
+		slog.Errorf("get network version to determine PoSt epoch randomness lookback: %v", err)
+	} else if ver >= network.Version4 {
+		commEpoch = ir.dinfo.Challenge
+	}
+
+	slog = slog.With("comm-epoch", commEpoch)
+
+	commRand, err := ir.pctx.rand.GetWindowPoStCommitRand(ir.ctx, ts.Key(), commEpoch)
+	if err != nil {
+		slog.Errorf("get chain randomness from tickets for windowPost: %v", err)
+		return
+	}
+
+	for pi := range proofs {
+		post := proofs[pi]
+		if len(post.Partitions) == 0 || len(post.Proofs) == 0 {
+			continue
+		}
+
+		post.ChainCommitEpoch = commEpoch
+		post.ChainCommitRand = commRand.Rand
+
+		go ir.submitSinglePost(slog, pcfg, &post)
+	}
+}
+
+func (ir *innerRunner) submitSinglePost(slog *logging.ZapLogger, pcfg *modules.MinerPoStConfig, proof *miner.SubmitWindowedPoStParams) {
+	// to avoid being cancelled by proving period detection, use context.Background here
+	uid, resCh, err := ir.publishMessage(stbuiltin.MethodsMiner.SubmitWindowedPoSt, proof, false, true)
+	if err != nil {
+		slog.Errorf("publish post message: %v", err)
+		return
+	}
+
+	wlog := slog.With("msg-id", uid)
+	wlog.Infof("Submitted window post: %s", uid)
+
+	waitCtx, waitCancel := context.WithTimeout(ir.ctx, 30*time.Minute)
+	defer waitCancel()
+
+	select {
+	case <-waitCtx.Done():
+		wlog.Warn("waited too long")
+
+	case res := <-resCh:
+		if res.err != nil {
+			wlog.Errorf("wait for message result failed: %s", res.err)
+			return
+		}
+
+		if res.Message.Receipt.ExitCode != 0 {
+			wlog.Errorf("window post msg %s on chain failed: exit %d", res.SignedCid, res.Message.Receipt.ExitCode)
+		}
+	}
 }
 
 func (ir *innerRunner) generatePoSt(baseLog *logging.ZapLogger) {
@@ -146,6 +212,10 @@ func (ir *innerRunner) generatePoSt(baseLog *logging.ZapLogger) {
 		glog.Errorf("split partitions into batches: %v", err)
 		return
 	}
+
+	ir.proofs.Lock()
+	ir.proofs.proofs = make([]miner.SubmitWindowedPoStParams, len(partitionBatches))
+	ir.proofs.Unlock()
 
 	batchPartitionStartIdx := 0
 	for batchIdx := range partitionBatches {
@@ -190,7 +260,7 @@ func (ir *innerRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ra
 
 			good, err := ir.checkSectors(alog, toProve)
 			if err != nil {
-				return true, fmt.Errorf("checking sectors to skip: %w", err)
+				return false, fmt.Errorf("checking sectors to skip: %w", err)
 			}
 
 			good, err = bitfield.SubtractBitField(good, postSkipped)
@@ -212,7 +282,7 @@ func (ir *innerRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ra
 
 			ssi, err := ir.sectorsForProof(good, partition.AllSectors)
 			if err != nil {
-				return true, fmt.Errorf("getting sorted sector info: %w", err)
+				return false, fmt.Errorf("getting sorted sector info: %w", err)
 			}
 
 			if len(ssi) == 0 {
