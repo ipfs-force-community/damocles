@@ -316,6 +316,7 @@ type MinerPoStConfig struct {
 	Sender      MustAddress
 	Enabled     bool
 	StrictCheck bool
+	Parallel    bool
 	FeeConfig
 	Confidence                      uint64
 	SubmitConfidence                uint64

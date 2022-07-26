@@ -3,6 +3,7 @@ package poster
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -11,9 +12,11 @@ import (
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
 const (
@@ -23,13 +26,14 @@ const (
 
 var log = logging.New("poster")
 
+// postRunnerInner 的各方法应当保持 Once 语义
 type postRunnerInner interface {
 	// 开启当前的证明窗口
-	start(pctx postContext)
+	start(pcfg *modules.MinerPoStConfig, ts *types.TipSet)
 	// 提交当前证明结果
-	submit(pctx postContext)
+	submit(pcfg *modules.MinerPoStConfig, ts *types.TipSet)
 	// 终止当前证明任务
-	abort(pctx postContext)
+	abort()
 }
 
 type postRunner struct {
@@ -44,13 +48,12 @@ func (r *postRunner) isActive(height abi.ChainEpoch) bool {
 }
 
 // 在 [Challenge + ChallengeConfidence, Close) 区间内
-func (r *postRunner) shouldStart(pctx postContext, height abi.ChainEpoch) bool {
-	mcfg, err := pctx.cfg.MinerConfig(r.mid)
-	if err != nil {
+func (r *postRunner) shouldStart(pcfg *modules.MinerPoStConfig, height abi.ChainEpoch) bool {
+	if !pcfg.Enabled {
 		return false
 	}
 
-	challengeConfidence := mcfg.PoSt.ChallengeConfidence
+	challengeConfidence := pcfg.ChallengeConfidence
 	if challengeConfidence == 0 {
 		challengeConfidence = DefaultChallengeConfidence
 	}
@@ -59,13 +62,8 @@ func (r *postRunner) shouldStart(pctx postContext, height abi.ChainEpoch) bool {
 	return height >= r.dl.Challenge+abi.ChainEpoch(challengeConfidence)
 }
 
-func (r *postRunner) couldSubmit(pctx postContext, height abi.ChainEpoch) bool {
-	mcfg, err := pctx.cfg.MinerConfig(r.mid)
-	if err != nil {
-		return false
-	}
-
-	submitConfidence := mcfg.PoSt.SubmitConfidence
+func (r *postRunner) couldSubmit(pcfg *modules.MinerPoStConfig, height abi.ChainEpoch) bool {
+	submitConfidence := pcfg.SubmitConfidence
 	if submitConfidence == 0 {
 		submitConfidence = DefaultSubmitConfidence
 	}
@@ -78,7 +76,7 @@ func (r *postRunner) couldSubmit(pctx postContext, height abi.ChainEpoch) bool {
 }
 
 // 回退至 Open 之前，或已到达 Close 之后
-func (r *postRunner) shouldAbort(pctx postContext, revert *types.TipSet, advance *types.TipSet) bool {
+func (r *postRunner) shouldAbort(pcfg *modules.MinerPoStConfig, revert *types.TipSet, advance *types.TipSet) bool {
 	if revert != nil && revert.Height() < r.dl.Open {
 		return true
 	}
@@ -91,15 +89,17 @@ func (r *postRunner) shouldAbort(pctx postContext, revert *types.TipSet, advance
 }
 
 type postContext struct {
-	cfg   *modules.SafeConfig
 	chain chain.API
+	msg   messager.API
+	rand  core.RandomnessAPI
 }
 
 type PoSter struct {
+	cfg  *modules.SafeConfig
 	pctx postContext
 
 	runners                map[abi.ActorID]map[abi.ChainEpoch]*postRunner
-	runnerInnerConstructor func(mid abi.ActorID, maddr address.Address) postRunnerInner
+	runnerInnerConstructor func(ctx context.Context, pctx postContext, mid abi.ActorID, maddr address.Address, dinfo *dline.Info) postRunnerInner
 }
 
 func (p *PoSter) handleChainNotify(ctx context.Context) {
@@ -178,10 +178,10 @@ CHAIN_HEAD_LOOP:
 				continue CHAIN_HEAD_LOOP
 			}
 
-			p.pctx.cfg.Lock()
-			mids := make([]abi.ActorID, 0, len(p.pctx.cfg.Miners))
-			for mi := range p.pctx.cfg.Miners {
-				if mcfg := p.pctx.cfg.Miners[mi]; mcfg.PoSt.Enabled {
+			p.cfg.Lock()
+			mids := make([]abi.ActorID, 0, len(p.cfg.Miners))
+			for mi := range p.cfg.Miners {
+				if mcfg := p.cfg.Miners[mi]; mcfg.PoSt.Enabled {
 					if !mcfg.PoSt.Sender.Valid() {
 						mlog.Warnw("post is enabled, but sender is invalid", "miner", mcfg.Actor)
 						continue
@@ -190,7 +190,7 @@ CHAIN_HEAD_LOOP:
 					mids = append(mids, mcfg.Actor)
 				}
 			}
-			p.pctx.cfg.Unlock()
+			p.cfg.Unlock()
 
 			if len(mids) == 0 {
 				continue CHAIN_HEAD_LOOP
@@ -262,9 +262,29 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 	// 启动一个新 runner 的最基本条件为：当前高度所属的活跃区间存在没有与之对应的 runner 的情况
 	currHeight := advance.Height()
 
+	revH := "nil"
+	if revert != nil {
+		revH = strconv.FormatUint(uint64(revert.Height()), 10)
+	}
+
+	hcLog := log.With("rev", revH, "adv", advance.Height())
+
+	pcfgs := map[abi.ActorID]*modules.MinerPoStConfig{}
+
 	// cleanup
 	for mid := range p.runners {
 		runners := p.runners[mid]
+		mhcLog := hcLog.With("miner", mid)
+
+		mcfg, err := p.cfg.MinerConfig(mid)
+		if err != nil {
+			mhcLog.Warnf("get miner config: %s", err)
+			continue
+		}
+
+		pcfg := &mcfg.PoSt
+		pcfgs[mid] = pcfg
+
 		for open := range runners {
 			// 尝试开启的 deadline 已经存在
 			if dl, ok := dinfos[mid]; ok && dl.Open == open {
@@ -273,19 +293,20 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 
 			runner := runners[open]
 			// 中断此 runner
-			if runner.shouldAbort(p.pctx, revert, advance) {
-				runner.inner.abort(p.pctx)
+			if runner.shouldAbort(pcfg, revert, advance) {
+				mhcLog.Debugw("abort and cleanup deadline runner", "open", open)
+				runner.inner.abort()
 				delete(runners, open)
 				continue
 			}
 
 			if runner.isActive(currHeight) {
-				if runner.shouldStart(p.pctx, currHeight) {
-					runner.inner.start(p.pctx)
+				if runner.shouldStart(pcfg, currHeight) {
+					runner.inner.start(pcfg, advance)
 				}
 
-				if runner.couldSubmit(p.pctx, currHeight) {
-					runner.inner.submit(p.pctx)
+				if runner.couldSubmit(pcfg, currHeight) {
+					runner.inner.submit(pcfg, advance)
 				}
 			}
 
@@ -293,26 +314,40 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 	}
 
 	for mid := range dinfos {
+		mdLog := hcLog.With("miner", mid)
+
 		maddr, err := address.NewIDAddress(uint64(mid))
 		if err != nil {
-			log.Warnf("invalid miner actor id %d: %w", mid, maddr)
+			mdLog.Warnf("invalid miner actor id: %s", err)
 			continue
+		}
+
+		pcfg, ok := pcfgs[mid]
+		if !ok {
+			mcfg, err := p.cfg.MinerConfig(mid)
+			if err != nil {
+				mdLog.Warnf("get miner config: %s", err)
+				continue
+			}
+
+			pcfg = &mcfg.PoSt
 		}
 
 		dl := dinfos[mid]
 		prunner := &postRunner{
 			mid:   mid,
 			dl:    dl,
-			inner: p.runnerInnerConstructor(mid, maddr),
+			inner: p.runnerInnerConstructor(ctx, p.pctx, mid, maddr, dl),
 		}
 
 		if _, ok := p.runners[mid]; !ok {
-			p.runners = map[abi.ActorID]map[abi.ChainEpoch]*postRunner{}
+			p.runners[mid] = map[abi.ChainEpoch]*postRunner{}
 		}
 
+		mdLog.Debugw("init deadline runner", "open", dl.Open)
 		p.runners[mid][dl.Open] = prunner
-		if prunner.isActive(currHeight) {
-			prunner.inner.start(p.pctx)
+		if prunner.isActive(currHeight) && prunner.shouldStart(pcfg, currHeight) {
+			prunner.inner.start(pcfg, advance)
 		}
 	}
 }
