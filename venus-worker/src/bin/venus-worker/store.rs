@@ -127,6 +127,7 @@ pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
 #[cfg(target_os = "linux")]
 fn hugepage_file_init(m: &ArgMatches) -> Result<()> {
     use clap::value_t;
+    use venus_worker::seal_util::MemoryFileDirPattern;
 
     let numa_node_idx = value_t!(m, "numa_node_index", u32).context("invalid NUMA node index")?;
     let size = value_t!(m, "size", bytesize::ByteSize).context("invalid file size")?;
