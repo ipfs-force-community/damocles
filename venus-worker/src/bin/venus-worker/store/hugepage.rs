@@ -89,16 +89,3 @@ fn cvt<T: IsMinusOne>(t: T) -> std::io::Result<T> {
         Ok(t)
     }
 }
-
-fn cvt_r<T, F>(mut f: F) -> std::io::Result<T>
-where
-    T: IsMinusOne,
-    F: FnMut() -> T,
-{
-    loop {
-        match cvt(f()) {
-            Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {}
-            other => return other,
-        }
-    }
-}
