@@ -34,7 +34,6 @@ pub use filecoin_proofs_api::{
 };
 pub use storage_proofs_porep::stacked::init_numa_mem_pool;
 
-
 /// Identifier for Actors.
 pub type ActorID = u64;
 
