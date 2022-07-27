@@ -43,7 +43,7 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
                 .short("s")
                 .required(true)
                 .takes_value(true)
-                .help("Specify the size of each hugepage file. (e.g., 1B, 2KB, 3kiB, 1MB, 2MiB, 3GB, 1GiB, ...)"),
+                .help("Specify the size of each hugepage memory file. (e.g., 1B, 2KB, 3kiB, 1MB, 2MiB, 3GB, 1GiB, ...)"),
         )
         .arg(
             Arg::with_name("number_of_files")
@@ -51,10 +51,10 @@ pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
                 .short("c")
                 .required(true)
                 .takes_value(true)
-                .help("Specify the number of shm files to be created"),
+                .help("Specify the number of hugepage memory files to be created"),
         )
         .arg(Arg::with_name("path").long("path").required_unless("path_pattern").takes_value(true).long_help(
-            "Specify the path to the output hugepage files and using the default pattern (/specified_hugepage_file_path/numa_$NUMA_NODE_INDEX).
+            "Specify the path to the output hugepage memory files and using the default pattern (/specified_hugepage_file_path/numa_$NUMA_NODE_INDEX).
 The created files looks like this:
 /specified_hugepage_file_path/numa_0/file
 /specified_hugepage_file_path/numa_1/file
@@ -69,7 +69,7 @@ This argument will be ignored if `path_pattern` is specified.",
                 .required_unless("path")
                . takes_value(true)
                 .long_help(
-                    "Specify the path pattern for the output hugepage files where $NUMA_NODE_INDEX represents 
+                    "Specify the path pattern for the output hugepage memory files where $NUMA_NODE_INDEX represents 
 the numa node index placeholder, which extracts the number in the folder name as the numa node index.
 
 If both the argument `path` and the argument `path_pattern` are specified, the argument `path` will be ignored.",
@@ -141,8 +141,8 @@ fn hugepage_file_init(m: &ArgMatches) -> Result<()> {
         (None, None) => unreachable!("Unreachable duo to clap require_unless"),
     };
 
-    let files = hugepage::create_hugepage_files(numa_node_idx, size, num, pattern.to_path(numa_node_idx))?;
-    println!("Created hugepage files:");
+    let files = hugepage::create_hugepage_mem_files(numa_node_idx, size, num, pattern.to_path(numa_node_idx))?;
+    println!("Created hugepage memory files:");
     for file in files {
         println!("{}", file.display())
     }

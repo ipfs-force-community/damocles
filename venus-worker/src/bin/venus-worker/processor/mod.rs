@@ -24,7 +24,7 @@ pub(crate) fn subcommand<'a, 'b>() -> App<'a, 'b> {
                 .takes_value(true)
                 .required(false)
                 .long_help(
-                    "Specify the path to the hugepage file and scan the hugepage file 
+                    "Specify the path to the hugepage memory file and scan the hugepage memory files 
 using the default pattern (/specified_hugepage_file_path/numa_$NUMA_NODE_INDEX).
 It will match:
 /specified_hugepage_file_path/numa_0/any_files
@@ -43,7 +43,7 @@ This argument will be ignored if `hugepage_files_path_pattern` is specified.",
                 .required(false)
                 .takes_value(true)
                 .long_help(
-                    "Specify the hugepage file path pattern where $NUMA_NODE_INDEX represents 
+                    "Specify the hugepage memory file path pattern where $NUMA_NODE_INDEX represents 
 the numa node index placeholder, which extracts the number in the folder name as the numa node index
 Make sure that the memory files stored in the folder are created in the numa node corresponding to $NUMA_NODE_INDEX.
 If both the argument `hugepage_files_path` and the argument `hugepage_files_path_pattern` are specified,

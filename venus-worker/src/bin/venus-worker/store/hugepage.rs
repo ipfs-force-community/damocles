@@ -9,14 +9,14 @@ use bytesize::ByteSize;
 use tracing::warn;
 use vc_processors::sys::numa::Numa;
 
-pub fn create_hugepage_files(numa_node_idx: u32, size: ByteSize, count: usize, path: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
+pub fn create_hugepage_mem_files(numa_node_idx: u32, size: ByteSize, count: usize, path: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
     // bind NUMA node
     let numa = Numa::new().map_err(|_| anyhow!("NUMA not available"))?;
     numa.bind(numa_node_idx)
         .map_err(|_| anyhow!("invalid NUMA node: {}", numa_node_idx))?;
 
     let path = path.as_ref();
-    fs::create_dir_all(&path).with_context(|| format!("create hugepage files directory: '{}'", path.display()))?;
+    fs::create_dir_all(&path).with_context(|| format!("create hugepage memory files directory: '{}'", path.display()))?;
 
     let filename = size.to_string_as(true).replace(' ', "_");
 
@@ -25,31 +25,31 @@ pub fn create_hugepage_files(numa_node_idx: u32, size: ByteSize, count: usize, p
     let files = paths
         .iter()
         .map(|p| {
-            let file = HugepageFile(p);
+            let file = HugepageMemFile(p);
             file.create_and_allocate(size.as_u64())?;
             Ok(file)
         })
         .collect::<Result<Vec<_>>>()?;
     // All files are created successfully, which means the initialization of
-    // the hugepage files is successful, avoid destroying any file
+    // the hugepage memory files is successful, avoid destroying any file
     files.into_iter().for_each(mem::forget);
     Ok(paths)
 }
 
-struct HugepageFile<'a>(&'a Path);
+struct HugepageMemFile<'a>(&'a Path);
 
-impl<'a> HugepageFile<'a> {
+impl<'a> HugepageMemFile<'a> {
     fn create_and_allocate(&self, size: u64) -> Result<()> {
         let file = OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(self.0)
-            .context("create hugepage file")?;
+            .context("create hugepage memory file")?;
         allocate_file(&file, size).context("allocate file")
     }
 }
 
-impl<'a> Drop for HugepageFile<'a> {
+impl<'a> Drop for HugepageMemFile<'a> {
     fn drop(&mut self) {
         if let Err(e) = remove_file(self.0) {
             warn!(err=?e, "Unable to destroy file: '{}'", self.0.display());
