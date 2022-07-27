@@ -822,3 +822,9 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 func (pr *postRunner) waitMessage(mid string, confidence uint64) (*messager.Message, error) {
 	return pr.deps.msg.WaitMessage(pr.ctx, mid, confidence)
 }
+
+type mockRunner struct{}
+
+func (mockRunner) start(pcfg *modules.MinerPoStConfig, ts *types.TipSet)  {}
+func (mockRunner) submit(pcfg *modules.MinerPoStConfig, ts *types.TipSet) {}
+func (mockRunner) abort()                                                 {}

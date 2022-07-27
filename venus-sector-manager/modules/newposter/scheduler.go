@@ -3,10 +3,16 @@ package poster
 import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/dline"
-	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 )
+
+func newScheduler(dl *dline.Info, runner PoStRunner) *scheduler {
+	return &scheduler{
+		dl:     dl,
+		runner: runner,
+	}
+}
 
 type scheduler struct {
 	dl     *dline.Info
@@ -39,22 +45,14 @@ func (s *scheduler) couldSubmit(pcfg *modules.MinerPoStConfig, height abi.ChainE
 		submitConfidence = DefaultSubmitConfidence
 	}
 
-	if height < s.dl.Open+abi.ChainEpoch(submitConfidence) {
-		return false
-	}
-
-	return true
+	return height >= s.dl.Open+abi.ChainEpoch(submitConfidence)
 }
 
 // 回退至 Open 之前，或已到达 Close 之后
-func (s *scheduler) shouldAbort(revert *types.TipSet, advance *types.TipSet) bool {
-	if revert != nil && revert.Height() < s.dl.Open {
+func (s *scheduler) shouldAbort(revert *abi.ChainEpoch, advance abi.ChainEpoch) bool {
+	if revert != nil && *revert < s.dl.Open {
 		return true
 	}
 
-	if advance.Height() >= s.dl.Close {
-		return true
-	}
-
-	return false
+	return advance >= s.dl.Close
 }

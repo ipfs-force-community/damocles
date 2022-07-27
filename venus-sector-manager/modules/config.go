@@ -325,15 +325,15 @@ type MinerPoStConfig struct {
 	MaxPartitionsPerRecoveryMessage uint64
 }
 
-func defaultMinerPoStConfig(example bool) MinerPoStConfig {
+func DefaultMinerPoStConfig(example bool) MinerPoStConfig {
 	cfg := MinerPoStConfig{
 		Enabled:                         true,
 		StrictCheck:                     true,
 		Parallel:                        false,
 		FeeConfig:                       defaultFeeConfig(),
 		Confidence:                      10,
-		SubmitConfidence:                4,
-		ChallengeConfidence:             10,
+		SubmitConfidence:                0,
+		ChallengeConfidence:             0,
 		MaxPartitionsPerPoStMessage:     0,
 		MaxPartitionsPerRecoveryMessage: 0,
 	}
@@ -369,7 +369,7 @@ func defaultMinerConfig(example bool) MinerConfig {
 		Sector:     defaultMinerSectorConfig(example),
 		SnapUp:     defaultMinerSnapUpConfig(example),
 		Commitment: defaultMinerCommitmentConfig(example),
-		PoSt:       defaultMinerPoStConfig(example),
+		PoSt:       DefaultMinerPoStConfig(example),
 		Proof:      defaultMinerProofConfig(),
 	}
 

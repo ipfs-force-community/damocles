@@ -278,7 +278,13 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 
 			sched := scheds[open]
 			// 中断此 runner
-			if sched.shouldAbort(revert, advance) {
+			var revH *abi.ChainEpoch
+			if revert != nil {
+				h := revert.Height()
+				revH = &h
+			}
+
+			if sched.shouldAbort(revH, currHeight) {
 				mhcLog.Debugw("abort and cleanup deadline runner", "open", open)
 				sched.runner.abort()
 				delete(scheds, open)
@@ -330,10 +336,17 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 		}
 
 		dl := dinfos[mid]
-		sched := &scheduler{
-			dl:     dl,
-			runner: p.runnerConstructor(ctx, p.deps, mid, maddr, minfo.WindowPoStProofType, dl),
-		}
+		sched := newScheduler(
+			dl,
+			p.runnerConstructor(
+				ctx,
+				p.deps,
+				mid,
+				maddr,
+				minfo.WindowPoStProofType,
+				dl,
+			),
+		)
 
 		if _, ok := p.schedulers[mid]; !ok {
 			p.schedulers[mid] = map[abi.ChainEpoch]*scheduler{}
