@@ -11,6 +11,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/metrics"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
@@ -130,6 +131,8 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 	if err := s.state.Init(ctx, sector.ID, sector.ProofType, core.WorkerOnline); err != nil {
 		return nil, err
 	}
+	ctx, _ = metrics.New(ctx, metrics.Upsert(metrics.Miner, sector.ID.Miner.String()))
+	metrics.Record(ctx, metrics.SectorManagerNewSector.M(1))
 
 	return sector, nil
 }
@@ -205,6 +208,10 @@ func (s *Sealer) SubmitPreCommit(ctx context.Context, sector core.AllocatedSecto
 	}
 
 	resp, err := s.commit.SubmitPreCommit(ctx, sector.ID, pinfo, hardReset)
+	if err == nil {
+		ctx, _ = metrics.New(ctx, metrics.Upsert(metrics.Miner, sector.ID.Miner.String()))
+		metrics.Record(ctx, metrics.SectorManagerPreCommitSector.M(1))
+	}
 	return resp, sectorStateErr(err)
 }
 
@@ -287,6 +294,10 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedR
 
 func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info core.ProofOnChainInfo, hardReset bool) (core.SubmitProofResp, error) {
 	resp, err := s.commit.SubmitProof(ctx, sid, info, hardReset)
+	if err == nil {
+		ctx, _ = metrics.New(ctx, metrics.Upsert(metrics.Miner, sid.Miner.String()))
+		metrics.Record(ctx, metrics.SectorManagerCommitSector.M(1))
+	}
 	return resp, sectorStateErr(err)
 }
 

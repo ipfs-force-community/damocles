@@ -49,11 +49,14 @@ require (
 	github.com/ipfs-force-community/venus-objstore v0.0.3
 )
 
-require github.com/filecoin-project/specs-actors/v8 v8.0.1
+require (
+	contrib.go.opencensus.io/exporter/prometheus v0.4.0
+	github.com/filecoin-project/specs-actors/v8 v8.0.1
+	go.opencensus.io v0.23.0
+)
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1 // indirect
-	contrib.go.opencensus.io/exporter/prometheus v0.4.0 // indirect
 	github.com/DataDog/zstd v1.4.1 // indirect
 	github.com/GeertJohan/go.incremental v1.0.0 // indirect
 	github.com/GeertJohan/go.rice v1.0.2 // indirect
@@ -219,7 +222,6 @@ require (
 	github.com/whyrusleeping/multiaddr-filter v0.0.0-20160516205228-e903e4adabd7 // indirect
 	github.com/whyrusleeping/timecache v0.0.0-20160911033111-cfcb2f1abfee // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
-	go.opencensus.io v0.23.0 // indirect
 	go.opentelemetry.io/otel v1.3.0 // indirect
 	go.opentelemetry.io/otel/trace v1.3.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
