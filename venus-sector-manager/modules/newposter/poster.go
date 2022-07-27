@@ -10,6 +10,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/dline"
+	"github.com/filecoin-project/venus/pkg/clock"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
@@ -26,84 +27,68 @@ const (
 
 var log = logging.New("poster")
 
-// postRunnerInner 的各方法应当保持 Once 语义
-type postRunnerInner interface {
-	// 开启当前的证明窗口
-	start(pcfg *modules.MinerPoStConfig, ts *types.TipSet)
-	// 提交当前证明结果
-	submit(pcfg *modules.MinerPoStConfig, ts *types.TipSet)
-	// 终止当前证明任务
-	abort()
+func newPostDeps(
+	chain chain.API,
+	msg messager.API,
+	rand core.RandomnessAPI,
+	minfo core.MinerInfoAPI,
+	clock clock.Clock,
+	prover core.Prover,
+	verifier core.Verifier,
+	sectorTracker core.SectorTracker,
+) postDeps {
+	return postDeps{
+		chain:         chain,
+		msg:           msg,
+		rand:          rand,
+		minfo:         minfo,
+		clock:         clock,
+		prover:        prover,
+		verifier:      verifier,
+		sectorTracker: sectorTracker,
+	}
 }
 
-type postRunner struct {
-	mid   abi.ActorID
-	dl    *dline.Info
-	inner postRunnerInner
+type postDeps struct {
+	chain         chain.API
+	msg           messager.API
+	rand          core.RandomnessAPI
+	minfo         core.MinerInfoAPI
+	clock         clock.Clock
+	prover        core.Prover
+	verifier      core.Verifier
+	sectorTracker core.SectorTracker
 }
 
-// 在 [Challenge, Close) 区间内
-func (r *postRunner) isActive(height abi.ChainEpoch) bool {
-	return height >= r.dl.Challenge && height < r.dl.Close
-}
-
-// 在 [Challenge + ChallengeConfidence, Close) 区间内
-func (r *postRunner) shouldStart(pcfg *modules.MinerPoStConfig, height abi.ChainEpoch) bool {
-	if !pcfg.Enabled {
-		return false
-	}
-
-	challengeConfidence := pcfg.ChallengeConfidence
-	if challengeConfidence == 0 {
-		challengeConfidence = DefaultChallengeConfidence
-	}
-
-	// Check if the chain is above the Challenge height for the post window
-	return height >= r.dl.Challenge+abi.ChainEpoch(challengeConfidence)
-}
-
-func (r *postRunner) couldSubmit(pcfg *modules.MinerPoStConfig, height abi.ChainEpoch) bool {
-	submitConfidence := pcfg.SubmitConfidence
-	if submitConfidence == 0 {
-		submitConfidence = DefaultSubmitConfidence
-	}
-
-	if height < r.dl.Open+abi.ChainEpoch(submitConfidence) {
-		return false
-	}
-
-	return true
-}
-
-// 回退至 Open 之前，或已到达 Close 之后
-func (r *postRunner) shouldAbort(pcfg *modules.MinerPoStConfig, revert *types.TipSet, advance *types.TipSet) bool {
-	if revert != nil && revert.Height() < r.dl.Open {
-		return true
-	}
-
-	if advance.Height() >= r.dl.Close {
-		return true
-	}
-
-	return false
-}
-
-type postContext struct {
-	chain chain.API
-	msg   messager.API
-	rand  core.RandomnessAPI
+func NewPoSter(
+	scfg *modules.SafeConfig,
+	chain chain.API,
+	msg messager.API,
+	rand core.RandomnessAPI,
+	minfo core.MinerInfoAPI,
+	clock clock.Clock,
+	prover core.Prover,
+	verifier core.Verifier,
+	sectorTracker core.SectorTracker,
+	runnerCtor RunnerConstructor,
+) (*PoSter, error) {
+	return &PoSter{
+		cfg:               scfg,
+		deps:              newPostDeps(chain, msg, rand, minfo, clock, prover, verifier, sectorTracker),
+		schedulers:        make(map[abi.ActorID]map[abi.ChainEpoch]*scheduler),
+		runnerConstructor: runnerCtor,
+	}, nil
 }
 
 type PoSter struct {
 	cfg  *modules.SafeConfig
-	pctx postContext
+	deps postDeps
 
-	runners                map[abi.ActorID]map[abi.ChainEpoch]*postRunner
-	runnerInnerConstructor func(ctx context.Context, pctx postContext, mid abi.ActorID, maddr address.Address, dinfo *dline.Info) postRunnerInner
+	schedulers        map[abi.ActorID]map[abi.ChainEpoch]*scheduler
+	runnerConstructor RunnerConstructor
 }
 
-func (p *PoSter) handleChainNotify(ctx context.Context) {
-
+func (p *PoSter) Run(ctx context.Context) {
 	var notifs <-chan []*chain.HeadChange
 	firstTime := true
 
@@ -129,7 +114,7 @@ CHAIN_HEAD_LOOP:
 				firstTime = false
 			}
 
-			ch, err := p.pctx.chain.ChainNotify(ctx)
+			ch, err := p.deps.chain.ChainNotify(ctx)
 			if err != nil {
 				mlog.Errorf("get ChainNotify error: %s", err)
 				continue CHAIN_HEAD_LOOP
@@ -229,7 +214,7 @@ func (p *PoSter) fetchMinerProvingDeadlineInfos(ctx context.Context, mids []abi.
 				return
 			}
 
-			dinfo, err := p.pctx.chain.StateMinerProvingDeadline(ctx, maddr, tsk)
+			dinfo, err := p.deps.chain.StateMinerProvingDeadline(ctx, maddr, tsk)
 			if err != nil {
 				errs[idx] = fmt.Errorf("rpc call: %w", err)
 				return
@@ -272,41 +257,46 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 	pcfgs := map[abi.ActorID]*modules.MinerPoStConfig{}
 
 	// cleanup
-	for mid := range p.runners {
-		runners := p.runners[mid]
+	for mid := range p.schedulers {
+		scheds := p.schedulers[mid]
 		mhcLog := hcLog.With("miner", mid)
 
+		var pcfg *modules.MinerPoStConfig
 		mcfg, err := p.cfg.MinerConfig(mid)
 		if err != nil {
 			mhcLog.Warnf("get miner config: %s", err)
-			continue
+		} else {
+			pcfg = &mcfg.PoSt
+			pcfgs[mid] = pcfg
 		}
 
-		pcfg := &mcfg.PoSt
-		pcfgs[mid] = pcfg
-
-		for open := range runners {
+		for open := range scheds {
 			// 尝试开启的 deadline 已经存在
 			if dl, ok := dinfos[mid]; ok && dl.Open == open {
 				delete(dinfos, mid)
 			}
 
-			runner := runners[open]
+			sched := scheds[open]
 			// 中断此 runner
-			if runner.shouldAbort(pcfg, revert, advance) {
+			if sched.shouldAbort(revert, advance) {
 				mhcLog.Debugw("abort and cleanup deadline runner", "open", open)
-				runner.inner.abort()
-				delete(runners, open)
+				sched.runner.abort()
+				delete(scheds, open)
 				continue
 			}
 
-			if runner.isActive(currHeight) {
-				if runner.shouldStart(pcfg, currHeight) {
-					runner.inner.start(pcfg, advance)
+			// post config 由于某种原因缺失，因此我们无法触发 start 或 submit
+			if pcfg == nil {
+				continue
+			}
+
+			if sched.isActive(currHeight) {
+				if sched.shouldStart(pcfg, currHeight) {
+					sched.runner.start(pcfg, advance)
 				}
 
-				if runner.couldSubmit(pcfg, currHeight) {
-					runner.inner.submit(pcfg, advance)
+				if sched.couldSubmit(pcfg, currHeight) {
+					sched.runner.submit(pcfg, advance)
 				}
 			}
 
@@ -333,21 +323,26 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 			pcfg = &mcfg.PoSt
 		}
 
-		dl := dinfos[mid]
-		prunner := &postRunner{
-			mid:   mid,
-			dl:    dl,
-			inner: p.runnerInnerConstructor(ctx, p.pctx, mid, maddr, dl),
+		minfo, err := p.deps.minfo.Get(ctx, mid)
+		if err != nil {
+			mdLog.Warnf("get miner info: %v", err)
+			continue
 		}
 
-		if _, ok := p.runners[mid]; !ok {
-			p.runners[mid] = map[abi.ChainEpoch]*postRunner{}
+		dl := dinfos[mid]
+		sched := &scheduler{
+			dl:     dl,
+			runner: p.runnerConstructor(ctx, p.deps, mid, maddr, minfo.WindowPoStProofType, dl),
+		}
+
+		if _, ok := p.schedulers[mid]; !ok {
+			p.schedulers[mid] = map[abi.ChainEpoch]*scheduler{}
 		}
 
 		mdLog.Debugw("init deadline runner", "open", dl.Open)
-		p.runners[mid][dl.Open] = prunner
-		if prunner.isActive(currHeight) && prunner.shouldStart(pcfg, currHeight) {
-			prunner.inner.start(pcfg, advance)
+		p.schedulers[mid][dl.Open] = sched
+		if sched.isActive(currHeight) && sched.shouldStart(pcfg, currHeight) {
+			sched.runner.start(pcfg, advance)
 		}
 	}
 }

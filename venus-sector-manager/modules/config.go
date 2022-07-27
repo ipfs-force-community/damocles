@@ -329,6 +329,7 @@ func defaultMinerPoStConfig(example bool) MinerPoStConfig {
 	cfg := MinerPoStConfig{
 		Enabled:                         true,
 		StrictCheck:                     true,
+		Parallel:                        false,
 		FeeConfig:                       defaultFeeConfig(),
 		Confidence:                      10,
 		SubmitConfidence:                4,
