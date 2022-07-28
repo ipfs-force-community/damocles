@@ -21,6 +21,10 @@ func randomDeadline() *dline.Info {
 	periodStart := miner.WPoStProvingPeriod + abi.ChainEpoch(rand.Intn(int(10*miner.WPoStProvingPeriod)))
 	index := uint64(rand.Intn(int(miner.WPoStPeriodDeadlines)))
 
+	return deadlineAt(periodStart, index)
+}
+
+func deadlineAt(periodStart abi.ChainEpoch, index uint64) *dline.Info {
 	return dline.NewInfo(
 		periodStart,
 		index,
@@ -37,7 +41,7 @@ func TestScheduler(t *testing.T) {
 	t.Run("isAcive", func(t *testing.T) {
 		for i := 0; i < 128; i++ {
 			dl := randomDeadline()
-			sched := newScheduler(dl, mockRunner{})
+			sched := newScheduler(dl, &mockRunner{})
 
 			require.Falsef(t, sched.isActive(dl.Challenge-1), "%#v: before challenge", dl)
 			require.Truef(t, sched.isActive(dl.Challenge), "%#v: challenge", dl)
@@ -50,7 +54,7 @@ func TestScheduler(t *testing.T) {
 	t.Run("shouldStart", func(t *testing.T) {
 		for i := 0; i < 128; i++ {
 			dl := randomDeadline()
-			sched := newScheduler(dl, mockRunner{})
+			sched := newScheduler(dl, &mockRunner{})
 			pcfg := modules.DefaultMinerPoStConfig(false)
 
 			start := dl.Challenge
@@ -82,7 +86,7 @@ func TestScheduler(t *testing.T) {
 	t.Run("couldSubmit", func(t *testing.T) {
 		for i := 0; i < 128; i++ {
 			dl := randomDeadline()
-			sched := newScheduler(dl, mockRunner{})
+			sched := newScheduler(dl, &mockRunner{})
 			pcfg := modules.DefaultMinerPoStConfig(false)
 
 			start := dl.Open
@@ -113,7 +117,7 @@ func TestScheduler(t *testing.T) {
 	t.Run("shouldAbort", func(t *testing.T) {
 		for i := 0; i < 128; i++ {
 			dl := randomDeadline()
-			sched := newScheduler(dl, mockRunner{})
+			sched := newScheduler(dl, &mockRunner{})
 
 			require.Falsef(t, sched.shouldAbort(nil, dl.Open), "%#v: advanced to open", dl)
 			require.Falsef(t, sched.shouldAbort(nil, dl.Last()), "%#v: advanced to last", dl)

@@ -31,7 +31,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
-type RunnerConstructor func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner
+type runnerConstructor func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner
 
 // PoStRunner 的各方法应当保持 Once 语义
 type PoStRunner interface {
@@ -56,7 +56,7 @@ type proofResult struct {
 	done   int
 }
 
-func PoStRunnerConstructor(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner {
+func postRunnerConstructor(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner {
 	ctx, cancel := context.WithCancel(ctx)
 	return &postRunner{
 		deps:      deps,
@@ -822,9 +822,3 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 func (pr *postRunner) waitMessage(mid string, confidence uint64) (*messager.Message, error) {
 	return pr.deps.msg.WaitMessage(pr.ctx, mid, confidence)
 }
-
-type mockRunner struct{}
-
-func (mockRunner) start(pcfg *modules.MinerPoStConfig, ts *types.TipSet)  {}
-func (mockRunner) submit(pcfg *modules.MinerPoStConfig, ts *types.TipSet) {}
-func (mockRunner) abort()                                                 {}

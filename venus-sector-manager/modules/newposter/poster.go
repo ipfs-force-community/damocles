@@ -70,7 +70,32 @@ func NewPoSter(
 	prover core.Prover,
 	verifier core.Verifier,
 	sectorTracker core.SectorTracker,
-	runnerCtor RunnerConstructor,
+) (*PoSter, error) {
+	return newPoSterWithRunnerConstructor(
+		scfg,
+		chain,
+		msg,
+		rand,
+		minfo,
+		clock,
+		prover,
+		verifier,
+		sectorTracker,
+		postRunnerConstructor,
+	)
+}
+
+func newPoSterWithRunnerConstructor(
+	scfg *modules.SafeConfig,
+	chain chain.API,
+	msg messager.API,
+	rand core.RandomnessAPI,
+	minfo core.MinerInfoAPI,
+	clock clock.Clock,
+	prover core.Prover,
+	verifier core.Verifier,
+	sectorTracker core.SectorTracker,
+	runnerCtor runnerConstructor,
 ) (*PoSter, error) {
 	return &PoSter{
 		cfg:               scfg,
@@ -85,7 +110,7 @@ type PoSter struct {
 	deps postDeps
 
 	schedulers        map[abi.ActorID]map[abi.ChainEpoch]*scheduler
-	runnerConstructor RunnerConstructor
+	runnerConstructor runnerConstructor
 }
 
 func (p *PoSter) Run(ctx context.Context) {
@@ -163,19 +188,7 @@ CHAIN_HEAD_LOOP:
 				continue CHAIN_HEAD_LOOP
 			}
 
-			p.cfg.Lock()
-			mids := make([]abi.ActorID, 0, len(p.cfg.Miners))
-			for mi := range p.cfg.Miners {
-				if mcfg := p.cfg.Miners[mi]; mcfg.PoSt.Enabled {
-					if !mcfg.PoSt.Sender.Valid() {
-						mlog.Warnw("post is enabled, but sender is invalid", "miner", mcfg.Actor)
-						continue
-					}
-
-					mids = append(mids, mcfg.Actor)
-				}
-			}
-			p.cfg.Unlock()
+			mids := p.getEnabledMiners(mlog)
 
 			if len(mids) == 0 {
 				continue CHAIN_HEAD_LOOP
@@ -189,6 +202,24 @@ CHAIN_HEAD_LOOP:
 			p.handleHeadChange(ctx, lowest, highest, dinfos)
 		}
 	}
+}
+
+func (p *PoSter) getEnabledMiners(mlog *logging.ZapLogger) []abi.ActorID {
+	p.cfg.Lock()
+	mids := make([]abi.ActorID, 0, len(p.cfg.Miners))
+	for mi := range p.cfg.Miners {
+		if mcfg := p.cfg.Miners[mi]; mcfg.PoSt.Enabled {
+			if !mcfg.PoSt.Sender.Valid() {
+				mlog.Warnw("post is enabled, but sender is invalid", "miner", mcfg.Actor)
+				continue
+			}
+
+			mids = append(mids, mcfg.Actor)
+		}
+	}
+	p.cfg.Unlock()
+
+	return mids
 }
 
 func (p *PoSter) fetchMinerProvingDeadlineInfos(ctx context.Context, mids []abi.ActorID, ts *types.TipSet) map[abi.ActorID]*dline.Info {
@@ -247,12 +278,15 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 	// 启动一个新 runner 的最基本条件为：当前高度所属的活跃区间存在没有与之对应的 runner 的情况
 	currHeight := advance.Height()
 
-	revH := "nil"
+	var revH *abi.ChainEpoch
+	revHStr := "nil"
 	if revert != nil {
-		revH = strconv.FormatUint(uint64(revert.Height()), 10)
+		h := revert.Height()
+		revH = &h
+		revHStr = strconv.FormatUint(uint64(h), 10)
 	}
 
-	hcLog := log.With("rev", revH, "adv", advance.Height())
+	hcLog := log.With("rev", revHStr, "adv", advance.Height())
 
 	pcfgs := map[abi.ActorID]*modules.MinerPoStConfig{}
 
@@ -277,13 +311,8 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 			}
 
 			sched := scheds[open]
-			// 中断此 runner
-			var revH *abi.ChainEpoch
-			if revert != nil {
-				h := revert.Height()
-				revH = &h
-			}
 
+			// 中断此 runner
 			if sched.shouldAbort(revH, currHeight) {
 				mhcLog.Debugw("abort and cleanup deadline runner", "open", open)
 				sched.runner.abort()
@@ -291,12 +320,8 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 				continue
 			}
 
-			// post config 由于某种原因缺失，因此我们无法触发 start 或 submit
-			if pcfg == nil {
-				continue
-			}
-
-			if sched.isActive(currHeight) {
+			// post config 由于某种原因缺失时，无法触发 start 或 submit
+			if pcfg != nil && sched.isActive(currHeight) {
 				if sched.shouldStart(pcfg, currHeight) {
 					sched.runner.start(pcfg, advance)
 				}

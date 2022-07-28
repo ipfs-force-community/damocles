@@ -30,3 +30,5 @@ func New(ctx context.Context, api, token string) (API, jsonrpc.ClientCloser, err
 
 	return client, closer, nil
 }
+
+type MockStruct = v1.FullNodeStruct

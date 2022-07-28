@@ -54,6 +54,10 @@ func (sc *SafeConfig) MinerConfig(mid abi.ActorID) (MinerConfig, error) {
 
 var fakeAddress MustAddress
 
+func GetFakeAddress() MustAddress {
+	return fakeAddress
+}
+
 const ConfigKey = "sector-manager"
 
 type CommonAPIConfig struct {
@@ -364,7 +368,7 @@ type MinerConfig struct {
 	Proof      MinerProofConfig
 }
 
-func defaultMinerConfig(example bool) MinerConfig {
+func DefaultMinerConfig(example bool) MinerConfig {
 	cfg := MinerConfig{
 		Sector:     defaultMinerSectorConfig(example),
 		SnapUp:     defaultMinerSnapUpConfig(example),
@@ -402,7 +406,7 @@ func (c *Config) UnmarshalConfig(data []byte) error {
 
 	miners := make([]MinerConfig, 0, len(primitive.Miners))
 	for i, pm := range primitive.Miners {
-		mcfg := defaultMinerConfig(false)
+		mcfg := DefaultMinerConfig(false)
 		err := meta.PrimitiveDecode(pm, &mcfg)
 		if err != nil {
 			return fmt.Errorf("decode primitive to miner config #%d: %w", i, err)
@@ -422,7 +426,7 @@ func DefaultConfig(example bool) Config {
 	}
 
 	if example {
-		cfg.Miners = append(cfg.Miners, defaultMinerConfig(example))
+		cfg.Miners = append(cfg.Miners, DefaultMinerConfig(example))
 	}
 
 	return cfg
