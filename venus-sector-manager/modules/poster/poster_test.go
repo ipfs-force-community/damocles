@@ -61,7 +61,7 @@ func TestPoSterGetEnabledMiners(t *testing.T) {
 
 	require.Len(t, scfg.Miners, minerCount, "mocked miners")
 
-	poster, err := newPoSterWithRunnerConstructor(scfg, nil, nil, nil, nil, nil, nil, nil, nil, mockRunnerConstructor(&mockRunner{}))
+	poster, err := newPoSterWithRunnerConstructor(scfg, nil, nil, nil, nil, nil, nil, nil, mockRunnerConstructor(&mockRunner{}))
 	require.NoError(t, err, "new poster")
 
 	mids := poster.getEnabledMiners(logging.Nop)
@@ -126,7 +126,7 @@ func TestFetchMinerProvingDeadlineInfos(t *testing.T) {
 		return dl, nil
 	}
 
-	poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, nil, nil, nil, nil, nil, mockRunnerConstructor(&mockRunner{}))
+	poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, nil, nil, nil, nil, mockRunnerConstructor(&mockRunner{}))
 	require.NoError(t, err, "new poster")
 
 	ts := mockTipSet(t, 1000)
@@ -205,7 +205,7 @@ func TestHandleHeadChange(t *testing.T) {
 			return dl, nil
 		}
 
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerInfoAPI(&mockChain), nil, nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerInfoAPI(&mockChain), nil, nil, nil, mockRunnerConstructor(runner))
 		require.NoError(t, err, "new poster")
 
 		cases := []struct {
@@ -299,7 +299,7 @@ func TestHandleHeadChange(t *testing.T) {
 		}
 
 		runner := &mockRunner{}
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerInfoAPI(&mockChain), nil, nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerInfoAPI(&mockChain), nil, nil, nil, mockRunnerConstructor(runner))
 		require.NoError(t, err, "new poster")
 
 		for di := range dls {
@@ -329,7 +329,7 @@ func TestHandleHeadChange(t *testing.T) {
 			return dl, nil
 		}
 
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerInfoAPI(&mockChain), nil, nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerInfoAPI(&mockChain), nil, nil, nil, mockRunnerConstructor(runner))
 		require.NoError(t, err, "new poster")
 
 		ts := mockTipSet(t, dl.Open)
