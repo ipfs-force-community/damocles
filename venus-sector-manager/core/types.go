@@ -7,7 +7,6 @@ import (
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/builtin/v8/miner"
-	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs/go-cid"
 )
@@ -169,8 +168,6 @@ type MinerInfo struct {
 	SectorSize          abi.SectorSize
 	WindowPoStProofType abi.RegisteredPoStProof
 	SealProofType       abi.RegisteredSealProof
-
-	Deadline dline.Info
 }
 
 type TipSetToken []byte
