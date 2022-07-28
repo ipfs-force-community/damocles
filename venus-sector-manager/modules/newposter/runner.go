@@ -70,6 +70,7 @@ func postRunnerConstructor(ctx context.Context, deps postDeps, mid abi.ActorID, 
 }
 
 type postRunner struct {
+	mock bool
 	deps postDeps
 
 	mid       abi.ActorID
@@ -174,7 +175,7 @@ func (pr *postRunner) submitPoSts(pcfg *modules.MinerPoStConfig, ts *types.TipSe
 
 func (pr *postRunner) submitSinglePost(slog *logging.ZapLogger, pcfg *modules.MinerPoStConfig, proof *miner.SubmitWindowedPoStParams) {
 	// to avoid being cancelled by proving period detection, use context.Background here
-	uid, resCh, err := pr.publishMessage(stbuiltin.MethodsMiner.SubmitWindowedPoSt, proof, false, true)
+	uid, resCh, err := pr.publishMessage(stbuiltin.MethodsMiner.SubmitWindowedPoSt, proof, false)
 	if err != nil {
 		slog.Errorf("publish post message: %v", err)
 		return
@@ -190,14 +191,9 @@ func (pr *postRunner) submitSinglePost(slog *logging.ZapLogger, pcfg *modules.Mi
 	case <-waitCtx.Done():
 		wlog.Warn("waited too long")
 
-	case res := <-resCh:
-		if res.err != nil {
-			wlog.Errorf("wait for message result failed: %s", res.err)
-			return
-		}
-
-		if res.Message.Receipt.ExitCode != 0 {
-			wlog.Errorf("window post msg %s on chain failed: exit %d", res.SignedCid, res.Message.Receipt.ExitCode)
+	case err := <-resCh:
+		if err != nil {
+			wlog.Errorf("wait for message result failed: %s", err)
 		}
 	}
 }
@@ -569,7 +565,7 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 
 		hlog := cklog.With("partitions", strings.Join(partitionIndexs, ", "))
 
-		mid, resCh, err := pr.publishMessage(stbuiltin.MethodsMiner.DeclareFaultsRecovered, params, true, true)
+		mid, resCh, err := pr.publishMessage(stbuiltin.MethodsMiner.DeclareFaultsRecovered, params, true)
 		if err != nil {
 			hlog.Errorf("publish message: %s", err)
 			return
@@ -579,15 +575,10 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 
 		hlog.Warn("declare faults recovered message published")
 
-		res := <-resCh
+		err = <-resCh
 
-		if res.err != nil {
-			hlog.Errorf("declare faults recovered wait error: %s", res.err)
-			return
-		}
-
-		if res.Message.Receipt.ExitCode != 0 {
-			hlog.Errorf("declare faults recovered %s got non-0 exit code: %d", res.Message.SignedCid, res.Message.Receipt.ExitCode)
+		if err != nil {
+			hlog.Errorf("declare faults recovered wait error: %s", err)
 			return
 		}
 	}
@@ -714,21 +705,16 @@ func (pr *postRunner) checkFaults(l *logging.ZapLogger, declIndex uint64, partit
 
 	cklog.Errorw("DETECTED FAULTY SECTORS, declaring faults", "count", bad)
 
-	uid, waitCh, err := pr.publishMessage(stbuiltin.MethodsMiner.DeclareFaults, params, true, true)
+	uid, waitCh, err := pr.publishMessage(stbuiltin.MethodsMiner.DeclareFaults, params, true)
 	if err != nil {
 		return fmt.Errorf("publish message: %w", err)
 	}
 
 	cklog.Warnw("declare faults message published", "mid", uid)
 
-	res := <-waitCh
-
-	if res.err != nil {
-		return fmt.Errorf("declare faults wait error: %w", res.err)
-	}
-
-	if res.Message.Receipt.ExitCode != 0 {
-		return fmt.Errorf("declare faults msg %s got non-0 exit code: %d", res.Message.SignedCid, res.Message.Receipt.ExitCode)
+	err = <-waitCh
+	if err != nil {
+		return fmt.Errorf("declare faults wait error: %w", err)
 	}
 
 	return nil
@@ -767,12 +753,7 @@ func (pr *postRunner) checkSectors(clog *logging.ZapLogger, check bitfield.BitFi
 	return sbf, nil
 }
 
-type msgOrErr struct {
-	*messager.Message
-	err error
-}
-
-func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler, useExtraMsgID bool, wait bool) (string, <-chan msgOrErr, error) {
+func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler, useExtraMsgID bool) (string, <-chan error, error) {
 	encoded, aerr := actors.SerializeParams(params)
 	if aerr != nil {
 		return "", nil, fmt.Errorf("serialize params: %w", aerr)
@@ -796,23 +777,40 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 		mid = fmt.Sprintf("%s-%v-%v", msg.Cid().String(), pr.dinfo.Index, pr.dinfo.Open)
 	}
 
+	if pr.mock {
+		ch := make(chan error, 1)
+		close(ch)
+		return mid, ch, nil
+	}
+
 	uid, err := pr.deps.msg.PushMessageWithId(pr.ctx, mid, &msg, &spec)
 	if err != nil {
 		return "", nil, fmt.Errorf("push msg with id %s: %w", mid, err)
 	}
 
-	if !wait {
-		return uid, nil, nil
-	}
-
-	ch := make(chan msgOrErr, 1)
+	ch := make(chan error, 1)
 	go func() {
 		defer close(ch)
 
 		m, err := pr.waitMessage(uid, pr.startCtx.pcfg.Confidence)
-		ch <- msgOrErr{
-			Message: m,
-			err:     err,
+		if err != nil {
+			ch <- err
+			return
+		}
+
+		if m == nil || m.Receipt == nil {
+			ch <- fmt.Errorf("invalid message returned")
+			return
+		}
+
+		if m.Receipt.ExitCode != 0 {
+			signed := "nil"
+			if m.SignedCid != nil {
+				signed = m.SignedCid.String()
+			}
+
+			ch <- fmt.Errorf("got non-zero exit code for %s: %w", signed, m.Receipt.ExitCode)
+			return
 		}
 	}()
 
