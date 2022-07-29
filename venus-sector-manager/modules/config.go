@@ -146,7 +146,6 @@ type FeeConfig struct {
 	//included in msg send spec
 	GasOverEstimation float64
 	GasOverPremium    float64
-	MaxFee            FIL
 	//set to msg directly
 	GasFeeCap FIL
 	MaxFeeCap FIL //兼容老字段， FeeConfig用在embed字段， 使用TextUnmarshaler会影响上层结构体解析
@@ -164,7 +163,6 @@ func (feeCfg *FeeConfig) GetGasFeeCap() FIL {
 func (feeCfg *FeeConfig) GetSendSpec() messager.MsgMeta {
 	return messager.MsgMeta{
 		GasOverEstimation: feeCfg.GasOverEstimation,
-		MaxFee:            feeCfg.MaxFee.Std(),
 		GasOverPremium:    feeCfg.GasOverPremium,
 	}
 }
@@ -174,7 +172,6 @@ func defaultFeeConfig() FeeConfig {
 		GasOverEstimation: 1.2,
 		GasOverPremium:    0,
 		GasFeeCap:         NanoFIL.Mul(5),
-		MaxFee:            FIL{},
 	}
 }
 
