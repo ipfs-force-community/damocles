@@ -465,7 +465,11 @@ type MarketAPIRelatedComponets struct {
 
 func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI) (market.API, error) {
 	scfg.Lock()
-	api, token := scfg.Common.API.Market, scfg.Common.API.Token
+	marketToken := scfg.Common.API.Token
+	if scfg.Common.API.MarketToken != "" {
+		marketToken = scfg.Common.API.MarketToken
+	}
+	api, token := scfg.Common.API.Market, marketToken
 	defer scfg.Unlock()
 
 	if api == "" {

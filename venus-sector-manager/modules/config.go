@@ -63,6 +63,7 @@ type CommonAPIConfig struct {
 	Gateway            []string
 	Token              string
 	ChainEventInterval Duration
+	MarketToken        string
 }
 
 func defaultCommonAPIConfig(example bool) CommonAPIConfig {
@@ -75,6 +76,7 @@ func defaultCommonAPIConfig(example bool) CommonAPIConfig {
 		cfg.Market = "/ip4/{api_host}/tcp/{api_port}"
 		cfg.Gateway = []string{"/ip4/{api_host}/tcp/{api_port}"}
 		cfg.Token = "{some token}"
+		cfg.MarketToken = "{some token}"
 	}
 	return cfg
 }
