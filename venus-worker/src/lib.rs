@@ -4,6 +4,8 @@
 pub(crate) mod config;
 pub(crate) mod infra;
 pub(crate) mod metadb;
+#[allow(dead_code)]
+pub(crate) mod metrics;
 pub(crate) mod rpc;
 pub(crate) mod sealing;
 pub(crate) mod signal;
