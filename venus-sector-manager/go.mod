@@ -19,7 +19,7 @@ require (
 	github.com/filecoin-project/specs-actors v0.9.15
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.6.1-0.20220707095905-e14afe441234
+	github.com/filecoin-project/venus v1.6.1-0.20220714083735-472bed839ee6
 	github.com/golang/mock v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
@@ -49,11 +49,14 @@ require (
 	github.com/ipfs-force-community/venus-objstore v0.0.3
 )
 
-require github.com/filecoin-project/specs-actors/v8 v8.0.1
+require (
+	contrib.go.opencensus.io/exporter/prometheus v0.4.0
+	github.com/filecoin-project/specs-actors/v8 v8.0.1
+	go.opencensus.io v0.23.0
+)
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1 // indirect
-	contrib.go.opencensus.io/exporter/prometheus v0.4.0 // indirect
 	github.com/DataDog/zstd v1.4.1 // indirect
 	github.com/GeertJohan/go.incremental v1.0.0 // indirect
 	github.com/GeertJohan/go.rice v1.0.2 // indirect
@@ -219,7 +222,6 @@ require (
 	github.com/whyrusleeping/multiaddr-filter v0.0.0-20160516205228-e903e4adabd7 // indirect
 	github.com/whyrusleeping/timecache v0.0.0-20160911033111-cfcb2f1abfee // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
-	go.opencensus.io v0.23.0 // indirect
 	go.opentelemetry.io/otel v1.3.0 // indirect
 	go.opentelemetry.io/otel/trace v1.3.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect

@@ -7,3 +7,5 @@
 /mock-tmp
 /venus-worker/target
 *.so
+
+.DS_Store

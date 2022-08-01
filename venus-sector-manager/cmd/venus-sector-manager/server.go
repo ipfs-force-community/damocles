@@ -10,6 +10,8 @@ import (
 
 	"github.com/dtynn/dix"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/metrics"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/metrics/proxy"
 )
 
 func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node core.SealerAPI, addr string) error {
@@ -59,8 +61,15 @@ func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node core.SealerA
 }
 
 func buildRPCServer(hdl interface{}, opts ...jsonrpc.ServerOption) (*http.ServeMux, error) {
+	// use field
+	opts = append(opts, jsonrpc.WithProxyBind(jsonrpc.PBField))
+	hdl = proxy.MetricedSealerAPI(hdl)
+
 	server := jsonrpc.NewServer(opts...)
 	server.Register(core.APINamespace, hdl)
 	http.Handle(fmt.Sprintf("/rpc/v%d", core.MajorVersion), server)
+
+	// metrics
+	http.Handle("/metrics", metrics.Exporter())
 	return http.DefaultServeMux, nil
 }

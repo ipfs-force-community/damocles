@@ -47,11 +47,7 @@ func (tp TerminateProcessor) processIndividually(ctx context.Context, sectors []
 		plog.Error("getting proving deadline info: ", err)
 	}
 
-	var spec messager.MsgMeta
 	mcfg := tp.config.MustMinerConfig(mid)
-	spec.GasOverEstimation = mcfg.Commitment.Terminate.Batch.GasOverEstimation
-	spec.MaxFeeCap = mcfg.Commitment.Terminate.Batch.MaxFeeCap.Std()
-
 	wg := sync.WaitGroup{}
 	wg.Add(len(sectors))
 	for i := range sectors {
@@ -107,7 +103,7 @@ func (tp TerminateProcessor) processIndividually(ctx context.Context, sectors []
 				return
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, big.Zero(), stbuiltin.MethodsMiner.TerminateSectors, tp.msgClient, spec, enc.Bytes(), slog)
+			mcid, err := pushMessage(ctx, from, mid, big.Zero(), stbuiltin.MethodsMiner.TerminateSectors, tp.msgClient, &mcfg.Commitment.Terminate.FeeConfig, enc.Bytes(), slog)
 			if err != nil {
 				slog.Error("push terminate single failed: ", err)
 				return
@@ -271,12 +267,8 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 		return fmt.Errorf("couldn't serialize TerminateSectorsParams: %w", err)
 	}
 
-	var spec messager.MsgMeta
 	mcfg := tp.config.MustMinerConfig(mid)
-	spec.GasOverEstimation = mcfg.Commitment.Terminate.Batch.GasOverEstimation
-	spec.MaxFeeCap = mcfg.Commitment.Terminate.Batch.MaxFeeCap.Std()
-
-	mcid, err := pushMessage(ctx, ctrlAddr, mid, big.Zero(), stbuiltin.MethodsMiner.TerminateSectors, tp.msgClient, spec, enc.Bytes(), plog)
+	mcid, err := pushMessage(ctx, ctrlAddr, mid, big.Zero(), stbuiltin.MethodsMiner.TerminateSectors, tp.msgClient, &mcfg.Commitment.Terminate.Batch.FeeConfig, enc.Bytes(), plog)
 	if err != nil {
 		return fmt.Errorf("push aggregate terminate message failed: %w", err)
 	}
