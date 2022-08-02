@@ -191,7 +191,7 @@ func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaSto
 
 func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (messager.API, error) {
 	locker.Lock()
-	api, token := scfg.Common.API.Messager, scfg.Common.API.Token
+	api, token := extractAPIInfo(scfg.Common.API.Messager, scfg.Common.API.Token)
 	locker.Unlock()
 
 	mcli, mcloser, err := messager.New(gctx, api, token)
@@ -265,7 +265,7 @@ func buildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, serverAddr string
 
 func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (chain.API, error) {
 	locker.Lock()
-	api, token := scfg.Common.API.Chain, scfg.Common.API.Token
+	api, token := extractAPIInfo(scfg.Common.API.Chain, scfg.Common.API.Token)
 	locker.Unlock()
 
 	ccli, ccloser, err := chain.New(gctx, api, token)
@@ -465,7 +465,7 @@ type MarketAPIRelatedComponets struct {
 
 func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI) (market.API, error) {
 	scfg.Lock()
-	api, token := scfg.Common.API.Market, scfg.Common.API.Token
+	api, token := extractAPIInfo(scfg.Common.API.Market, scfg.Common.API.Token)
 	defer scfg.Unlock()
 
 	if api == "" {

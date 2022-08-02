@@ -39,7 +39,7 @@ func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover core.Prover, cf
 	}
 
 	cfg.Lock()
-	urls, token, miners := cfg.Common.API.Gateway, cfg.Common.API.Token, cfg.Miners
+	urls, commonToken, miners := cfg.Common.API.Gateway, cfg.Common.API.Token, cfg.Miners
 	cfg.Unlock()
 
 	if len(urls) == 0 {
@@ -68,7 +68,8 @@ func StartProofEvent(gctx GlobalContext, lc fx.Lifecycle, prover core.Prover, cf
 		return nil
 	}
 
-	for _, addr := range urls {
+	for _, u := range urls {
+		addr, token := extractAPIInfo(u, commonToken)
 		client, err := miner.NewProofEventClient(lc, addr, token)
 		if err != nil {
 			return err
