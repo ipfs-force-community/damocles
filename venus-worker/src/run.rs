@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
@@ -160,6 +161,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
+    let rt = Arc::new(runtime);
     let global = GlobalModules {
         rpc: Arc::new(rpc_client),
         attached: Arc::new(attached_mgr),
@@ -170,7 +172,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         )),
         ext_locks,
         static_tree_d,
-        rt: Arc::new(runtime),
+        rt: rt.clone(),
         piece_store: piece_store.map(Arc::new),
     };
 
@@ -196,6 +198,10 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
 
     // TODO: handle result
     let _ = dog.wait();
+
+    if let Ok(rt) = Arc::try_unwrap(rt) {
+        rt.shutdown_timeout(Duration::from_secs(5));
+    }
 
     Ok(())
 }
