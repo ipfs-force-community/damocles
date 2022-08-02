@@ -1,3 +1,3 @@
 mod util;
 
-mod rpc;
+pub mod rpc;
