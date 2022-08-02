@@ -222,11 +222,20 @@ pub struct SectorManagerConfig {
     pub piece_token: Option<String>,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct MetricsConfig {
+    pub enable: bool,
+    pub http_listen: Option<SocketAddr>,
+}
+
 /// global configuration
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     /// section for local config
     pub worker: Option<WorkerInstanceConfig>,
+
+    /// section for metrics
+    pub metrics: MetricsConfig,
 
     /// section for sector manager rpc
     pub sector_manager: SectorManagerConfig,

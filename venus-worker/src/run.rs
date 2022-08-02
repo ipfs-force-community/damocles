@@ -6,6 +6,7 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
 use jsonrpc_core_client::transports::http;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use reqwest::Url;
 use tokio::runtime::Builder;
 use vc_processors::builtin::processors::BuiltinProcessor;
@@ -122,6 +123,19 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
     } else {
         format!("{}", local_ip)
     };
+
+    if cfg.metrics.enable {
+        let mut builder = PrometheusBuilder::new()
+            .add_global_label("worker_name", instance.clone())
+            .add_global_label("worker_ip", local_ip.to_string());
+
+        if let Some(listen) = cfg.metrics.http_listen.as_ref().cloned() {
+            builder = builder.with_http_listener(listen);
+        }
+
+        builder.install().context("install prometheus recorder")?;
+        info!("prometheus exproter inited");
+    }
 
     let dest = format!("{}:{}", local_ip, cfg.worker_server_listen_port());
     info!(?instance, ?dest, "worker info inited");
