@@ -1032,9 +1032,9 @@ checksum = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"
 
 [[package]]
 name = "fastrand"
-version = "1.4.1"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77b705829d1e87f762c2df6da140b26af5839e1033aa84aa5f56bb688e4e1bdb"
+checksum = "a7a407cfaa3385c4ae6b23e84623d48c2798d06e3e6a1878f7f59f17b3f86499"
 dependencies = [
  "instant",
 ]
@@ -1119,7 +1119,7 @@ dependencies = [
 [[package]]
 name = "filecoin-hashers"
 version = "6.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#ef44daad270d740e1486aa41020edde73e4da88a"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1138,7 +1138,7 @@ dependencies = [
 [[package]]
 name = "filecoin-proofs"
 version = "11.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#ef44daad270d740e1486aa41020edde73e4da88a"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1152,7 +1152,7 @@ dependencies = [
  "ff",
  "fil_logger",
  "filecoin-hashers",
- "fr32 4.1.1",
+ "fr32",
  "generic-array 0.14.4",
  "group",
  "hex",
@@ -1187,7 +1187,7 @@ dependencies = [
  "blstrs",
  "filecoin-hashers",
  "filecoin-proofs",
- "fr32 4.1.0",
+ "fr32",
  "lazy_static",
  "serde",
  "storage-proofs-core",
@@ -1339,23 +1339,8 @@ dependencies = [
 
 [[package]]
 name = "fr32"
-version = "4.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "355338c73ad12186e0f99c563f2e5666f837d5c04edfd4302e7b89b356b8c86e"
-dependencies = [
- "anyhow",
- "bellperson",
- "blstrs",
- "byte-slice-cast",
- "byteorder 1.4.3",
- "ff",
- "thiserror",
-]
-
-[[package]]
-name = "fr32"
 version = "4.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#ef44daad270d740e1486aa41020edde73e4da88a"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -2924,9 +2909,9 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.2.8"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "742739e41cd49414de871ea5e549afb7e2a3ac77b589bcbebe8c82fab37147fc"
+checksum = "534cfe58d6a18cc17120fbf4635d53d14691c1fe4d951064df9bd326178d7d5a"
 dependencies = [
  "bitflags 1.3.2",
 ]
@@ -3241,7 +3226,7 @@ dependencies = [
 [[package]]
 name = "sha2raw"
 version = "6.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#ef44daad270d740e1486aa41020edde73e4da88a"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
 dependencies = [
  "block-buffer 0.9.0",
  "byteorder 1.4.3",
@@ -3338,7 +3323,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "storage-proofs-core"
 version = "11.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#ef44daad270d740e1486aa41020edde73e4da88a"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
 dependencies = [
  "aes",
  "anyhow",
@@ -3351,7 +3336,7 @@ dependencies = [
  "config",
  "ff",
  "filecoin-hashers",
- "fr32 4.1.1",
+ "fr32",
  "fs2",
  "generic-array 0.14.4",
  "glob",
@@ -3379,7 +3364,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-porep"
 version = "11.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#ef44daad270d740e1486aa41020edde73e4da88a"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3393,9 +3378,8 @@ dependencies = [
  "ff",
  "fil_logger",
  "filecoin-hashers",
- "fr32 4.1.1",
+ "fr32",
  "generic-array 0.14.4",
- "glob",
  "hex",
  "hwloc",
  "lazy_static",
@@ -3411,7 +3395,6 @@ dependencies = [
  "pretty_assertions 0.6.1",
  "rand 0.8.5",
  "rayon",
- "regex",
  "serde",
  "serde_json",
  "sha2 0.9.5",
@@ -3423,7 +3406,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-post"
 version = "11.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#ef44daad270d740e1486aa41020edde73e4da88a"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3434,7 +3417,7 @@ dependencies = [
  "crossbeam",
  "ff",
  "filecoin-hashers",
- "fr32 4.1.1",
+ "fr32",
  "generic-array 0.14.4",
  "hex",
  "log",
@@ -3451,7 +3434,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-update"
 version = "11.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#ef44daad270d740e1486aa41020edde73e4da88a"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3465,7 +3448,7 @@ dependencies = [
  "ff",
  "fil_logger",
  "filecoin-hashers",
- "fr32 4.1.1",
+ "fr32",
  "generic-array 0.14.4",
  "hex",
  "lazy_static",
@@ -3543,13 +3526,13 @@ dependencies = [
 
 [[package]]
 name = "tempfile"
-version = "3.2.0"
+version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dac1c663cfc93810f88aed9b8941d48cabf856a1b111c29a40439018d870eb22"
+checksum = "5cdb1ef4eaeeaddc8fbd371e5017057064af0911902ef36b39801f67cc6d79e4"
 dependencies = [
  "cfg-if 1.0.0",
+ "fastrand",
  "libc",
- "rand 0.8.5",
  "redox_syscall",
  "remove_dir_all",
  "winapi 0.3.9",
@@ -3986,6 +3969,7 @@ dependencies = [
  "serde",
  "serde_json",
  "storage-proofs-core",
+ "storage-proofs-porep",
  "tempfile",
  "tracing",
  "tracing-subscriber 0.3.10",
@@ -4024,6 +4008,7 @@ dependencies = [
  "forest_address",
  "forest_cid",
  "forest_json_utils",
+ "glob",
  "humantime",
  "humantime-serde",
  "jsonrpc-core",
@@ -4035,12 +4020,14 @@ dependencies = [
  "nix",
  "pretty_assertions 1.2.1",
  "rand 0.8.5",
+ "regex",
  "reqwest",
  "rocksdb",
  "serde",
  "serde_json",
  "serde_repr",
  "signal-hook",
+ "tempfile",
  "time 0.3.9",
  "tokio",
  "toml",

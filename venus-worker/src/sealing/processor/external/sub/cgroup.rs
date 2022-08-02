@@ -1,11 +1,7 @@
-#[cfg(not(target_os = "linux"))]
-pub use other::CtrlGroupDummy as CtrlGroup;
-
-#[cfg(target_os = "linux")]
-pub use linux::CtrlGroup;
+pub use imp::CtrlGroup;
 
 #[cfg(not(target_os = "linux"))]
-mod other {
+mod imp {
     use anyhow::Result;
 
     use super::super::config;
@@ -20,9 +16,9 @@ mod other {
         }
     }
 
-    pub struct CtrlGroupDummy {}
+    pub struct CtrlGroup {}
 
-    impl CtrlGroupDummy {
+    impl CtrlGroup {
         pub fn new(_name: &str, _cfg: &config::Cgroup) -> Result<Self> {
             warn!("{} does not support cgroups.", std::env::consts::OS);
             Ok(Self {})
@@ -38,7 +34,7 @@ mod other {
 }
 
 #[cfg(target_os = "linux")]
-mod linux {
+mod imp {
     use std::collections::HashSet;
 
     use anyhow::{Context, Result};

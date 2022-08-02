@@ -32,8 +32,7 @@ pub use filecoin_proofs_api::{
     ChallengeSeed, Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, PrivateReplicaInfo, ProverId, RegisteredPoStProof,
     RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket, UnpaddedBytesAmount,
 };
-
-pub use storage_proofs_core::settings;
+pub use storage_proofs_porep::stacked::init_numa_mem_pool;
 
 /// Identifier for Actors.
 pub type ActorID = u64;
