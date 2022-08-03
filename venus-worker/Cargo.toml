@@ -45,6 +45,9 @@ bytesize = "1.1"
 libc = "0.2"
 glob = "0.3"
 regex = "1"
+metrics = "0.20"
+metrics-exporter-prometheus = "0.11"
+paste = "1.0.7"
 
 [dependencies.reqwest]
 version = "0.11"

@@ -3,6 +3,10 @@
 # rpc_server.host = "192.168.1.100"
 # rpc_server.port = 17891
 
+[metrics]
+enable = true
+#http_listen = "0.0.0.0:9000"
+
 [sector_manager]
 rpc_client.addr = "/ip4/127.0.0.1/tcp/1789"
 # rpc_client.headers = { User-Agent = "jsonrpc-core-client" }
