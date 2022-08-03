@@ -15,7 +15,7 @@ macro_rules! make_metric {
     (@gen_struct $name:ident $name_with_labels:ident $(, $label:ident)+) => {
         impl $name {
             $(
-                pub fn $label<V: std::string::ToString>(self, v: V) -> $name_with_labels {
+                pub fn $label<V: Into<metrics::SharedString>>(self, v: V) -> $name_with_labels {
                     $name_with_labels::init_with(stringify!($label), v)
                 }
              )+
@@ -23,14 +23,14 @@ macro_rules! make_metric {
 
         #[derive(Clone)]
         pub struct $name_with_labels {
-            labels: Vec<(&'static str, String)>,
+            labels: Vec<metrics::Label>,
         }
 
         impl $name_with_labels {
-            fn init_with<V: std::string::ToString>(name: &'static str, val: V) -> Self {
+            fn init_with<V: Into<metrics::SharedString>>(name: &'static str, val: V) -> Self {
                 #![allow(clippy::vec_init_then_push)]
                 let mut labels = Vec::with_capacity(make_metric!(@labels_count $($label,)+));
-                labels.push((name, val.to_string()));
+                labels.push(metrics::Label::new(name, val));
                 Self {
                     labels,
                 }
@@ -39,8 +39,8 @@ macro_rules! make_metric {
 
         impl $name_with_labels {
             $(
-                pub fn $label<V: std::string::ToString>(mut self, v: V) -> Self {
-                    self.labels.push((stringify!($label), v.to_string()));
+                pub fn $label<V: Into<metrics::SharedString>>(mut self, v: V) -> Self {
+                    self.labels.push(metrics::Label::new(stringify!($label), v));
                     self
                 }
              )+
@@ -49,35 +49,35 @@ macro_rules! make_metric {
 
     (@gen_methods counter $name:ident, $key:literal $(, $labels:ident)?) => {
         pub fn incr(self) {
-            metrics::increment_counter!($key $(, &self.$labels[..])?);
+            metrics::increment_counter!($key $(, self.$labels)?);
         }
 
         pub fn incr_by(self, v: u64) {
-            metrics::counter!($key, v $(, &self.$labels[..])?);
+            metrics::counter!($key, v $(, self.$labels)?);
         }
 
         pub fn set_abs(self, v: u64) {
-            metrics::absolute_counter!($key, v $(, &self.$labels[..])?);
+            metrics::absolute_counter!($key, v $(, self.$labels)?);
         }
     };
 
     (@gen_methods gauge $name:ident, $key:literal $(, $labels:ident)?) => {
         pub fn incr<F: metrics::IntoF64>(self, v: F) {
-            metrics::increment_gauge!($key, v $(, &self.$labels[..])?);
+            metrics::increment_gauge!($key, v $(, self.$labels)?);
         }
 
         pub fn decr<F: metrics::IntoF64>(self, v: F) {
-            metrics::decrement_gauge!($key, v $(, &self.$labels[..])?);
+            metrics::decrement_gauge!($key, v $(, self.$labels)?);
         }
 
         pub fn set<F: metrics::IntoF64>(self, v: F) {
-            metrics::gauge!($key, v $(, &self.$labels[..])?);
+            metrics::gauge!($key, v $(, self.$labels)?);
         }
     };
 
     (@gen_methods histogram $name:ident, $key:literal $(, $labels:ident)?) => {
         pub fn record<F: metrics::IntoF64>(self, v: F) {
-            metrics::histogram!($key, v $(, &self.$labels[..])?);
+            metrics::histogram!($key, v $(, self.$labels)?);
         }
     };
 
