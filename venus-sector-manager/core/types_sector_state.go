@@ -30,6 +30,7 @@ type SectorImported bool
 type SectorUpgradeLandedEpoch abi.ChainEpoch
 type SectorUpgradeMessageID string
 type SectorUpgradePublic SectorPublicInfo
+type SectorNeedRebuild bool
 
 type SectorUpgradedInfo struct {
 	AccessInstance string
@@ -67,6 +68,9 @@ type SectorState struct {
 
 	// Imported
 	Imported SectorImported
+
+	// Rebuild
+	NeedRebuild SectorNeedRebuild
 }
 
 func (s SectorState) DealIDs() []abi.DealID {
@@ -87,6 +91,14 @@ func (s SectorState) Deals() Deals {
 		}
 	}
 	return res
+}
+
+func (s *SectorState) PendingForSealingCommitment() bool {
+	return s.MessageInfo.NeedSend && !bool(s.Upgraded) && !bool(s.Imported) && !bool(s.NeedRebuild)
+}
+
+func (s *SectorState) PendingForTerminateCommitment() bool {
+	return s.TerminateInfo.AddedHeight > 0 && s.TerminateInfo.TerminatedAt == 0
 }
 
 type SectorWorkerState string
