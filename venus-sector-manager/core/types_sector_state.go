@@ -101,6 +101,26 @@ func (s *SectorState) PendingForTerminateCommitment() bool {
 	return s.TerminateInfo.AddedHeight > 0 && s.TerminateInfo.TerminatedAt == 0
 }
 
+func (s *SectorState) MatchWorkerJob(jtyp SectorWorkerJob) bool {
+	switch jtyp {
+	case SectorWorkerJobAll:
+		return true
+
+	case SectorWorkerJobSealing:
+		return !bool(s.Upgraded) && !bool(s.NeedRebuild)
+
+	case SectorWorkerJobSnapUp:
+		return bool(s.Upgraded) && !bool(s.NeedRebuild)
+
+	case SectorWorkerJobRebuild:
+		return bool(s.NeedRebuild)
+
+	default:
+		return false
+
+	}
+}
+
 type SectorWorkerState string
 
 const (
@@ -114,4 +134,5 @@ const (
 	SectorWorkerJobAll     SectorWorkerJob = 0
 	SectorWorkerJobSealing SectorWorkerJob = 1
 	SectorWorkerJobSnapUp  SectorWorkerJob = 2
+	SectorWorkerJobRebuild SectorWorkerJob = 3
 )
