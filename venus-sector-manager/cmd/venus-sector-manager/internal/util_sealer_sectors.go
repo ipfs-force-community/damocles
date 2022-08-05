@@ -52,6 +52,12 @@ var flagListEnableSnapup = &cli.BoolFlag{
 	Value: false,
 }
 
+var flagListEnableRebuild = &cli.BoolFlag{
+	Name:  "rebuild",
+	Usage: "enable rebuild jobs in listing",
+	Value: false,
+}
+
 var utilSealerSectorsCmd = &cli.Command{
 	Name: "sectors",
 	Subcommands: []*cli.Command{
@@ -78,21 +84,6 @@ func extractListWorkerState(cctx *cli.Context) core.SectorWorkerState {
 	}
 
 	return core.WorkerOnline
-}
-
-func extractListWorkerJob(cctx *cli.Context) core.SectorWorkerJob {
-	enableSealing := cctx.Bool(flagListEnableSealing.Name)
-	enableSnapup := cctx.Bool(flagListEnableSnapup.Name)
-
-	if enableSealing && enableSnapup {
-		return core.SectorWorkerJobAll
-	}
-
-	if enableSnapup {
-		return core.SectorWorkerJobSnapUp
-	}
-
-	return core.SectorWorkerJobSealing
 }
 
 var utilSealerSectorsAbortCmd = &cli.Command{
@@ -140,6 +131,7 @@ var utilSealerSectorsListCmd = &cli.Command{
 		flagListOffline,
 		flagListEnableSealing,
 		flagListEnableSnapup,
+		flagListEnableRebuild,
 		&cli.StringFlag{
 			Name:  "miner",
 			Usage: "show sectors of the given miner only ",
@@ -153,7 +145,7 @@ var utilSealerSectorsListCmd = &cli.Command{
 
 		defer stop()
 
-		states, err := cli.Sealer.ListSectors(gctx, extractListWorkerState(cctx), extractListWorkerJob(cctx))
+		states, err := cli.Sealer.ListSectors(gctx, extractListWorkerState(cctx), core.SectorWorkerJobAll)
 		if err != nil {
 			return err
 		}
@@ -168,11 +160,39 @@ var utilSealerSectorsListCmd = &cli.Command{
 			minerID = &mid
 		}
 
+		selectors := []struct {
+			name    string
+			jobType core.SectorWorkerJob
+		}{
+			{
+				name:    flagListEnableSealing.Name,
+				jobType: core.SectorWorkerJobSealing,
+			},
+			{
+				name:    flagListEnableSnapup.Name,
+				jobType: core.SectorWorkerJobSnapUp,
+			},
+			{
+				name:    flagListEnableRebuild.Name,
+				jobType: core.SectorWorkerJobRebuild,
+			},
+		}
+
 		count := 0
 		fmt.Fprintln(os.Stdout, "Sectors:")
+	STATE_LOOP:
 		for _, state := range states {
 			if minerID != nil && state.ID.Miner != *minerID {
 				continue
+			}
+
+			for _, sel := range selectors {
+				selectorMatched := cctx.Bool(sel.name)
+				typeMatched := state.MatchWorkerJob(sel.jobType)
+
+				if !selectorMatched || !typeMatched {
+					continue STATE_LOOP
+				}
 			}
 
 			count++
