@@ -13,6 +13,7 @@ type WrappedLogger = logging.ZapEventLogger
 var (
 	New         = logging.Logger
 	SetLogLevel = logging.SetLogLevel
+	Nop         = zap.NewNop().Sugar()
 )
 
 func Setup() {

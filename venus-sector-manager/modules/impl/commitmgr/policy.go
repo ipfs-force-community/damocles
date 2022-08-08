@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/builtin/v8/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
@@ -15,11 +16,6 @@ func (pp PreCommitProcessor) sectorExpiration(ctx context.Context, state *core.S
 	mcfg, err := pp.config.MinerConfig(state.ID.Miner)
 	if err != nil {
 		return 0, fmt.Errorf("get miner config: %w", err)
-	}
-
-	minfo, err := pp.mapi.Get(ctx, state.ID.Miner)
-	if err != nil {
-		return 0, fmt.Errorf("get miner info: %w", err)
 	}
 
 	tok, height, err := pp.api.ChainHead(ctx)
@@ -42,7 +38,7 @@ func (pp PreCommitProcessor) sectorExpiration(ctx context.Context, state *core.S
 		return 0, fmt.Errorf("getting max prove commit duration: %w", err)
 	}
 
-	expiration, err := pp.sectorEnd(ctx, tok, height, state, mcfg.Sector.LifetimeDays, minfo.Deadline.WPoStProvingPeriod)
+	expiration, err := pp.sectorEnd(ctx, tok, height, state, mcfg.Sector.LifetimeDays, miner.WPoStProvingPeriod)
 	if err != nil {
 		return 0, fmt.Errorf("calculate sector end: %w", err)
 	}

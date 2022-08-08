@@ -54,6 +54,10 @@ func (sc *SafeConfig) MinerConfig(mid abi.ActorID) (MinerConfig, error) {
 
 var fakeAddress MustAddress
 
+func GetFakeAddress() MustAddress {
+	return fakeAddress
+}
+
 const ConfigKey = "sector-manager"
 
 type CommonAPIConfig struct {
@@ -142,7 +146,6 @@ type FeeConfig struct {
 	//included in msg send spec
 	GasOverEstimation float64
 	GasOverPremium    float64
-	MaxFee            FIL
 	//set to msg directly
 	GasFeeCap FIL
 	MaxFeeCap FIL //兼容老字段， FeeConfig用在embed字段， 使用TextUnmarshaler会影响上层结构体解析
@@ -160,7 +163,6 @@ func (feeCfg *FeeConfig) GetGasFeeCap() FIL {
 func (feeCfg *FeeConfig) GetSendSpec() messager.MsgMeta {
 	return messager.MsgMeta{
 		GasOverEstimation: feeCfg.GasOverEstimation,
-		MaxFee:            feeCfg.MaxFee.Std(),
 		GasOverPremium:    feeCfg.GasOverPremium,
 	}
 }
@@ -170,7 +172,6 @@ func defaultFeeConfig() FeeConfig {
 		GasOverEstimation: 1.2,
 		GasOverPremium:    0,
 		GasFeeCap:         NanoFIL.Mul(5),
-		MaxFee:            FIL{},
 	}
 }
 
@@ -316,20 +317,24 @@ type MinerPoStConfig struct {
 	Sender      MustAddress
 	Enabled     bool
 	StrictCheck bool
+	Parallel    bool
 	FeeConfig
 	Confidence                      uint64
+	SubmitConfidence                uint64
 	ChallengeConfidence             uint64
 	MaxPartitionsPerPoStMessage     uint64
 	MaxPartitionsPerRecoveryMessage uint64
 }
 
-func defaultMinerPoStConfig(example bool) MinerPoStConfig {
+func DefaultMinerPoStConfig(example bool) MinerPoStConfig {
 	cfg := MinerPoStConfig{
 		Enabled:                         true,
 		StrictCheck:                     true,
+		Parallel:                        false,
 		FeeConfig:                       defaultFeeConfig(),
 		Confidence:                      10,
-		ChallengeConfidence:             10,
+		SubmitConfidence:                0,
+		ChallengeConfidence:             0,
 		MaxPartitionsPerPoStMessage:     0,
 		MaxPartitionsPerRecoveryMessage: 0,
 	}
@@ -360,12 +365,12 @@ type MinerConfig struct {
 	Proof      MinerProofConfig
 }
 
-func defaultMinerConfig(example bool) MinerConfig {
+func DefaultMinerConfig(example bool) MinerConfig {
 	cfg := MinerConfig{
 		Sector:     defaultMinerSectorConfig(example),
 		SnapUp:     defaultMinerSnapUpConfig(example),
 		Commitment: defaultMinerCommitmentConfig(example),
-		PoSt:       defaultMinerPoStConfig(example),
+		PoSt:       DefaultMinerPoStConfig(example),
 		Proof:      defaultMinerProofConfig(),
 	}
 
@@ -398,7 +403,7 @@ func (c *Config) UnmarshalConfig(data []byte) error {
 
 	miners := make([]MinerConfig, 0, len(primitive.Miners))
 	for i, pm := range primitive.Miners {
-		mcfg := defaultMinerConfig(false)
+		mcfg := DefaultMinerConfig(false)
 		err := meta.PrimitiveDecode(pm, &mcfg)
 		if err != nil {
 			return fmt.Errorf("decode primitive to miner config #%d: %w", i, err)
@@ -418,7 +423,7 @@ func DefaultConfig(example bool) Config {
 	}
 
 	if example {
-		cfg.Miners = append(cfg.Miners, defaultMinerConfig(example))
+		cfg.Miners = append(cfg.Miners, DefaultMinerConfig(example))
 	}
 
 	return cfg
