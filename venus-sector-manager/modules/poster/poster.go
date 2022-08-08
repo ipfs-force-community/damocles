@@ -218,12 +218,13 @@ func (p *PoSter) getEnabledMiners(mlog *logging.ZapLogger) []abi.ActorID {
 	return mids
 }
 
-func (p *PoSter) fetchMinerProvingDeadlineInfos(ctx context.Context, mids []abi.ActorID, ts *types.TipSet) map[abi.ActorID]*dline.Info {
+func (p *PoSter) fetchMinerProvingDeadlineInfos(ctx context.Context, mids []abi.ActorID, ts *types.TipSet) map[abi.ActorID]map[abi.ChainEpoch]*dline.Info {
 	count := len(mids)
 	infos := make([]*dline.Info, count)
 	errs := make([]error, count)
 
 	tsk := ts.Key()
+	tsh := ts.Height()
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -253,14 +254,24 @@ func (p *PoSter) fetchMinerProvingDeadlineInfos(ctx context.Context, mids []abi.
 
 	wg.Wait()
 
-	res := map[abi.ActorID]*dline.Info{}
+	res := map[abi.ActorID]map[abi.ChainEpoch]*dline.Info{}
 	for i := range mids {
 		if err := errs[i]; err != nil {
 			log.Warnf("fetch proving deadline for %d: %s", mids[i], err)
 			continue
 		}
 
-		res[mids[i]] = infos[i]
+		dl := infos[i]
+		dls := map[abi.ChainEpoch]*dline.Info{
+			dl.Open: dl,
+		}
+
+		maybeNext := nextDeadline(dl, tsh)
+		if deadlineIsActive(maybeNext, tsh) {
+			dls[maybeNext.Open] = maybeNext
+		}
+
+		res[mids[i]] = dls
 	}
 
 	return res
@@ -269,7 +280,7 @@ func (p *PoSter) fetchMinerProvingDeadlineInfos(ctx context.Context, mids []abi.
 // handleHeadChange 处理以下逻辑：
 // 1. 是否需要根据 revert 回退或 abort 已存在的 runner
 // 2. 是否开启新的 runner
-func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, advance *types.TipSet, dinfos map[abi.ActorID]*dline.Info) {
+func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, advance *types.TipSet, dinfos map[abi.ActorID]map[abi.ChainEpoch]*dline.Info) {
 	// 对于当前高度来说，最少会处于1个活跃区间内，最多会处于2个活跃区间内 [next.Challenge, prev.Close)
 	// 启动一个新 runner 的最基本条件为：当前高度所属的活跃区间存在没有与之对应的 runner 的情况
 	currHeight := advance.Height()
@@ -301,12 +312,14 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 		}
 
 		for open := range scheds {
-			// 尝试开启的 deadline 已经存在
-			if dl, ok := dinfos[mid]; ok && dl.Open == open {
-				delete(dinfos, mid)
-			}
-
 			sched := scheds[open]
+
+			if dls, dlsOk := dinfos[mid]; dlsOk {
+				// 尝试开启的 deadline 已经存在
+				if _, dlOk := dls[open]; dlOk {
+					delete(dls, open)
+				}
+			}
 
 			// 中断此 runner
 			if sched.shouldAbort(revH, currHeight) {
@@ -356,27 +369,31 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 			continue
 		}
 
-		dl := dinfos[mid]
-		sched := newScheduler(
-			dl,
-			p.runnerConstructor(
-				ctx,
-				p.deps,
-				mid,
-				maddr,
-				minfo.WindowPoStProofType,
+		dls := dinfos[mid]
+		for open := range dls {
+			dl := dls[open]
+
+			sched := newScheduler(
 				dl,
-			),
-		)
+				p.runnerConstructor(
+					ctx,
+					p.deps,
+					mid,
+					maddr,
+					minfo.WindowPoStProofType,
+					dl,
+				),
+			)
 
-		if _, ok := p.schedulers[mid]; !ok {
-			p.schedulers[mid] = map[abi.ChainEpoch]*scheduler{}
-		}
+			if _, ok := p.schedulers[mid]; !ok {
+				p.schedulers[mid] = map[abi.ChainEpoch]*scheduler{}
+			}
 
-		mdLog.Debugw("init deadline runner", "open", dl.Open)
-		p.schedulers[mid][dl.Open] = sched
-		if sched.isActive(currHeight) && sched.shouldStart(pcfg, currHeight) {
-			sched.runner.start(pcfg, advance)
+			mdLog.Debugw("init deadline runner", "open", dl.Open)
+			p.schedulers[mid][dl.Open] = sched
+			if sched.isActive(currHeight) && sched.shouldStart(pcfg, currHeight) {
+				sched.runner.start(pcfg, advance)
+			}
 		}
 	}
 }

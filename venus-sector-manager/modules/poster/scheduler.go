@@ -21,7 +21,7 @@ type scheduler struct {
 
 // 在 [Challenge, Close) 区间内
 func (s *scheduler) isActive(height abi.ChainEpoch) bool {
-	return height >= s.dl.Challenge && height < s.dl.Close
+	return deadlineIsActive(s.dl, height)
 }
 
 // 在 [Challenge + ChallengeConfidence, Close) 区间内
