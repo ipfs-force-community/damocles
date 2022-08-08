@@ -197,12 +197,21 @@ var utilSealerSectorsListCmd = &cli.Command{
 
 			count++
 
-			var upMark string
+			marks := make([]string, 0, 2)
 			if state.Upgraded {
-				upMark = "(up)"
+				marks = append(marks, "upgrade")
 			}
 
-			fmt.Fprintf(os.Stdout, "%s%s:\n", util.FormatSectorID(state.ID), upMark)
+			if state.NeedRebuild {
+				marks = append(marks, "rebuild")
+			}
+
+			var sectorMark string
+			if len(marks) > 0 {
+				sectorMark = fmt.Sprintf("(%s)", strings.Join(marks, ", "))
+			}
+
+			fmt.Fprintf(os.Stdout, "%s%s:\n", util.FormatSectorID(state.ID), sectorMark)
 			if state.LatestState == nil {
 				fmt.Fprintln(os.Stdout, "NULL")
 				continue
@@ -1473,6 +1482,9 @@ var utilSealerSectorsStateCmd = &cli.Command{
 		fmt.Fprintf(os.Stdout, "\tTerminate Message: %s\n", FormatOrNull(state.TerminateInfo.TerminateCid, func() string {
 			return state.TerminateInfo.TerminateCid.String()
 		}))
+
+		// Rebuild
+		fmt.Fprintf(os.Stdout, "\nRebuild: %v\n", state.NeedRebuild)
 
 		fmt.Fprintln(os.Stdout, "")
 
