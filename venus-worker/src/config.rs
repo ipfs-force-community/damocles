@@ -224,6 +224,7 @@ pub struct SectorManagerConfig {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MetricsConfig {
+    #[serde(default)]
     pub enable: bool,
     pub http_listen: Option<SocketAddr>,
 }
@@ -235,6 +236,7 @@ pub struct Config {
     pub worker: Option<WorkerInstanceConfig>,
 
     /// section for metrics
+    #[serde(default)]
     pub metrics: MetricsConfig,
 
     /// section for sector manager rpc
