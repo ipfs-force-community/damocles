@@ -129,13 +129,28 @@ func TestFetchMinerProvingDeadlineInfos(t *testing.T) {
 	poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, nil, nil, nil, nil, mockRunnerConstructor(&mockRunner{}))
 	require.NoError(t, err, "new poster")
 
-	ts := mockTipSet(t, 1000)
+	ts := mockTipSet(t, dl.Open)
 
 	// 默认行为
 	{
 
 		dinfos := poster.fetchMinerProvingDeadlineInfos(context.Background(), mids, ts)
 		require.Len(t, dinfos, len(mids), "get all dlines for miners")
+		for mid, dls := range dinfos {
+			require.Lenf(t, dls, 1, "only 1 dline.Info at dl.Open for %d", mid)
+		}
+	}
+
+	// 交界高度
+	{
+		next := nextDeadline(dl, dl.Open)
+		nextTs := mockTipSet(t, next.Challenge)
+
+		dinfos := poster.fetchMinerProvingDeadlineInfos(context.Background(), mids, nextTs)
+		require.Len(t, dinfos, len(mids), "get all dlines for miners")
+		for mid, dls := range dinfos {
+			require.Lenf(t, dls, 2, "expected 2 dline.Infos at next.Challenge for %d", mid)
+		}
 	}
 
 	// 禁用部分
@@ -201,6 +216,7 @@ func TestHandleHeadChange(t *testing.T) {
 		runner := &mockRunner{}
 
 		dl := deadlineAt(10000, 0)
+		nextDl := nextDeadline(dl, dl.Open)
 		mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
 			return dl, nil
 		}
@@ -235,7 +251,7 @@ func TestHandleHeadChange(t *testing.T) {
 			},
 
 			{
-				title:       "challenge + condidence",
+				title:       "challenge + confidence",
 				height:      dl.Challenge + abi.ChainEpoch(DefaultChallengeConfidence),
 				runnerCount: minerCount,
 				started:     uint32(minerCount),
@@ -253,11 +269,20 @@ func TestHandleHeadChange(t *testing.T) {
 			},
 
 			{
+				title:       "next challenge",
+				height:      nextDl.Challenge,
+				runnerCount: minerCount * 2,
+				started:     uint32(minerCount * 3),
+				submited:    uint32(minerCount * 2),
+				aborted:     0,
+			},
+
+			{
 				title:       "close",
 				height:      dl.Close,
-				runnerCount: 0,
-				started:     uint32(minerCount * 2),
-				submited:    uint32(minerCount * 1),
+				runnerCount: minerCount,
+				started:     uint32(minerCount * 4),
+				submited:    uint32(minerCount * 2),
 				aborted:     uint32(minerCount),
 			},
 		}
