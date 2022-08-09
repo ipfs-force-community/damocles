@@ -75,6 +75,7 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsResendPreCommitCmd,
 		utilSealerSectorsResendProveCommitCmd,
 		utilSealerSectorsImportCommitCmd,
+		utilSealerSectorsRebuildCmd,
 	},
 }
 
@@ -1897,4 +1898,51 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*co
 	}
 
 	return state, nil
+}
+
+var utilSealerSectorsRebuildCmd = &cli.Command{
+	Name:      "rebuild",
+	Usage:     "rebuild specified sector",
+	ArgsUsage: "<miner actor> <sector number>",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "pieces-available",
+			Usage: "if all pieces are available in venus-market, this flag is used for imported sectors",
+			Value: false,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		if count := cctx.Args().Len(); count < 2 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		miner, err := ShouldActor(cctx.Args().Get(0), true)
+		if err != nil {
+			return fmt.Errorf("invalid miner actor id: %w", err)
+		}
+
+		sectorNum, err := strconv.ParseUint(cctx.Args().Get(1), 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid sector number: %w", err)
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		_, err = cli.Sealer.SectorSetForRebuild(gctx, abi.SectorID{
+			Miner:  miner,
+			Number: abi.SectorNumber(sectorNum),
+		}, core.RebuildOptions{
+			PiecesAvailable: cctx.Bool("pieces-available"),
+		})
+		if err != nil {
+			return fmt.Errorf("set sector for rebuild failed: %w", err)
+		}
+
+		return nil
+	},
 }
