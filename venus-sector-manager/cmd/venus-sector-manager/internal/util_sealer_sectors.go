@@ -1803,11 +1803,11 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*co
 		return nil, fmt.Errorf("no proof")
 	}
 
-	if sinfo.Ticket.Epoch == 0 || len(sinfo.Ticket.Value) == 0 {
+	if len(sinfo.Ticket.Value) == 0 {
 		return nil, fmt.Errorf("no ticket")
 	}
 
-	if sinfo.Seed.Epoch == 0 || len(sinfo.Seed.Value) == 0 {
+	if len(sinfo.Seed.Value) == 0 {
 		return nil, fmt.Errorf("no seed")
 	}
 
@@ -1884,6 +1884,7 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*co
 			Expiration: sinfo.Expiration,
 		}
 
+		// 这个零值行为在重建扇区时会作为判断依据，一旦改变，需要同步修正
 		state.UpgradedInfo = &core.SectorUpgradedInfo{}
 
 		if sinfo.ReplicaUpdateMessage != nil {
