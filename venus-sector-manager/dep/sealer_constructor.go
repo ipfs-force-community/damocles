@@ -672,6 +672,48 @@ func BuildSnapUpManager(
 	return mgr, nil
 }
 
+func BuildRebuildManager(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	home *homedir.Home,
+	scfg *modules.SafeConfig,
+	minerInfoAPI core.MinerInfoAPI,
+) (core.RebuildSectorManager, error) {
+	var store kvstore.KVStore
+	var err error
+	sub := "rebuild"
+
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
+		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		dir := home.Sub(sub)
+		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+		if err != nil {
+			return nil, err
+		}
+	}
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return store.Run(gctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return store.Close(ctx)
+		},
+	})
+
+	mgr, err := sectors.NewRebuildManager(scfg, minerInfoAPI, store)
+	if err != nil {
+		return nil, fmt.Errorf("construct rebuild manager: %w", err)
+	}
+
+	return mgr, nil
+}
+
 func BuildWorkerMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (WorkerMetaStore, error) {
 	var store kvstore.KVStore
 	var err error
