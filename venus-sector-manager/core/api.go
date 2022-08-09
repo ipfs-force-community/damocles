@@ -101,6 +101,9 @@ type SealerCliAPI interface {
 	StoreReleaseReserved(ctx context.Context, sid abi.SectorID) (bool, error)
 
 	StoreList(ctx context.Context) ([]StoreDetailedInfo, error)
+
+	// Sectors
+	SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt RebuildOptions) (bool, error)
 }
 
 type RandomnessAPI interface {

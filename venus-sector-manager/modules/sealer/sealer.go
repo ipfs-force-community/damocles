@@ -82,6 +82,7 @@ type Sealer struct {
 	deal      core.DealManager
 	commit    core.CommitmentManager
 	snapup    core.SnapUpSectorManager
+	rebuild   core.RebuildSectorManager
 	workerMgr core.WorkerManager
 
 	sectorIdxer   core.SectorIndexer
