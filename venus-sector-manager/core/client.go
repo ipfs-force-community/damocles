@@ -91,6 +91,10 @@ var UnavailableSealerCliClient = SealerCliClient{
 		panic("sealer client unavailable")
 	},
 
+	SectorSetForRebuild: func(ctx context.Context, sid abi.SectorID, opt RebuildOptions) (bool, error) {
+		panic("sealer client unavailable")
+	},
+
 	// not listed in SealerCliAPI, but required in cli commands
 	SubmitPreCommit: func(context.Context, AllocatedSector, PreCommitOnChainInfo, bool) (SubmitPreCommitResp, error) {
 		panic("sealer client unavailable")
@@ -143,6 +147,8 @@ type SealerCliClient struct {
 	StoreReleaseReserved func(ctx context.Context, sid abi.SectorID) (bool, error)
 
 	StoreList func(ctx context.Context) ([]StoreDetailedInfo, error)
+
+	SectorSetForRebuild func(ctx context.Context, sid abi.SectorID, opt RebuildOptions) (bool, error)
 
 	// not listed in SealerCliAPI, but required in cli commands
 	SubmitPreCommit func(context.Context, AllocatedSector, PreCommitOnChainInfo, bool) (SubmitPreCommitResp, error)
