@@ -362,6 +362,11 @@ func (s *Sealer) ImportSector(ctx context.Context, ws core.SectorWorkerState, st
 }
 
 func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt core.RebuildOptions) (bool, error) {
+	_, err := s.scfg.MinerConfig(sid.Miner)
+	if err != nil {
+		return false, fmt.Errorf("miner config unavailable: %w", err)
+	}
+
 	maddr, err := address.NewIDAddress(uint64(sid.Miner))
 	if err != nil {
 		return false, fmt.Errorf("construct miner address: %w", err)

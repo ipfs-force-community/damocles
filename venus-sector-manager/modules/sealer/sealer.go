@@ -12,6 +12,7 @@ import (
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/metrics"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
@@ -45,6 +46,7 @@ func sectorStateErr(err error) error {
 }
 
 func New(
+	scfg *modules.SafeConfig,
 	capi chain.API,
 	rand core.RandomnessAPI,
 	sector core.SectorManager,
@@ -55,9 +57,11 @@ func New(
 	sectorTracker core.SectorTracker,
 	prover core.Prover,
 	snapup core.SnapUpSectorManager,
+	rebuild core.RebuildSectorManager,
 	workerMgr core.WorkerManager,
 ) (*Sealer, error) {
 	return &Sealer{
+		scfg:      scfg,
 		capi:      capi,
 		rand:      rand,
 		sector:    sector,
@@ -65,6 +69,7 @@ func New(
 		deal:      deal,
 		commit:    commit,
 		snapup:    snapup,
+		rebuild:   rebuild,
 		workerMgr: workerMgr,
 
 		sectorIdxer:   sectorIdxer,
@@ -75,6 +80,7 @@ func New(
 }
 
 type Sealer struct {
+	scfg      *modules.SafeConfig
 	capi      chain.API
 	rand      core.RandomnessAPI
 	sector    core.SectorManager

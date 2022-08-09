@@ -610,6 +610,37 @@ func BuildSnapUpManager(
 	return mgr, nil
 }
 
+func BuildRebuildManager(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	home *homedir.Home,
+	scfg *modules.SafeConfig,
+	minerInfoAPI core.MinerInfoAPI,
+) (core.RebuildSectorManager, error) {
+	dir := home.Sub("rebuild")
+	kv, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return kv.Run(gctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return kv.Close(ctx)
+		},
+	})
+
+	mgr, err := sectors.NewRebuildManager(scfg, minerInfoAPI, kv)
+	if err != nil {
+		return nil, fmt.Errorf("construct rebuild manager: %w", err)
+	}
+
+	return mgr, nil
+}
+
 func BuildWorkerMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (WorkerMetaStore, error) {
 	dir := home.Sub("worker")
 	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
