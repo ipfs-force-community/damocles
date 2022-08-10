@@ -258,3 +258,7 @@ func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core
 func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt core.RebuildOptions) (bool, error) {
 	return false, nil
 }
+
+func (s *Sealer) AllocateRebuildSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorRebuildInfo, error) {
+	return nil, nil
+}

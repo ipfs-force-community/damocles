@@ -688,3 +688,21 @@ func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core
 	basic := storeConfig2StoreBasic(&storeCfg)
 	return &basic, nil
 }
+
+func (s *Sealer) AllocateRebuildSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorRebuildInfo, error) {
+	info, err := s.rebuild.Allocate(ctx, spec)
+	if err != nil {
+		return nil, fmt.Errorf("allocate rebuild sector: %w", err)
+	}
+
+	if info == nil {
+		return nil, nil
+	}
+
+	_, err = s.state.Load(ctx, info.Sector.ID, core.WorkerOnline)
+	if err != nil {
+		return nil, fmt.Errorf("load sector state from online database: %w", err)
+	}
+
+	return info, nil
+}
