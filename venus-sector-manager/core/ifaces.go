@@ -82,6 +82,6 @@ type WorkerManager interface {
 }
 
 type RebuildSectorManager interface {
-	Set(ctx context.Context, sid abi.SectorID, info RebuildInfo) error
-	Allocate(ctx context.Context, spec AllocateSectorSpec) (*RebuildInfo, error)
+	Set(ctx context.Context, sid abi.SectorID, info SectorRebuildInfo) error
+	Allocate(ctx context.Context, spec AllocateSectorSpec) (*SectorRebuildInfo, error)
 }

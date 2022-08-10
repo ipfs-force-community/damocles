@@ -385,7 +385,7 @@ func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt 
 
 	isSnapUp := sset[0].SectorKeyCID != nil
 
-	var info core.RebuildInfo
+	var info core.SectorRebuildInfo
 
 	// 对于重建扇区，其是否能够进行的标准为：如果包含订单数据，订单数据是否可获取
 	// 对于导入前已包含订单数据的扇区，暂时认为不可重建，这一判断的改变，依赖于 venus-market 是否能够导入 piece 数据
