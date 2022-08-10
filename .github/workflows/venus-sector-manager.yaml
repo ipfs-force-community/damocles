@@ -2,7 +2,7 @@ name: venus-sector-manager
 
 on:
   pull_request:
-    branches: [ main, release/** ]
+    branches: [ main, release/**, dev/coop/** ]
 
   # push:
   #   branches: [ main, release/** ]

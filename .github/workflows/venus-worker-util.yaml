@@ -2,7 +2,7 @@ name: venus-worker-util
 
 on:
   pull_request:
-    branches: [ main, release/** ]
+    branches: [ main, release/**, dev/coop/** ]
 
   # push:
   #   branches: [ main, release/** ]
