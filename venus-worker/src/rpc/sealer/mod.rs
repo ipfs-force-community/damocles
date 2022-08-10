@@ -284,7 +284,7 @@ pub struct SectorPublicInfo {
     pub comm_r: [u8; 32],
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorPrivateInfo {
     // for now, snap up allocator only allow non-splited sectors

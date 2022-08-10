@@ -1,17 +1,16 @@
 use std::fmt::{self, Debug};
 
 use anyhow::{anyhow, Result};
-use forest_address::Address;
 
 use super::{
     sector::{Base, Finalized, Sector, State},
     Planner,
 };
 use crate::logging::trace;
-use crate::rpc::sealer::{AllocatedSector, Deals, Seed, Ticket};
+use crate::rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, Seed, Ticket};
 use crate::sealing::processor::{
-    to_prover_id, PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
-    SealPreCommitPhase2Output, SectorId, SnapEncodeOutput,
+    to_prover_id, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output,
+    SectorId, SnapEncodeOutput,
 };
 
 pub enum Event {
@@ -63,6 +62,11 @@ pub enum Event {
     SnapProve(Vec<u8>),
 
     RePersist,
+
+    // for rebuild
+    // this allowance should be removed after planner has been implmented
+    #[allow(dead_code)]
+    AllocatedRebuildSector(SectorRebuildInfo),
 }
 
 impl Debug for Event {
@@ -116,6 +120,9 @@ impl Debug for Event {
             Self::SnapProve(_) => "SnapProve",
 
             Self::RePersist => "RePersist",
+
+            // for rebuild
+            Self::AllocatedRebuildSector(_) => "AllocatedRebuildSector",
         };
 
         f.write_str(name)
@@ -163,10 +170,7 @@ impl Event {
             Self::Retry => {}
 
             Self::Allocate(sector) => {
-                let mut prover_id: ProverId = Default::default();
-                let actor_addr_payload = Address::new_id(sector.id.miner).payload_bytes();
-                prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
-
+                let prover_id = to_prover_id(sector.id.miner);
                 let sector_id = SectorId::from(sector.id.number);
 
                 let base = Base {
@@ -240,15 +244,7 @@ impl Event {
 
             // for snap up
             Self::AllocatedSnapUpSector(sector, deals, finalized) => {
-                let prover_id = to_prover_id(sector.id.miner);
-                let sector_id = SectorId::from(sector.id.number);
-
-                let base = Base {
-                    allocated: sector,
-                    prove_input: (prover_id, sector_id),
-                };
-
-                replace!(s.base, base);
+                Self::Allocate(sector).apply_changes(s);
                 replace!(s.deals, deals);
                 replace!(s.finalized, finalized);
             }
@@ -262,6 +258,22 @@ impl Event {
             }
 
             Self::RePersist => {}
+
+            // for rebuild
+            Self::AllocatedRebuildSector(rebuild) => {
+                Self::Allocate(rebuild.sector).apply_changes(s);
+                Self::AcquireDeals(rebuild.pieces).apply_changes(s);
+                Self::AssignTicket(Some(rebuild.ticket)).apply_changes(s);
+                mem_replace!(
+                    s.finalized,
+                    rebuild.upgrade_public.map(|p| {
+                        Finalized {
+                            public: p,
+                            private: Default::default(),
+                        }
+                    })
+                );
+            }
         };
     }
 }
