@@ -66,7 +66,7 @@ func TestRebuildManager(t *testing.T) {
 				Number: abi.SectorNumber(num),
 			}
 
-			err := rbmgr.Set(context.Background(), sid, core.RebuildInfo{
+			err := rbmgr.Set(context.Background(), sid, core.SectorRebuildInfo{
 				Sector: core.AllocatedSector{
 					ID:        sid,
 					ProofType: abi.RegisteredSealProof_StackedDrg32GiBV1,

@@ -23,7 +23,7 @@ type RebuildInfos struct {
 
 type RebuildInfosForActor struct {
 	Actor abi.ActorID
-	Infos map[abi.SectorNumber]core.RebuildInfo
+	Infos map[abi.SectorNumber]core.SectorRebuildInfo
 }
 
 func NewRebuildManager(scfg *modules.SafeConfig, minfoAPI core.MinerInfoAPI, infoKVStore kvstore.KVStore) (*RebuildManager, error) {
@@ -40,13 +40,13 @@ type RebuildManager struct {
 	kv   kvstore.KVStore
 }
 
-func (rm *RebuildManager) Set(ctx context.Context, sid abi.SectorID, info core.RebuildInfo) error {
+func (rm *RebuildManager) Set(ctx context.Context, sid abi.SectorID, info core.SectorRebuildInfo) error {
 	err := rm.loadAndUpdate(ctx, func(infos *RebuildInfos) bool {
 		added := false
 		for i := range infos.Actors {
 			if infos.Actors[i].Actor == sid.Miner {
 				if infos.Actors[i].Infos == nil {
-					infos.Actors[i].Infos = map[abi.SectorNumber]core.RebuildInfo{}
+					infos.Actors[i].Infos = map[abi.SectorNumber]core.SectorRebuildInfo{}
 				}
 
 				infos.Actors[i].Infos[sid.Number] = info
@@ -58,7 +58,7 @@ func (rm *RebuildManager) Set(ctx context.Context, sid abi.SectorID, info core.R
 		if !added {
 			infos.Actors = append(infos.Actors, RebuildInfosForActor{
 				Actor: sid.Miner,
-				Infos: map[abi.SectorNumber]core.RebuildInfo{
+				Infos: map[abi.SectorNumber]core.SectorRebuildInfo{
 					sid.Number: info,
 				},
 			})
@@ -74,7 +74,7 @@ func (rm *RebuildManager) Set(ctx context.Context, sid abi.SectorID, info core.R
 	return nil
 }
 
-func (rm *RebuildManager) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*core.RebuildInfo, error) {
+func (rm *RebuildManager) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorRebuildInfo, error) {
 	cands := rm.msel.candidates(ctx, spec.AllowedMiners, spec.AllowedProofTypes, func(mcfg modules.MinerConfig) bool { return true }, "rebuild")
 	if len(cands) == 0 {
 		return nil, nil
@@ -85,7 +85,7 @@ func (rm *RebuildManager) Allocate(ctx context.Context, spec core.AllocateSector
 		allowed[cand.info.ID] = struct{}{}
 	}
 
-	var allocated *core.RebuildInfo
+	var allocated *core.SectorRebuildInfo
 	err := rm.loadAndUpdate(ctx, func(infos *RebuildInfos) bool {
 		if len(infos.Actors) == 0 {
 			return false
