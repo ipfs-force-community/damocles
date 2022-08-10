@@ -342,6 +342,18 @@ pub struct StoreBasicInfo {
     pub meta: Option<HashMap<String, String>>,
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SectorRebuildInfo {
+    pub sector: AllocatedSector,
+    pub ticket: Ticket,
+    pub pieces: Option<Deals>,
+
+    #[serde(rename = "IsSnapUp")]
+    pub is_snapup: bool,
+    pub upgrade_public: Option<SectorPublicInfo>,
+}
+
 /// defines the SealerRpc service
 #[rpc]
 pub trait Sealer {
@@ -410,4 +422,8 @@ pub trait Sealer {
 
     #[rpc(name = "Venus.StoreBasicInfo")]
     fn store_basic_info(&self, instance_name: String) -> Result<Option<StoreBasicInfo>>;
+
+    // rebuild
+    #[rpc(name = "Venus.AllocateRebuildSector")]
+    fn allocate_rebuild_sector(&self, spec: AllocateSectorSpec) -> Result<Option<SectorRebuildInfo>>;
 }
