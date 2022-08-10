@@ -152,6 +152,8 @@ pub struct Sector {
     // deal pieces
     pub deals: Option<Deals>,
 
+    // this field should only be set when the snapup procedures are required by the sector,
+    // no matter it is a snapup- or rebuild- sector
     pub finalized: Option<Finalized>,
 
     pub phases: Phases,
