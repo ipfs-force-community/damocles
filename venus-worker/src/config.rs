@@ -20,7 +20,7 @@ pub const LOCAL_HOST: &str = "127.0.0.1";
 pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(180);
 
 /// configurations for sealing sectors
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sealing {
     /// specified miner actors
     pub allowed_miners: Option<Vec<u64>>,

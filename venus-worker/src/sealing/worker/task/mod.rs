@@ -280,7 +280,7 @@ impl<'c> Task<'c> {
                 }
 
                 Err(Failure(Level::Temporary, terr)) => {
-                    if self.sector.retry >= self.store.config.max_retries {
+                    if self.sector.retry >= self.store.config().max_retries {
                         // reset retry times;
                         self.sync(|s| {
                             s.retry = 0;
@@ -299,11 +299,11 @@ impl<'c> Task<'c> {
                     })?;
 
                     info!(
-                        interval = ?self.store.config.recover_interval,
+                        interval = ?self.store.config().recover_interval,
                         "wait before recovering"
                     );
 
-                    self.wait_or_interruptted(self.store.config.recover_interval)?;
+                    self.wait_or_interruptted(self.store.config().recover_interval)?;
                 }
 
                 Err(f) => return Err(f),
@@ -366,11 +366,11 @@ impl<'c> Task<'c> {
                 Event::Retry => {
                     debug!(
                         prev = ?self.sector.state,
-                        sleep = ?self.store.config.recover_interval,
+                        sleep = ?self.store.config().recover_interval,
                         "Event::Retry captured"
                     );
 
-                    self.wait_or_interruptted(self.store.config.recover_interval)?;
+                    self.wait_or_interruptted(self.store.config().recover_interval)?;
                 }
 
                 other => {

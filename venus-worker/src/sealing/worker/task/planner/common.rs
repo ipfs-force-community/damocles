@@ -136,7 +136,7 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
         }
 
         debug!("no persist store selected, wait for next polling");
-        task.wait_or_interruptted(task.store.config.rpc_polling_interval)?;
+        task.wait_or_interruptted(task.store.config().rpc_polling_interval)?;
     };
 
     let persist_store = task
