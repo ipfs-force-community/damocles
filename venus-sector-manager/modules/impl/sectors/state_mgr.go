@@ -27,22 +27,6 @@ func init() {
 	stateFields = fields
 }
 
-func WorkerJobMatcher(jobType core.SectorWorkerJob, state *core.SectorState) bool {
-	switch jobType {
-	case core.SectorWorkerJobAll:
-		return true
-
-	case core.SectorWorkerJobSealing:
-		return !bool(state.Upgraded)
-
-	case core.SectorWorkerJobSnapUp:
-		return bool(state.Upgraded)
-
-	default:
-		return false
-	}
-}
-
 var _ core.SectorStateManager = (*StateManager)(nil)
 
 func NewStateManager(online kvstore.KVStore, offline kvstore.KVStore) (*StateManager, error) {
@@ -128,7 +112,7 @@ func (sm *StateManager) All(ctx context.Context, ws core.SectorWorkerState, job 
 			return nil, fmt.Errorf("scan state item of key %s: %w", string(iter.Key()), err)
 		}
 
-		if WorkerJobMatcher(job, &state) {
+		if state.MatchWorkerJob(job) {
 			states = append(states, &state)
 		}
 	}
@@ -152,7 +136,7 @@ func (sm *StateManager) ForEach(ctx context.Context, ws core.SectorWorkerState, 
 			return fmt.Errorf("scan state item of key %s: %w", string(iter.Key()), err)
 		}
 
-		if !WorkerJobMatcher(job, &state) {
+		if !state.MatchWorkerJob(job) {
 			continue
 		}
 

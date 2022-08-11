@@ -360,3 +360,82 @@ func (s *Sealer) ImportSector(ctx context.Context, ws core.SectorWorkerState, st
 
 	return s.state.Import(ctx, ws, state, override)
 }
+
+func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt core.RebuildOptions) (bool, error) {
+	_, err := s.scfg.MinerConfig(sid.Miner)
+	if err != nil {
+		return false, fmt.Errorf("miner config unavailable: %w", err)
+	}
+
+	maddr, err := address.NewIDAddress(uint64(sid.Miner))
+	if err != nil {
+		return false, fmt.Errorf("construct miner address: %w", err)
+	}
+
+	bits := bitfield.NewFromSet([]uint64{uint64(sid.Number)})
+	sset, err := s.capi.StateMinerSectors(ctx, maddr, &bits, types.EmptyTSK)
+	if err != nil {
+		return false, fmt.Errorf("get miner sector info: %w", err)
+	}
+
+	// len(sset) > 1 也是一种超出预期的情况，但是不考虑
+	if len(sset) == 0 {
+		return false, fmt.Errorf("no available sector info")
+	}
+
+	isSnapUp := sset[0].SectorKeyCID != nil
+
+	var info core.RebuildInfo
+
+	// 对于重建扇区，其是否能够进行的标准为：如果包含订单数据，订单数据是否可获取
+	// 对于导入前已包含订单数据的扇区，暂时认为不可重建，这一判断的改变，依赖于 venus-market 是否能够导入 piece 数据
+	err = s.state.Restore(ctx, sid, func(st *core.SectorState) (bool, error) {
+		// 检查导入的扇区
+		if st.Imported {
+			if dealIDs := st.DealIDs(); len(dealIDs) > 0 && !opt.PiecesAvailable {
+				// 由导入逻辑决定
+				if !isSnapUp || !(st.UpgradedInfo != nil && len(st.UpgradedInfo.Proof) > 0) {
+					return false, fmt.Errorf("sector with unavailable deal pieces")
+				}
+			}
+		}
+
+		// 检查必要的信息
+		if st.Ticket == nil || len(st.Ticket.Ticket) == 0 {
+			return false, fmt.Errorf("invalid ticket info")
+		}
+
+		if isSnapUp {
+			if st.UpgradePublic == nil {
+				return false, fmt.Errorf("unavailable upgrade public info")
+			}
+		}
+
+		info.Sector = core.AllocatedSector{
+			ID:        st.ID,
+			ProofType: st.SectorType,
+		}
+		info.Ticket = *st.Ticket
+		info.IsSnapUp = isSnapUp
+		info.Pieces = st.Pieces
+		info.UpgradePublic = st.UpgradePublic
+
+		st.NeedRebuild = true
+		return true, nil
+	})
+
+	if err != nil {
+		return false, fmt.Errorf("restore sector state: %w", err)
+	}
+
+	err = s.rebuild.Set(ctx, sid, info)
+	if err != nil {
+		if ferr := s.state.Finalize(ctx, sid, nil); ferr != nil {
+			log.With("sector", util.FormatSectorID(sid)).Errorf("finalize sector on failure of rebuild setup: %v", ferr)
+		}
+
+		return false, fmt.Errorf("set rebuild info: %w", err)
+	}
+
+	return true, nil
+}

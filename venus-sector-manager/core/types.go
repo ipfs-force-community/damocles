@@ -338,3 +338,15 @@ type StoreDetailedInfo struct {
 }
 
 type ReservedItem = objstore.StoreReserved
+
+type RebuildOptions struct {
+	PiecesAvailable bool
+}
+
+type RebuildInfo struct {
+	Sector        AllocatedSector
+	Ticket        Ticket
+	Pieces        Deals
+	IsSnapUp      bool
+	UpgradePublic *SectorUpgradePublic
+}

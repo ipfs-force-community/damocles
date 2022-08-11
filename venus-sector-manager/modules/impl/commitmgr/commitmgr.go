@@ -399,7 +399,7 @@ func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
 	log.Debugw("previous sectors loaded", "count", len(sectors))
 
 	for i := range sectors {
-		if sectors[i].MessageInfo.NeedSend {
+		if sectors[i].PendingForSealingCommitment() {
 			if sectors[i].MessageInfo.PreCommitCid == nil {
 				c.prePendingChan <- *sectors[i]
 			} else {
@@ -417,7 +417,7 @@ func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
 	log.Debugw("previous offline sectors loaded", "count", len(offlineSectors))
 
 	for i := range offlineSectors {
-		if offlineSectors[i].TerminateInfo.AddedHeight > 0 && offlineSectors[i].TerminateInfo.TerminatedAt == 0 {
+		if offlineSectors[i].PendingForTerminateCommitment() {
 			if offlineSectors[i].TerminateInfo.TerminateCid != nil {
 				go c.pollTerminateState(ctx, offlineSectors[i])
 			} else {

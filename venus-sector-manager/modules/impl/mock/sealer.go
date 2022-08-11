@@ -228,3 +228,7 @@ func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core
 		Meta: map[string]string{},
 	}, nil
 }
+
+func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt core.RebuildOptions) (bool, error) {
+	return false, nil
+}
