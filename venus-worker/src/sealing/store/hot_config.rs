@@ -163,6 +163,7 @@ mod tests {
         // The config should not change without modifying the hot config file
         expect_config!(&mut hot, None);
 
+        sleep_1s();
         write_toml_file(&hot_config_path, &config!(v2));
         expect_config!(&mut hot, Some(merge_config(&default_config, config!(v2))));
         // The config should not change without modifying the hot config file
@@ -172,6 +173,7 @@ mod tests {
         expect_config!(&mut hot, Some(default_config.clone()));
         expect_config!(&mut hot, None);
 
+        sleep_1s();
         write_toml_file(&hot_config_path, &config!(v3));
         expect_config!(&mut hot, Some(merge_config(&default_config, config!(v3))));
         // The config should not change without modifying the hot config file
@@ -189,5 +191,9 @@ mod tests {
 
     fn write_toml_file(path: impl AsRef<Path>, config: &Config) {
         fs::write(path, toml::to_string(&config).expect("failed to serialize config")).expect("failed to create toml file");
+    }
+
+    fn sleep_1s() {
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 }
