@@ -183,7 +183,7 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_allocated(&self) -> ExecResult {
-        if !self.task.store.config.enable_deals {
+        if !self.task.store.config().enable_deals {
             return Ok(Event::AcquireDeals(None));
         }
 
@@ -195,8 +195,8 @@ impl<'c, 't> Sealer<'c, 't> {
                 acquire_deals,
                 sector_id.clone(),
                 AcquireDealsSpec {
-                    max_deals: self.task.store.config.max_deals,
-                    min_used_space: self.task.store.config.min_deal_space.map(|b| b.get_bytes() as usize),
+                    max_deals: self.task.store.config().max_deals,
+                    min_used_space: self.task.store.config().min_deal_space.map(|b| b.get_bytes() as usize),
                 },
             }?;
 
@@ -204,11 +204,11 @@ impl<'c, 't> Sealer<'c, 't> {
 
             debug!(count = deals_count, "pieces acquired");
 
-            if !self.task.store.config.disable_cc || deals_count > 0 {
+            if !self.task.store.config().disable_cc || deals_count > 0 {
                 return Ok(Event::AcquireDeals(deals));
             }
 
-            self.task.wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
+            self.task.wait_or_interruptted(self.task.store.config().rpc_polling_interval)?;
         }
     }
 
@@ -469,11 +469,11 @@ impl<'c, 't> Sealer<'c, 't> {
 
             debug!(
                 state = ?state.state,
-                interval = ?self.task.store.config.rpc_polling_interval,
+                interval = ?self.task.store.config().rpc_polling_interval,
                 "waiting for next round of polling pre commit state",
             );
 
-            self.task.wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
+            self.task.wait_or_interruptted(self.task.store.config().rpc_polling_interval)?;
         }
 
         debug!("pre commit landed");
@@ -665,7 +665,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
         let sector_id = &allocated.id;
 
-        if !self.task.store.config.ignore_proof_check {
+        if !self.task.store.config().ignore_proof_check {
             'POLL: loop {
                 let state = call_rpc! {
                     self.task.ctx.global.rpc,
@@ -693,11 +693,11 @@ impl<'c, 't> Sealer<'c, 't> {
 
                 debug!(
                     state = ?state.state,
-                    interval = ?self.task.store.config.rpc_polling_interval,
+                    interval = ?self.task.store.config().rpc_polling_interval,
                     "waiting for next round of polling proof state",
                 );
 
-                self.task.wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
+                self.task.wait_or_interruptted(self.task.store.config().rpc_polling_interval)?;
             }
         }
 
