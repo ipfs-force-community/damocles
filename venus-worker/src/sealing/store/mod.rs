@@ -17,10 +17,14 @@ use crate::types::SealProof;
 
 use crate::config::{Sealing, SealingOptional, SealingThread};
 
+use self::hot_config::{result_flatten, HotConfig};
+
+pub mod hot_config;
 pub mod util;
 
 const SUB_PATH_DATA: &str = "data";
 const SUB_PATH_META: &str = "meta";
+const SUB_PATH_HOT_CONFIG: &str = "config.toml";
 
 /// storage location
 #[derive(Debug, Clone)]
@@ -45,6 +49,10 @@ impl Location {
     fn data_path(&self) -> PathBuf {
         self.0.join(SUB_PATH_DATA)
     }
+
+    fn hot_config_path(&self) -> PathBuf {
+        self.0.join(SUB_PATH_HOT_CONFIG)
+    }
 }
 
 /// storage used in bytes
@@ -67,9 +75,6 @@ pub struct Store {
     /// sub path for data dir
     pub data_path: PathBuf,
 
-    /// config for current store
-    pub config: Sealing,
-
     /// embedded meta database for current store
     pub meta: RocksMeta,
     meta_path: PathBuf,
@@ -80,6 +85,7 @@ pub struct Store {
     /// allowed proof types from config
     pub allowed_proof_types: Option<Vec<SealProof>>,
 
+    hot_config: HotConfig<Config, SealingThread>,
     _holder: PlaceHolder,
 }
 
@@ -101,49 +107,47 @@ impl Store {
     }
 
     /// opens the store at given location
-    fn open(loc: PathBuf, config: Sealing, plan: Option<String>) -> Result<Self> {
-        let allowed_miners = config.allowed_miners.as_ref().cloned();
-        let allowed_proof_types = config
-            .allowed_sizes
-            .as_ref()
-            .map(|sizes| {
-                sizes
-                    .iter()
-                    .map(|size_str| {
-                        Byte::from_str(size_str.as_str())
-                            .with_context(|| format!("invalid size string {}", &size_str))
-                            .and_then(|s| {
-                                (s.get_bytes() as u64)
-                                    .try_into()
-                                    .with_context(|| format!("invalid SealProof from {}", &size_str))
-                            })
-                    })
-                    .collect::<Result<Vec<_>>>()
-            })
-            .transpose()?;
-
+    pub fn open(loc: PathBuf, config: Sealing, plan: Option<String>) -> Result<Self> {
         let location = Location(loc);
+
         let data_path = location.data_path();
         if !data_path.symlink_metadata().context("read file metadata")?.is_dir() {
             return Err(anyhow!("{:?} is not a dir", data_path));
         }
 
-        let _holder = PlaceHolder::open(&location).context("open placeholder")?;
-
         let meta_path = location.meta_path();
         let meta = RocksMeta::open(&meta_path).with_context(|| format!("open metadb {:?}", meta_path))?;
 
-        Ok(Store {
+        let default_config = Config { plan, sealing: config };
+        let hot_config = HotConfig::new(default_config, merge_config, location.hot_config_path()).context("new HotConfig")?;
+        let config = hot_config.config();
+
+        let allowed_miners = config.sealing.allowed_miners.as_ref().cloned();
+        let allowed_proof_types = config
+            .sealing
+            .allowed_sizes
+            .as_deref()
+            .map(Self::size_strings_to_proof_types)
+            .transpose()?;
+
+        let _holder = PlaceHolder::open(&location).context("open placeholder")?;
+
+        Ok(Self {
             location,
-            plan,
+            plan: config.plan.clone(),
             data_path,
-            config,
             meta,
             meta_path,
             allowed_miners,
             allowed_proof_types,
+            hot_config,
             _holder,
         })
+    }
+
+    /// Returns the sealing config
+    pub fn config(&self) -> &Sealing {
+        &self.hot_config.config().sealing
     }
 
     /// returns the disk usages inside the store
@@ -164,13 +168,43 @@ impl Store {
         }
         Ok(())
     }
+
+    /// Reload hot config when the content of hot config modified
+    pub fn reload_if_needed(&mut self) -> Result<()> {
+        result_flatten(self.hot_config.if_modified(|config| {
+            self.plan = config.plan.clone();
+            self.allowed_miners = config.sealing.allowed_miners.as_ref().cloned();
+            self.allowed_proof_types = config
+                .sealing
+                .allowed_sizes
+                .as_deref()
+                .map(Self::size_strings_to_proof_types)
+                .transpose()?;
+            Ok(())
+        }))
+    }
+
+    fn size_strings_to_proof_types(size_strings: &[String]) -> Result<Vec<SealProof>> {
+        size_strings
+            .iter()
+            .map(|size_str| {
+                Byte::from_str(size_str.as_str())
+                    .with_context(|| format!("invalid size string {}", &size_str))
+                    .and_then(|s| {
+                        (s.get_bytes() as u64)
+                            .try_into()
+                            .with_context(|| format!("invalid SealProof from {}", &size_str))
+                    })
+            })
+            .collect::<Result<Vec<_>>>()
+    }
 }
 
 macro_rules! merge_fields {
     (SealingOptional, $common:expr, $cust:expr, $($field:ident,)+) => {
         SealingOptional {
             $(
-                $field: $cust.as_ref().and_then(|c| c.$field.clone()).or($common.$field.clone()),
+                $field: $cust.as_ref().and_then(|c| c.$field.clone()).or_else(|| $common.$field.clone()),
             )+
         }
     };
@@ -242,6 +276,52 @@ fn customized_sealing_config(common: &SealingOptional, customized: Option<&Seali
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Config {
+    plan: Option<String>,
+    sealing: Sealing,
+}
+
+/// Merge hot config and default config
+/// SealingThread::location cannot be override
+fn merge_config(default_config: &Config, customized: SealingThread) -> Config {
+    let default_sealing = default_config.sealing.clone();
+    let SealingThread {
+        plan: mut customized_plan,
+        sealing: customized_sealingopt,
+        ..
+    } = customized;
+
+    Config {
+        plan: customized_plan.take().or_else(|| default_config.plan.clone()),
+        sealing: match customized_sealingopt {
+            Some(mut customized_sealingopt) => {
+                merge_fields! {
+                    Sealing,
+                    default_sealing,
+                    customized_sealingopt,
+                    {
+                        allowed_miners,
+                        allowed_sizes,
+                        max_deals,
+                        min_deal_space,
+                    },
+                    {
+                        enable_deals,
+                        disable_cc,
+                        max_retries,
+                        seal_interval,
+                        recover_interval,
+                        rpc_polling_interval,
+                        ignore_proof_check,
+                    },
+                }
+            }
+            None => default_sealing,
+        },
+    }
+}
+
 /// manages the sealing stores
 #[derive(Default)]
 pub struct StoreManager {
@@ -282,5 +362,99 @@ impl StoreManager {
         }
 
         workers
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use pretty_assertions::assert_eq;
+
+    use crate::config::{Sealing, SealingOptional, SealingThread};
+
+    use super::{merge_config, Config};
+
+    fn ms(millis: u64) -> Duration {
+        Duration::from_millis(millis)
+    }
+
+    #[test]
+    fn test_merge_config() {
+        let cases = vec![
+            (
+                Config {
+                    plan: Some("sealer".to_string()),
+                    sealing: Default::default(),
+                },
+                SealingThread {
+                    location: "ignore".to_string(),
+
+                    plan: Some("sealer".to_string()),
+
+                    sealing: None,
+                },
+                Config {
+                    plan: Some("sealer".to_string()),
+                    sealing: Default::default(),
+                },
+            ),
+            (
+                Config {
+                    plan: Some("sealer".to_string()),
+                    sealing: Sealing {
+                        allowed_miners: None,
+                        allowed_sizes: None,
+                        enable_deals: true,
+                        disable_cc: false,
+                        max_deals: Some(100),
+                        min_deal_space: None,
+                        max_retries: 200,
+                        seal_interval: ms(1000),
+                        recover_interval: ms(1000),
+                        rpc_polling_interval: ms(1000),
+                        ignore_proof_check: true,
+                    },
+                },
+                SealingThread {
+                    location: "ignore".to_string(),
+                    plan: Some("snapup".to_string()),
+                    sealing: Some(SealingOptional {
+                        allowed_miners: Some(vec![1, 2, 3]),
+                        allowed_sizes: None,
+                        enable_deals: Some(false),
+                        disable_cc: Some(false),
+                        max_deals: Some(100),
+                        min_deal_space: None,
+                        max_retries: Some(800),
+                        seal_interval: Some(ms(2000)),
+                        recover_interval: Some(ms(2000)),
+                        rpc_polling_interval: Some(ms(1000)),
+                        ignore_proof_check: None,
+                    }),
+                },
+                Config {
+                    plan: Some("snapup".to_string()),
+                    sealing: Sealing {
+                        allowed_miners: Some(vec![1, 2, 3]),
+                        allowed_sizes: None,
+                        enable_deals: false,
+                        disable_cc: false,
+                        max_deals: Some(100),
+                        min_deal_space: None,
+                        max_retries: 800,
+                        seal_interval: ms(2000),
+                        recover_interval: ms(2000),
+                        rpc_polling_interval: ms(1000),
+                        ignore_proof_check: true,
+                    },
+                },
+            ),
+        ];
+
+        for (default_config, customized, expected) in cases {
+            let actual = merge_config(&default_config, customized);
+            assert_eq!(expected, actual);
+        }
     }
 }
