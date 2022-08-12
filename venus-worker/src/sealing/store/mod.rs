@@ -389,9 +389,7 @@ mod tests {
                 },
                 SealingThread {
                     location: "ignore".to_string(),
-
                     plan: Some("sealer".to_string()),
-
                     sealing: None,
                 },
                 Config {
