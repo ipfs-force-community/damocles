@@ -11,7 +11,7 @@ use byte_unit::Byte;
 use fil_types::ActorID;
 
 use crate::infra::util::PlaceHolder;
-use crate::logging::warn;
+use crate::logging::{info, warn};
 use crate::metadb::rocks::RocksMeta;
 use crate::sealing::{
     hot_config::{result_flatten, HotConfig},
@@ -19,7 +19,7 @@ use crate::sealing::{
 };
 use crate::types::SealProof;
 
-use crate::config::{Sealing, SealingOptional, SealingThread};
+use crate::config::{Sealing, SealingOptional, SealingThread, SealingThreadInner};
 
 pub mod util;
 
@@ -152,7 +152,7 @@ pub struct Config {
     /// allowed proof types from config
     pub allowed_proof_types: Option<Vec<SealProof>>,
 
-    hot_config: HotConfig<SealingWithPlan, SealingThread>,
+    hot_config: HotConfig<SealingWithPlan, SealingThreadInner>,
 }
 
 impl Config {
@@ -186,6 +186,7 @@ impl Config {
                 .as_deref()
                 .map(Self::size_strings_to_proof_types)
                 .transpose()?;
+            info!(config = ?config, "sealing thread reload hot config");
             Ok(())
         }))
     }
@@ -303,17 +304,11 @@ struct SealingWithPlan {
 
 /// Merge hot config and default config
 /// SealingThread::location cannot be override
-fn merge_config(default_config: &SealingWithPlan, customized: SealingThread) -> SealingWithPlan {
+fn merge_config(default_config: &SealingWithPlan, mut customized: SealingThreadInner) -> SealingWithPlan {
     let default_sealing = default_config.sealing.clone();
-    let SealingThread {
-        plan: mut customized_plan,
-        sealing: customized_sealingopt,
-        ..
-    } = customized;
-
     SealingWithPlan {
-        plan: customized_plan.take().or_else(|| default_config.plan.clone()),
-        sealing: match customized_sealingopt {
+        plan: customized.plan.take().or_else(|| default_config.plan.clone()),
+        sealing: match customized.sealing {
             Some(mut customized_sealingopt) => {
                 merge_fields! {
                     Sealing,
@@ -362,8 +357,8 @@ impl StoreManager {
                 continue;
             }
 
-            let sealing_config = customized_sealing_config(common, scfg.sealing.as_ref());
-            let store = Store::open(store_path.clone(), sealing_config, scfg.plan.as_ref().cloned())
+            let sealing_config = customized_sealing_config(common, scfg.inner.sealing.as_ref());
+            let store = Store::open(store_path.clone(), sealing_config, scfg.inner.plan.as_ref().cloned())
                 .with_context(|| format!("open store {:?}", store_path))?;
             path_set.insert(store_path.clone());
             stores.push((store_path, store));
@@ -390,7 +385,7 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use crate::config::{Sealing, SealingOptional, SealingThread};
+    use crate::config::{Sealing, SealingOptional, SealingThreadInner};
 
     use super::{merge_config, SealingWithPlan};
 
@@ -406,8 +401,7 @@ mod tests {
                     plan: Some("sealer".to_string()),
                     sealing: Default::default(),
                 },
-                SealingThread {
-                    location: "ignore".to_string(),
+                SealingThreadInner {
                     plan: Some("sealer".to_string()),
                     sealing: None,
                 },
@@ -433,8 +427,7 @@ mod tests {
                         ignore_proof_check: true,
                     },
                 },
-                SealingThread {
-                    location: "ignore".to_string(),
+                SealingThreadInner {
                     plan: Some("snapup".to_string()),
                     sealing: Some(SealingOptional {
                         allowed_miners: Some(vec![1, 2, 3]),
