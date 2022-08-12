@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fs::{create_dir_all, read_dir, remove_dir_all};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
@@ -68,10 +69,6 @@ pub struct Usage {
 pub struct Store {
     /// storage location
     pub location: Location,
-
-    /// storage usage plan
-    pub plan: Option<String>,
-
     /// sub path for data dir
     pub data_path: PathBuf,
 
@@ -79,13 +76,9 @@ pub struct Store {
     pub meta: RocksMeta,
     meta_path: PathBuf,
 
-    /// allowed miners parsed from config
-    pub allowed_miners: Option<Vec<ActorID>>,
+    /// the config of this Store
+    pub config: Config,
 
-    /// allowed proof types from config
-    pub allowed_proof_types: Option<Vec<SealProof>>,
-
-    hot_config: HotConfig<Config, SealingThread>,
     _holder: PlaceHolder,
 }
 
@@ -107,7 +100,7 @@ impl Store {
     }
 
     /// opens the store at given location
-    pub fn open(loc: PathBuf, config: Sealing, plan: Option<String>) -> Result<Self> {
+    pub fn open(loc: PathBuf, sealing_config: Sealing, plan: Option<String>) -> Result<Self> {
         let location = Location(loc);
 
         let data_path = location.data_path();
@@ -118,36 +111,17 @@ impl Store {
         let meta_path = location.meta_path();
         let meta = RocksMeta::open(&meta_path).with_context(|| format!("open metadb {:?}", meta_path))?;
 
-        let default_config = Config { plan, sealing: config };
-        let hot_config = HotConfig::new(default_config, merge_config, location.hot_config_path()).context("new HotConfig")?;
-        let config = hot_config.config();
-
-        let allowed_miners = config.sealing.allowed_miners.as_ref().cloned();
-        let allowed_proof_types = config
-            .sealing
-            .allowed_sizes
-            .as_deref()
-            .map(Self::size_strings_to_proof_types)
-            .transpose()?;
-
+        let config = Config::new(&location, sealing_config, plan)?;
         let _holder = PlaceHolder::open(&location).context("open placeholder")?;
 
         Ok(Self {
             location,
-            plan: config.plan.clone(),
             data_path,
             meta,
             meta_path,
-            allowed_miners,
-            allowed_proof_types,
-            hot_config,
+            config,
             _holder,
         })
-    }
-
-    /// Returns the sealing config
-    pub fn config(&self) -> &Sealing {
-        &self.hot_config.config().sealing
     }
 
     /// returns the disk usages inside the store
@@ -168,11 +142,43 @@ impl Store {
         }
         Ok(())
     }
+}
+
+/// The config of the Store
+pub struct Config {
+    /// allowed miners parsed from config
+    pub allowed_miners: Option<Vec<ActorID>>,
+
+    /// allowed proof types from config
+    pub allowed_proof_types: Option<Vec<SealProof>>,
+
+    hot_config: HotConfig<SealingWithPlan, SealingThread>,
+}
+
+impl Config {
+    fn new(loc: &Location, config: Sealing, plan: Option<String>) -> Result<Self> {
+        let default_config = SealingWithPlan { plan, sealing: config };
+        let hot_config = HotConfig::new(default_config, merge_config, loc.hot_config_path()).context("new HotConfig")?;
+
+        let allowed_miners = hot_config.config().sealing.allowed_miners.as_ref().cloned();
+        let allowed_proof_types = hot_config
+            .config()
+            .sealing
+            .allowed_sizes
+            .as_deref()
+            .map(Self::size_strings_to_proof_types)
+            .transpose()?;
+
+        Ok(Self {
+            allowed_miners,
+            allowed_proof_types,
+            hot_config,
+        })
+    }
 
     /// Reload hot config when the content of hot config modified
     pub fn reload_if_needed(&mut self) -> Result<()> {
         result_flatten(self.hot_config.if_modified(|config| {
-            self.plan = config.plan.clone();
             self.allowed_miners = config.sealing.allowed_miners.as_ref().cloned();
             self.allowed_proof_types = config
                 .sealing
@@ -182,6 +188,11 @@ impl Store {
                 .transpose()?;
             Ok(())
         }))
+    }
+
+    /// Returns the plan config item
+    pub fn plan(&self) -> &Option<String> {
+        &self.hot_config.config().plan
     }
 
     fn size_strings_to_proof_types(size_strings: &[String]) -> Result<Vec<SealProof>> {
@@ -197,6 +208,14 @@ impl Store {
                     })
             })
             .collect::<Result<Vec<_>>>()
+    }
+}
+
+impl Deref for Config {
+    type Target = Sealing;
+
+    fn deref(&self) -> &Self::Target {
+        &self.hot_config.config().sealing
     }
 }
 
@@ -277,14 +296,14 @@ fn customized_sealing_config(common: &SealingOptional, customized: Option<&Seali
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Config {
+struct SealingWithPlan {
     plan: Option<String>,
     sealing: Sealing,
 }
 
 /// Merge hot config and default config
 /// SealingThread::location cannot be override
-fn merge_config(default_config: &Config, customized: SealingThread) -> Config {
+fn merge_config(default_config: &SealingWithPlan, customized: SealingThread) -> SealingWithPlan {
     let default_sealing = default_config.sealing.clone();
     let SealingThread {
         plan: mut customized_plan,
@@ -292,7 +311,7 @@ fn merge_config(default_config: &Config, customized: SealingThread) -> Config {
         ..
     } = customized;
 
-    Config {
+    SealingWithPlan {
         plan: customized_plan.take().or_else(|| default_config.plan.clone()),
         sealing: match customized_sealingopt {
             Some(mut customized_sealingopt) => {
@@ -373,7 +392,7 @@ mod tests {
 
     use crate::config::{Sealing, SealingOptional, SealingThread};
 
-    use super::{merge_config, Config};
+    use super::{merge_config, SealingWithPlan};
 
     fn ms(millis: u64) -> Duration {
         Duration::from_millis(millis)
@@ -383,7 +402,7 @@ mod tests {
     fn test_merge_config() {
         let cases = vec![
             (
-                Config {
+                SealingWithPlan {
                     plan: Some("sealer".to_string()),
                     sealing: Default::default(),
                 },
@@ -392,13 +411,13 @@ mod tests {
                     plan: Some("sealer".to_string()),
                     sealing: None,
                 },
-                Config {
+                SealingWithPlan {
                     plan: Some("sealer".to_string()),
                     sealing: Default::default(),
                 },
             ),
             (
-                Config {
+                SealingWithPlan {
                     plan: Some("sealer".to_string()),
                     sealing: Sealing {
                         allowed_miners: None,
@@ -431,7 +450,7 @@ mod tests {
                         ignore_proof_check: None,
                     }),
                 },
-                Config {
+                SealingWithPlan {
                     plan: Some("snapup".to_string()),
                     sealing: Sealing {
                         allowed_miners: Some(vec![1, 2, 3]),

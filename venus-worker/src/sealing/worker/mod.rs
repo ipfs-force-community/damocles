@@ -28,8 +28,7 @@ impl Worker {
     }
 
     fn seal_one(&mut self, ctx: &Ctx, state: Option<State>) -> Result<(), Failure> {
-        self.store.reload_if_needed().context("reload sealing thread hot config").perm()?;
-        let task = Task::build(ctx, &self.ctrl_ctx, &self.store)?;
+        let task = Task::build(ctx, &self.ctrl_ctx, &mut self.store)?;
         task.exec(state)
     }
 }
@@ -112,7 +111,7 @@ impl Module for Worker {
             }
 
             info!(
-                duration = ?self.store.config().seal_interval,
+                duration = ?self.store.config.seal_interval,
                 "wait before sealing"
             );
 
@@ -126,7 +125,7 @@ impl Module for Worker {
                     return Ok(())
                 },
 
-                default(self.store.config().seal_interval) => {
+                default(self.store.config.seal_interval) => {
 
                 }
             }
