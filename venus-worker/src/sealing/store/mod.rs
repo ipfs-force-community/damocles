@@ -12,14 +12,14 @@ use fil_types::ActorID;
 use crate::infra::util::PlaceHolder;
 use crate::logging::warn;
 use crate::metadb::rocks::RocksMeta;
-use crate::sealing::worker::{Ctrl, Worker};
+use crate::sealing::{
+    hot_config::{result_flatten, HotConfig},
+    worker::{Ctrl, Worker},
+};
 use crate::types::SealProof;
 
 use crate::config::{Sealing, SealingOptional, SealingThread};
 
-use self::hot_config::{result_flatten, HotConfig};
-
-pub mod hot_config;
 pub mod util;
 
 const SUB_PATH_DATA: &str = "data";
