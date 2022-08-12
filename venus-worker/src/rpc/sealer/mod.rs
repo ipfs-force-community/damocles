@@ -284,7 +284,7 @@ pub struct SectorPublicInfo {
     pub comm_r: [u8; 32],
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorPrivateInfo {
     // for now, snap up allocator only allow non-splited sectors
@@ -340,6 +340,18 @@ pub struct StoreBasicInfo {
     pub name: String,
     pub path: String,
     pub meta: Option<HashMap<String, String>>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SectorRebuildInfo {
+    pub sector: AllocatedSector,
+    pub ticket: Ticket,
+    pub pieces: Option<Deals>,
+
+    #[serde(rename = "IsSnapUp")]
+    pub is_snapup: bool,
+    pub upgrade_public: Option<SectorPublicInfo>,
 }
 
 /// defines the SealerRpc service
@@ -410,4 +422,8 @@ pub trait Sealer {
 
     #[rpc(name = "Venus.StoreBasicInfo")]
     fn store_basic_info(&self, instance_name: String) -> Result<Option<StoreBasicInfo>>;
+
+    // rebuild
+    #[rpc(name = "Venus.AllocateRebuildSector")]
+    fn allocate_rebuild_sector(&self, spec: AllocateSectorSpec) -> Result<Option<SectorRebuildInfo>>;
 }

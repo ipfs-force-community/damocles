@@ -50,6 +50,9 @@ type SealerAPI interface {
 
 	SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapupInfo SnapUpOnChainInfo) (SubmitSnapUpProofResp, error)
 
+	// Rebuild
+	AllocateRebuildSector(ctx context.Context, spec AllocateSectorSpec) (*SectorRebuildInfo, error)
+
 	// Workers
 	WorkerPing(ctx context.Context, winfo WorkerInfo) (Meta, error)
 

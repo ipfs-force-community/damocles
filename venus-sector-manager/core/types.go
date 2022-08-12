@@ -343,7 +343,7 @@ type RebuildOptions struct {
 	PiecesAvailable bool
 }
 
-type RebuildInfo struct {
+type SectorRebuildInfo struct {
 	Sector        AllocatedSector
 	Ticket        Ticket
 	Pieces        Deals
