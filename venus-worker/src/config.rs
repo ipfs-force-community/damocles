@@ -133,6 +133,13 @@ pub struct SealingThread {
     /// store location
     pub location: String,
 
+    #[serde(flatten)]
+    pub inner: SealingThreadInner,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SealingThreadInner {
+    /// sealing plan
     pub plan: Option<String>,
 
     /// special sealing configuration
