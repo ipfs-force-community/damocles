@@ -344,6 +344,7 @@ mod tests {
         path::{Path, PathBuf},
     };
 
+    use pretty_assertions::assert_eq;
     use rand::{distributions::Alphanumeric, prelude::ThreadRng, Rng};
 
     use super::{scan_memory_files, MemoryFileDirPattern};

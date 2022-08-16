@@ -154,8 +154,8 @@ impl<'c, 't> Sealer<'c, 't> {
             self.task.ctx.global.rpc,
             allocate_sector,
             AllocateSectorSpec {
-                allowed_miners: self.task.store.allowed_miners.as_ref().cloned(),
-                allowed_proof_types: self.task.store.allowed_proof_types.as_ref().cloned(),
+                allowed_miners: Some(self.task.store.config.allowed_miners.clone()),
+                allowed_proof_types: Some(self.task.store.config.allowed_proof_types.clone()),
             },
         };
 

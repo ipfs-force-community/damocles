@@ -68,15 +68,25 @@ impl<'c> Task<'c> {
 
 // public methods
 impl<'c> Task<'c> {
-    pub fn build(ctx: &'c Ctx, ctrl_ctx: &'c CtrlCtx, s: &'c Store) -> Result<Self, Failure> {
-        let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta));
+    pub fn build(ctx: &'c Ctx, ctrl_ctx: &'c CtrlCtx, s: &'c mut Store) -> Result<Self, Failure> {
+        let Store {
+            meta: ref store_meta,
+            config: store_config,
+            ..
+        } = s;
+
+        let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &*store_meta));
 
         let sector: Sector = sector_meta
             .get(SECTOR_INFO_KEY)
             .or_else(|e| match e {
                 MetaError::NotFound => {
-                    let _ = get_planner(s.plan.as_deref())?;
-                    let empty = Sector::new(s.plan.as_ref().cloned());
+                    // meta data not found means that we are dealing with a new sector.
+                    // in this case we can load the sealing_thread hot config without any side effects.
+                    store_config.reload_if_needed().context("reload sealing thread hot config")?;
+
+                    let _ = get_planner(store_config.plan().as_deref())?;
+                    let empty = Sector::new(store_config.plan().as_ref().cloned());
                     sector_meta.set(SECTOR_INFO_KEY, &empty)?;
                     Ok(empty)
                 }
@@ -85,7 +95,7 @@ impl<'c> Task<'c> {
             })
             .crit()?;
 
-        let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, &s.meta));
+        let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, &*store_meta));
 
         Ok(Task {
             sector,
@@ -93,7 +103,7 @@ impl<'c> Task<'c> {
 
             ctx,
             ctrl_ctx,
-            store: s,
+            store: &*s,
             ident: WorkerIdentifier {
                 instance: ctx.instance.clone(),
                 location: s.location.to_pathbuf(),
