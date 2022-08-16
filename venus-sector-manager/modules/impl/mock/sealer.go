@@ -74,7 +74,11 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedR
 }
 
 func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) (bool, error) {
-	log.Warnf("sector m-%d-s-%d is in the instance %s", sid.Miner, sid.Number, instance)
+	return s.SubmitPersistedEx(ctx, sid, instance, false)
+}
+
+func (s *Sealer) SubmitPersistedEx(ctx context.Context, sid abi.SectorID, instanceName string, isUpgrade bool) (bool, error) {
+	log.Warnf("sector m-%d-s-%d(up=%v) is in the instance %s", sid.Miner, sid.Number, isUpgrade, instanceName)
 	return true, nil
 }
 
