@@ -273,7 +273,12 @@ impl<'c> Task<'c> {
                     if let Event::Idle = evt {
                         task_idle_count += 1;
                         if task_idle_count > TASK_MAX_IDLE_TIMES {
-                            info!("The task has been idle for {} times. break the task", task_idle_count);
+                            info!("The task has been idle for more than {} times. break the task", TASK_MAX_IDLE_TIMES);
+
+                            // when trying to allocate a task but no task for more than `TASK_MAX_IDLE_TIMES` 
+                            // times, this task is really considered idle, break this task loop.
+                            // that we have a chance to reload `sealing_thread` hot config file,
+                            // or do something else.
                             self.finalize()?;
                             return Ok(());
                         }
