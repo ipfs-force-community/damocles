@@ -169,7 +169,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
         let sector = match maybe_allocated {
             Some(a) => a,
-            None => return Ok(Event::Retry),
+            None => return Ok(Event::Idle),
         };
 
         // init required dirs & files
