@@ -1,10 +1,7 @@
-use std::fs::{create_dir_all, remove_dir_all, remove_file, OpenOptions};
-use std::os::unix::fs::symlink;
-use std::path::Path;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
-use vc_processors::builtin::tasks::{STAGE_NAME_C1, STAGE_NAME_C2, STAGE_NAME_PC1, STAGE_NAME_PC2};
+use vc_processors::builtin::tasks::STAGE_NAME_C2;
 
 use super::{
     super::{call_rpc, cloned_required, field_required, Event, State, Task},
@@ -210,17 +207,7 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_deals_acquired(&self) -> ExecResult {
-        let sector_id = self.task.sector_id()?;
-        let proof_type = self.task.sector_proof_type()?;
-
-        let seal_proof_type = (*proof_type).into();
-
-        let pieces = common::add_pieces(
-            self.task,
-            seal_proof_type,
-            self.task.staged_file(sector_id),
-            self.task.sector.deals.as_ref().unwrap_or(&Vec::new()),
-        )?;
+        let pieces = common::add_pieces(self.task, self.task.sector.deals.as_ref().unwrap_or(&Vec::new()))?;
 
         Ok(Event::AddPiece(pieces))
     }
@@ -234,129 +221,13 @@ impl<'c, 't> Sealer<'c, 't> {
         Ok(Event::AssignTicket(None))
     }
 
-    fn cleanup_before_pc1(&self, cache_dir: &Path, sealed_file: &Path) -> Result<()> {
-        // TODO: see if we have more graceful ways to handle restarting pc1
-        remove_dir_all(&cache_dir).and_then(|_| create_dir_all(&cache_dir))?;
-        debug!("init cache dir {:?} before pc1", cache_dir);
-
-        let empty_sealed_file = OpenOptions::new()
-            .create(true)
-            .read(true)
-            .write(true)
-            .truncate(true)
-            .open(&sealed_file)?;
-
-        debug!("truncate sealed file {:?} before pc1", sealed_file);
-        drop(empty_sealed_file);
-
-        Ok(())
-    }
-
     fn handle_ticket_assigned(&self) -> ExecResult {
-        let token = self.task.ctx.global.limit.acquire(STAGE_NAME_PC1).crit()?;
-
-        let sector_id = self.task.sector_id()?;
-        let proof_type = self.task.sector_proof_type()?;
-
-        let ticket = call_rpc! {
-            self.task.ctx.global.rpc,
-            assign_ticket,
-            sector_id.clone(),
-        }?;
-
-        debug!(ticket = ?ticket.ticket.0, epoch = ticket.epoch, "ticket assigned from sector-manager");
-
-        field_required! {
-            piece_infos,
-            self.task.sector.phases.pieces.as_ref().cloned()
-        }
-
-        let cache_dir = self.task.cache_dir(sector_id);
-        let staged_file = self.task.staged_file(sector_id);
-        let sealed_file = self.task.sealed_file(sector_id);
-        let prepared_dir = self.task.prepared_dir(sector_id);
-
-        self.cleanup_before_pc1(cache_dir.as_ref(), sealed_file.as_ref()).crit()?;
-        symlink(tree_d_path_in_dir(prepared_dir.as_ref()), tree_d_path_in_dir(cache_dir.as_ref())).crit()?;
-
-        field_required! {
-            prove_input,
-            self.task.sector.base.as_ref().map(|b| b.prove_input)
-        }
-
-        let out = self
-            .task
-            .ctx
-            .global
-            .processors
-            .pc1
-            .process(PC1Input {
-                registered_proof: (*proof_type).into(),
-                cache_path: cache_dir.into(),
-                in_path: staged_file.into(),
-                out_path: sealed_file.into(),
-                prover_id: prove_input.0,
-                sector_id: prove_input.1,
-                ticket: ticket.ticket.0,
-                piece_infos,
-            })
-            .perm()?;
-
-        drop(token);
+        let (ticket, out) = common::pre_commit1(self.task)?;
         Ok(Event::PC1(ticket, out))
     }
 
-    fn cleanup_before_pc2(&self, cache_dir: &Path) -> Result<()> {
-        for entry_res in cache_dir.read_dir()? {
-            let entry = entry_res?;
-            let fname = entry.file_name();
-            if let Some(fname_str) = fname.to_str() {
-                let should =
-                    fname_str == "p_aux" || fname_str == "t_aux" || fname_str.contains("tree-c") || fname_str.contains("tree-r-last");
-
-                if !should {
-                    continue;
-                }
-
-                let p = entry.path();
-                remove_file(&p).with_context(|| format!("remove cached file {:?}", p))?;
-                debug!("remove cached file {:?} before pc2", p);
-            }
-        }
-
-        Ok(())
-    }
-
     fn handle_pc1_done(&self) -> ExecResult {
-        let token = self.task.ctx.global.limit.acquire(STAGE_NAME_PC2).crit()?;
-
-        let sector_id = self.task.sector_id()?;
-
-        field_required! {
-            pc1out,
-            self.task.sector.phases.pc1out.as_ref().cloned()
-        }
-
-        let cache_dir = self.task.cache_dir(sector_id);
-        let sealed_file = self.task.sealed_file(sector_id);
-
-        self.cleanup_before_pc2(cache_dir.as_ref()).crit()?;
-
-        let out = self
-            .task
-            .ctx
-            .global
-            .processors
-            .pc2
-            .process(PC2Input {
-                pc1out,
-                cache_dir: cache_dir.into(),
-                sealed_file: sealed_file.into(),
-            })
-            .perm()?;
-
-        drop(token);
-        Ok(Event::PC2(out))
+        common::pre_commit2(self.task).map(Event::PC2)
     }
 
     fn handle_pc2_done(&self) -> ExecResult {
@@ -518,54 +389,12 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_seed_assigned(&self) -> ExecResult {
-        let token = self.task.ctx.global.limit.acquire(STAGE_NAME_C1).crit()?;
-
-        let sector_id = self.task.sector_id()?;
-
-        field_required! {
-            prove_input,
-            self.task.sector.base.as_ref().map(|b| b.prove_input)
-        }
-
-        let (seal_prover_id, seal_sector_id) = prove_input;
-
-        field_required! {
-            piece_infos,
-            self.task.sector.phases.pieces.as_ref()
-        }
-
-        field_required! {
-            ticket,
-            self.task.sector.phases.ticket.as_ref()
-        }
-
         cloned_required! {
             seed,
             self.task.sector.phases.seed
         }
 
-        cloned_required! {
-            p2out,
-            self.task.sector.phases.pc2out
-        }
-
-        let cache_dir = self.task.cache_dir(sector_id);
-        let sealed_file = self.task.sealed_file(sector_id);
-
-        let out = seal_commit_phase1(
-            cache_dir.into(),
-            sealed_file.into(),
-            seal_prover_id,
-            seal_sector_id,
-            ticket.ticket.0,
-            seed.seed.0,
-            p2out,
-            piece_infos,
-        )
-        .perm()?;
-
-        drop(token);
-        Ok(Event::C1(out))
+        common::commit1_with_seed(self.task, seed).map(Event::C1)
     }
 
     fn handle_c1_done(&self) -> ExecResult {

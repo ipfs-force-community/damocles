@@ -70,9 +70,11 @@ pub enum Event {
     RePersist,
 
     // for rebuild
-    // this allowance should be removed after planner has been implmented
-    #[allow(dead_code)]
     AllocatedRebuildSector(SectorRebuildInfo),
+
+    CheckSealed,
+
+    SkipSnap,
 }
 
 impl Debug for Event {
@@ -131,6 +133,10 @@ impl Debug for Event {
 
             // for rebuild
             Self::AllocatedRebuildSector(_) => "AllocatedRebuildSector",
+
+            Self::CheckSealed => "CheckSealed",
+
+            Self::SkipSnap => "SkipSnap",
         };
 
         f.write_str(name)
@@ -282,6 +288,10 @@ impl Event {
                     })
                 );
             }
+
+            Self::CheckSealed => {}
+
+            Self::SkipSnap => {}
         };
     }
 }
