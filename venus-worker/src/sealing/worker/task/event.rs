@@ -16,7 +16,7 @@ use crate::sealing::processor::{
 pub enum Event {
     SetState(State),
 
-    // No tasks available from sector_manager.
+    // No specified tasks available from sector_manager.
     Idle,
 
     Retry,

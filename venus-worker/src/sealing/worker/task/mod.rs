@@ -275,7 +275,7 @@ impl<'c> Task<'c> {
                         if task_idle_count > TASK_MAX_IDLE_TIMES {
                             info!("The task has been idle for more than {} times. break the task", TASK_MAX_IDLE_TIMES);
 
-                            // when trying to allocate a task but no task for more than `TASK_MAX_IDLE_TIMES`
+                            // when the planner trying to allocate a task but no task for more than `TASK_MAX_IDLE_TIMES`
                             // times, this task is really considered idle, break this task loop.
                             // that we have a chance to reload `sealing_thread` hot config file,
                             // or do something else.
