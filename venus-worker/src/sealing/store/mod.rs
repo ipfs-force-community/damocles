@@ -209,32 +209,22 @@ impl Deref for Config {
         &self.hot_config.config().sealing
     }
 }
-
-macro_rules! merge_fields {
-    (SealingOptional, $common:expr, $cust:expr, $($field:ident,)+) => {
-        SealingOptional {
-            $(
-                $field: $cust.as_ref().and_then(|c| c.$field.clone()).or_else(|| $common.$field.clone()),
-            )+
-        }
-    };
-
-    (Sealing, $def:expr, $merged:expr, {$($opt_field:ident,)*}, {$($field:ident,)*},) => {
-        Sealing {
-            $(
-                $opt_field: $merged.$opt_field.take().or($def.$opt_field),
-            )*
-
-            $(
-                $field: $merged.$field.take().unwrap_or($def.$field),
-            )*
-        }
-    };
-}
-
 fn merge_sealing_fields(default_sealing: Sealing, mut customized: SealingOptional) -> Sealing {
+    macro_rules! merge_fields {
+        ($def:expr, $merged:expr, {$($opt_field:ident,)*}, {$($field:ident,)*},) => {
+            Sealing {
+                $(
+                    $opt_field: $merged.$opt_field.take().or($def.$opt_field),
+                )*
+
+                $(
+                    $field: $merged.$field.take().unwrap_or($def.$field),
+                )*
+            }
+        };
+    }
+
     merge_fields! {
-        Sealing,
         default_sealing,
         customized,
         {
