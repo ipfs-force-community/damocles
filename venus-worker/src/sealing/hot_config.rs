@@ -51,7 +51,7 @@ where
     fn check_modified(&mut self) -> anyhow::Result<CheckModified> {
         match fs::metadata(&self.path).and_then(|m| m.modified()) {
             // Hot config file modified
-            Ok(latest_modified) if self.last_modified.map(|m| latest_modified > m).unwrap_or(true) => {
+            Ok(latest_modified) if self.last_modified.map(|m| latest_modified != m).unwrap_or(true) => {
                 self.last_modified = Some(latest_modified);
 
                 let content = fs::read_to_string(&self.path).with_context(|| format!("read hot config: '{}'", self.path.display()))?;
@@ -68,6 +68,7 @@ where
             Err(e) if e.kind() == io::ErrorKind::NotFound => {
                 // If the hot config file does not exist, but the self.last_modified is some,
                 // that means the hot config file is deleted.
+                // since self.last_modified is assigned to some only if the hot config file exists
                 if self.last_modified.take().is_some() {
                     self.current_config = self.default_config.clone();
                     Ok(CheckModified::Deleted)
@@ -84,8 +85,7 @@ where
     /// or the hot config file deleted compared to the last check
     pub fn if_modified<E>(&mut self, f: impl FnOnce(&T) -> Result<(), E>) -> anyhow::Result<Result<(), E>> {
         Ok(match self.check_modified()? {
-            CheckModified::Modified => f(self.config()),
-            CheckModified::Deleted => f(self.config()),
+            CheckModified::Modified | CheckModified::Deleted => f(self.config()),
             CheckModified::NotModified => Ok(()),
         })
     }
