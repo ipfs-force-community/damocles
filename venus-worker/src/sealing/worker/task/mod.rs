@@ -32,6 +32,8 @@ const SECTOR_INFO_KEY: &str = "info";
 const SECTOR_META_PREFIX: &str = "meta";
 const SECTOR_TRACE_PREFIX: &str = "trace";
 
+const TASK_MAX_IDLE_TIMES: i32 = 3;
+
 pub struct Task<'c> {
     sector: Sector,
     _trace: Vec<Trace>,
@@ -201,6 +203,7 @@ impl<'c> Task<'c> {
 
     pub fn exec(mut self, state: Option<State>) -> Result<(), Failure> {
         let mut event = state.map(Event::SetState);
+        let mut task_idle_count = 0;
         loop {
             let span = warn_span!(
                 "seal",
@@ -267,6 +270,14 @@ impl<'c> Task<'c> {
 
             match handle_res {
                 Ok(Some(evt)) => {
+                    if let Event::Idle = evt {
+                        task_idle_count += 1;
+                        if task_idle_count > TASK_MAX_IDLE_TIMES {
+                            info!("The task has been idle for {} times. break the task", task_idle_count);
+                            self.finalize()?;
+                            return Ok(());
+                        }
+                    }
                     event.replace(evt);
                 }
 
@@ -373,11 +384,11 @@ impl<'c> Task<'c> {
 
         if let Some(evt) = event {
             match evt {
-                Event::Retry => {
+                Event::Idle | Event::Retry => {
                     debug!(
                         prev = ?self.sector.state,
                         sleep = ?self.store.config.recover_interval,
-                        "Event::Retry captured"
+                        "{:?} captured", evt
                     );
 
                     self.wait_or_interruptted(self.store.config.recover_interval)?;
