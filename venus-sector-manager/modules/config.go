@@ -83,6 +83,23 @@ func defaultCommonAPIConfig(example bool) CommonAPIConfig {
 	return cfg
 }
 
+type MongoKVStoreConfig struct {
+	Enable       bool
+	DSN          string
+	DatabaseName string
+}
+
+func defaultMongoKVStoreConfig(example bool) MongoKVStoreConfig {
+	cfg := MongoKVStoreConfig{
+		Enable: false,
+	}
+	if example {
+		cfg.DSN = "mongo dsn"
+		cfg.DatabaseName = "db name"
+	}
+	return cfg
+}
+
 type PieceStoreConfig struct {
 	Name   string
 	Path   string
@@ -100,6 +117,7 @@ type CommonConfig struct {
 	API           CommonAPIConfig
 	PieceStores   []PieceStoreConfig
 	PersistStores []PersistStoreConfig
+	MongoKVStore  MongoKVStoreConfig
 }
 
 func exampleFilestoreConfig() objstore.Config {
@@ -114,6 +132,7 @@ func defaultCommonConfig(example bool) CommonConfig {
 		API:           defaultCommonAPIConfig(example),
 		PieceStores:   []PieceStoreConfig{},
 		PersistStores: []PersistStoreConfig{},
+		MongoKVStore:  defaultMongoKVStoreConfig(example),
 	}
 
 	if example {
