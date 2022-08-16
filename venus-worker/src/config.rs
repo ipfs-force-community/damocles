@@ -75,7 +75,7 @@ impl Default for Sealing {
 }
 
 /// configurations for sealing sectors
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SealingOptional {
     /// specified miner actors
     pub allowed_miners: Option<Vec<u64>>,

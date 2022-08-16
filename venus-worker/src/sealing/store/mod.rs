@@ -147,10 +147,10 @@ impl Store {
 /// The config of the Store
 pub struct Config {
     /// allowed miners parsed from config
-    pub allowed_miners: Option<Vec<ActorID>>,
+    pub allowed_miners: Vec<ActorID>,
 
     /// allowed proof types from config
-    pub allowed_proof_types: Option<Vec<SealProof>>,
+    pub allowed_proof_types: Vec<SealProof>,
 
     hot_config: HotConfig<SealingWithPlan, SealingThreadInner>,
 }
@@ -159,15 +159,7 @@ impl Config {
     fn new(loc: &Location, config: Sealing, plan: Option<String>) -> Result<Self> {
         let default_config = SealingWithPlan { plan, sealing: config };
         let hot_config = HotConfig::new(default_config, merge_config, loc.hot_config_path()).context("new HotConfig")?;
-
-        let allowed_miners = hot_config.config().sealing.allowed_miners.as_ref().cloned();
-        let allowed_proof_types = hot_config
-            .config()
-            .sealing
-            .allowed_sizes
-            .as_deref()
-            .map(Self::size_strings_to_proof_types)
-            .transpose()?;
+        let (allowed_miners, allowed_proof_types) = Self::extract_allowed(&hot_config.config().sealing)?;
 
         Ok(Self {
             allowed_miners,
@@ -179,13 +171,7 @@ impl Config {
     /// Reload hot config when the content of hot config modified
     pub fn reload_if_needed(&mut self) -> Result<()> {
         result_flatten(self.hot_config.if_modified(|config| {
-            self.allowed_miners = config.sealing.allowed_miners.as_ref().cloned();
-            self.allowed_proof_types = config
-                .sealing
-                .allowed_sizes
-                .as_deref()
-                .map(Self::size_strings_to_proof_types)
-                .transpose()?;
+            (self.allowed_miners, self.allowed_proof_types) = Self::extract_allowed(&config.sealing)?;
             info!(config = ?config, "sealing thread reload hot config");
             Ok(())
         }))
@@ -196,9 +182,12 @@ impl Config {
         &self.hot_config.config().plan
     }
 
-    fn size_strings_to_proof_types(size_strings: &[String]) -> Result<Vec<SealProof>> {
-        size_strings
+    fn extract_allowed(sealing: &Sealing) -> Result<(Vec<ActorID>, Vec<SealProof>)> {
+        let allowed_miners: Vec<ActorID> = sealing.allowed_miners.iter().flatten().cloned().collect();
+        let allowed_proof_types: Vec<_> = sealing
+            .allowed_sizes
             .iter()
+            .flatten()
             .map(|size_str| {
                 Byte::from_str(size_str.as_str())
                     .with_context(|| format!("invalid size string {}", &size_str))
@@ -208,7 +197,8 @@ impl Config {
                             .with_context(|| format!("invalid SealProof from {}", &size_str))
                     })
             })
-            .collect::<Result<Vec<_>>>()
+            .collect::<Result<_>>()?;
+        Ok((allowed_miners, allowed_proof_types))
     }
 }
 
@@ -240,44 +230,13 @@ macro_rules! merge_fields {
             )*
         }
     };
-
-    ($common:expr, $cust:expr, $def:expr, {$($opt_field:ident,)*}, {$($field:ident,)*},) => {
-        let mut merged = merge_fields! {
-            SealingOptional,
-            $common,
-            $cust,
-            $(
-                $opt_field,
-            )*
-            $(
-                $field,
-            )*
-        };
-
-        merge_fields! {
-            Sealing,
-            $def,
-            merged,
-            {
-                $(
-                    $opt_field,
-                )*
-            },
-            {
-                $(
-                    $field,
-                )*
-            },
-        }
-    };
 }
 
-fn customized_sealing_config(common: &SealingOptional, customized: Option<&SealingOptional>) -> Sealing {
-    let default_cfg = Sealing::default();
+fn merge_sealing_fields(default_sealing: Sealing, mut customized: SealingOptional) -> Sealing {
     merge_fields! {
-        common,
+        Sealing,
+        default_sealing,
         customized,
-        default_cfg,
         {
             allowed_miners,
             allowed_sizes,
@@ -296,6 +255,16 @@ fn customized_sealing_config(common: &SealingOptional, customized: Option<&Seali
     }
 }
 
+fn customized_sealing_config(common: &SealingOptional, customized: Option<&SealingOptional>) -> Sealing {
+    let default_sealing = Sealing::default();
+    let common_sealing = merge_sealing_fields(default_sealing, common.clone());
+    if let Some(customized) = customized.cloned() {
+        merge_sealing_fields(common_sealing, customized)
+    } else {
+        common_sealing
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SealingWithPlan {
     plan: Option<String>,
@@ -309,28 +278,7 @@ fn merge_config(default_config: &SealingWithPlan, mut customized: SealingThreadI
     SealingWithPlan {
         plan: customized.plan.take().or_else(|| default_config.plan.clone()),
         sealing: match customized.sealing {
-            Some(mut customized_sealingopt) => {
-                merge_fields! {
-                    Sealing,
-                    default_sealing,
-                    customized_sealingopt,
-                    {
-                        allowed_miners,
-                        allowed_sizes,
-                        max_deals,
-                        min_deal_space,
-                    },
-                    {
-                        enable_deals,
-                        disable_cc,
-                        max_retries,
-                        seal_interval,
-                        recover_interval,
-                        rpc_polling_interval,
-                        ignore_proof_check,
-                    },
-                }
-            }
+            Some(customized_sealingopt) => merge_sealing_fields(default_sealing, customized_sealingopt),
             None => default_sealing,
         },
     }
