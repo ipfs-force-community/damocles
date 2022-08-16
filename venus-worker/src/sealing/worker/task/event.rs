@@ -16,6 +16,9 @@ use crate::sealing::processor::{
 pub enum Event {
     SetState(State),
 
+    // No tasks available from sector_manager.
+    Idle,
+
     Retry,
 
     Allocate(AllocatedSector),
@@ -73,6 +76,8 @@ impl Debug for Event {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             Self::SetState(_) => "SetState",
+
+            Self::Idle => "idle",
 
             Self::Retry => "Retry",
 
@@ -164,6 +169,8 @@ impl Event {
     fn apply_changes(self, s: &mut Sector) {
         match self {
             Self::SetState(_) => {}
+
+            Self::Idle => {}
 
             Self::Retry => {}
 
