@@ -75,6 +75,10 @@ def_state! {
     Aborted,
     SnapEncoded,
     SnapProved,
+    SealedChecked,
+    SnapPieceAdded,
+    SnapTreeDBuilt,
+    SnapDone,
 }
 
 impl std::fmt::Debug for State {
