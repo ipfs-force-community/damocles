@@ -77,7 +77,7 @@ impl Debug for Event {
         let name = match self {
             Self::SetState(_) => "SetState",
 
-            Self::Idle => "idle",
+            Self::Idle => "Idle",
 
             Self::Retry => "Retry",
 

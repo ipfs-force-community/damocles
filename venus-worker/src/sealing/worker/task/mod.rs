@@ -393,7 +393,7 @@ impl<'c> Task<'c> {
                     debug!(
                         prev = ?self.sector.state,
                         sleep = ?self.store.config.recover_interval,
-                        "{:?} captured", evt
+                        "Event::{:?} captured", evt
                     );
 
                     self.wait_or_interruptted(self.store.config.recover_interval)?;
