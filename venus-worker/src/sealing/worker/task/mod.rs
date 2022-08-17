@@ -270,14 +270,14 @@ impl<'c> Task<'c> {
                 Ok(Some(evt)) => {
                     if let Event::Idle = evt {
                         task_idle_count += 1;
-                        if task_idle_count > self.store.config.allocate_max_retries {
+                        if task_idle_count > self.store.config.request_task_max_retries {
                             info!(
                                 "The task has returned `Event::Idle` for more than {} times. break the task",
-                                self.store.config.allocate_max_retries
+                                self.store.config.request_task_max_retries
                             );
 
-                            // when the planner tries to allocate a task but fails(including no task) for more than
-                            // `conig::sealing::allocate_max_retries` times, this task is really considered idle,
+                            // when the planner tries to request a task but fails(including no task) for more than
+                            // `conig::sealing::request_task_max_retries` times, this task is really considered idle,
                             // break this task loop. that we have a chance to reload `sealing_thread` hot config file,
                             // or do something else.
                             self.finalize()?;
