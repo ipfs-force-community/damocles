@@ -19,6 +19,9 @@ pub enum Event {
     // No specified tasks available from sector_manager.
     Idle,
 
+    // If `Planner::exec` returns `Event::Retry` it will be retried indefinitely
+    // until `Planner::exec` returns another `Event` or an error occurs
+    #[allow(dead_code)]
     Retry,
 
     Allocate(AllocatedSector),

@@ -32,8 +32,6 @@ const SECTOR_INFO_KEY: &str = "info";
 const SECTOR_META_PREFIX: &str = "meta";
 const SECTOR_TRACE_PREFIX: &str = "trace";
 
-const TASK_MAX_IDLE_TIMES: i32 = 3;
-
 pub struct Task<'c> {
     sector: Sector,
     _trace: Vec<Trace>,
@@ -272,12 +270,15 @@ impl<'c> Task<'c> {
                 Ok(Some(evt)) => {
                     if let Event::Idle = evt {
                         task_idle_count += 1;
-                        if task_idle_count > TASK_MAX_IDLE_TIMES {
-                            info!("The task has been idle for more than {} times. break the task", TASK_MAX_IDLE_TIMES);
+                        if task_idle_count > self.store.config.allocate_max_retries {
+                            info!(
+                                "The task has returned `Event::Idle` for more than {} times. break the task",
+                                self.store.config.allocate_max_retries
+                            );
 
-                            // when the planner trying to allocate a task but no task for more than `TASK_MAX_IDLE_TIMES`
-                            // times, this task is really considered idle, break this task loop.
-                            // that we have a chance to reload `sealing_thread` hot config file,
+                            // when the planner tries to allocate a task but fails(including no task) for more than
+                            // `conig::sealing::allocate_max_retries` times, this task is really considered idle,
+                            // break this task loop. that we have a chance to reload `sealing_thread` hot config file,
                             // or do something else.
                             self.finalize()?;
                             return Ok(());
