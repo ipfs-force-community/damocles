@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 
 use super::{
     super::{call_rpc, field_required, Event, State, Task},
-    common, ExecResult, Planner,
+    common, plan, ExecResult, Planner,
 };
 use crate::logging::warn;
 use crate::rpc::sealer::{AllocateSectorSpec, Seed};
@@ -12,11 +12,101 @@ pub struct RebuildPlanner;
 
 impl Planner for RebuildPlanner {
     fn plan(&self, evt: &Event, st: &State) -> Result<State> {
-        unimplemented!()
+        let next = plan! {
+            evt,
+            st,
+
+            State::Empty => {
+                Event::AllocatedRebuildSector(_) => State::Allocated,
+            },
+
+            State::Allocated => {
+                Event::AddPiece(_) => State::PieceAdded,
+            },
+
+            State::PieceAdded => {
+                Event::BuildTreeD => State::TreeDBuilt,
+            },
+
+            State::TreeDBuilt => {
+                Event::PC1(_, _) => State::PC1Done,
+            },
+
+            State::PC1Done => {
+                Event::PC2(_) => State::PC2Done,
+            },
+
+            State::PC2Done => {
+                Event::CheckSealed => State::SealedChecked,
+            },
+
+            State::SealedChecked => {
+                Event::SkipSnap => State::SnapDone,
+                Event::AddPiece(_) => State::SnapPieceAdded,
+            },
+
+            State::SnapPieceAdded => {
+                Event::BuildTreeD => State::SnapTreeDBuilt,
+            },
+
+            State::SnapTreeDBuilt => {
+                Event::SnapEncode(_) => State::SnapEncoded,
+            },
+
+            State::SnapEncoded => {
+                Event::SnapProve(_) => State::SnapDone,
+            },
+
+            State::SnapDone => {
+                Event::Persist(_) => State::Persisted,
+            },
+
+            State::Persisted => {
+                Event::SubmitPersistance => State::Finished,
+            },
+        };
+
+        Ok(next)
     }
 
     fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure> {
-        unimplemented!()
+        let state = task.sector.state;
+        let inner = Rebuild { task };
+
+        match state {
+            State::Empty => inner.empty(),
+
+            State::Allocated => inner.add_pieces_for_sealing(),
+
+            State::PieceAdded => inner.build_tree_d_for_sealing(),
+
+            State::TreeDBuilt => inner.pc1(),
+
+            State::PC1Done => inner.pc2(),
+
+            State::PC2Done => inner.check_sealed(),
+
+            State::SealedChecked => inner.prepare_for_snapup(),
+
+            State::SnapPieceAdded => inner.build_tree_d_for_snapup(),
+
+            State::SnapTreeDBuilt => inner.snap_encode(),
+
+            State::SnapEncoded => inner.snap_prove(),
+
+            State::SnapDone => inner.persist(),
+
+            State::Persisted => inner.submit_persist(),
+
+            State::Finished => return Ok(None),
+
+            State::Aborted => {
+                return Err(TaskAborted.into());
+            }
+
+            other => return Err(anyhow!("unexpected state {:?} in rebuild planner", other).abort()),
+        }
+        .map(From::from)
     }
 }
 
@@ -95,7 +185,7 @@ impl<'c, 't> Rebuild<'c, 't> {
         common::commit1_with_seed(self.task, seed).map(|_| Event::CheckSealed)
     }
 
-    fn add_piece_for_snapup(&self) -> ExecResult {
+    fn prepare_for_snapup(&self) -> ExecResult {
         if !self.is_snapup() {
             return Ok(Event::SkipSnap);
         }
