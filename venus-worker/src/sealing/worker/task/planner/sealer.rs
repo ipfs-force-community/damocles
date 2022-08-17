@@ -339,25 +339,7 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_persisted(&self) -> ExecResult {
-        let sector_id = self.task.sector_id()?;
-
-        field_required! {
-            instance,
-            self.task.sector.phases.persist_instance.as_ref().cloned()
-        }
-
-        let checked = call_rpc! {
-            self.task.ctx.global.rpc,
-            submit_persisted,
-            sector_id.clone(),
-            instance,
-        }?;
-
-        if checked {
-            Ok(Event::SubmitPersistance)
-        } else {
-            Err(anyhow!("sector files are persisted but unavailable for sealer")).perm()
-        }
+        common::submit_persisted(self.task, false).map(|_| Event::SubmitPersistance)
     }
 
     fn handle_persistance_submitted(&self) -> ExecResult {
