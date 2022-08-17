@@ -27,7 +27,12 @@ pub fn maybe_add_pieces<'t>(task: &'t Task<'_>, maybe_deals: Option<&Deals>) -> 
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
 
-    let mut staged_file = task.staged_file(sector_id).init_file().perm()?;
+    let staged_file_path = task.staged_file(sector_id);
+    if staged_file_path.full().exists() {
+        remove_file(&staged_file_path).perm()?;
+    }
+
+    let mut staged_file = staged_file_path.init_file().perm()?;
 
     let seal_proof_type = proof_type.into();
     let sector_size = proof_type.sector_size();
