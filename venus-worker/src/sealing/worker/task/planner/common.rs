@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::{create_dir_all, remove_dir_all, remove_file, File, OpenOptions};
 use std::io::{self, prelude::*};
 use std::os::unix::fs::symlink;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
 use vc_processors::builtin::tasks::STAGE_NAME_TREED;
@@ -501,4 +501,27 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
         .perm()?;
 
     Ok(ins_name)
+}
+
+pub fn submit_persisted(task: &Task, is_upgrade: bool) -> Result<(), Failure> {
+    let sector_id = task.sector_id()?;
+
+    field_required! {
+        instance,
+        task.sector.phases.persist_instance.as_ref().cloned()
+    }
+
+    let checked = call_rpc! {
+        task.ctx.global.rpc,
+        submit_persisted_ex,
+        sector_id.clone(),
+        instance,
+        is_upgrade,
+    }?;
+
+    if checked {
+        Ok(())
+    } else {
+        Err(anyhow!("sector files are persisted but unavailable for sealer")).perm()
+    }
 }

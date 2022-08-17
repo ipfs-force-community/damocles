@@ -133,5 +133,7 @@ impl<'c, 't> Rebuild<'c, 't> {
         common::persist_sector_files(self.task, cache_dir, sealed_file).map(Event::Persist)
     }
 
-    fn submit_persist(&self) {}
+    fn submit_persist(&self) -> ExecResult {
+        common::submit_persisted(self.task, self.is_snapup()).map(|_| Event::SubmitPersistance)
+    }
 }
