@@ -472,3 +472,26 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
 
     Ok(ins_name)
 }
+
+pub fn submit_persisted(task: &Task, is_upgrade: bool) -> Result<(), Failure> {
+    let sector_id = task.sector_id()?;
+
+    field_required! {
+        instance,
+        task.sector.phases.persist_instance.as_ref().cloned()
+    }
+
+    let checked = call_rpc! {
+        task.ctx.global.rpc,
+        submit_persisted_ex,
+        sector_id.clone(),
+        instance,
+        is_upgrade,
+    }?;
+
+    if checked {
+        Ok(())
+    } else {
+        Err(anyhow!("sector files are persisted but unavailable for sealer")).perm()
+    }
+}
