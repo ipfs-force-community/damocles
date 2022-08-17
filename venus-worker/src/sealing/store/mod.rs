@@ -241,7 +241,7 @@ fn merge_sealing_fields(default_sealing: Sealing, mut customized: SealingOptiona
             recover_interval,
             rpc_polling_interval,
             ignore_proof_check,
-            allocate_max_retries,
+            request_task_max_retries,
         },
     }
 }
@@ -364,7 +364,7 @@ mod tests {
                         recover_interval: ms(1000),
                         rpc_polling_interval: ms(1000),
                         ignore_proof_check: true,
-                        allocate_max_retries: 10,
+                        request_task_max_retries: 10,
                     },
                 },
                 SealingThreadInner {
@@ -381,7 +381,7 @@ mod tests {
                         recover_interval: Some(ms(2000)),
                         rpc_polling_interval: Some(ms(1000)),
                         ignore_proof_check: None,
-                        allocate_max_retries: Some(11),
+                        request_task_max_retries: Some(11),
                     }),
                 },
                 SealingWithPlan {
@@ -398,7 +398,7 @@ mod tests {
                         recover_interval: ms(2000),
                         rpc_polling_interval: ms(1000),
                         ignore_proof_check: true,
-                        allocate_max_retries: 11,
+                        request_task_max_retries: 11,
                     },
                 },
             ),

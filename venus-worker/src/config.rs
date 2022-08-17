@@ -55,8 +55,8 @@ pub struct Sealing {
     /// ignore proof state check
     pub ignore_proof_check: bool,
 
-    /// max retry times for allocate task from sector manager
-    pub allocate_max_retries: u32,
+    /// max retry times for request task from sector manager
+    pub request_task_max_retries: u32,
 }
 
 impl Default for Sealing {
@@ -73,7 +73,7 @@ impl Default for Sealing {
             recover_interval: Duration::from_secs(60),
             rpc_polling_interval: Duration::from_secs(180),
             ignore_proof_check: false,
-            allocate_max_retries: 3,
+            request_task_max_retries: 3,
         }
     }
 }
@@ -120,8 +120,8 @@ pub struct SealingOptional {
     /// ignore proof state check
     pub ignore_proof_check: Option<bool>,
 
-    /// max retry times for allocate task from sector manager
-    pub allocate_max_retries: Option<u32>,
+    /// max retry times for request task from sector manager
+    pub request_task_max_retries: Option<u32>,
 }
 
 /// configuration for remote store
