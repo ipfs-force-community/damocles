@@ -136,13 +136,13 @@ impl<'c, 't> Rebuild<'c, 't> {
                     "rebuild sector are not allocated yet, so we can retry even though we got the err {:?}",
                     e
                 );
-                return Ok(Event::Retry);
+                return Ok(Event::Idle);
             }
         };
 
         let allocated = match maybe_allocated {
             Some(a) => a,
-            None => return Ok(Event::Retry),
+            None => return Ok(Event::Idle),
         };
 
         Ok(Event::AllocatedRebuildSector(allocated))
