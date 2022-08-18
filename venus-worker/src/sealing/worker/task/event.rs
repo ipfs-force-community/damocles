@@ -16,6 +16,12 @@ use crate::sealing::processor::{
 pub enum Event {
     SetState(State),
 
+    // No specified tasks available from sector_manager.
+    Idle,
+
+    // If `Planner::exec` returns `Event::Retry` it will be retried indefinitely
+    // until `Planner::exec` returns another `Event` or an error occurs
+    #[allow(dead_code)]
     Retry,
 
     Allocate(AllocatedSector),
@@ -73,6 +79,8 @@ impl Debug for Event {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             Self::SetState(_) => "SetState",
+
+            Self::Idle => "Idle",
 
             Self::Retry => "Retry",
 
@@ -166,6 +174,8 @@ impl Event {
     fn apply_changes(self, s: &mut Sector) {
         match self {
             Self::SetState(_) => {}
+
+            Self::Idle => {}
 
             Self::Retry => {}
 

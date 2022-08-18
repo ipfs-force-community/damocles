@@ -201,6 +201,7 @@ impl<'c> Task<'c> {
 
     pub fn exec(mut self, state: Option<State>) -> Result<(), Failure> {
         let mut event = state.map(Event::SetState);
+        let mut task_idle_count = 0;
         loop {
             let span = warn_span!(
                 "seal",
@@ -267,6 +268,22 @@ impl<'c> Task<'c> {
 
             match handle_res {
                 Ok(Some(evt)) => {
+                    if let Event::Idle = evt {
+                        task_idle_count += 1;
+                        if task_idle_count > self.store.config.request_task_max_retries {
+                            info!(
+                                "The task has returned `Event::Idle` for more than {} times. break the task",
+                                self.store.config.request_task_max_retries
+                            );
+
+                            // when the planner tries to request a task but fails(including no task) for more than
+                            // `conig::sealing::request_task_max_retries` times, this task is really considered idle,
+                            // break this task loop. that we have a chance to reload `sealing_thread` hot config file,
+                            // or do something else.
+                            self.finalize()?;
+                            return Ok(());
+                        }
+                    }
                     event.replace(evt);
                 }
 
@@ -373,11 +390,11 @@ impl<'c> Task<'c> {
 
         if let Some(evt) = event {
             match evt {
-                Event::Retry => {
+                Event::Idle | Event::Retry => {
                     debug!(
                         prev = ?self.sector.state,
                         sleep = ?self.store.config.recover_interval,
-                        "Event::Retry captured"
+                        "Event::{:?} captured", evt
                     );
 
                     self.wait_or_interruptted(self.store.config.recover_interval)?;

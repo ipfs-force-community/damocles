@@ -163,13 +163,13 @@ impl<'c, 't> Sealer<'c, 't> {
             Ok(a) => a,
             Err(e) => {
                 warn!("sectors are not allocated yet, so we can retry even though we got the err {:?}", e);
-                return Ok(Event::Retry);
+                return Ok(Event::Idle);
             }
         };
 
         let sector = match maybe_allocated {
             Some(a) => a,
-            None => return Ok(Event::Retry),
+            None => return Ok(Event::Idle),
         };
 
         // init required dirs & files
