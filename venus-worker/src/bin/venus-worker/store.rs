@@ -70,4 +70,3 @@ pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
         (other, _) => Err(anyhow!("unexpected subcommand `{}` of store", other)),
     }
 }
-
