@@ -6,7 +6,7 @@ import (
 
 	jsonrpc "github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api"
-	"github.com/filecoin-project/lotus/storage/pipeline"
+	sealing "github.com/filecoin-project/lotus/storage/pipeline"
 	vapi "github.com/filecoin-project/venus/venus-shared/api"
 )
 
