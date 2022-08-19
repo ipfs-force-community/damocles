@@ -230,19 +230,40 @@ type MinerSnapUpConfig struct {
 	Sender   MustAddress
 	SendFund bool
 	FeeConfig
-	MessageConfidential abi.ChainEpoch
-	ReleaseCondidential abi.ChainEpoch
-	Retry               MinerSnapUpRetryConfig
+
+	MessageConfidential *abi.ChainEpoch
+	ReleaseCondidential *abi.ChainEpoch
+
+	MessageConfidence abi.ChainEpoch
+	ReleaseConfidence abi.ChainEpoch
+
+	Retry MinerSnapUpRetryConfig
+}
+
+func (m *MinerSnapUpConfig) GetMessageConfidence() abi.ChainEpoch {
+	if m.MessageConfidential != nil {
+		return *m.MessageConfidential
+	}
+
+	return m.MessageConfidence
+}
+
+func (m *MinerSnapUpConfig) GetReleaseConfidence() abi.ChainEpoch {
+	if m.ReleaseCondidential != nil {
+		return *m.ReleaseCondidential
+	}
+
+	return m.ReleaseConfidence
 }
 
 func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
 	cfg := MinerSnapUpConfig{
-		Enabled:             false,
-		SendFund:            true,
-		FeeConfig:           defaultFeeConfig(),
-		MessageConfidential: 15,
-		ReleaseCondidential: 30,
-		Retry:               defaultMinerSnapUpRetryConfig(example),
+		Enabled:           false,
+		SendFund:          true,
+		FeeConfig:         defaultFeeConfig(),
+		MessageConfidence: 15,
+		ReleaseConfidence: 30,
+		Retry:             defaultMinerSnapUpRetryConfig(example),
 	}
 
 	if example {
