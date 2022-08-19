@@ -248,6 +248,13 @@ var utilSealerProvingFaultsCmd = &cli.Command{
 var utilSealerProvingDeadlinesCmd = &cli.Command{
 	Name:  "deadlines",
 	Usage: "View the current proving period deadlines information",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:    "all",
+			Usage:   "Count all sectors (only live sectors are counted by default)",
+			Aliases: []string{"a"},
+		},
+	},
 	Action: func(cctx *cli.Context) error {
 		color.NoColor = !cctx.Bool("color")
 
@@ -295,14 +302,29 @@ var utilSealerProvingDeadlinesCmd = &cli.Command{
 
 			sectors := uint64(0)
 			faults := uint64(0)
+			var partitionCount int
 
 			for _, partition := range partitions {
-				sc, err := partition.AllSectors.Count()
-				if err != nil {
-					return err
-				}
+				if !cctx.Bool("all") {
+					sc, err := partition.LiveSectors.Count()
+					if err != nil {
+						return err
+					}
 
-				sectors += sc
+					if sc > 0 {
+						partitionCount++
+					}
+
+					sectors += sc
+				} else {
+					sc, err := partition.AllSectors.Count()
+					if err != nil {
+						return err
+					}
+
+					partitionCount++
+					sectors += sc
+				}
 
 				fc, err := partition.FaultySectors.Count()
 				if err != nil {
@@ -322,7 +344,7 @@ var utilSealerProvingDeadlinesCmd = &cli.Command{
 			gapHeight := uint64(30*60) / policy.NetParams.Network.BlockDelay * gapIdx
 			open := HeightToTime(head, di.Open+abi.ChainEpoch(gapHeight), policy.NetParams.Network.BlockDelay)
 
-			_, _ = fmt.Fprintf(tw, "%d\t%s\t%d\t%d (%d)\t%d%s\n", dlIdx, open, len(partitions), sectors, faults, provenPartitions, cur)
+			_, _ = fmt.Fprintf(tw, "%d\t%s\t%d\t%d (%d)\t%d%s\n", dlIdx, open, partitionCount, sectors, faults, provenPartitions, cur)
 		}
 
 		return tw.Flush()
