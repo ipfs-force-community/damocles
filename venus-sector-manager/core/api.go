@@ -31,7 +31,10 @@ type SealerAPI interface {
 
 	PollPreCommitState(context.Context, abi.SectorID) (PollPreCommitStateResp, error)
 
+	// TODO：维持兼容性，应当在将来移除
 	SubmitPersisted(context.Context, abi.SectorID, string) (bool, error)
+
+	SubmitPersistedEx(ctx context.Context, sid abi.SectorID, instanceName string, isUpgrade bool) (bool, error)
 
 	WaitSeed(context.Context, abi.SectorID) (WaitSeedResp, error)
 

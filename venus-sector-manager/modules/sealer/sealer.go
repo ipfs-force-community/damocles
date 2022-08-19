@@ -228,12 +228,16 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (core
 }
 
 func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) (bool, error) {
+	return s.SubmitPersistedEx(ctx, sid, instance, false)
+}
+
+func (s *Sealer) SubmitPersistedEx(ctx context.Context, sid abi.SectorID, instance string, isUpgrade bool) (bool, error) {
 	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
 		return false, sectorStateErr(err)
 	}
 
-	ok, err := s.checkPersistedFiles(ctx, sid, state.SectorType, instance, false)
+	ok, err := s.checkPersistedFiles(ctx, sid, state.SectorType, instance, isUpgrade)
 	if err != nil {
 		return false, fmt.Errorf("check persisted filed: %w", err)
 	}
@@ -242,7 +246,14 @@ func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance
 		return false, nil
 	}
 
-	err = s.sectorIdxer.Normal().Update(ctx, sid, core.SectorAccessStores{
+	var indexer core.SectorTypedIndexer
+	if isUpgrade {
+		indexer = s.sectorIdxer.Upgrade()
+	} else {
+		indexer = s.sectorIdxer.Normal()
+	}
+
+	err = indexer.Update(ctx, sid, core.SectorAccessStores{
 		SealedFile: instance,
 		CacheDir:   instance,
 	})

@@ -4,10 +4,13 @@ use anyhow::{anyhow, Result};
 
 pub const PLANNER_NAME_SEALER: &str = "sealer";
 pub const PLANNER_NAME_SNAPUP: &str = "snapup";
+pub const PLANNER_NAME_REBUILD: &str = "rebuild";
 
 mod sealer;
 
 mod snapup;
+
+mod rebuild;
 
 mod common;
 
@@ -37,6 +40,8 @@ pub fn get_planner(p: Option<&str>) -> Result<Box<dyn Planner>> {
         None | Some(PLANNER_NAME_SEALER) => Ok(Box::new(sealer::SealerPlanner)),
 
         Some(PLANNER_NAME_SNAPUP) => Ok(Box::new(snapup::SnapUpPlanner)),
+
+        Some(PLANNER_NAME_REBUILD) => Ok(Box::new(rebuild::RebuildPlanner)),
 
         Some(other) => Err(anyhow!("unknown planner {}", other)),
     }
