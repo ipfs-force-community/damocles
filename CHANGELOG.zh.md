@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.0-rc2
+- venus-worker
+  - 修复venus-worker-util hwinfo 报错 segmentation fault. [#341](https://github.com/ipfs-force-community/venus-cluster/issues/341)
+  - 移除预分配 PC1 NUMA aware 内存的功能,避免潜在风险。venus-worker v0.5 规划了更好的 PC1 HugeTLB files 功能 [#350](https://github.com/ipfs-force-community/venus-cluster/issues/350).
+
 ## v0.4.0-rc1
 
 - venus-sector-manager
