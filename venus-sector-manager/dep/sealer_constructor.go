@@ -107,16 +107,12 @@ func ProvideSafeConfig(cfg *modules.Config, locker confmgr.RLocker) (*modules.Sa
 	}, nil
 }
 
-func BuildCommonMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, cfgMgr confmgr.ConfigManager) (CommonMetaStore, error) {
+func BuildCommonMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (CommonMetaStore, error) {
 	var store kvstore.KVStore
+	var err error
 	sub := "common"
-	cfg := modules.DefaultConfig(false)
-	err := cfgMgr.Load(gctx, modules.ConfigKey, &cfg)
-	if err != nil {
-		return nil, err
-	}
-	if cfg.Common.MongoKVStore.Enable {
-		mongoCfg := cfg.Common.MongoKVStore
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
 		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
 		if err != nil {
 			return nil, err
@@ -142,17 +138,13 @@ func BuildCommonMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Hom
 	return store, nil
 }
 
-func BuildOnlineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, cfgMgr confmgr.ConfigManager) (OnlineMetaStore, error) {
+func BuildOnlineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (OnlineMetaStore, error) {
 	var store kvstore.KVStore
+	var err error
+
 	sub := "meta"
-	cfg := modules.DefaultConfig(false)
-	err := cfgMgr.Load(gctx, modules.ConfigKey, &cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if cfg.Common.MongoKVStore.Enable {
-		mongoCfg := cfg.Common.MongoKVStore
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
 		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
 		if err != nil {
 			return nil, err
@@ -177,17 +169,13 @@ func BuildOnlineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Hom
 	return store, nil
 }
 
-func BuildOfflineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, cfgMgr confmgr.ConfigManager) (OfflineMetaStore, error) {
+func BuildOfflineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (OfflineMetaStore, error) {
 	var store kvstore.KVStore
+	var err error
 	sub := "offline_meta"
-	cfg := modules.DefaultConfig(false)
-	err := cfgMgr.Load(gctx, modules.ConfigKey, &cfg)
-	if err != nil {
-		return nil, err
-	}
 
-	if cfg.Common.MongoKVStore.Enable {
-		mongoCfg := cfg.Common.MongoKVStore
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
 		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
 		if err != nil {
 			return nil, err
@@ -410,17 +398,13 @@ func BuildCommitmentManager(
 	return mgr, nil
 }
 
-func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, cfgMgr confmgr.ConfigManager) (SectorIndexMetaStore, error) {
+func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (SectorIndexMetaStore, error) {
 	var store kvstore.KVStore
+	var err error
 	sub := "sector-index"
-	cfg := modules.DefaultConfig(false)
-	err := cfgMgr.Load(gctx, modules.ConfigKey, &cfg)
-	if err != nil {
-		return nil, err
-	}
 
-	if cfg.Common.MongoKVStore.Enable {
-		mongoCfg := cfg.Common.MongoKVStore
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
 		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
 		if err != nil {
 			return nil, err
@@ -446,17 +430,13 @@ func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedi
 	return store, nil
 }
 
-func BuildSnapUpMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, cfgMgr confmgr.ConfigManager) (SnapUpMetaStore, error) {
+func BuildSnapUpMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (SnapUpMetaStore, error) {
 	var store kvstore.KVStore
+	var err error
 	sub := "snapup"
-	cfg := modules.DefaultConfig(false)
-	err := cfgMgr.Load(gctx, modules.ConfigKey, &cfg)
-	if err != nil {
-		return nil, err
-	}
 
-	if cfg.Common.MongoKVStore.Enable {
-		mongoCfg := cfg.Common.MongoKVStore
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
 		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
 		if err != nil {
 			return nil, err
@@ -692,17 +672,13 @@ func BuildSnapUpManager(
 	return mgr, nil
 }
 
-func BuildWorkerMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, cfgMgr confmgr.ConfigManager) (WorkerMetaStore, error) {
+func BuildWorkerMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (WorkerMetaStore, error) {
 	var store kvstore.KVStore
+	var err error
 	sub := "worker"
-	cfg := modules.DefaultConfig(false)
-	err := cfgMgr.Load(gctx, modules.ConfigKey, &cfg)
-	if err != nil {
-		return nil, err
-	}
 
-	if cfg.Common.MongoKVStore.Enable {
-		mongoCfg := cfg.Common.MongoKVStore
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
 		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
 		if err != nil {
 			return nil, err
