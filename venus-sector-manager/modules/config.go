@@ -94,8 +94,8 @@ func defaultMongoKVStoreConfig(example bool) MongoKVStoreConfig {
 		Enable: false,
 	}
 	if example {
-		cfg.DSN = "mongo dsn"
-		cfg.DatabaseName = "db name"
+		cfg.DSN = "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000"
+		cfg.DatabaseName = "test"
 	}
 	return cfg
 }
