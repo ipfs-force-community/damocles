@@ -343,6 +343,7 @@ type MinerPoStConfig struct {
 	Confidence                      uint64
 	SubmitConfidence                uint64
 	ChallengeConfidence             uint64
+	MaxRecoverSectorLimit           uint64
 	MaxPartitionsPerPoStMessage     uint64
 	MaxPartitionsPerRecoveryMessage uint64
 }
@@ -356,6 +357,7 @@ func DefaultMinerPoStConfig(example bool) MinerPoStConfig {
 		Confidence:                      10,
 		SubmitConfidence:                0,
 		ChallengeConfidence:             0,
+		MaxRecoverSectorLimit:           0,
 		MaxPartitionsPerPoStMessage:     0,
 		MaxPartitionsPerRecoveryMessage: 0,
 	}
