@@ -32,11 +32,7 @@ var (
 )
 
 func KeyToString(k Key) string {
-	s := ""
-	for i := range k {
-		s += fmt.Sprintf("%d", k[i])
-	}
-	return s
+	return string(k)
 }
 
 // KvInMongo represent the struct stored in db.
@@ -54,32 +50,41 @@ type MongoStore struct {
 }
 
 type MongoIter struct {
-	cur *mongo.Cursor
+	cur  *mongo.Cursor
+	data *KvInMongo
 }
 
-func (m MongoIter) Next() bool {
-	return m.cur.Next(context.TODO())
-}
-
-func (m MongoIter) Key() Key {
+func (m *MongoIter) Next() bool {
+	next := m.cur.Next(context.TODO())
+	if !next {
+		return next
+	}
 	k := &KvInMongo{}
-	err := m.cur.Decode(&k)
+	err := m.cur.Decode(k)
 	if err != nil {
-		mlog.Error(fmt.Errorf("decode key from cursor failed: %w", err))
+		mlog.Error(fmt.Errorf("decode data from cursor failed: %w", err))
+		return false
 	}
-	return k.RawKey
+	m.data = k
+	return true
 }
 
-func (m MongoIter) View(ctx context.Context, callback Callback) error {
-	v := KvInMongo{}
-	err := m.cur.Decode(&v)
-	if err != nil {
-		return err
+func (m *MongoIter) Key() Key {
+	if m.data == nil {
+		log.Error("wrong usage of KEY, should call next first")
+		return nil
 	}
-	return callback(v.Val)
+	return m.data.RawKey
 }
 
-func (m MongoIter) Close() {
+func (m *MongoIter) View(ctx context.Context, callback Callback) error {
+	if m.data == nil {
+		return fmt.Errorf("wrong usage of View, should call next first")
+	}
+	return callback(m.data.Val)
+}
+
+func (m *MongoIter) Close() {
 	m.cur.Close(context.TODO())
 }
 
@@ -136,7 +141,7 @@ func (m MongoStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return MongoIter{cur: cur}, nil
+	return &MongoIter{cur: cur}, nil
 }
 
 func (m MongoStore) Run(ctx context.Context) error {
