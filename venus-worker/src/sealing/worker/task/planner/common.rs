@@ -111,7 +111,10 @@ pub fn build_tree_d(task: &'_ Task<'_>, allow_static: bool) -> Result<(), Failur
 
 fn cleanup_before_pc1(cache_dir: &Path, sealed_file: &Path) -> Result<()> {
     // TODO: see if we have more graceful ways to handle restarting pc1
-    remove_dir_all(&cache_dir).and_then(|_| create_dir_all(&cache_dir))?;
+    if cache_dir.exists() {
+        remove_dir_all(&cache_dir)?;
+    }
+    create_dir_all(&cache_dir)?;
     debug!("init cache dir {:?} before pc1", cache_dir);
 
     let empty_sealed_file = OpenOptions::new()
@@ -151,7 +154,9 @@ pub fn pre_commit1(task: &'_ Task<'_>) -> Result<(Ticket, SealPreCommitPhase1Out
     let sealed_file = task.sealed_file(sector_id);
     let prepared_dir = task.prepared_dir(sector_id);
 
-    cleanup_before_pc1(cache_dir.as_ref(), sealed_file.as_ref()).crit()?;
+    cleanup_before_pc1(cache_dir.as_ref(), sealed_file.as_ref())
+        .context("cleanup before pc1")
+        .crit()?;
     symlink(tree_d_path_in_dir(prepared_dir.as_ref()), tree_d_path_in_dir(cache_dir.as_ref())).crit()?;
 
     field_required! {
