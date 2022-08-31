@@ -1,7 +1,7 @@
 //! this module provides some common handlers
 
 use std::collections::HashMap;
-use std::fs::{create_dir_all, remove_dir_all, remove_file, File, OpenOptions};
+use std::fs::{create_dir_all, remove_dir_all, remove_file, File};
 use std::io::{self, prelude::*};
 use std::os::unix::fs::symlink;
 use std::path::Path;
@@ -142,23 +142,17 @@ pub fn build_tree_d(task: &'_ Task<'_>, allow_static: bool) -> Result<(), Failur
     Ok(())
 }
 
-fn cleanup_before_pc1(cache_dir: &Path, sealed_file: &Path) -> Result<()> {
+fn cleanup_before_pc1(cache_dir: &Entry, sealed_file: &Entry) -> Result<()> {
     // TODO: see if we have more graceful ways to handle restarting pc1
-    if cache_dir.exists() {
+    let cache_dir_path: &Path = cache_dir.as_ref();
+    if cache_dir_path.exists() {
         remove_dir_all(&cache_dir)?;
     }
-    create_dir_all(&cache_dir)?;
-    debug!("init cache dir {:?} before pc1", cache_dir);
+    create_dir_all(cache_dir_path)?;
+    debug!("init cache dir {:?} before pc1", cache_dir_path);
 
-    let empty_sealed_file = OpenOptions::new()
-        .create(true)
-        .read(true)
-        .write(true)
-        .truncate(true)
-        .open(&sealed_file)?;
-
+    let _ = sealed_file.init_file()?;
     debug!("truncate sealed file {:?} before pc1", sealed_file);
-    drop(empty_sealed_file);
 
     Ok(())
 }
@@ -187,9 +181,7 @@ pub fn pre_commit1(task: &'_ Task<'_>) -> Result<(Ticket, SealPreCommitPhase1Out
     let sealed_file = task.sealed_file(sector_id);
     let prepared_dir = task.prepared_dir(sector_id);
 
-    cleanup_before_pc1(cache_dir.as_ref(), sealed_file.as_ref())
-        .context("cleanup before pc1")
-        .crit()?;
+    cleanup_before_pc1(&cache_dir, &sealed_file).context("cleanup before pc1").crit()?;
     symlink(tree_d_path_in_dir(prepared_dir.as_ref()), tree_d_path_in_dir(cache_dir.as_ref())).crit()?;
 
     field_required! {
