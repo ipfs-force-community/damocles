@@ -58,12 +58,15 @@ where
         }
 
         let r = self.inner.open(p).map_err(|e| anyhow!("open inner. {:?}", e))?;
-        Ok(Box::new(ioread_inflator(r, self.payload_size, self.target_size)) as Box<dyn io::Read>)
+        Ok(if self.target_size != self.payload_size {
+            Box::new(
+                r.take(self.payload_size)
+                    .chain(io::repeat(0).take(self.target_size - self.payload_size)),
+            )
+        } else {
+            Box::new(r.take(self.payload_size))
+        })
     }
-}
-
-fn ioread_inflator<R: io::Read>(inner: R, payload_size: u64, target_size: u64) -> impl io::Read {
-    inner.take(payload_size).chain(io::repeat(0).take(target_size - payload_size))
 }
 
 pub fn pledge_reader_ref() -> &'static PledgeReader {
