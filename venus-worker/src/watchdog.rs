@@ -51,7 +51,7 @@ pub struct GlobalModules {
 
 #[derive(Clone)]
 pub struct GloablProcessors {
-    pub add_piece: ArcAddPiecesProcessor,
+    pub add_pieces: ArcAddPiecesProcessor,
     pub tree_d: ArcTreeDProcessor,
     pub pc1: ArcPC1Processor,
     pub pc2: ArcPC2Processor,

@@ -50,7 +50,7 @@ pub fn add_pieces<'t>(
     task.ctx
         .global
         .processors
-        .add_piece
+        .add_pieces
         .process(AddPiecesInput {
             seal_proof_type,
             pieces,

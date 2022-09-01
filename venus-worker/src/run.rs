@@ -280,7 +280,7 @@ macro_rules! construct_sub_processor {
 }
 
 fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<GloablProcessors> {
-    let add_piece: processor::ArcAddPiecesProcessor = construct_sub_processor!(tree_d, cfg, locks);
+    let add_pieces: processor::ArcAddPiecesProcessor = construct_sub_processor!(add_pieces, cfg, locks);
 
     let tree_d: processor::ArcTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks);
 
@@ -297,7 +297,7 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
     let transfer: processor::ArcTransferProcessor = construct_sub_processor!(transfer, cfg, locks);
 
     Ok(GloablProcessors {
-        add_piece,
+        add_pieces,
         tree_d,
         pc1,
         pc2,
