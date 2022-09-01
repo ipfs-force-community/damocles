@@ -1,4 +1,4 @@
-pub mod reader;
+pub mod store;
 
 use std::fs;
 

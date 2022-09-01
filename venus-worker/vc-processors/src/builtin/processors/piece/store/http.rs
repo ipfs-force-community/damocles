@@ -7,9 +7,9 @@ use reqwest::{
     header, redirect,
 };
 
-use super::PieceReader;
+use super::PieceStore;
 
-pub fn reader_ref() -> &'static PieceHttpClient {
+pub fn store_ref() -> &'static PieceHttpClient {
     &*PIECE_HTTP_CLIENT
 }
 
@@ -23,7 +23,7 @@ pub struct PieceHttpClient {
     token: Option<String>,
 }
 
-impl PieceReader for PieceHttpClient {
+impl PieceStore for PieceHttpClient {
     type P = String;
     type Err = anyhow::Error;
     type Read = Response;
