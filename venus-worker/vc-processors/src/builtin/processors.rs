@@ -34,7 +34,7 @@ impl Processor<AddPieces> for BuiltinProcessor {
             .open(&task.staged_filepath)
             .with_context(|| format!("open staged file: {}", task.staged_filepath.display()))?;
 
-        let mut piece_infos = Vec::with_capacity(task.pieces.len());
+        let mut piece_infos = Vec::with_capacity(task.pieces.len().min(1));
         for piece in task.pieces {
             let source = piece::store::open(piece.piece_file, piece.payload_size, piece.piece_size.0).context("open piece file")?;
             let (piece_info, _) =
