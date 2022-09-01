@@ -66,6 +66,7 @@ func postRunnerConstructor(ctx context.Context, deps postDeps, mid abi.ActorID, 
 		proofType: proofType,
 		dinfo:     dinfo,
 		ctx:       ctx,
+		log:       log.With("mid", mid, "ddl-idx", dinfo.Index, "ddl-open", dinfo.Open, "ddl-close", dinfo.Close, "ddl-challenge", dinfo.Challenge),
 		cancel:    cancel,
 	}
 }
