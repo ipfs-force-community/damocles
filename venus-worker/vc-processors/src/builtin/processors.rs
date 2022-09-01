@@ -36,7 +36,7 @@ impl Processor<AddPieces> for BuiltinProcessor {
 
         let mut piece_infos = Vec::with_capacity(task.pieces.len());
         for piece in task.pieces {
-            let source = piece::reader::open(piece.piece_file, piece.payload_size, piece.piece_size.0).context("open piece file")?;
+            let source = piece::store::open(piece.piece_file, piece.payload_size, piece.piece_size.0).context("open piece file")?;
             let (piece_info, _) =
                 write_and_preprocess(task.seal_proof_type, source, &staged_file, piece.piece_size).context("add piece")?;
             piece_infos.push(piece_info);

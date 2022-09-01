@@ -11,17 +11,18 @@ use crate::builtin::tasks::PieceFile;
 mod http;
 mod local;
 
+/// Attempts to open a piece file
 pub fn open(piece_file: PieceFile, payload_size: u64, target_size: u64) -> anyhow::Result<Box<dyn io::Read>> {
     let r = match piece_file {
-        PieceFile::Url(u) => inflator(http::reader_ref(), payload_size, target_size).open(u),
-        PieceFile::Local(p) => inflator(local::reader_ref(), payload_size, target_size).open(p),
-        PieceFile::Pledge => inflator(pledge_reader_ref(), payload_size, target_size).open(()),
+        PieceFile::Url(u) => inflator(http::store_ref(), payload_size, target_size).open(u),
+        PieceFile::Local(p) => inflator(local::store_ref(), payload_size, target_size).open(p),
+        PieceFile::Pledge => inflator(pledge_store_ref(), payload_size, target_size).open(()),
     };
 
     r.context("build inflator reader")
 }
 
-pub trait PieceReader {
+pub trait PieceStore {
     type P;
     type Err: Debug;
     type Read: io::Read;
@@ -43,9 +44,9 @@ struct Inflator<'a, T> {
     target_size: u64,
 }
 
-impl<T> PieceReader for Inflator<'_, T>
+impl<T> PieceStore for Inflator<'_, T>
 where
-    T: PieceReader,
+    T: PieceStore,
     T::Read: 'static,
 {
     type P = T::P;
@@ -69,14 +70,14 @@ where
     }
 }
 
-pub fn pledge_reader_ref() -> &'static PledgeReader {
-    static X: PledgeReader = PledgeReader;
+pub fn pledge_store_ref() -> &'static PledgeStore {
+    static X: PledgeStore = PledgeStore;
     &X
 }
 
-pub struct PledgeReader;
+pub struct PledgeStore;
 
-impl PieceReader for PledgeReader {
+impl PieceStore for PledgeStore {
     type P = ();
     type Err = Infallible;
     type Read = io::Repeat;
