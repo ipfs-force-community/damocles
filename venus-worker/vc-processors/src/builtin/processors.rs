@@ -27,6 +27,7 @@ impl Processor<AddPieces> for BuiltinProcessor {
     fn process(&self, task: AddPieces) -> Result<<AddPieces as Task>::Output> {
         // TODO(0x5459): add log
         let staged_file = fs::OpenOptions::new()
+            .create(true)
             .read(true)
             .write(true)
             .truncate(true)
