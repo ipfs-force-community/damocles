@@ -4,7 +4,7 @@ use anyhow::{anyhow, Context};
 use lazy_static::lazy_static;
 use reqwest::{
     blocking::{Client, ClientBuilder, Response},
-    header, redirect,
+    header, redirect, IntoUrl,
 };
 
 use super::PieceStore;
@@ -23,13 +23,12 @@ pub struct PieceHttpClient {
     token: Option<String>,
 }
 
-impl PieceStore for PieceHttpClient {
-    type P = String;
+impl<U: IntoUrl> PieceStore<U> for PieceHttpClient {
     type Err = anyhow::Error;
     type Read = Response;
 
-    fn open(&self, u: Self::P) -> Result<Self::Read, Self::Err> {
-        let mut resp = self.client.get(&u).send().context("request piece url")?;
+    fn open(&self, u: U) -> Result<Self::Read, Self::Err> {
+        let mut resp = self.client.get(u).send().context("request piece url")?;
 
         let mut status_code = resp.status();
         if status_code.is_redirection() {
@@ -51,7 +50,7 @@ impl PieceStore for PieceHttpClient {
         }
 
         if !status_code.is_success() {
-            return Err(anyhow!("get resource {} failed invalid status code {}", u, status_code));
+            return Err(anyhow!("get resource {} failed invalid status code {}", resp.url(), status_code));
         }
 
         Ok(resp)

@@ -1,4 +1,4 @@
-use std::{fs, io, path::PathBuf};
+use std::{fs, io, path::Path};
 
 use super::PieceStore;
 
@@ -9,12 +9,11 @@ pub fn store_ref() -> &'static LocalFile {
 
 pub struct LocalFile;
 
-impl PieceStore for LocalFile {
-    type P = PathBuf;
+impl<P: AsRef<Path>> PieceStore<P> for LocalFile {
     type Err = io::Error;
     type Read = fs::File;
 
-    fn open(&self, p: Self::P) -> Result<Self::Read, Self::Err> {
-        fs::File::open(&p)
+    fn open(&self, p: P) -> Result<Self::Read, Self::Err> {
+        fs::File::open(p)
     }
 }
