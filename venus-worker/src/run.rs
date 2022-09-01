@@ -130,8 +130,8 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .map(|u| u.origin().ascii_serialization())
         .context("parse rpc url origin")?;
 
-    let piece_store: Option<Box<dyn PieceStore>> = if cfg.sealing.enable_deals.unwrap_or(false) {
-        Some(Box::new(
+    let piece_store: Option<Arc<dyn PieceStore>> = if cfg.sealing.enable_deals.unwrap_or(false) {
+        Some(Arc::new(
             ProxyPieceStore::new(&rpc_origin, cfg.sector_manager.piece_token.as_ref().cloned()).context("build proxy piece store")?,
         ))
     } else {
@@ -157,7 +157,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         ext_locks,
         static_tree_d,
         rt: Arc::new(runtime),
-        piece_store: piece_store.map(Arc::new),
+        piece_store,
     };
 
     let worker_ping_interval = cfg.worker_ping_interval();
@@ -260,6 +260,8 @@ macro_rules! construct_sub_processor {
 }
 
 fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<GloablProcessors> {
+    let add_piece: processor::ArcAddPiecesProcessor = construct_sub_processor!(tree_d, cfg, locks);
+
     let tree_d: processor::ArcTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks);
 
     let pc1: processor::ArcPC1Processor = construct_sub_processor!(pc1, cfg, locks);
@@ -275,6 +277,7 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
     let transfer: processor::ArcTransferProcessor = construct_sub_processor!(transfer, cfg, locks);
 
     Ok(GloablProcessors {
+        add_piece,
         tree_d,
         pc1,
         pc2,
