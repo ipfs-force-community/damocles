@@ -168,8 +168,8 @@ pub struct Processors {
     /// static tree_d paths for cc sectors
     pub static_tree_d: Option<HashMap<String, String>>,
 
-    /// section for add_piece processor
-    pub add_piece: Option<Vec<Ext>>,
+    /// section for add_pieces processor
+    pub add_pieces: Option<Vec<Ext>>,
 
     /// section for tree_d processor
     pub tree_d: Option<Vec<Ext>>,
