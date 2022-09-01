@@ -4119,6 +4119,7 @@ dependencies = [
  "memmap",
  "pretty_assertions 1.2.1",
  "rand 0.8.5",
+ "reqwest",
  "serde",
  "serde_json",
  "storage-proofs-core",

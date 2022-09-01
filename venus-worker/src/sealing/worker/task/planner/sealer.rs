@@ -13,10 +13,7 @@ use super::{
 use crate::logging::{debug, warn};
 use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
-use crate::sealing::processor::{
-    clear_cache, seal_commit_phase1, tree_d_path_in_dir, C2Input, PC1Input, PC2Input, PaddedBytesAmount, PieceInfo, UnpaddedBytesAmount,
-};
-use crate::sealing::util::get_all_zero_commitment;
+use crate::sealing::processor::{clear_cache, seal_commit_phase1, tree_d_path_in_dir, C2Input, PC1Input, PC2Input};
 
 pub struct SealerPlanner;
 
@@ -216,35 +213,14 @@ impl<'c, 't> Sealer<'c, 't> {
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
 
-        let mut staged_file = OpenOptions::new()
-            .create(true)
-            .read(true)
-            .write(true)
-            // to make sure that we won't write into the staged file with any data exists
-            .truncate(true)
-            .open(self.task.staged_file(sector_id))
-            .perm()?;
-
         let seal_proof_type = (*proof_type).into();
 
-        let sector_size = proof_type.sector_size();
-        let mut pieces = Vec::new();
-
-        // acquired pieces
-        if let Some(deals) = self.task.sector.deals.as_ref() {
-            pieces = common::add_pieces(self.task, seal_proof_type, &mut staged_file, deals)?;
-        }
-
-        if pieces.is_empty() {
-            // skip AP for cc sector
-            staged_file.set_len(sector_size).context("add zero commitment").perm()?;
-
-            let commitment = get_all_zero_commitment(sector_size).context("get zero commitment").perm()?;
-
-            let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
-            let pi = PieceInfo::new(commitment, unpadded_size).context("create piece info").perm()?;
-            pieces.push(pi);
-        }
+        let pieces = common::add_pieces(
+            self.task,
+            seal_proof_type,
+            self.task.staged_file(sector_id),
+            self.task.sector.deals.as_ref().unwrap_or(&Vec::new()),
+        )?;
 
         Ok(Event::AddPiece(pieces))
     }

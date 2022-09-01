@@ -14,8 +14,8 @@ use crate::{
     rpc::sealer::SealerClient,
     sealing::{
         processor::{
-            ArcC2Processor, ArcPC1Processor, ArcPC2Processor, ArcSnapEncodeProcessor, ArcSnapProveProcessor, ArcTransferProcessor,
-            ArcTreeDProcessor,
+            ArcAddPiecesProcessor, ArcC2Processor, ArcPC1Processor, ArcPC2Processor, ArcSnapEncodeProcessor, ArcSnapProveProcessor,
+            ArcTransferProcessor, ArcTreeDProcessor,
         },
         resource::Pool,
     },
@@ -46,11 +46,12 @@ pub struct GlobalModules {
     pub limit: Arc<Pool>,
     pub ext_locks: Arc<Pool>,
     pub rt: Arc<Runtime>,
-    pub piece_store: Option<Arc<Box<dyn PieceStore>>>,
+    pub piece_store: Option<Arc<dyn PieceStore>>,
 }
 
 #[derive(Clone)]
 pub struct GloablProcessors {
+    pub add_piece: ArcAddPiecesProcessor,
     pub tree_d: ArcTreeDProcessor,
     pub pc1: ArcPC1Processor,
     pub pc2: ArcPC2Processor,
