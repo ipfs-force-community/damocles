@@ -1,4 +1,4 @@
-pub mod store;
+pub mod fetcher;
 
 use std::fs;
 
