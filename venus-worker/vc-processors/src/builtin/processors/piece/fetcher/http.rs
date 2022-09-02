@@ -60,10 +60,11 @@ impl<U: IntoUrl> PieceFetcher<U> for PieceHttpFetcher {
 }
 
 impl PieceHttpFetcher {
-    const HEADER_AUTHORIZATION_BEARER_PREFIX: &'static str = "Bearer";
+    pub const HEADER_AUTHORIZATION_BEARER_PREFIX: &'static str = "Bearer";
+    pub const ENV_KEY_PIECE_FETCHER_TOKEN: &'static str = "PIECE_FETCHER_TOKEN";
 
     fn from_env() -> anyhow::Result<Self> {
-        let token = env::var("PIECE_FETCHER_TOKEN").ok();
+        let token = env::var(Self::ENV_KEY_PIECE_FETCHER_TOKEN).ok();
         Self::new(token)
     }
 

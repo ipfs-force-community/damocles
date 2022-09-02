@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -34,8 +35,9 @@ use crate::{
 pub fn start_deamon(cfg_path: String) -> Result<()> {
     let runtime = Builder::new_multi_thread().enable_all().build().context("construct runtime")?;
 
-    let cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path))?;
+    let mut cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path))?;
     info!("config loaded\n {:?}", cfg);
+    compatible_for_piece_token(&mut cfg);
 
     let dial_addr = rpc_addr(&cfg.sector_manager.rpc_client.addr, 0)?;
     info!(
@@ -288,6 +290,20 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
     })
 }
 
+fn compatible_for_piece_token(cfg: &mut config::Config) {
+    use vc_processors::builtin::processors::piece::fetcher::http::PieceHttpFetcher;
+
+    if let Some(token) = &cfg.sector_manager.piece_token {
+        match &mut cfg.processors.add_pieces {
+            Some(add_piece_cfgs) => add_piece_cfgs.iter_mut().for_each(|cfg| {
+                cfg.envs
+                    .get_or_insert_with(|| HashMap::with_capacity(1))
+                    .insert(PieceHttpFetcher::ENV_KEY_PIECE_FETCHER_TOKEN.to_string(), token.clone());
+            }),
+            None => env::set_var(PieceHttpFetcher::ENV_KEY_PIECE_FETCHER_TOKEN, token),
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use crate::{config::SerdeDuration, sealing::resource::LimitItem};
