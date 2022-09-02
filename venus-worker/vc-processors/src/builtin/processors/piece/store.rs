@@ -22,6 +22,8 @@ pub fn open(piece_file: PieceFile, payload_size: u64, target_size: u64) -> anyho
     r.context("build inflator reader")
 }
 
+/// A piece store. intended for open piece file from different store implementations
+/// by `addr`.
 pub trait PieceStore<Addr> {
     type Err: Debug;
     type Read: io::Read;
@@ -29,7 +31,8 @@ pub trait PieceStore<Addr> {
     fn open(&self, addr: Addr) -> Result<Self::Read, Self::Err>;
 }
 
-fn inflator<T>(inner: &T, payload_size: u64, target_size: u64) -> Inflator<T> {
+/// Creates a new `Inflator<T>`
+pub fn inflator<T>(inner: &T, payload_size: u64, target_size: u64) -> Inflator<T> {
     Inflator {
         inner,
         payload_size,
@@ -37,7 +40,10 @@ fn inflator<T>(inner: &T, payload_size: u64, target_size: u64) -> Inflator<T> {
     }
 }
 
-struct Inflator<'a, T> {
+/// Inflator opens the piece file by the given `PieceStore`
+/// and fills the end of the returned `io::Read` with NUL bytes
+/// until the returned `io::Read` length reaches the given target_size.
+pub struct Inflator<'a, T> {
     inner: &'a T,
     payload_size: u64,
     target_size: u64,
@@ -68,11 +74,15 @@ where
     }
 }
 
+/// Returns the static reference to the `PledgeStore`
 pub fn pledge_store_ref() -> &'static PledgeStore {
     static X: PledgeStore = PledgeStore;
     &X
 }
 
+/// A pledge piece store.
+/// The open method of the `PledgeStore` always returns the `io::Read` with full NUL bytes
+/// and does not generate any errors.
 pub struct PledgeStore;
 
 impl PieceStore<()> for PledgeStore {

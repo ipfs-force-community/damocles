@@ -2,14 +2,16 @@ use std::{fs, io, path::Path};
 
 use super::PieceStore;
 
-pub fn store_ref() -> &'static LocalFile {
-    static X: LocalFile = LocalFile;
+/// Returns the static reference to the `LocalFileStore`
+pub fn store_ref() -> &'static LocalFileStore {
+    static X: LocalFileStore = LocalFileStore;
     &X
 }
 
-pub struct LocalFile;
+/// A PieceStore for the local file
+pub struct LocalFileStore;
 
-impl<P: AsRef<Path>> PieceStore<P> for LocalFile {
+impl<P: AsRef<Path>> PieceStore<P> for LocalFileStore {
     type Err = io::Error;
     type Read = fs::File;
 
