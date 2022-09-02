@@ -9,21 +9,23 @@ use reqwest::{
 
 use super::PieceStore;
 
-pub fn store_ref() -> &'static PieceHttpClient {
-    &*PIECE_HTTP_CLIENT
+/// Returns the static reference to the `PieceHttpStore`
+pub fn store_ref() -> &'static PieceHttpStore {
+    &*PIECE_HTTP_STORE
 }
 
 lazy_static! {
-    static ref PIECE_HTTP_CLIENT: PieceHttpClient = PieceHttpClient::from_env().unwrap();
+    static ref PIECE_HTTP_STORE: PieceHttpStore = PieceHttpStore::from_env().unwrap();
 }
 
-pub struct PieceHttpClient {
+/// A piece store for the http file
+pub struct PieceHttpStore {
     client: Client,
     redirect_client: Client,
     token: Option<String>,
 }
 
-impl<U: IntoUrl> PieceStore<U> for PieceHttpClient {
+impl<U: IntoUrl> PieceStore<U> for PieceHttpStore {
     type Err = anyhow::Error;
     type Read = Response;
 
@@ -57,7 +59,7 @@ impl<U: IntoUrl> PieceStore<U> for PieceHttpClient {
     }
 }
 
-impl PieceHttpClient {
+impl PieceHttpStore {
     const HEADER_AUTHORIZATION_BEARER_PREFIX: &'static str = "Bearer";
 
     fn from_env() -> anyhow::Result<Self> {

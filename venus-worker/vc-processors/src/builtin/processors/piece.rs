@@ -159,14 +159,14 @@ fn sector_size_to_commitment_index(sector_size: u64) -> Result<usize> {
     Ok(idx)
 }
 
-/// gets commitment for all-zero piece of sector size
+/// Gets commitment for all-zero piece of sector size
 fn get_all_zero_commitment(sector_size: u64) -> Result<Commitment> {
     let idx = sector_size_to_commitment_index(sector_size)?;
 
     Ok(ALL_ZERO_PIECE_COMMS[idx])
 }
 
-/// returns if the commitment is a all-zero piece
+/// Returns if the commitment is a all-zero piece
 #[allow(dead_code)]
 fn is_all_zero_commitment(sector_size: u64, comm: Commitment) -> Result<bool> {
     let idx = sector_size_to_commitment_index(sector_size)?;
@@ -174,6 +174,7 @@ fn is_all_zero_commitment(sector_size: u64, comm: Commitment) -> Result<bool> {
     Ok(comm == ALL_ZERO_PIECE_COMMS[idx])
 }
 
+/// Add piece for cc sector
 pub fn add_piece_for_cc_sector(staged_file: &fs::File, sector_size: u64) -> Result<PieceInfo> {
     staged_file.set_len(sector_size).context("add zero commitment")?;
 

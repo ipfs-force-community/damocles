@@ -6,6 +6,7 @@ use std::fs;
 
 use anyhow::{Context, Result};
 use filecoin_proofs_api::StorageProofsError;
+use tracing::debug;
 
 use super::tasks::{
     AddPieces, SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, WindowPoSt, WindowPoStOutput, WinningPoSt, WinningPoStOutput, C2,
@@ -25,17 +26,18 @@ pub struct BuiltinProcessor;
 
 impl Processor<AddPieces> for BuiltinProcessor {
     fn process(&self, task: AddPieces) -> Result<<AddPieces as Task>::Output> {
-        // TODO(0x5459): add log
         let staged_file = fs::OpenOptions::new()
             .create(true)
             .read(true)
             .write(true)
+            // to make sure that we won't write into the staged file with any data exists
             .truncate(true)
             .open(&task.staged_filepath)
             .with_context(|| format!("open staged file: {}", task.staged_filepath.display()))?;
 
         let mut piece_infos = Vec::with_capacity(task.pieces.len().min(1));
         for piece in task.pieces {
+            debug!(piece_file = ?piece.piece_file, "trying to add piece");
             let source = piece::store::open(piece.piece_file, piece.payload_size, piece.piece_size.0).context("open piece file")?;
             let (piece_info, _) =
                 write_and_preprocess(task.seal_proof_type, source, &staged_file, piece.piece_size).context("add piece")?;
