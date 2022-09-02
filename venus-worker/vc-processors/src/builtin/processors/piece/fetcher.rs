@@ -8,8 +8,8 @@ use anyhow::{anyhow, Context};
 
 use crate::builtin::tasks::PieceFile;
 
-mod http;
-mod local;
+pub mod http;
+pub mod local;
 
 /// Attempts to open a piece file
 pub fn open(piece_file: PieceFile, payload_size: u64, target_size: u64) -> anyhow::Result<Box<dyn io::Read>> {

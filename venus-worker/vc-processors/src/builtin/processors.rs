@@ -18,7 +18,7 @@ use crate::fil_proofs::{
     snap_encode_into, snap_generate_sector_update_proof, to_prover_id, write_and_preprocess, PartitionProofBytes, PrivateReplicaInfo,
 };
 
-mod piece;
+pub mod piece;
 mod transfer;
 
 #[derive(Copy, Clone, Default, Debug)]

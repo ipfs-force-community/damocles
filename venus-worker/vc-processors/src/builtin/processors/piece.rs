@@ -1,3 +1,6 @@
+//! module for piece stuff
+//!
+
 pub mod fetcher;
 
 use std::fs;
