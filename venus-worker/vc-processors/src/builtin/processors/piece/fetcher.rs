@@ -14,17 +14,16 @@ mod local;
 /// Attempts to open a piece file
 pub fn open(piece_file: PieceFile, payload_size: u64, target_size: u64) -> anyhow::Result<Box<dyn io::Read>> {
     let r = match piece_file {
-        PieceFile::Url(u) => inflator(http::store_ref(), payload_size, target_size).open(u),
-        PieceFile::Local(p) => inflator(local::store_ref(), payload_size, target_size).open(p),
-        PieceFile::Pledge => inflator(pledge_store_ref(), payload_size, target_size).open(()),
+        PieceFile::Url(u) => inflator(http::fetcher_ref(), payload_size, target_size).open(u),
+        PieceFile::Local(p) => inflator(local::fetcher_ref(), payload_size, target_size).open(p),
+        PieceFile::Pledge => inflator(pledge_fetcher_ref(), payload_size, target_size).open(()),
     };
 
     r.context("build inflator reader")
 }
 
-/// A piece store. intended for open piece file from different store implementations
-/// by `addr`.
-pub trait PieceStore<Addr> {
+/// A piece fetcher. intended for open piece file from different fetcher implementations.
+pub trait PieceFetcher<Addr> {
     type Err: Debug;
     type Read: io::Read;
 
@@ -40,7 +39,7 @@ pub fn inflator<T>(inner: &T, payload_size: u64, target_size: u64) -> Inflator<T
     }
 }
 
-/// Inflator opens the piece file by the given `PieceStore`
+/// Inflator opens the piece file by the given `PieceFetcher`
 /// and fills the end of the returned `io::Read` with NUL bytes
 /// until the returned `io::Read` length reaches the given target_size.
 pub struct Inflator<'a, T> {
@@ -49,9 +48,9 @@ pub struct Inflator<'a, T> {
     target_size: u64,
 }
 
-impl<Addr, T> PieceStore<Addr> for Inflator<'_, T>
+impl<Addr, T> PieceFetcher<Addr> for Inflator<'_, T>
 where
-    T: PieceStore<Addr>,
+    T: PieceFetcher<Addr>,
     T::Read: 'static,
 {
     type Err = anyhow::Error;
@@ -74,18 +73,18 @@ where
     }
 }
 
-/// Returns the static reference to the `PledgeStore`
-pub fn pledge_store_ref() -> &'static PledgeStore {
-    static X: PledgeStore = PledgeStore;
+/// Returns the static reference to the `PledgeSFetcher`
+pub fn pledge_fetcher_ref() -> &'static PledgeFetcher {
+    static X: PledgeFetcher = PledgeFetcher;
     &X
 }
 
-/// A pledge piece store.
-/// The open method of the `PledgeStore` always returns the `io::Read` with full NUL bytes
+/// A pledge piece fetcher.
+/// The open method of the `PledgeFetcher` always returns the `io::Read` with full NUL bytes
 /// and does not generate any errors.
-pub struct PledgeStore;
+pub struct PledgeFetcher;
 
-impl PieceStore<()> for PledgeStore {
+impl PieceFetcher<()> for PledgeFetcher {
     type Err = Infallible;
     type Read = io::Repeat;
 
