@@ -3,6 +3,7 @@
 
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;
+use std::io;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
 
@@ -21,10 +22,7 @@ use storage_proofs_core::{
 
 // re-exported
 pub use filecoin_proofs_api::{
-    seal::{
-        clear_cache, write_and_preprocess, Labels, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
-        SealPreCommitPhase2Output,
-    },
+    seal::{clear_cache, Labels, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output},
     update::{
         empty_sector_update_encode_into, generate_empty_sector_update_proof_with_vanilla, generate_partition_proofs,
         verify_empty_sector_update_proof, verify_partition_proofs,
@@ -53,6 +51,21 @@ macro_rules! safe_call {
             }
         }
     };
+}
+
+pub fn write_and_preprocess<R, W>(
+    registered_proof: RegisteredSealProof,
+    source: R,
+    target: W,
+    piece_size: UnpaddedBytesAmount,
+) -> Result<(PieceInfo, UnpaddedBytesAmount)>
+where
+    R: io::Read,
+    W: io::Read + io::Write + io::Seek,
+{
+    safe_call! {
+        seal::write_and_preprocess(registered_proof, source, target, piece_size)
+    }
 }
 
 pub fn seal_commit_phase1(

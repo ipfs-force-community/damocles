@@ -168,8 +168,13 @@ pub struct Processors {
     /// static tree_d paths for cc sectors
     pub static_tree_d: Option<HashMap<String, String>>,
 
+    /// section for add_pieces processor
+    pub add_pieces: Option<Vec<Ext>>,
+
+    /// section for tree_d processor
     pub tree_d: Option<Vec<Ext>>,
 
+    /// section for pc1 processor
     pub pc1: Option<Vec<Ext>>,
 
     /// section for pc2 processor
@@ -178,10 +183,10 @@ pub struct Processors {
     /// section for c2 processor
     pub c2: Option<Vec<Ext>>,
 
-    /// section for pc2 processor
+    /// section for snap_encode processor
     pub snap_encode: Option<Vec<Ext>>,
 
-    /// section for c2 processor
+    /// section for snap_prove processor
     pub snap_prove: Option<Vec<Ext>>,
 
     /// section for transfer processor

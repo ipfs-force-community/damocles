@@ -26,8 +26,10 @@ pub struct ProxyPieceStore {
 
 impl ProxyPieceStore {
     pub fn new(host: &str, token: Option<String>) -> Result<Self> {
-        let h = Url::parse(host).context("parse host")?;
-        let base = h.join(ENDPOINT).context("build endpoint")?;
+        let mut base = Url::parse(host).context("parse host")?;
+        base.path_segments_mut()
+            .map_err(|_| anyhow!("url cannot be a base"))?
+            .push(ENDPOINT);
 
         let client = ProxyPieceStore::build_http_client(Policy::none())?;
         let redirect_client = ProxyPieceStore::build_http_client(Policy::default())?;
@@ -53,9 +55,9 @@ impl ProxyPieceStore {
 }
 
 impl PieceStore for ProxyPieceStore {
-    fn get(&self, c: Cid, payload_size: u64, target_size: UnpaddedPieceSize) -> Result<Box<dyn Read>> {
-        let url = self.base.join(&c.to_string()).context("invalid url")?;
-        let mut resp = self.client.get(url).send().context("request to peicestore")?;
+    fn get(&self, c: &Cid, payload_size: u64, target_size: UnpaddedPieceSize) -> Result<Box<dyn Read>> {
+        let u = self.url(c);
+        let mut resp = self.client.get(u).send().context("request to peicestore")?;
 
         let mut status_code = resp.status();
         if status_code.is_redirection() {
@@ -80,5 +82,11 @@ impl PieceStore for ProxyPieceStore {
 
         let r = inflator(resp, payload_size, target_size).context("build inflator reader")?;
         Ok(Box::new(r))
+    }
+
+    fn url(&self, c: &Cid) -> Url {
+        let mut u = self.base.clone();
+        u.path_segments_mut().unwrap().push(&c.to_string());
+        u
     }
 }

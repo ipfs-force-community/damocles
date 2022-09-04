@@ -143,10 +143,12 @@ impl<'c, 't> SnapUp<'c, 't> {
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
 
-        let mut staged_file = self.task.staged_file(sector_id).init_file().perm()?;
+        let staged_filepath = self.task.staged_file(sector_id);
+        staged_filepath.prepare().context("prepare staged file").perm()?;
+
         field_required!(deals, self.task.sector.deals.as_ref());
 
-        let pieces = common::add_pieces(self.task, proof_type.into(), &mut staged_file, deals)?;
+        let pieces = common::add_pieces(self.task, proof_type.into(), staged_filepath, deals)?;
 
         Ok(Event::AddPiece(pieces))
     }
