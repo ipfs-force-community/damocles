@@ -1,6 +1,13 @@
 # Changelog
 
+## v0.4.0-rc3
+- venus-worker
+  - 新增 add_pieces 外部执行器. 目的是为了进行并发控制, 避免所有的 add_pieces 同时启动，导致内存不足。 [#403](https://github.com/ipfs-force-community/venus-cluster/issues/403)
+
 ## v0.4.0-rc2
+- venus-sector-manager
+  - 引入 venus v1.6.1; 引入 filecoin-ffi 内存泄漏修复后的版本; 引入 lotus v1.17.0 并进行兼容性修复 [#331](https://github.com/ipfs-force-community/venus-cluster/issues/331)
+
 - venus-worker
   - 修复venus-worker-util hwinfo 报错 segmentation fault. [#341](https://github.com/ipfs-force-community/venus-cluster/issues/341)
   - 移除预分配 PC1 NUMA aware 内存的功能,避免潜在风险。venus-worker v0.5 规划了更好的 PC1 HugeTLB files 功能 [#350](https://github.com/ipfs-force-community/venus-cluster/issues/350).
