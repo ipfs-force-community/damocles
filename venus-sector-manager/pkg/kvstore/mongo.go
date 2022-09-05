@@ -103,7 +103,7 @@ func (m MongoStore) Has(ctx context.Context, key Key) (bool, error) {
 }
 
 func (m MongoStore) View(ctx context.Context, key Key, callback Callback) error {
-	v := Val{}
+	v := KvInMongo{}
 	err := m.col.FindOne(ctx, bson.M{"_id": KeyToString(key)}).Decode(&v)
 	if err == mongo.ErrNoDocuments {
 		return ErrKeyNotFound
@@ -112,7 +112,7 @@ func (m MongoStore) View(ctx context.Context, key Key, callback Callback) error 
 		return err
 	}
 
-	return callback(v)
+	return callback(v.Val)
 }
 
 func (m MongoStore) Put(ctx context.Context, key Key, val Val) error {
