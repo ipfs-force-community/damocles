@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/strikesecurity/strikememongo"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 )
-import "github.com/strikesecurity/strikememongo"
 
 var (
+	mongoServer   *strikememongo.Server
 	testKey1      = []byte("testKey1")
 	testKey2      = []byte("testKey2")
 	testKey3      = []byte("testKey3")
@@ -23,10 +26,17 @@ var (
 	testValue3 = []byte("testValue3")
 )
 
-func TestMongoStore_PutGet(t *testing.T) {
-	mongoServer, err := strikememongo.Start("4.0.5")
-	require.NoError(t, err)
+func TestMain(m *testing.M) {
+	var err error
+	mongoServer, err = strikememongo.Start("4.0.5")
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer mongoServer.Stop()
+
+	os.Exit(m.Run())
+}
+func TestMongoStore_PutGet(t *testing.T) {
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
@@ -50,9 +60,6 @@ func TestMongoStore_PutGet(t *testing.T) {
 }
 
 func TestMongoStore_Has(t *testing.T) {
-	mongoServer, err := strikememongo.Start("4.0.5")
-	require.NoError(t, err)
-	defer mongoServer.Stop()
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
@@ -71,9 +78,6 @@ func TestMongoStore_Has(t *testing.T) {
 
 // this case will also test the usage of iter
 func TestMongoStore_Scan(t *testing.T) {
-	mongoServer, err := strikememongo.Start("4.0.5")
-	require.NoError(t, err)
-	defer mongoServer.Stop()
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
@@ -112,9 +116,6 @@ func TestMongoStore_Scan(t *testing.T) {
 }
 
 func TestMongoStore_ScanNil(t *testing.T) {
-	mongoServer, err := strikememongo.Start("4.0.5")
-	require.NoError(t, err)
-	defer mongoServer.Stop()
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
