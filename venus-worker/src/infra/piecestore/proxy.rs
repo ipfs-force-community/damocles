@@ -14,7 +14,7 @@ use reqwest::{
 use super::PieceStore;
 use crate::util::reader::inflator;
 
-const ENDPOINT: &str = "/piecestore/";
+const ENDPOINT: &str = "piecestore";
 const HEADER_AUTHORIZATION_BEARER_PREFIX: &str = "Bearer";
 
 pub struct ProxyPieceStore {
@@ -57,7 +57,7 @@ impl ProxyPieceStore {
 impl PieceStore for ProxyPieceStore {
     fn get(&self, c: &Cid, payload_size: u64, target_size: UnpaddedPieceSize) -> Result<Box<dyn Read>> {
         let u = self.url(c);
-        let mut resp = self.client.get(u).send().context("request to peicestore")?;
+        let mut resp = self.client.get(u.clone()).send().context("request to peicestore")?;
 
         let mut status_code = resp.status();
         if status_code.is_redirection() {
@@ -66,7 +66,7 @@ impl PieceStore for ProxyPieceStore {
                 .get(LOCATION)
                 .context("redirect location not found")
                 .and_then(|val| val.to_str().context("convert redirect location to str"))
-                .and_then(|s| Url::parse(s).context("parse redirect url"))?;
+                .and_then(|location| u.join(location).context("join redirect url"))?;
 
             let mut req = self.redirect_client.get(redirect_url);
             if let Some(token) = self.token.as_ref() {
