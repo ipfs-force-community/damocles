@@ -54,9 +54,15 @@ var utilMigrateBadgerMongo = &cli.Command{
 			}
 			if reverse {
 				err = migrate(cctx.Context, mongo, badger)
+				if err != nil {
+					return err
+				}
 				continue
 			}
 			err = migrate(cctx.Context, badger, mongo)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	},
@@ -79,7 +85,6 @@ func migrate(ctx context.Context, src, dst kvstore.KVStore) error {
 		}
 
 		err = dst.Put(ctx, iter.Key(), v)
-
 		if err != nil {
 			return err
 		}

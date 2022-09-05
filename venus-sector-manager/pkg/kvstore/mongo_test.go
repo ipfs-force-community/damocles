@@ -96,11 +96,11 @@ func TestMongoStore_Scan(t *testing.T) {
 	for iter.Next() {
 		cnt++
 		v := kvstore.Val{}
-		iter.View(ctx, func(val kvstore.Val) error {
+		err = iter.View(ctx, func(val kvstore.Val) error {
 			v = val
 			return nil
 		})
-
+		require.NoError(t, err)
 		switch {
 		case bytes.Equal(iter.Key(), testKey1):
 			require.Equal(t, testValue1, v)
