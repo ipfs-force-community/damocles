@@ -30,17 +30,19 @@ impl<U: IntoUrl> PieceFetcher<U> for PieceHttpFetcher {
     type Read = Response;
 
     fn open(&self, u: U) -> Result<Self::Read, Self::Err> {
-        let mut resp = self.client.get(u).send().context("request piece url")?;
+        let u = u.into_url()?;
+        let mut resp = self.client.get(u.clone()).send().context("request piece url")?;
 
         let mut status_code = resp.status();
         if status_code.is_redirection() {
-            let redirect_location = resp
+            let redirect_url = resp
                 .headers()
                 .get(header::LOCATION)
                 .context("redirect location not found")
-                .and_then(|val| val.to_str().context("convert redirect location to str"))?;
+                .and_then(|val| val.to_str().context("convert redirect location to str"))
+                .and_then(|location| u.join(location).context("join redirect url"))?;
 
-            let mut req = self.redirect_client.get(redirect_location);
+            let mut req = self.redirect_client.get(redirect_url);
             if let Some(token) = self.token.as_ref() {
                 req = req.header(
                     header::AUTHORIZATION,
