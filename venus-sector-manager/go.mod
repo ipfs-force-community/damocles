@@ -51,6 +51,8 @@ require (
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
 	github.com/filecoin-project/specs-actors/v8 v8.0.1
+	github.com/strikesecurity/strikememongo v0.2.4
+	go.mongodb.org/mongo-driver v1.10.1
 	go.opencensus.io v0.23.0
 )
 
@@ -61,6 +63,7 @@ require (
 	github.com/GeertJohan/go.rice v1.0.2 // indirect
 	github.com/Gurpartap/async v0.0.0-20180927173644-4f7f499dd9ee // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
+	github.com/acobaugh/osrelease v0.0.0-20181218015638-a93a0a55a249 // indirect
 	github.com/akavel/rsrc v0.8.0 // indirect
 	github.com/awnumar/memcall v0.0.0-20191004114545-73db50fd9f80 // indirect
 	github.com/awnumar/memguard v0.22.2 // indirect
@@ -163,6 +166,7 @@ require (
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391 // indirect
+	github.com/klauspost/compress v1.15.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
 	github.com/koron/go-ssdp v0.0.2 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2 // indirect
@@ -190,6 +194,7 @@ require (
 	github.com/miekg/dns v1.1.48 // indirect
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
+	github.com/montanaflynn/stats v0.6.6 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.0.4 // indirect
 	github.com/multiformats/go-base36 v0.1.0 // indirect
@@ -222,6 +227,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
+	github.com/spf13/afero v1.5.1 // indirect
 	github.com/uber/jaeger-client-go v2.25.0+incompatible // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.1.0 // indirect
@@ -230,7 +236,11 @@ require (
 	github.com/whyrusleeping/go-logging v0.0.1 // indirect
 	github.com/whyrusleeping/multiaddr-filter v0.0.0-20160516205228-e903e4adabd7 // indirect
 	github.com/whyrusleeping/timecache v0.0.0-20160911033111-cfcb2f1abfee // indirect
+	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
+	github.com/xdg-go/scram v1.1.1 // indirect
+	github.com/xdg-go/stringprep v1.0.3 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
+	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	go.opentelemetry.io/otel v1.3.0 // indirect
 	go.opentelemetry.io/otel/trace v1.3.0 // indirect
@@ -238,7 +248,7 @@ require (
 	go.uber.org/dig v1.12.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go4.org v0.0.0-20200411211856-f5505b9728dd // indirect
-	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
+	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
 	golang.org/x/net v0.0.0-20220418201149-a630d4f3e7a2 // indirect
@@ -253,7 +263,7 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v0.0.0-20181124034731-591f970eefbb // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
 )
