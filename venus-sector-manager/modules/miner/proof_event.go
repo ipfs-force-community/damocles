@@ -39,18 +39,18 @@ func (pe *ProofEvent) StartListening(ctx context.Context) {
 	log.Infof("start proof event listening for %s", pe.actor.Addr)
 	for {
 		if err := pe.listenProofRequestOnce(ctx); err != nil {
-			log.Errorf("%s listen head changes errored: %s", pe.actor.Addr, err)
+			log.Errorf("%s listen proof changes errored: %s", pe.actor.Addr, err)
 		} else {
-			log.Warnf(" %s listenHeadChanges quit", pe.actor.Addr)
+			log.Warnf(" %s listenProofChanges quit", pe.actor.Addr)
 		}
 		select {
 		case <-time.After(time.Second):
 		case <-ctx.Done():
-			log.Warnf("%s not restarting listenHeadChanges: context error: %s", pe.actor.Addr, ctx.Err())
+			log.Warnf("%s not restarting listenProofChanges: context error: %s", pe.actor.Addr, ctx.Err())
 			return
 		}
 
-		log.Infof("restarting listenHeadChanges for %s", pe.actor.Addr)
+		log.Infof("restarting listenProofChanges for %s", pe.actor.Addr)
 	}
 }
 
@@ -64,7 +64,7 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 	proofEventCh, err := pe.client.ListenProofEvent(ctx, policy)
 	if err != nil {
 		// Retry is handled by caller
-		return fmt.Errorf("listenHeadChanges ChainNotify call failed: %w", err)
+		return fmt.Errorf("listenProofChanges ChainNotify call failed: %w", err)
 	}
 
 	for proofEvent := range proofEventCh {
