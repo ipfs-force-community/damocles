@@ -81,6 +81,10 @@ vc-processors = { path = "./vc-processors" }
 [target.'cfg(not(target_os = "macos"))'.dependencies]
 vc-processors = { path = "./vc-processors", features = ["numa"] }
 
+[dependencies.storage-proofs-porep]
+version = "11.1"
+default-features = false
+
 [dev-dependencies]
 pretty_assertions = "1.2"
 humantime = "2.1"
