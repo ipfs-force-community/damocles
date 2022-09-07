@@ -32,7 +32,7 @@ var utilMigrateBadgerMongo = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "reverse",
-			Usage: "reverse dst and src kv-store",
+			Usage: "reverse dst and src kv-store, if this flag is true, will migrate data from mongo into local badger",
 			Value: false,
 		},
 	},

@@ -14,19 +14,8 @@ import (
 )
 
 var (
-	mlog   = logging.New("mongo")
-	Upsert = true
-)
-
-type mlogger struct {
-	*logging.ZapLogger
-}
-
-func (ml *mlogger) Warningf(format string, args ...interface{}) {
-	ml.ZapLogger.Warnf(format, args...)
-}
-
-var (
+	mlog        = logging.New("mongo")
+	Upsert      = true
 	db          *mongo.Client
 	connectOnce sync.Once
 )
