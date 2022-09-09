@@ -82,7 +82,9 @@ vc-processors = { path = "./vc-processors" }
 vc-processors = { path = "./vc-processors", features = ["numa"] }
 
 [dependencies.storage-proofs-porep]
-version = "11.1"
+git = "https://github.com/ipfs-force-community/rust-fil-proofs"
+package = "storage-proofs-porep"
+branch = "force/master_v11.1.1"
 default-features = false
 
 [dev-dependencies]
