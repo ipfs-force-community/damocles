@@ -4184,6 +4184,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "signal-hook",
+ "storage-proofs-porep",
  "tempfile",
  "time 0.3.9",
  "tokio",

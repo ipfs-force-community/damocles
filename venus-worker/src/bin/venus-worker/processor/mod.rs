@@ -78,7 +78,7 @@ pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
         (STAGE_NAME_ADD_PIECES, _) => run_consumer::<AddPieces, BuiltinProcessor>(),
 
         (STAGE_NAME_PC1, Some(m)) => {
-            use vc_processors::fil_proofs::init_numa_mem_pool;
+            use storage_proofs_porep::stacked::init_numa_mem_pool;
             use venus_worker::seal_util::{scan_memory_files, MemoryFileDirPattern};
 
             // Argument `hugepage_files_path_pattern` take precedence over argument `hugepage_files_path`
