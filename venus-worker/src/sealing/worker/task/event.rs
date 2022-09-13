@@ -124,17 +124,15 @@ impl Debug for Event {
 
 macro_rules! replace {
     ($target:expr, $val:expr) => {
-        let prev = $target.replace($val);
-        if let Some(st) = $target.as_ref() {
-            trace!("{:?} => {:?}", prev, st);
-        }
+        trace!("replacing {}", stringify!($target));
+        $target.replace($val);
     };
 }
 
 macro_rules! mem_replace {
     ($target:expr, $val:expr) => {
-        let prev = std::mem::replace(&mut $target, $val);
-        trace!("{:?} => {:?}", prev, $target);
+        trace!("mem_replacing {}", stringify!($target));
+        let _ = std::mem::replace(&mut $target, $val);
     };
 }
 
