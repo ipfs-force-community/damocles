@@ -183,27 +183,25 @@ impl<'c, 't> Sealer<'c, 't> {
 
         let sector_id = self.task.sector_id()?.clone();
 
-        loop {
-            let deals = call_rpc! {
-                self.task.ctx.global.rpc,
-                acquire_deals,
-                sector_id.clone(),
-                AcquireDealsSpec {
-                    max_deals: self.task.store.config.max_deals,
-                    min_used_space: self.task.store.config.min_deal_space.map(|b| b.get_bytes() as usize),
-                },
-            }?;
+        let deals = call_rpc! {
+            self.task.ctx.global.rpc,
+            acquire_deals,
+            sector_id,
+            AcquireDealsSpec {
+                max_deals: self.task.store.config.max_deals,
+                min_used_space: self.task.store.config.min_deal_space.map(|b| b.get_bytes() as usize),
+            },
+        }?;
 
-            let deals_count = deals.as_ref().map(|d| d.len()).unwrap_or(0);
+        let deals_count = deals.as_ref().map(|d| d.len()).unwrap_or(0);
 
-            debug!(count = deals_count, "pieces acquired");
+        debug!(count = deals_count, "pieces acquired");
 
-            if !self.task.store.config.disable_cc || deals_count > 0 {
-                return Ok(Event::AcquireDeals(deals));
-            }
-
-            self.task.wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
-        }
+        Ok(if !self.task.store.config.disable_cc || deals_count > 0 {
+            Event::AcquireDeals(deals)
+        } else {
+            Event::Idle
+        })
     }
 
     fn handle_deals_acquired(&self) -> ExecResult {
