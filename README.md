@@ -1,1 +1,34 @@
-## venus-cluster
+<p align="center">
+  <a href="https://venus.filecoin.io/Overview.html" title="Filecoin Docs">
+    <img src="docs/images/venus_logo_big2.jpg" alt="Project Venus Logo" width="330" />
+  </a>
+</p>
+
+
+<h1 align="center">venus-cluster</h1>
+
+#
+
+`venus-cluster` offers a configurable, expandable and customizable storage power solution for the Filecoin storage providers. For more details about Filecoin, check out the [Filecoin Spec](https://spec.filecoin.io).
+
+## Building & Documentation
+
+For instructions on how to quickly bootstrap your storage power service using `venus-cluster`, please visit [here](https://venus.filecoin.io/cluster/getting-started.html).
+
+For instructions on more intricate details of `venus-cluster` configurations, please visit [here](https://github.com/ipfs-force-community/venus-cluster/tree/main/docs).
+
+## Venus Architecture
+
+Venus architecture mianly compose of three parts: chain service, storage deal service and storage power service. Learn more about each of them [here](https://venus.filecoin.io/cs/).
+
+## Related Components
+
+Venus loosely describes a collection of components that work together to realize a fully featured Filecoin implementation. List of stand-alone venus modules repos can be found [here](https://venus.filecoin.io/cs/#introducing-venus-components), each assuming different roles in the functioning of Filecoin.
+
+## Contribute
+
+Venus is a universally open project and welcomes contributions of all kinds: code, docs, and more. However, before making a contribution, we ask you to heed these recommendations:
+
+1. If the proposal entails a protocol change, please first submit a [Filecoin Improvement Proposal](https://github.com/filecoin-project/FIPs).
+2. If the change is complex and requires prior discussion, [open an issue](https://github.com/ipfs-force-community/venus-cluster/issues) or a [discussion](https://github.com/ipfs-force-community/venus-cluster/discussions) to request feedback before you start working on a pull request. This is to avoid disappointment and sunk costs, in case the change is not actually needed or accepted.
+3. Please refrain from submitting PRs to adapt existing code to subjective preferences. The changeset should contain functional or technical improvements/enhancements, bug fixes, new features, or some other clear material contribution. Simple stylistic changes are likely to be rejected in order to reduce code churn.
