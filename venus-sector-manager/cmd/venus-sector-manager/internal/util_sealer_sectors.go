@@ -181,21 +181,26 @@ var utilSealerSectorsListCmd = &cli.Command{
 
 		count := 0
 		fmt.Fprintln(os.Stdout, "Sectors:")
-	STATE_LOOP:
+
 		for _, state := range states {
 			if minerID != nil && state.ID.Miner != *minerID {
 				continue
 			}
 
+			flag := false
 			for _, sel := range selectors {
 				selectorMatched := cctx.Bool(sel.name)
 				typeMatched := state.MatchWorkerJob(sel.jobType)
 
-				if !selectorMatched || !typeMatched {
-					continue STATE_LOOP
+				if selectorMatched && typeMatched {
+					flag = true
+					break
 				}
 			}
 
+			if !flag {
+				continue
+			}
 			count++
 
 			marks := make([]string, 0, 2)
