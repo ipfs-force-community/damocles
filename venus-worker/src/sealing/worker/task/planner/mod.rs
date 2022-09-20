@@ -47,6 +47,10 @@ pub fn get_planner(p: Option<&str>) -> Result<Box<dyn Planner>> {
     }
 }
 
+pub fn default_plan() -> &'static str {
+    PLANNER_NAME_SEALER
+}
+
 pub(self) use plan;
 
 pub trait Planner {

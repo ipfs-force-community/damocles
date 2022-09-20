@@ -29,11 +29,12 @@ impl Worker for ServiceImpl {
         self.ctrls
             .iter()
             .map(|(idx, ctrl)| {
-                let (state, sector_id, last_error, paused_at) = ctrl
+                let (state, sector_id, plan, last_error, paused_at) = ctrl
                     .load_state(|cst| {
                         (
                             cst.job.state,
                             cst.job.id.to_owned(),
+                            cst.job.plan.clone(),
                             cst.job.last_error.to_owned(),
                             cst.paused_at.to_owned(),
                         )
@@ -46,6 +47,7 @@ impl Worker for ServiceImpl {
 
                 Ok(WorkerInfo {
                     location: ctrl.location.to_pathbuf(),
+                    plan,
                     sector_id,
                     index: *idx,
                     paused: paused_at.is_some(),
