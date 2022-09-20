@@ -30,6 +30,7 @@ pub fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
 #[derive(Default)]
 pub struct CtrlJobState {
     pub id: Option<SectorID>,
+    pub plan: String,
     pub state: State,
     pub last_error: Option<String>,
 }
