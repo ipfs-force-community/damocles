@@ -213,7 +213,7 @@ WAIT_RET:
 		}
 
 		switch ret.State {
-		case messager.MessageState.OnChainMsg:
+		case messager.MessageState.OnChainMsg, messager.MessageState.ReplacedMsg:
 			mret = ret
 			break WAIT_RET
 
