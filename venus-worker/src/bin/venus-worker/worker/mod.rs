@@ -96,9 +96,10 @@ pub fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
             for wi in infos {
                 let _ = writeln!(
                     &mut hdl,
-                    "#{}: {:?}; sector_id={:?}, paused={}, paused_elapsed={:?}, state={}, last_err={:?}",
+                    "#{}: {:?}; plan={}, sector_id={:?}, paused={}, paused_elapsed={:?}, state={}, last_err={:?}",
                     wi.index,
                     wi.location,
+                    wi.plan,
                     wi.sector_id,
                     wi.paused,
                     wi.paused_elapsed.map(Duration::from_secs),

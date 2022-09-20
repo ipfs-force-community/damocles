@@ -4,6 +4,8 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use crossbeam_channel::select;
 
+use self::planner::default_plan;
+
 use super::{super::failure::*, CtrlCtx};
 use crate::logging::{debug, error, info, warn, warn_span};
 use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
@@ -93,7 +95,13 @@ impl<'c> Task<'c> {
 
                 MetaError::Failure(ie) => Err(ie),
             })
+            .context("load or create sector")
             .crit()?;
+
+        ctrl_ctx
+            .update_state(|cst| cst.job.plan = sector.plan.clone().unwrap_or_else(|| default_plan().to_owned()))
+            .context("update ctrl state")
+            .perm()?;
 
         let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, &*store_meta));
 
