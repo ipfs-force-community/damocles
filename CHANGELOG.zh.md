@@ -1,6 +1,8 @@
 # Changelog
 
 ## v0.4.0-rc3
+- venus-sector-manager
+  - 跟踪消息上链逻辑增加状态为 ReplaceMsg 的消息处理 [#435](https://github.com/ipfs-force-community/venus-cluster/issues/435)
 - venus-worker
   - 新增 add_pieces 外部执行器。 目的是为了进行并发控制, 避免所有的 add_pieces 同时启动，导致内存不足。 [#403](https://github.com/ipfs-force-community/venus-cluster/issues/403)
   - vc-processors 优化日志输出。[#348](https://github.com/ipfs-force-community/venus-cluster/issues/348)
