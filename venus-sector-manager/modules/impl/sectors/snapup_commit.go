@@ -463,12 +463,12 @@ func (h *snapupCommitHandler) waitForMessage() error {
 	}
 
 	var maybeMsg string
-	if msg.State != messager.MessageState.OnChainMsg && msg.Receipt != nil && len(msg.Receipt.Return) > 0 {
+	if msg.State != messager.MessageState.OnChainMsg && msg.State != messager.MessageState.ReplacedMsg && msg.Receipt != nil && len(msg.Receipt.Return) > 0 {
 		maybeMsg = string(msg.Receipt.Return)
 	}
 
 	switch msg.State {
-	case messager.MessageState.OnChainMsg:
+	case messager.MessageState.OnChainMsg, messager.MessageState.ReplacedMsg:
 		if msg.Confidence < int64(mcfg.SnapUp.MessageConfidential) {
 			return newTempErr(errMsgNotLanded, mcfg.SnapUp.Retry.PollInterval.Std())
 		}

@@ -765,7 +765,7 @@ func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, 
 	var maybeMsg *string
 	if msg.Receipt != nil && len(msg.Receipt.Return) > 0 {
 		msgRet := string(msg.Receipt.Return)
-		if msg.State != messager.MessageState.OnChainMsg {
+		if msg.State != messager.MessageState.OnChainMsg && msg.State != messager.MessageState.ReplacedMsg {
 			mlog.Warnf("MAYBE WARN from off-chain msg receipt: %s", msgRet)
 		}
 
@@ -773,7 +773,7 @@ func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, 
 	}
 
 	switch msg.State {
-	case messager.MessageState.OnChainMsg:
+	case messager.MessageState.OnChainMsg, messager.MessageState.ReplacedMsg:
 		confidence := c.cfg.MustMinerConfig(mid).Commitment.Confidence
 		if msg.Confidence < confidence {
 			return core.OnChainStatePacked, maybeMsg
