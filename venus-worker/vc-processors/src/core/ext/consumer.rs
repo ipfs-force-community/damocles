@@ -42,11 +42,13 @@ pub fn run<T: Task, P: Processor<T> + Default + Send + Sync + Copy + 'static>() 
             }
         };
 
+        let req_span = warn_span!("request", id = req.id, size = size);
         std::thread::spawn(move || {
-            let _req_span = warn_span!("request", id = req.id, size = size).entered();
-            if let Err(e) = process_request(proc, req) {
-                error!("failed: {:?}", e);
-            }
+            req_span.in_scope(|| {
+                if let Err(e) = process_request(proc, req) {
+                    error!("failed: {:?}", e);
+                }
+            })
         });
     }
 }

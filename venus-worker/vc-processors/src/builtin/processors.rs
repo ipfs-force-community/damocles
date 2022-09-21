@@ -2,23 +2,58 @@
 //!
 
 use std::collections::BTreeMap;
+use std::fs;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use filecoin_proofs_api::StorageProofsError;
+use tracing::debug;
 
 use super::tasks::{
-    SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, WindowPoSt, WindowPoStOutput, WinningPoSt, WinningPoStOutput, C2, PC1, PC2,
+    AddPieces, SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, WindowPoSt, WindowPoStOutput, WinningPoSt, WinningPoStOutput, C2,
+    PC1, PC2,
 };
 use crate::core::{Processor, Task};
 use crate::fil_proofs::{
     create_tree_d, generate_window_post, generate_winning_post, seal_commit_phase2, seal_pre_commit_phase1, seal_pre_commit_phase2,
-    snap_encode_into, snap_generate_sector_update_proof, to_prover_id, PartitionProofBytes, PrivateReplicaInfo,
+    snap_encode_into, snap_generate_sector_update_proof, to_prover_id, write_and_preprocess, PartitionProofBytes, PrivateReplicaInfo,
 };
 
+pub mod piece;
 mod transfer;
 
 #[derive(Copy, Clone, Default, Debug)]
 pub struct BuiltinProcessor;
+
+impl Processor<AddPieces> for BuiltinProcessor {
+    fn process(&self, task: AddPieces) -> Result<<AddPieces as Task>::Output> {
+        let staged_file = fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            // to make sure that we won't write into the staged file with any data exists
+            .truncate(true)
+            .open(&task.staged_filepath)
+            .with_context(|| format!("open staged file: {}", task.staged_filepath.display()))?;
+
+        let mut piece_infos = Vec::with_capacity(task.pieces.len().min(1));
+        for piece in task.pieces {
+            debug!(piece_file = ?piece.piece_file, "trying to add piece");
+            let source = piece::fetcher::open(piece.piece_file, piece.payload_size, piece.piece_size.0).context("open piece file")?;
+            let (piece_info, _) =
+                write_and_preprocess(task.seal_proof_type, source, &staged_file, piece.piece_size).context("add piece")?;
+            piece_infos.push(piece_info);
+        }
+
+        if piece_infos.is_empty() {
+            let sector_size: u64 = task.seal_proof_type.sector_size().into();
+
+            let pi = piece::add_piece_for_cc_sector(&staged_file, sector_size).context("add piece for cc secrtor")?;
+            piece_infos.push(pi);
+        }
+
+        Ok(piece_infos)
+    }
+}
 
 impl Processor<TreeD> for BuiltinProcessor {
     fn process(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {

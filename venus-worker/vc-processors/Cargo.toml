@@ -28,6 +28,7 @@ forest_address = { version = "0.3", optional = true }
 base64-serde = { version = "0.6", optional = true }
 base64 = { version = "0.13", optional = true }
 lazy_static = "1.4"
+reqwest = { version = "0.11", features = ["blocking"], optional = true}
 
 [dependencies.filecoin-proofs]
 version = "11.1"
@@ -61,7 +62,7 @@ b64serde = ["base64", "base64-serde" ]
 fil-proofs = ["memmap", "b64serde", "forest_address", "filecoin-proofs", "filecoin-proofs-api", "storage-proofs-core"]
 fil-proofs-cuda = ["fil-proofs", "filecoin-proofs/cuda", "filecoin-proofs-api/cuda"]
 builtin-tasks = ["fil-proofs"]
-builtin-processors = ["builtin-tasks"]
+builtin-processors = ["builtin-tasks", "reqwest"]
 builtin = ["builtin-tasks", "builtin-processors"]
 
 [[example]]
