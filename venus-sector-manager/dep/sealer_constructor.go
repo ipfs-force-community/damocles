@@ -565,7 +565,7 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 	return mapi, nil
 }
 
-func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI) (MarketAPIRelatedComponets, error) {
+func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI, capi chain.API) (MarketAPIRelatedComponets, error) {
 	mapi, err := BuildMarketAPI(gctx, lc, scfg, infoAPI)
 	if err != nil {
 		return MarketAPIRelatedComponets{}, fmt.Errorf("build market api: %w", err)
@@ -605,7 +605,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	log.Info("piecestore proxy has been registered into default mux")
 
 	return MarketAPIRelatedComponets{
-		DealManager: dealmgr.New(mapi, infoAPI, scfg),
+		DealManager: dealmgr.New(mapi, infoAPI, scfg, capi),
 		MarketAPI:   mapi,
 	}, nil
 }

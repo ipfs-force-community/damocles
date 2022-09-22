@@ -11,16 +11,18 @@ import (
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
 )
 
 var _ core.DealManager = (*DealManager)(nil)
 
-func New(marketAPI market.API, infoAPI core.MinerInfoAPI, scfg *modules.SafeConfig) *DealManager {
+func New(marketAPI market.API, infoAPI core.MinerInfoAPI, scfg *modules.SafeConfig, capi chain.API) *DealManager {
 	return &DealManager{
 		market: marketAPI,
 		info:   infoAPI,
 		scfg:   scfg,
+		capi:   capi,
 	}
 }
 
@@ -28,6 +30,8 @@ type DealManager struct {
 	market market.API
 	info   core.MinerInfoAPI
 	scfg   *modules.SafeConfig
+
+	capi chain.API
 
 	acquireMu sync.Mutex
 }
@@ -69,6 +73,13 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.
 	if lifetime != nil {
 		mspec.StartEpoch = lifetime.Start
 		mspec.EndEpoch = lifetime.End
+	} else if mcfg.Sealing.SealingEpochDuration != 0 {
+		h, err := dm.capi.ChainHead(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get chain head: %w", err)
+		}
+		mspec.StartEpoch = h.Height() + abi.ChainEpoch(mcfg.Sealing.SealingEpochDuration)
+		mspec.EndEpoch = 1<<63 - 1
 	}
 
 	dm.acquireMu.Lock()

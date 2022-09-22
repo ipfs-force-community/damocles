@@ -398,6 +398,16 @@ func defaultMinerProofConfig() MinerProofConfig {
 	}
 }
 
+type MinerSealingConfig struct {
+	SealingEpochDuration int64
+}
+
+func defaultMinerSealingConfig() MinerSealingConfig {
+	return MinerSealingConfig{
+		SealingEpochDuration: 0,
+	}
+}
+
 type MinerConfig struct {
 	Actor      abi.ActorID
 	Sector     MinerSectorConfig
@@ -405,6 +415,7 @@ type MinerConfig struct {
 	Commitment MinerCommitmentConfig
 	PoSt       MinerPoStConfig
 	Proof      MinerProofConfig
+	Sealing    MinerSealingConfig
 }
 
 func DefaultMinerConfig(example bool) MinerConfig {
@@ -414,6 +425,7 @@ func DefaultMinerConfig(example bool) MinerConfig {
 		Commitment: defaultMinerCommitmentConfig(example),
 		PoSt:       DefaultMinerPoStConfig(example),
 		Proof:      defaultMinerProofConfig(),
+		Sealing:    defaultMinerSealingConfig(),
 	}
 
 	if example {
