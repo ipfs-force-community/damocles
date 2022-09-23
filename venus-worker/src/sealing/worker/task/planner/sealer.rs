@@ -10,7 +10,7 @@ use super::{
 use crate::logging::{debug, warn};
 use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
-use crate::sealing::processor::{clear_cache, seal_commit_phase1, tree_d_path_in_dir, C2Input, PC1Input, PC2Input};
+use crate::sealing::processor::{clear_cache, C2Input};
 
 pub struct SealerPlanner;
 
