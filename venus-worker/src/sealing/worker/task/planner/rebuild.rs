@@ -192,7 +192,7 @@ impl<'c, 't> Rebuild<'c, 't> {
 
         field_required!(deals, self.task.sector.deals.as_ref());
 
-        common::maybe_add_pieces(self.task, Some(deals)).map(Event::AddPiece)
+        common::add_pieces(self.task, deals).map(Event::AddPiece)
     }
 
     fn build_tree_d_for_snapup(&self) -> ExecResult {
