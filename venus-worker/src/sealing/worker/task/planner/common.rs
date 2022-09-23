@@ -1,13 +1,12 @@
 //! this module provides some common handlers
 
 use std::collections::HashMap;
-use std::fs::{create_dir_all, remove_dir_all, remove_file, File};
-use std::io::{self, prelude::*};
+use std::fs::{create_dir_all, remove_dir_all, remove_file};
 use std::os::unix::fs::symlink;
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
-use vc_processors::builtin::tasks::STAGE_NAME_TREED;
+use vc_processors::builtin::tasks::{Piece, PieceFile, STAGE_NAME_ADD_PIECES, STAGE_NAME_TREED};
 
 use super::super::{call_rpc, cloned_required, field_required, Entry, Task};
 use crate::logging::debug;
@@ -15,89 +14,55 @@ use crate::rpc::sealer::{Deals, SectorID, Seed, Ticket};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
     cached_filenames_for_sector, seal_commit_phase1, snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir,
-    write_and_preprocess, PC1Input, PC2Input, PaddedBytesAmount, PieceInfo, RegisteredSealProof, SealCommitPhase1Output,
-    SealPreCommitPhase1Output, SealPreCommitPhase2Output, SnapEncodeInput, SnapEncodeOutput, SnapProveInput, SnapProveOutput,
-    TransferInput, TransferItem, TransferRoute, TransferStoreInfo, TreeDInput, UnpaddedBytesAmount, STAGE_NAME_C1, STAGE_NAME_PC1,
-    STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE,
+    AddPiecesInput, PC1Input, PC2Input, PieceInfo, SealCommitPhase1Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output,
+    SnapEncodeInput, SnapEncodeOutput, SnapProveInput, SnapProveOutput, TransferInput, TransferItem, TransferRoute, TransferStoreInfo,
+    TreeDInput, UnpaddedBytesAmount, STAGE_NAME_C1, STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE,
 };
-use crate::sealing::util::get_all_zero_commitment;
 use crate::types::{SealProof, SIZE_32G};
 
-pub fn maybe_add_pieces<'t>(task: &'t Task<'_>, maybe_deals: Option<&Deals>) -> Result<Vec<PieceInfo>, Failure> {
-    let sector_id = task.sector_id()?;
-    let proof_type = task.sector_proof_type()?;
+pub fn add_pieces<'t>(task: &'t Task<'_>, deals: &Deals) -> Result<Vec<PieceInfo>, Failure> {
+    let _token = task.ctx.global.limit.acquire(STAGE_NAME_ADD_PIECES).crit()?;
 
-    let staged_file_path = task.staged_file(sector_id);
-    if staged_file_path.full().exists() {
-        remove_file(&staged_file_path).perm()?;
+    let seal_proof_type = task.sector_proof_type()?.into();
+    let staged_filepath = task.staged_file(task.sector_id()?);
+    if staged_filepath.full().exists() {
+        remove_file(&staged_filepath).context("remove the existing staged file").perm()?;
+    } else {
+        staged_filepath.prepare().context("prepare staged file").perm()?;
     }
 
-    let mut staged_file = staged_file_path.init_file().perm()?;
-
-    let seal_proof_type = proof_type.into();
-    let sector_size = proof_type.sector_size();
-    let mut pieces = Vec::new();
-
-    // acquired pieces
-    if let Some(deals) = maybe_deals {
-        add_pieces(task, seal_proof_type, &mut staged_file, &mut pieces, deals)?;
-    }
-
-    if pieces.is_empty() {
-        // skip AP for cc sector
-        staged_file.set_len(sector_size).context("add zero commitment").perm()?;
-
-        let commitment = get_all_zero_commitment(sector_size).context("get zero commitment").perm()?;
-
-        let unpadded_size: UnpaddedBytesAmount = PaddedBytesAmount(sector_size).into();
-        let pi = PieceInfo::new(commitment, unpadded_size).context("create piece info").perm()?;
-        pieces.push(pi);
-    }
-
-    Ok(pieces)
-}
-
-pub fn add_pieces<'t>(
-    task: &'t Task<'_>,
-    seal_proof_type: RegisteredSealProof,
-    mut staged_file: &mut File,
-    pieces: &mut Vec<PieceInfo>,
-    deals: &Deals,
-) -> Result<(), Failure> {
     let piece_store = task.ctx.global.piece_store.as_ref().context("piece store is required").perm()?;
 
-    for deal in deals {
-        debug!(deal_id = deal.id, cid = %deal.piece.cid.0, payload_size = deal.payload_size, piece_size = deal.piece.size.0, "trying to add piece");
+    let pieces: Vec<_> = deals
+        .iter()
+        .map(|deal| {
+            let unpadded_piece_size = deal.piece.size.unpadded();
+            let is_pledged = deal.id == 0;
 
-        let unpadded_piece_size = deal.piece.size.unpadded();
-        let is_pledged = deal.id == 0;
-        let (piece_info, _) = if is_pledged {
-            let mut pledge_piece = io::repeat(0).take(unpadded_piece_size.0);
-            write_and_preprocess(
-                seal_proof_type,
-                &mut pledge_piece,
-                &mut staged_file,
-                UnpaddedBytesAmount(unpadded_piece_size.0),
-            )
-            .with_context(|| format!("write pledge piece, size={}", unpadded_piece_size.0))
-            .perm()?
-        } else {
-            let mut piece_reader = piece_store.get(deal.piece.cid.0, deal.payload_size, unpadded_piece_size).perm()?;
+            let piece_file = if is_pledged {
+                PieceFile::Pledge
+            } else {
+                PieceFile::Url(piece_store.url(&deal.piece.cid.0).to_string())
+            };
+            Piece {
+                piece_file,
+                payload_size: deal.payload_size,
+                piece_size: UnpaddedBytesAmount(unpadded_piece_size.0),
+            }
+        })
+        .collect();
 
-            write_and_preprocess(
-                seal_proof_type,
-                &mut piece_reader,
-                &mut staged_file,
-                UnpaddedBytesAmount(unpadded_piece_size.0),
-            )
-            .with_context(|| format!("write deal piece, cid={}, size={}", deal.piece.cid.0, unpadded_piece_size.0))
-            .perm()?
-        };
-
-        pieces.push(piece_info);
-    }
-
-    Ok(())
+    task.ctx
+        .global
+        .processors
+        .add_pieces
+        .process(AddPiecesInput {
+            seal_proof_type,
+            pieces,
+            staged_filepath: staged_filepath.into(),
+        })
+        .context("add pieces")
+        .perm()
 }
 
 // build tree_d inside `prepare_dir` if necessary

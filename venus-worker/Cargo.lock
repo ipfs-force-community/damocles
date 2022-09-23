@@ -4105,7 +4105,7 @@ dependencies = [
 
 [[package]]
 name = "vc-processors"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "anyhow",
  "base64",
@@ -4119,6 +4119,7 @@ dependencies = [
  "memmap",
  "pretty_assertions 1.2.1",
  "rand 0.8.5",
+ "reqwest",
  "serde",
  "serde_json",
  "storage-proofs-core",
@@ -4182,6 +4183,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "signal-hook",
+ "storage-proofs-porep",
  "tempfile",
  "time 0.3.9",
  "tokio",

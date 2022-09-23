@@ -4,9 +4,9 @@ use vc_processors::{
     builtin::{
         processors::BuiltinProcessor,
         tasks::{
-            SnapEncode, SnapProve, Transfer, TreeD, WindowPoSt, WinningPoSt, C2, PC1, PC2, STAGE_NAME_C2, STAGE_NAME_PC1, STAGE_NAME_PC2,
-            STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE, STAGE_NAME_TRANSFER, STAGE_NAME_TREED, STAGE_NAME_WINDOW_POST,
-            STAGE_NAME_WINNING_POST,
+            AddPieces, SnapEncode, SnapProve, Transfer, TreeD, WindowPoSt, WinningPoSt, C2, PC1, PC2, STAGE_NAME_ADD_PIECES, STAGE_NAME_C2,
+            STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE, STAGE_NAME_TRANSFER, STAGE_NAME_TREED,
+            STAGE_NAME_WINDOW_POST, STAGE_NAME_WINNING_POST,
         },
     },
     core::ext::run_consumer,
@@ -15,6 +15,7 @@ use vc_processors::{
 pub const SUB_CMD_NAME: &str = "processor";
 
 pub(crate) fn subcommand<'a, 'b>() -> App<'a, 'b> {
+    let add_pieces_cmd = SubCommand::with_name(STAGE_NAME_ADD_PIECES);
     let tree_d_cmd = SubCommand::with_name(STAGE_NAME_TREED);
     let pc1_cmd = SubCommand::with_name(STAGE_NAME_PC1)
         .arg(
@@ -60,6 +61,7 @@ the argument `hugepage_files_path` will be ignored.",
 
     SubCommand::with_name(SUB_CMD_NAME)
         .setting(AppSettings::ArgRequiredElseHelp)
+        .subcommand(add_pieces_cmd)
         .subcommand(tree_d_cmd)
         .subcommand(pc1_cmd)
         .subcommand(pc2_cmd)
@@ -73,8 +75,10 @@ the argument `hugepage_files_path` will be ignored.",
 
 pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
     match subargs.subcommand() {
+        (STAGE_NAME_ADD_PIECES, _) => run_consumer::<AddPieces, BuiltinProcessor>(),
+
         (STAGE_NAME_PC1, Some(m)) => {
-            use vc_processors::fil_proofs::init_numa_mem_pool;
+            use storage_proofs_porep::stacked::init_numa_mem_pool;
             use venus_worker::seal_util::{scan_memory_files, MemoryFileDirPattern};
 
             // Argument `hugepage_files_path_pattern` take precedence over argument `hugepage_files_path`

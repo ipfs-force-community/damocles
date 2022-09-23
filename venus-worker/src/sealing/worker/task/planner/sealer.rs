@@ -205,7 +205,7 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_deals_acquired(&self) -> ExecResult {
-        let pieces = common::maybe_add_pieces(self.task, self.task.sector.deals.as_ref())?;
+        let pieces = common::add_pieces(self.task, self.task.sector.deals.as_ref().unwrap_or(&Vec::new()))?;
 
         Ok(Event::AddPiece(pieces))
     }

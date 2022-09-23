@@ -139,7 +139,7 @@ impl<'c, 't> SnapUp<'c, 't> {
     fn add_piece(&self) -> ExecResult {
         field_required!(deals, self.task.sector.deals.as_ref());
 
-        let pieces = common::maybe_add_pieces(self.task, Some(deals))?;
+        let pieces = common::add_pieces(self.task, deals)?;
 
         Ok(Event::AddPiece(pieces))
     }

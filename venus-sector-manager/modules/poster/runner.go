@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -627,6 +628,32 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 			continue
 		}
 
+		// rules to follow if we have indicated that we don't want to recover more than X sectors in a deadline
+		recoverSectorsLimit := pr.startCtx.pcfg.MaxRecoverSectorLimit
+		if recoverSectorsLimit > 0 {
+			// something weird happened, break because we can't recover any more
+			if recoverSectorsLimit < recoverTotal {
+				log.Warnf("accepted more recoveries (%d) than RecoveringSectorLimit (%d)", recoverTotal, recoverSectorsLimit)
+				break
+			}
+
+			maxNewRecoverable := recoverSectorsLimit - recoverTotal
+
+			// we need to trim the recover bitfield
+			if recoveredCount > maxNewRecoverable {
+				recoverySlice, err := recovered.All(math.MaxUint64)
+				if err != nil {
+					log.Errorw("failed to slice recovery bitfield, breaking out of recovery loop", err)
+					break
+				}
+
+				log.Warnf("only adding %d sectors to respect RecoveringSectorLimit %d", maxNewRecoverable, recoverSectorsLimit)
+
+				recovered = bitfield.NewFromSet(recoverySlice[:maxNewRecoverable])
+				recoveredCount = maxNewRecoverable
+			}
+		}
+
 		recoverTotal += recoveredCount
 
 		currentParams.Recoveries = append(currentParams.Recoveries, miner.RecoveryDeclaration{
@@ -640,6 +667,13 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 
 			go handleRecoverMessage(currentParams)
 			currentParams = newParams()
+		}
+
+		if recoverSectorsLimit > 0 && recoverTotal >= recoverSectorsLimit {
+			log.Warnf("reached recovering sector limit %d, only marking %d sectors for recovery now",
+				recoverSectorsLimit,
+				recoverTotal)
+			break
 		}
 	}
 

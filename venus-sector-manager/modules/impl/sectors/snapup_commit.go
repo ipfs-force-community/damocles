@@ -460,13 +460,13 @@ func (h *snapupCommitHandler) waitForMessage() error {
 	}
 
 	var maybeMsg string
-	if msg.State != messager.MessageState.OnChainMsg && msg.Receipt != nil && len(msg.Receipt.Return) > 0 {
+	if msg.State != messager.MessageState.OnChainMsg && msg.State != messager.MessageState.ReplacedMsg && msg.Receipt != nil && len(msg.Receipt.Return) > 0 {
 		maybeMsg = string(msg.Receipt.Return)
 	}
 
 	switch msg.State {
-	case messager.MessageState.OnChainMsg:
-		if msg.Confidence < int64(mcfg.SnapUp.MessageConfidential) {
+	case messager.MessageState.OnChainMsg, messager.MessageState.ReplacedMsg:
+		if msg.Confidence < int64(mcfg.SnapUp.GetMessageConfidence()) {
 			return newTempErr(errMsgNotLanded, mcfg.SnapUp.Retry.PollInterval.Std())
 		}
 
@@ -511,7 +511,7 @@ func (h *snapupCommitHandler) landed() error {
 	}
 
 	errChan := make(chan error, 1)
-	h.committer.eventbus.At(h.committer.ctx, abi.ChainEpoch(*h.state.UpgradeLandedEpoch)+policy.ChainFinality, mcfg.SnapUp.ReleaseCondidential, func(ts *types.TipSet) {
+	h.committer.eventbus.At(h.committer.ctx, abi.ChainEpoch(*h.state.UpgradeLandedEpoch)+policy.ChainFinality, mcfg.SnapUp.GetReleaseConfidence(), func(ts *types.TipSet) {
 		defer close(errChan)
 		if err := h.cleanupForSector(); err != nil {
 			errChan <- fmt.Errorf("cleanup data before upgrading: %w", err)
