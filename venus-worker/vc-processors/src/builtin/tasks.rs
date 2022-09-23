@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use filecoin_proofs::UnpaddedBytesAmount;
 use serde::{Deserialize, Serialize};
 
 use crate::core::Task;
@@ -12,6 +13,9 @@ use crate::fil_proofs::{
     SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId, SnapEncodeOutput,
     SnapProveOutput, SnarkProof, Ticket,
 };
+
+/// name str for add_pieces
+pub const STAGE_NAME_ADD_PIECES: &str = "add_pieces";
 
 /// name str for tree_d
 pub const STAGE_NAME_TREED: &str = "tree_d";
@@ -42,6 +46,35 @@ pub const STAGE_NAME_WINDOW_POST: &str = "window_post";
 
 /// name str for window post
 pub const STAGE_NAME_WINNING_POST: &str = "winning_post";
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PieceFile {
+    Url(String),
+    Local(PathBuf),
+    Pledge,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Piece {
+    pub piece_file: PieceFile,
+    pub payload_size: u64,
+    pub piece_size: UnpaddedBytesAmount,
+}
+
+/// Task of add_piece
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AddPieces {
+    pub seal_proof_type: RegisteredSealProof,
+    pub pieces: Vec<Piece>,
+    pub staged_filepath: PathBuf,
+}
+
+impl Task for AddPieces {
+    const STAGE: &'static str = STAGE_NAME_ADD_PIECES;
+
+    type Output = Vec<PieceInfo>;
+}
 
 /// Task of tree_d
 #[derive(Clone, Debug, Serialize, Deserialize)]

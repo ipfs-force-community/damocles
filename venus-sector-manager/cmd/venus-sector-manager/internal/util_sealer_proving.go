@@ -1,12 +1,14 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -248,6 +250,13 @@ var utilSealerProvingFaultsCmd = &cli.Command{
 var utilSealerProvingDeadlinesCmd = &cli.Command{
 	Name:  "deadlines",
 	Usage: "View the current proving period deadlines information",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:    "all",
+			Usage:   "Count all sectors (only live sectors are counted by default)",
+			Aliases: []string{"a"},
+		},
+	},
 	Action: func(cctx *cli.Context) error {
 		color.NoColor = !cctx.Bool("color")
 
@@ -295,14 +304,29 @@ var utilSealerProvingDeadlinesCmd = &cli.Command{
 
 			sectors := uint64(0)
 			faults := uint64(0)
+			var partitionCount int
 
 			for _, partition := range partitions {
-				sc, err := partition.AllSectors.Count()
-				if err != nil {
-					return err
-				}
+				if !cctx.Bool("all") {
+					sc, err := partition.LiveSectors.Count()
+					if err != nil {
+						return err
+					}
 
-				sectors += sc
+					if sc > 0 {
+						partitionCount++
+					}
+
+					sectors += sc
+				} else {
+					sc, err := partition.AllSectors.Count()
+					if err != nil {
+						return err
+					}
+
+					partitionCount++
+					sectors += sc
+				}
 
 				fc, err := partition.FaultySectors.Count()
 				if err != nil {
@@ -322,7 +346,7 @@ var utilSealerProvingDeadlinesCmd = &cli.Command{
 			gapHeight := uint64(30*60) / policy.NetParams.Network.BlockDelay * gapIdx
 			open := HeightToTime(head, di.Open+abi.ChainEpoch(gapHeight), policy.NetParams.Network.BlockDelay)
 
-			_, _ = fmt.Fprintf(tw, "%d\t%s\t%d\t%d (%d)\t%d%s\n", dlIdx, open, len(partitions), sectors, faults, provenPartitions, cur)
+			_, _ = fmt.Fprintf(tw, "%d\t%s\t%d\t%d (%d)\t%d%s\n", dlIdx, open, partitionCount, sectors, faults, provenPartitions, cur)
 		}
 
 		return tw.Flush()
@@ -330,11 +354,22 @@ var utilSealerProvingDeadlinesCmd = &cli.Command{
 }
 
 var utilSealerProvingDeadlineInfoCmd = &cli.Command{
-	Name:      "deadline",
-	Usage:     "View the current proving period deadline information by its index ",
+	Name:  "deadline",
+	Usage: "View the current proving period deadline information by its index ",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:    "sector-nums",
+			Aliases: []string{"n"},
+			Usage:   "Print sector/fault numbers belonging to this deadline",
+		},
+		&cli.BoolFlag{
+			Name:    "bitfield",
+			Aliases: []string{"b"},
+			Usage:   "Print partition bitfield stats",
+		},
+	},
 	ArgsUsage: "<deadlineIdx>",
 	Action: func(cctx *cli.Context) error {
-
 		if cctx.Args().Len() != 1 {
 			return fmt.Errorf("must pass deadline index")
 		}
@@ -350,12 +385,12 @@ var utilSealerProvingDeadlineInfoCmd = &cli.Command{
 		}
 		defer stop()
 
-		head, err := api.Chain.ChainHead(ctx)
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
 			return err
 		}
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		head, err := api.Chain.ChainHead(ctx)
 		if err != nil {
 			return err
 		}
@@ -391,31 +426,76 @@ var utilSealerProvingDeadlineInfoCmd = &cli.Command{
 		fmt.Printf("Current:                  %t\n\n", di.Index == dlIdx)
 
 		for pIdx, partition := range partitions {
-			sectorCount, err := partition.AllSectors.Count()
-			if err != nil {
-				return err
-			}
-
-			sectorNumbers, err := partition.AllSectors.All(sectorCount)
-			if err != nil {
-				return err
-			}
-
-			faultsCount, err := partition.FaultySectors.Count()
-			if err != nil {
-				return err
-			}
-
-			fn, err := partition.FaultySectors.All(faultsCount)
-			if err != nil {
-				return err
-			}
-
 			fmt.Printf("Partition Index:          %d\n", pIdx)
-			fmt.Printf("Sectors:                  %d\n", sectorCount)
-			fmt.Printf("Sector Numbers:           %v\n", sectorNumbers)
-			fmt.Printf("Faults:                   %d\n", faultsCount)
-			fmt.Printf("Faulty Sectors:           %d\n", fn)
+
+			printStats := func(bf bitfield.BitField, name string) error {
+				count, err := bf.Count()
+				if err != nil {
+					return err
+				}
+
+				rit, err := bf.RunIterator()
+				if err != nil {
+					return err
+				}
+
+				if cctx.Bool("bitfield") {
+					var ones, zeros, oneRuns, zeroRuns, invalid uint64
+					for rit.HasNext() {
+						r, err := rit.NextRun()
+						if err != nil {
+							return fmt.Errorf("next run: %w", err)
+						}
+						if !r.Valid() {
+							invalid++
+						}
+						if r.Val {
+							ones += r.Len
+							oneRuns++
+						} else {
+							zeros += r.Len
+							zeroRuns++
+						}
+					}
+
+					var buf bytes.Buffer
+					if err := bf.MarshalCBOR(&buf); err != nil {
+						return err
+					}
+					sz := len(buf.Bytes())
+					szstr := types.SizeStr(types.NewInt(uint64(sz)))
+
+					fmt.Printf("\t%s Sectors:%s%d (bitfield - runs %d+%d=%d - %d 0s %d 1s - %d inv - %s %dB)\n", name, strings.Repeat(" ", 18-len(name)), count, zeroRuns, oneRuns, zeroRuns+oneRuns, zeros, ones, invalid, szstr, sz)
+				} else {
+					fmt.Printf("\t%s Sectors:%s%d\n", name, strings.Repeat(" ", 18-len(name)), count)
+				}
+
+				if cctx.Bool("sector-nums") {
+					nums, err := bf.All(count)
+					if err != nil {
+						return err
+					}
+					fmt.Printf("\t%s Sector Numbers:%s%v\n", name, strings.Repeat(" ", 12-len(name)), nums)
+				}
+
+				return nil
+			}
+
+			if err := printStats(partition.AllSectors, "All"); err != nil {
+				return err
+			}
+			if err := printStats(partition.LiveSectors, "Live"); err != nil {
+				return err
+			}
+			if err := printStats(partition.ActiveSectors, "Active"); err != nil {
+				return err
+			}
+			if err := printStats(partition.FaultySectors, "Faulty"); err != nil {
+				return err
+			}
+			if err := printStats(partition.RecoveringSectors, "Recovering"); err != nil {
+				return err
+			}
 		}
 		return nil
 	},

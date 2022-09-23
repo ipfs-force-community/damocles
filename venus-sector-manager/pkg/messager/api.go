@@ -25,7 +25,7 @@ var MessageState = struct {
 	FillMsg,
 	OnChainMsg,
 	FailedMsg,
-	ReplacedMsg,
+	ReplacedMsg, // Has been on-chain after being replaced by off-chain services, usually by `mpool replace`, eg. `venus mpool replace`
 	NoWalletMsg mtypes.MessageState
 }{
 	mtypes.UnKnown,

@@ -100,6 +100,89 @@ pub fn add_pieces<'t>(
     Ok(())
 }
 
+pub fn add_pieces<'t>(
+    task: &'t Task<'_>,
+    seal_proof_type: RegisteredSealProof,
+<<<<<<< HEAD
+    mut staged_file: &mut File,
+    pieces: &mut Vec<PieceInfo>,
+    deals: &Deals,
+) -> Result<(), Failure> {
+    let piece_store = task.ctx.global.piece_store.as_ref().context("piece store is required").perm()?;
+
+    for deal in deals {
+        debug!(deal_id = deal.id, cid = %deal.piece.cid.0, payload_size = deal.payload_size, piece_size = deal.piece.size.0, "trying to add piece");
+
+        let unpadded_piece_size = deal.piece.size.unpadded();
+        let is_pledged = deal.id == 0;
+        let (piece_info, _) = if is_pledged {
+            let mut pledge_piece = io::repeat(0).take(unpadded_piece_size.0);
+            write_and_preprocess(
+                seal_proof_type,
+                &mut pledge_piece,
+                &mut staged_file,
+                UnpaddedBytesAmount(unpadded_piece_size.0),
+            )
+            .with_context(|| format!("write pledge piece, size={}", unpadded_piece_size.0))
+            .perm()?
+        } else {
+            let mut piece_reader = piece_store.get(deal.piece.cid.0, deal.payload_size, unpadded_piece_size).perm()?;
+
+            write_and_preprocess(
+                seal_proof_type,
+                &mut piece_reader,
+                &mut staged_file,
+                UnpaddedBytesAmount(unpadded_piece_size.0),
+            )
+            .with_context(|| format!("write deal piece, cid={}, size={}", deal.piece.cid.0, unpadded_piece_size.0))
+            .perm()?
+        };
+
+        pieces.push(piece_info);
+    }
+
+    Ok(())
+=======
+    staged_filepath: impl Into<PathBuf>,
+    deals: &Deals,
+) -> Result<Vec<PieceInfo>, Failure> {
+    let _token = task.ctx.global.limit.acquire(STAGE_NAME_ADD_PIECES).crit()?;
+
+    let piece_store = task.ctx.global.piece_store.as_ref().context("piece store is required").perm()?;
+
+    let pieces: Vec<_> = deals
+        .iter()
+        .map(|deal| {
+            let unpadded_piece_size = deal.piece.size.unpadded();
+            let is_pledged = deal.id == 0;
+
+            let piece_file = if is_pledged {
+                PieceFile::Pledge
+            } else {
+                PieceFile::Url(piece_store.url(&deal.piece.cid.0).to_string())
+            };
+            Piece {
+                piece_file,
+                payload_size: deal.payload_size,
+                piece_size: UnpaddedBytesAmount(unpadded_piece_size.0),
+            }
+        })
+        .collect();
+
+    task.ctx
+        .global
+        .processors
+        .add_pieces
+        .process(AddPiecesInput {
+            seal_proof_type,
+            pieces,
+            staged_filepath: staged_filepath.into(),
+        })
+        .context("add pieces")
+        .perm()
+>>>>>>> main
+}
+
 // build tree_d inside `prepare_dir` if necessary
 pub fn build_tree_d(task: &'_ Task<'_>, allow_static: bool) -> Result<(), Failure> {
     let sector_id = task.sector_id()?;

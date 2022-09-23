@@ -137,6 +137,12 @@ impl<'c, 't> SnapUp<'c, 't> {
     }
 
     fn add_piece(&self) -> ExecResult {
+        let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
+
+        let staged_filepath = self.task.staged_file(sector_id);
+        staged_filepath.prepare().context("prepare staged file").perm()?;
+
         field_required!(deals, self.task.sector.deals.as_ref());
 
         let pieces = common::maybe_add_pieces(self.task, Some(deals))?;

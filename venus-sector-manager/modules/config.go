@@ -83,6 +83,23 @@ func defaultCommonAPIConfig(example bool) CommonAPIConfig {
 	return cfg
 }
 
+type MongoKVStoreConfig struct {
+	Enable       bool
+	DSN          string
+	DatabaseName string
+}
+
+func defaultMongoKVStoreConfig(example bool) MongoKVStoreConfig {
+	cfg := MongoKVStoreConfig{
+		Enable: false,
+	}
+	if example {
+		cfg.DSN = "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000"
+		cfg.DatabaseName = "test"
+	}
+	return cfg
+}
+
 type PieceStoreConfig struct {
 	Name   string
 	Path   string
@@ -100,6 +117,7 @@ type CommonConfig struct {
 	API           CommonAPIConfig
 	PieceStores   []PieceStoreConfig
 	PersistStores []PersistStoreConfig
+	MongoKVStore  MongoKVStoreConfig
 }
 
 func exampleFilestoreConfig() objstore.Config {
@@ -114,6 +132,7 @@ func defaultCommonConfig(example bool) CommonConfig {
 		API:           defaultCommonAPIConfig(example),
 		PieceStores:   []PieceStoreConfig{},
 		PersistStores: []PersistStoreConfig{},
+		MongoKVStore:  defaultMongoKVStoreConfig(example),
 	}
 
 	if example {
@@ -230,19 +249,40 @@ type MinerSnapUpConfig struct {
 	Sender   MustAddress
 	SendFund bool
 	FeeConfig
-	MessageConfidential abi.ChainEpoch
-	ReleaseCondidential abi.ChainEpoch
-	Retry               MinerSnapUpRetryConfig
+
+	MessageConfidential *abi.ChainEpoch
+	ReleaseCondidential *abi.ChainEpoch
+
+	MessageConfidence abi.ChainEpoch
+	ReleaseConfidence abi.ChainEpoch
+
+	Retry MinerSnapUpRetryConfig
+}
+
+func (m *MinerSnapUpConfig) GetMessageConfidence() abi.ChainEpoch {
+	if m.MessageConfidential != nil {
+		return *m.MessageConfidential
+	}
+
+	return m.MessageConfidence
+}
+
+func (m *MinerSnapUpConfig) GetReleaseConfidence() abi.ChainEpoch {
+	if m.ReleaseCondidential != nil {
+		return *m.ReleaseCondidential
+	}
+
+	return m.ReleaseConfidence
 }
 
 func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
 	cfg := MinerSnapUpConfig{
-		Enabled:             false,
-		SendFund:            true,
-		FeeConfig:           defaultFeeConfig(),
-		MessageConfidential: 15,
-		ReleaseCondidential: 30,
-		Retry:               defaultMinerSnapUpRetryConfig(example),
+		Enabled:           false,
+		SendFund:          true,
+		FeeConfig:         defaultFeeConfig(),
+		MessageConfidence: 15,
+		ReleaseConfidence: 30,
+		Retry:             defaultMinerSnapUpRetryConfig(example),
 	}
 
 	if example {
@@ -322,6 +362,7 @@ type MinerPoStConfig struct {
 	Confidence                      uint64
 	SubmitConfidence                uint64
 	ChallengeConfidence             uint64
+	MaxRecoverSectorLimit           uint64
 	MaxPartitionsPerPoStMessage     uint64
 	MaxPartitionsPerRecoveryMessage uint64
 }
@@ -335,6 +376,7 @@ func DefaultMinerPoStConfig(example bool) MinerPoStConfig {
 		Confidence:                      10,
 		SubmitConfidence:                0,
 		ChallengeConfidence:             0,
+		MaxRecoverSectorLimit:           0,
 		MaxPartitionsPerPoStMessage:     0,
 		MaxPartitionsPerRecoveryMessage: 0,
 	}

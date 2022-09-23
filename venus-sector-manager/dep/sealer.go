@@ -48,8 +48,6 @@ func Product() dix.Option {
 		dix.Override(new(*modules.SafeConfig), ProvideSafeConfig),
 		dix.Override(new(core.SectorManager), BuildLocalSectorManager),
 		dix.Override(new(core.SectorStateManager), BuildLocalSectorStateManager),
-		dix.Override(new(OnlineMetaStore), BuildOnlineMetaStore),
-		dix.Override(new(OfflineMetaStore), BuildOfflineMetaStore),
 		dix.Override(new(core.SectorNumberAllocator), BuildSectorNumberAllocator),
 		dix.Override(new(core.RandomnessAPI), randomness.New),
 		dix.Override(new(core.SectorTracker), BuildSectorTracker),
@@ -61,16 +59,20 @@ func Product() dix.Option {
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.Override(new(chain.API), BuildChainClient),
 		dix.Override(new(PersistedObjectStoreManager), BuildPersistedFileStoreMgr),
-		dix.Override(new(SectorIndexMetaStore), BuildSectorIndexMetaStore),
 		dix.Override(new(core.SectorIndexer), BuildSectorIndexer),
 		dix.Override(new(*chain.EventBus), BuildChainEventBus),
-		dix.Override(new(core.SnapUpSectorManager), BuildSnapUpManager),
-		dix.Override(new(core.RebuildSectorManager), BuildRebuildManager),
-		dix.Override(ConstructMarketAPIRelated, BuildMarketAPIRelated),
 
-		dix.Override(new(WorkerMetaStore), BuildWorkerMetaStore),
+		dix.Override(ConstructMarketAPIRelated, BuildMarketAPIRelated),
 		dix.Override(new(core.WorkerManager), BuildWorkerManager),
 
+		dix.Override(new(core.SnapUpSectorManager), BuildSnapUpManager),
+		dix.Override(new(core.RebuildSectorManager), BuildRebuildManager),
+
+		dix.Override(new(SnapUpMetaStore), BuildSnapUpMetaStore),
+		dix.Override(new(SectorIndexMetaStore), BuildSectorIndexMetaStore),
+		dix.Override(new(OnlineMetaStore), BuildOnlineMetaStore),
+		dix.Override(new(OfflineMetaStore), BuildOfflineMetaStore),
+		dix.Override(new(WorkerMetaStore), BuildWorkerMetaStore),
 		dix.Override(new(CommonMetaStore), BuildCommonMetaStore),
 	)
 }

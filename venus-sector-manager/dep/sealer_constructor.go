@@ -38,6 +38,7 @@ type (
 	OfflineMetaStore            kvstore.KVStore
 	PersistedObjectStoreManager objstore.Manager
 	SectorIndexMetaStore        kvstore.KVStore
+	SnapUpMetaStore             kvstore.KVStore
 	ListenAddress               string
 	ProxyAddress                string
 	WorkerMetaStore             kvstore.KVStore
@@ -106,11 +107,22 @@ func ProvideSafeConfig(cfg *modules.Config, locker confmgr.RLocker) (*modules.Sa
 	}, nil
 }
 
-func BuildCommonMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (CommonMetaStore, error) {
-	dir := home.Sub("common")
-	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-	if err != nil {
-		return nil, err
+func BuildCommonMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (CommonMetaStore, error) {
+	var store kvstore.KVStore
+	var err error
+	sub := "common"
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
+		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		dir := home.Sub(sub)
+		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	lc.Append(fx.Hook{
@@ -126,13 +138,24 @@ func BuildCommonMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Hom
 	return store, nil
 }
 
-func BuildOnlineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (OnlineMetaStore, error) {
-	dir := home.Sub("meta")
-	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-	if err != nil {
-		return nil, err
-	}
+func BuildOnlineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (OnlineMetaStore, error) {
+	var store kvstore.KVStore
+	var err error
 
+	sub := "meta"
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
+		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		dir := home.Sub(sub)
+		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+		if err != nil {
+			return nil, err
+		}
+	}
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
 			return store.Run(gctx)
@@ -146,11 +169,23 @@ func BuildOnlineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Hom
 	return store, nil
 }
 
-func BuildOfflineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (OfflineMetaStore, error) {
-	dir := home.Sub("offline_meta")
-	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-	if err != nil {
-		return nil, err
+func BuildOfflineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (OfflineMetaStore, error) {
+	var store kvstore.KVStore
+	var err error
+	sub := "offline_meta"
+
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
+		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		dir := home.Sub(sub)
+		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	lc.Append(fx.Hook{
@@ -363,11 +398,23 @@ func BuildCommitmentManager(
 	return mgr, nil
 }
 
-func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home) (SectorIndexMetaStore, error) {
-	dir := home.Sub("sector-index")
-	store, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-	if err != nil {
-		return nil, err
+func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (SectorIndexMetaStore, error) {
+	var store kvstore.KVStore
+	var err error
+	sub := "sector-index"
+
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
+		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		dir := home.Sub(sub)
+		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	lc.Append(fx.Hook{
@@ -380,6 +427,37 @@ func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedi
 		},
 	})
 
+	return store, nil
+}
+
+func BuildSnapUpMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (SnapUpMetaStore, error) {
+	var store kvstore.KVStore
+	var err error
+	sub := "snapup"
+
+	if scfg.Common.MongoKVStore.Enable {
+		mongoCfg := scfg.Common.MongoKVStore
+		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		dir := home.Sub(sub)
+		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return store.Run(gctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return store.Close(ctx)
+		},
+	})
 	return store, nil
 }
 
@@ -565,7 +643,6 @@ func BuildChainEventBus(
 func BuildSnapUpManager(
 	gctx GlobalContext,
 	lc fx.Lifecycle,
-	home *homedir.Home,
 	scfg *modules.SafeConfig,
 	tracker core.SectorTracker,
 	indexer core.SectorIndexer,
@@ -574,24 +651,9 @@ func BuildSnapUpManager(
 	messagerAPI messager.API,
 	minerInfoAPI core.MinerInfoAPI,
 	stateMgr core.SectorStateManager,
+	store SnapUpMetaStore,
 ) (core.SnapUpSectorManager, error) {
-	dir := home.Sub("snapup")
-	kv, err := kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-	if err != nil {
-		return nil, err
-	}
-
-	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return kv.Run(gctx)
-		},
-
-		OnStop: func(ctx context.Context) error {
-			return kv.Close(ctx)
-		},
-	})
-
-	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerInfoAPI, stateMgr, scfg, kv)
+	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerInfoAPI, stateMgr, scfg, store)
 	if err != nil {
 		return nil, fmt.Errorf("construct snapup manager: %w", err)
 	}

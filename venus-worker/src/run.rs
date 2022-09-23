@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -36,8 +37,9 @@ use crate::{
 pub fn start_deamon(cfg_path: String) -> Result<()> {
     let runtime = Builder::new_multi_thread().enable_all().build().context("construct runtime")?;
 
-    let cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path))?;
+    let mut cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path))?;
     info!("config loaded\n {:?}", cfg);
+    compatible_for_piece_token(&mut cfg);
 
     let dial_addr = rpc_addr(&cfg.sector_manager.rpc_client.addr, 0)?;
     info!(
@@ -145,8 +147,8 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .map(|u| u.origin().ascii_serialization())
         .context("parse rpc url origin")?;
 
-    let piece_store: Option<Box<dyn PieceStore>> = if cfg.sealing.enable_deals.unwrap_or(false) {
-        Some(Box::new(
+    let piece_store: Option<Arc<dyn PieceStore>> = if cfg.sealing.enable_deals.unwrap_or(false) {
+        Some(Arc::new(
             ProxyPieceStore::new(&rpc_origin, cfg.sector_manager.piece_token.as_ref().cloned()).context("build proxy piece store")?,
         ))
     } else {
@@ -173,7 +175,7 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         ext_locks,
         static_tree_d,
         rt: rt.clone(),
-        piece_store: piece_store.map(Arc::new),
+        piece_store,
     };
 
     let worker_ping_interval = cfg.worker_ping_interval();
@@ -280,6 +282,8 @@ macro_rules! construct_sub_processor {
 }
 
 fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<GloablProcessors> {
+    let add_pieces: processor::ArcAddPiecesProcessor = construct_sub_processor!(add_pieces, cfg, locks);
+
     let tree_d: processor::ArcTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks);
 
     let pc1: processor::ArcPC1Processor = construct_sub_processor!(pc1, cfg, locks);
@@ -295,6 +299,7 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
     let transfer: processor::ArcTransferProcessor = construct_sub_processor!(transfer, cfg, locks);
 
     Ok(GloablProcessors {
+        add_pieces,
         tree_d,
         pc1,
         pc2,
@@ -305,6 +310,20 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
     })
 }
 
+fn compatible_for_piece_token(cfg: &mut config::Config) {
+    use vc_processors::builtin::processors::piece::fetcher::http::PieceHttpFetcher;
+
+    if let Some(token) = &cfg.sector_manager.piece_token {
+        match &mut cfg.processors.add_pieces {
+            Some(add_piece_cfgs) => add_piece_cfgs.iter_mut().for_each(|cfg| {
+                cfg.envs
+                    .get_or_insert_with(|| HashMap::with_capacity(1))
+                    .insert(PieceHttpFetcher::ENV_KEY_PIECE_FETCHER_TOKEN.to_string(), token.clone());
+            }),
+            None => env::set_var(PieceHttpFetcher::ENV_KEY_PIECE_FETCHER_TOKEN, token),
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use crate::{config::SerdeDuration, sealing::resource::LimitItem};
