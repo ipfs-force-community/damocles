@@ -221,7 +221,7 @@ pub struct WorkerInstanceConfig {
     pub ping_interval: Option<Duration>,
 
     /// local pieces file directory, if set, worker will load the piece file from the local file
-    /// otherwise it will load the piece file from VSM
+    /// otherwise it will load the remote piece file from VSM
     pub local_pieces_dir: Option<PathBuf>,
 }
 
