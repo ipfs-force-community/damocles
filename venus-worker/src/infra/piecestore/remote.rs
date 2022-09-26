@@ -23,9 +23,9 @@ impl RemotePieceStore {
 }
 
 impl PieceStore for RemotePieceStore {
-    fn get(&self, c: &Cid) -> PieceFile {
+    fn get(&self, c: &Cid) -> Option<PieceFile> {
         let mut u = self.base.clone();
         u.path_segments_mut().unwrap().push(&c.to_string());
-        PieceFile::Url(u.as_str().to_string())
+        Some(PieceFile::Url(u.as_str().to_string()))
     }
 }

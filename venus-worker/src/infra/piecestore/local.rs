@@ -15,7 +15,12 @@ impl LocalPieceStore {
 }
 
 impl PieceStore for LocalPieceStore {
-    fn get(&self, c: &Cid) -> PieceFile {
-        PieceFile::Local(self.base.join(c.to_string()))
+    fn get(&self, c: &Cid) -> Option<PieceFile> {
+        let path = self.base.join(c.to_string());
+        if path.exists() {
+            Some(PieceFile::Local(path))
+        } else {
+            None
+        }
     }
 }
