@@ -1,14 +1,9 @@
-use std::io::Read;
+pub mod local;
+pub mod remote;
 
-pub mod proxy;
-
-use anyhow::Result;
-use fil_types::UnpaddedPieceSize;
 use forest_cid::Cid;
-use reqwest::Url;
+use vc_processors::builtin::tasks::PieceFile;
 
 pub trait PieceStore: Send + Sync {
-    fn get(&self, c: &Cid, payload_size: u64, target_size: UnpaddedPieceSize) -> Result<Box<dyn Read>>;
-
-    fn url(&self, c: &Cid) -> Url;
+    fn get(&self, c: &Cid) -> PieceFile;
 }

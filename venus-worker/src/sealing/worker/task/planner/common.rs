@@ -37,7 +37,7 @@ pub fn add_pieces<'t>(
             let piece_file = if is_pledged {
                 PieceFile::Pledge
             } else {
-                PieceFile::Url(piece_store.url(&deal.piece.cid.0).to_string())
+                piece_store.get(&deal.piece.cid.0)
             };
             Piece {
                 piece_file,

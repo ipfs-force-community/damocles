@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::net::SocketAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -219,6 +219,10 @@ pub struct WorkerInstanceConfig {
     #[serde(default)]
     #[serde(with = "humantime_serde")]
     pub ping_interval: Option<Duration>,
+
+    /// local pieces file directory, if set, worker will load the piece file from the local file
+    /// otherwise it will load the piece file from VSM
+    pub local_pieces_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -334,5 +338,10 @@ impl Config {
             .and_then(|w| w.ping_interval.as_ref())
             .cloned()
             .unwrap_or(DEFAULT_WORKER_PING_INTERVAL)
+    }
+
+    /// get worker local pieces dir
+    pub fn worker_local_pieces_dir(&self) -> Option<&PathBuf> {
+        self.worker.as_ref().and_then(|w| w.local_pieces_dir.as_ref())
     }
 }
