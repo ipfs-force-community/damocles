@@ -28,24 +28,26 @@ pub fn add_pieces<'t>(
 
     let piece_store = task.ctx.global.piece_store.as_ref().context("piece store is required").perm()?;
 
-    let pieces: Vec<_> = deals
-        .iter()
-        .map(|deal| {
-            let unpadded_piece_size = deal.piece.size.unpadded();
-            let is_pledged = deal.id == 0;
+    let mut pieces = Vec::with_capacity(deals.len());
 
-            let piece_file = if is_pledged {
-                PieceFile::Pledge
-            } else {
-                PieceFile::Url(piece_store.url(&deal.piece.cid.0).to_string())
-            };
-            Piece {
-                piece_file,
-                payload_size: deal.payload_size,
-                piece_size: UnpaddedBytesAmount(unpadded_piece_size.0),
-            }
+    for deal in deals {
+        let unpadded_piece_size = deal.piece.size.unpadded();
+        let is_pledged = deal.id == 0;
+
+        let piece_file = if is_pledged {
+            PieceFile::Pledge
+        } else {
+            piece_store
+                .get(&deal.piece.cid.0)
+                .with_context(|| format!("get piece: {}", deal.piece.cid.0))
+                .perm()?
+        };
+        pieces.push(Piece {
+            piece_file,
+            payload_size: deal.payload_size,
+            piece_size: UnpaddedBytesAmount(unpadded_piece_size.0),
         })
-        .collect();
+    }
 
     task.ctx
         .global
