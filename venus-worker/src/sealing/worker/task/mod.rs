@@ -87,14 +87,17 @@ impl<'c> Task<'c> {
                 if need_cleanup_sector {
                     sector.delete().context("cleanup sector")?;
                 }
-                if sector.plan != new_config.plan {
-                    sector.plan = new_config.plan.clone();
-                }
-                sector.sync().context("init sync sector")?;
                 Ok(sector.can_be_reload_config())
             })
             .context("reload sealing thread hot config")
             .crit()?;
+
+        if &sector.plan != store_config.plan() {
+            sector.plan = store_config.plan().clone();
+        }
+
+        // create sector or sync sector plan
+        sector.sync().context("init sync sector").crit()?;
 
         ctrl_ctx
             .update_state(|cst| cst.job.plan = sector.plan.clone().unwrap_or_else(|| default_plan().to_owned()))
