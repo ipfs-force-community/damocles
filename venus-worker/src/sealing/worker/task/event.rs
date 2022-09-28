@@ -6,12 +6,12 @@ use super::{
     sector::{Base, Finalized, Sector, State},
     Planner,
 };
-use crate::logging::trace;
 use crate::rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, Seed, Ticket};
 use crate::sealing::processor::{
     to_prover_id, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output,
     SectorId, SnapEncodeOutput,
 };
+use crate::{logging::trace, metadb::MaybeDirty};
 
 pub enum Event {
     SetState(State),
@@ -158,7 +158,7 @@ macro_rules! mem_replace {
 }
 
 impl Event {
-    pub fn apply<P: Planner>(self, p: &P, s: &mut Sector) -> Result<()> {
+    pub fn apply<P: Planner>(self, p: &P, s: &mut MaybeDirty<Sector>) -> Result<()> {
         let next = if let Event::SetState(s) = self {
             s
         } else {
@@ -175,7 +175,7 @@ impl Event {
         Ok(())
     }
 
-    fn apply_changes(self, s: &mut Sector) {
+    fn apply_changes(self, s: &mut MaybeDirty<Sector>) {
         match self {
             Self::SetState(_) => {}
 

@@ -1,6 +1,7 @@
 use anyhow::{Error, Result};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{from_slice, to_vec};
+use tracing::error;
 
 pub mod rocks;
 
@@ -34,7 +35,7 @@ impl<M: MetaDB> MetaDocumentDB<M> {
     pub fn get<K, T>(&self, key: K) -> Result<T, MetaError>
     where
         K: AsRef<str>,
-        T: DeserializeOwned,
+        T: for<'a> Deserialize<'a>,
     {
         self.0.view(key, |b: &[u8]| from_slice(b).map_err(Error::new))
     }
@@ -60,13 +61,34 @@ pub trait MetaDB {
     }
 }
 
-pub struct PrefixedMetaDB<'p, DB: MetaDB> {
-    prefix: String,
-    inner: &'p DB,
+impl<T: MetaDB> MetaDB for &T {
+    fn set<K: AsRef<str>, V: AsRef<[u8]>>(&self, key: K, value: V) -> Result<()> {
+        (*self).set(key, value)
+    }
+
+    fn has<K: AsRef<str>>(&self, key: K) -> Result<bool> {
+        (*self).has(key)
+    }
+
+    fn view<K: AsRef<str>, F, R>(&self, key: K, cb: F) -> Result<R, MetaError>
+    where
+        F: FnOnce(&[u8]) -> Result<R>,
+    {
+        (*self).view(key, cb)
+    }
+
+    fn remove<K: AsRef<str>>(&self, key: K) -> Result<()> {
+        (*self).remove(key)
+    }
 }
 
-impl<'p, DB: MetaDB> PrefixedMetaDB<'p, DB> {
-    pub fn wrap<P: Into<String>>(prefix: P, inner: &'p DB) -> Self {
+pub struct PrefixedMetaDB<DB: MetaDB> {
+    prefix: String,
+    inner: DB,
+}
+
+impl<DB: MetaDB> PrefixedMetaDB<DB> {
+    pub fn wrap<P: Into<String>>(prefix: P, inner: DB) -> Self {
         Self {
             prefix: prefix.into(),
             inner,
@@ -78,7 +100,7 @@ impl<'p, DB: MetaDB> PrefixedMetaDB<'p, DB> {
     }
 }
 
-impl<'p, DB: MetaDB> MetaDB for PrefixedMetaDB<'p, DB> {
+impl<DB: MetaDB> MetaDB for PrefixedMetaDB<DB> {
     fn set<K: AsRef<str>, V: AsRef<[u8]>>(&self, key: K, value: V) -> Result<()> {
         self.inner.set(self.key(key), value)
     }
@@ -96,5 +118,141 @@ impl<'p, DB: MetaDB> MetaDB for PrefixedMetaDB<'p, DB> {
 
     fn remove<K: AsRef<str>>(&self, key: K) -> Result<()> {
         self.inner.remove(self.key(key))
+    }
+}
+
+/// MaybeDirty is a wrapper type that marks whether the internal object has been borrowed mutably.
+/// Additional sync operations can be avoided if the internal data is not mutably borrowed
+pub struct MaybeDirty<T> {
+    inner: T,
+    is_dirty: bool,
+}
+
+impl<T> MaybeDirty<T> {
+    pub fn new(inner: T) -> Self {
+        Self { inner, is_dirty: false }
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.is_dirty
+    }
+
+    pub fn sync(&mut self) {
+        self.is_dirty = false;
+    }
+}
+
+impl<T> core::ops::Deref for MaybeDirty<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T> core::ops::DerefMut for MaybeDirty<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.is_dirty = true;
+        &mut self.inner
+    }
+}
+
+impl<T> Drop for MaybeDirty<T> {
+    fn drop(&mut self) {
+        assert!(!self.is_dirty, "data dirty when dropping");
+    }
+}
+
+pub struct Saved<T, K, DB>
+where
+    T: Default + Serialize,
+    K: AsRef<str>,
+    DB: MetaDB,
+{
+    // Using MaybeDirty can avoid some unnecessary `db.set` operations
+    data: MaybeDirty<T>,
+    key: K,
+    db: MetaDocumentDB<DB>,
+}
+
+impl<T, K, DB> Saved<T, K, DB>
+where
+    T: Default + Serialize,
+    K: AsRef<str>,
+    DB: MetaDB,
+{
+    pub fn load(key: K, db: DB) -> anyhow::Result<Self>
+    where
+        T: for<'a> Deserialize<'a>,
+    {
+        let db = MetaDocumentDB::wrap(db);
+
+        let data = db.get(&key).or_else(|e| match e {
+            MetaError::NotFound => Ok(T::default()),
+            MetaError::Failure(ie) => Err(ie),
+        })?;
+
+        Ok(Self {
+            data: MaybeDirty::new(data),
+            key,
+            db,
+        })
+    }
+
+    pub fn sync(&mut self) -> anyhow::Result<()> {
+        if !self.data.is_dirty() {
+            return Ok(());
+        }
+        self.db.set(&self.key, &*self.data)?;
+        self.data.sync();
+        Ok(())
+    }
+
+    pub fn delete(&mut self) -> anyhow::Result<()> {
+        self.db.remove(&self.key)?;
+        *self.data = Default::default();
+        self.data.sync();
+        Ok(())
+    }
+
+    pub fn inner_mut(&mut self) -> &mut MaybeDirty<T> {
+        &mut self.data
+    }
+}
+
+impl<T, K, DB> core::ops::Deref for Saved<T, K, DB>
+where
+    T: Default + Serialize,
+    K: AsRef<str>,
+    DB: MetaDB,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.data.deref()
+    }
+}
+
+impl<T, K, DB> core::ops::DerefMut for Saved<T, K, DB>
+where
+    T: Default + Serialize,
+    K: AsRef<str>,
+    DB: MetaDB,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.data.deref_mut()
+    }
+}
+
+impl<T, K, DB> Drop for Saved<T, K, DB>
+where
+    T: Default + Serialize,
+    K: AsRef<str>,
+    DB: MetaDB,
+{
+    fn drop(&mut self) {
+        if let Err(e) = self.sync() {
+            error!(err = ?e, "sync data");
+        }
     }
 }
