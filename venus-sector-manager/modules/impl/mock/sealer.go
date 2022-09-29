@@ -15,16 +15,22 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	chainAPI "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 )
 
 var _ core.SealerAPI = (*Sealer)(nil)
 
-func NewSealer(rand core.RandomnessAPI, sector core.SectorManager, deal core.DealManager, commit core.CommitmentManager) (*Sealer, error) {
+func NewSealer(rand core.RandomnessAPI, sector core.SectorManager, deal core.DealManager, commit core.CommitmentManager,
+	api chainAPI.API, scfg modules.SafeConfig,
+) (*Sealer, error) {
 	return &Sealer{
 		rand:   rand,
 		sector: sector,
 		deal:   deal,
 		commit: commit,
+		api:    api,
+		scfg:   scfg,
 	}, nil
 }
 
@@ -33,6 +39,8 @@ type Sealer struct {
 	sector core.SectorManager
 	deal   core.DealManager
 	commit core.CommitmentManager
+	api    chainAPI.API
+	scfg   modules.SafeConfig
 }
 
 func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.AllocatedSector, error) {
@@ -40,6 +48,24 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 }
 
 func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.Deals, error) {
+	s.scfg.Lock()
+	mcfg, err := s.scfg.MinerConfig(sid.Miner)
+	s.scfg.Unlock()
+	if err != nil {
+		return nil, err
+	}
+
+	if mcfg.Sealing.SealingEpochDuration != 0 {
+		h, err := s.api.ChainHead(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get chain head: %w", err)
+		}
+		lifetime := &core.AcquireDealsLifetime{}
+		lifetime.Start = h.Height() + abi.ChainEpoch(mcfg.Sealing.SealingEpochDuration)
+		lifetime.End = 1<<63 - 1
+
+		return s.deal.Acquire(ctx, sid, spec, lifetime, core.SectorWorkerJobSealing)
+	}
 	return s.deal.Acquire(ctx, sid, spec, nil, core.SectorWorkerJobSealing)
 }
 

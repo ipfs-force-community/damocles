@@ -9,9 +9,11 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-commp-utils/zerocomm"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/metrics"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
@@ -56,6 +58,7 @@ func New(
 	prover core.Prover,
 	snapup core.SnapUpSectorManager,
 	workerMgr core.WorkerManager,
+	scfg modules.SafeConfig,
 ) (*Sealer, error) {
 	return &Sealer{
 		capi:      capi,
@@ -71,6 +74,7 @@ func New(
 		sectorTracker: sectorTracker,
 
 		prover: prover,
+		scfg:   scfg,
 	}, nil
 }
 
@@ -88,6 +92,7 @@ type Sealer struct {
 	sectorTracker core.SectorTracker
 
 	prover core.Prover
+	scfg   modules.SafeConfig
 }
 
 func (s *Sealer) checkSectorNumber(ctx context.Context, sid abi.SectorID) (bool, error) {
@@ -146,8 +151,28 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.A
 	if len(state.Pieces) != 0 {
 		return state.Pieces, nil
 	}
+	s.scfg.Lock()
+	mcfg, err := s.scfg.MinerConfig(sid.Miner)
+	s.scfg.Unlock()
+	if err != nil {
+		return nil, err
+	}
 
-	pieces, err := s.deal.Acquire(ctx, sid, spec, nil, core.SectorWorkerJobSealing)
+	pieces := core.Deals{}
+	if mcfg.Sealing.SealingEpochDuration != 0 {
+		var h *types.TipSet
+		h, err = s.capi.ChainHead(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get chain head: %w", err)
+		}
+
+		pieces, err = s.deal.Acquire(ctx, sid, spec, &core.AcquireDealsLifetime{
+			Start: h.Height() + abi.ChainEpoch(mcfg.Sealing.SealingEpochDuration),
+			End:   1<<63 - 1,
+		}, core.SectorWorkerJobSealing)
+	} else {
+		pieces, err = s.deal.Acquire(ctx, sid, spec, nil, core.SectorWorkerJobSealing)
+	}
 	if err != nil {
 		return nil, err
 	}
