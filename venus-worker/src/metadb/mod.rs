@@ -244,19 +244,6 @@ where
     }
 }
 
-impl<T, K, DB> Drop for Saved<T, K, DB>
-where
-    T: Default + Serialize,
-    K: AsRef<str>,
-    DB: MetaDB,
-{
-    fn drop(&mut self) {
-        if let Err(e) = self.sync() {
-            error!(err = ?e, "sync data");
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
