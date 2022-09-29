@@ -210,7 +210,9 @@ impl Event {
             }
 
             Self::PC1(ticket, out) => {
-                replace!(s.phases.ticket, ticket);
+                if s.phases.ticket.as_ref() != Some(&ticket) {
+                    replace!(s.phases.ticket, ticket);
+                }
                 replace!(s.phases.pc1out, out);
             }
 
