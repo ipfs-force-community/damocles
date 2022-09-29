@@ -256,3 +256,35 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::MaybeDirty;
+
+    #[test]
+    fn test_maybe_dirty() {
+        let mut x = String::from("glgjssy");
+        let mut md = MaybeDirty::new(x.clone());
+        assert_eq!(x, *md);
+        assert!(!md.is_dirty());
+
+        md.push_str(", qyhfbqz. ");
+        assert_ne!(x, *md);
+        assert!(md.is_dirty());
+        x.push_str(", qyhfbqz. ");
+
+        md.sync();
+        assert!(!md.is_dirty());
+
+        md.push_str("sometimes");
+        assert!(md.is_dirty());
+        x.push_str("sometimes");
+
+        assert_eq!(x, *md);
+
+        // avoid panic
+        md.sync();
+    }
+}
