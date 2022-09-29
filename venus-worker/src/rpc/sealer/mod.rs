@@ -98,7 +98,7 @@ pub struct AcquireDealsSpec {
 }
 
 /// assigned ticket
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "PascalCase")]
 pub struct Ticket {
     /// raw ticket data
