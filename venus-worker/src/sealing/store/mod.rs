@@ -170,9 +170,7 @@ impl Config {
 
     /// Reload hot config when the content of hot config modified
     pub fn reload_if_needed(&mut self, f: impl FnOnce(&SealingWithPlan, &SealingWithPlan) -> Result<bool>) -> Result<()> {
-        let modified = self.hot_config.if_modified(f)?;
-
-        if modified {
+        if self.hot_config.if_modified(f)? {
             let config = self.hot_config.config();
             info!(config = ?config, "sealing thread reload hot config");
 
