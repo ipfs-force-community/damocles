@@ -191,11 +191,4 @@ impl Sector {
         let prev = std::mem::replace(&mut self.state, next);
         self.prev_state.replace(prev);
     }
-
-    pub fn can_be_reload_config(&self) -> bool {
-        match self.state {
-            State::Empty | State::Allocated => true,
-            _ => false,
-        }
-    }
 }

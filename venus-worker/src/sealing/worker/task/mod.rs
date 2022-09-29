@@ -80,15 +80,7 @@ impl<'c> Task<'c> {
         let mut sector: Saved<Sector, _, _> = Saved::load(SECTOR_INFO_KEY, sector_meta).context("load sector").crit()?;
 
         store_config
-            .reload_if_needed(|old_config, new_config| {
-                let need_cleanup_sector = sector.state == State::Allocated
-                    && (old_config.sealing.allowed_sizes != new_config.sealing.allowed_sizes
-                        || old_config.sealing.allowed_miners != new_config.sealing.allowed_miners);
-                if need_cleanup_sector {
-                    sector.delete().context("cleanup sector")?;
-                }
-                Ok(sector.can_be_reload_config())
-            })
+            .reload_if_needed(|_, _| Ok(true))
             .context("reload sealing thread hot config")
             .crit()?;
 
@@ -288,6 +280,11 @@ impl<'c> Task<'c> {
                             // `conig::sealing::request_task_max_retries` times, this task is really considered idle,
                             // break this task loop. that we have a chance to reload `sealing_thread` hot config file,
                             // or do something else.
+
+                            if self.store.config.check_modified() {
+                                // cleanup sector if the hot config modified
+                                self.finalize()?;
+                            }
                             return Ok(());
                         }
                     }
