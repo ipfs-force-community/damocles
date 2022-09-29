@@ -182,6 +182,11 @@ impl Config {
         Ok(())
     }
 
+    /// Returns `true` if the hot config modified.
+    pub fn check_modified(&self) -> bool {
+        self.hot_config.check_modified()
+    }
+
     /// Returns the plan config item
     pub fn plan(&self) -> &Option<String> {
         &self.hot_config.config().plan
