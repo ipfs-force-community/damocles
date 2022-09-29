@@ -128,13 +128,19 @@ pub fn pre_commit1(task: &'_ Task<'_>) -> Result<(Ticket, SealPreCommitPhase1Out
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
 
-    let ticket = call_rpc! {
-        task.ctx.global.rpc,
-        assign_ticket,
-        sector_id.clone(),
-    }?;
-
-    debug!(ticket = ?ticket.ticket.0, epoch = ticket.epoch, "ticket assigned from sector-manager");
+    let ticket = match &task.sector.phases.ticket {
+        // Use the existing ticket when rebuilding sectors
+        Some(ticket) => ticket.clone(),
+        None => {
+            let ticket = call_rpc! {
+                task.ctx.global.rpc,
+                assign_ticket,
+                sector_id.clone(),
+            }?;
+            debug!(ticket = ?ticket.ticket.0, epoch = ticket.epoch, "ticket assigned from sector-manager");
+            ticket
+        }
+    };
 
     field_required! {
         piece_infos,
