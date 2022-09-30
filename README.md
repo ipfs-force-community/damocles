@@ -9,7 +9,14 @@
 
 #
 
-`venus-cluster` offers a configurable, expandable and customizable storage power solution for the Filecoin storage providers. For more details about Filecoin, check out the [Filecoin Spec](https://spec.filecoin.io).
+`venus-cluster` is a solution for `Filecoin` storage power clusters, focusing on growing and maintaining said storage power. Compared with `lotus`, it tries to make breakthroughs in the following aspects:
+
+- Simplifies sealing state machine
+- More efficient usage of resources through optimized procedures
+- Taking advantages of Venus chain service and Venus storage deal service to maximize storage providing performance
+- Multi miner_id support and collaboration  
+
+`venus-cluster` is composed of `venus-worker` and `venus-sector-manager`. The former is used for `PoRep` computations and latter is used for sector management and interactions with Filecoin chain.
 
 ## Building & Documentation
 
