@@ -80,12 +80,14 @@ impl<'c> Task<'c> {
         let mut sector: Saved<Sector, _, _> = Saved::load(SECTOR_INFO_KEY, sector_meta).context("load sector").crit()?;
 
         store_config
-            .reload_if_needed(|_, new_config| {
-                sector.plan = new_config.plan.clone();
-                Ok(true)
-            })
+            .reload_if_needed(|_, _| Ok(true))
             .context("reload sealing thread hot config")
             .crit()?;
+
+        if &sector.plan != store_config.plan() {
+            // init setup sector plan or modify by hot config
+            sector.plan = store_config.plan().clone();
+        }
 
         // create sector or sync sector plan
         sector.sync().context("init sync sector").crit()?;

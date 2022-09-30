@@ -1,7 +1,6 @@
 use anyhow::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_slice, to_vec};
-use tracing::error;
 
 pub mod rocks;
 
