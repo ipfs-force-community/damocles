@@ -70,15 +70,15 @@ where
 
     // Returns `true` if the hot config modified.
     pub fn check_modified(&self) -> bool {
-        match self.check_modified_inner().unwrap_or_else(|e| {
-            error!(err=?e, "check modified error");
+        !matches!(
+            self.check_modified_inner().unwrap_or_else(|e| {
+                error!(err=?e, "check modified error");
 
-            // if `check_modified_inner` reports an error, the configuration is considered unchanged.
+                // if `check_modified_inner` reports an error, the configuration is considered unchanged.
+                ConfigEvent::Unchanged
+            }),
             ConfigEvent::Unchanged
-        }) {
-            ConfigEvent::Unchanged => false,
-            _ => true,
-        }
+        )
     }
 
     /// Returns current config
@@ -193,23 +193,23 @@ mod tests {
         let mut hot = HotConfig::new(default_config.clone(), merge_config, &hot_config_path).expect("failed to new HotConfig");
         assert_eq!(&merge_config(&default_config, config!(v1)), hot.config());
         // The config should not change without modifying the hot config file
-        expect_config!(&mut hot, None);
+        expect_config!(hot, None);
 
         sleep_1s();
         write_toml_file(&hot_config_path, &config!(v2));
-        expect_config!(&mut hot, Some(&merge_config(&default_config, config!(v2))));
+        expect_config!(hot, Some(&merge_config(&default_config, config!(v2))));
         // The config should not change without modifying the hot config file
-        expect_config!(&mut hot, None);
+        expect_config!(hot, None);
 
         fs::remove_file(&hot_config_path).expect("failed to remove hot config file");
-        expect_config!(&mut hot, Some(&default_config));
-        expect_config!(&mut hot, None);
+        expect_config!(hot, Some(&default_config));
+        expect_config!(hot, None);
 
         sleep_1s();
         write_toml_file(&hot_config_path, &config!(v3));
-        expect_config!(&mut hot, Some(&merge_config(&default_config, config!(v3))));
+        expect_config!(hot, Some(&merge_config(&default_config, config!(v3))));
         // The config should not change without modifying the hot config file
-        expect_config!(&mut hot, None);
+        expect_config!(hot, None);
     }
 
     #[test]
@@ -218,7 +218,7 @@ mod tests {
         let mut hot =
             HotConfig::new(default_config.clone(), merge_config, PathBuf::from("/non_exist_file")).expect("Failed to new HotConfig");
         assert_eq!(&default_config, hot.config());
-        expect_config!(&mut hot, None);
+        expect_config!(hot, None);
     }
 
     #[test]
@@ -239,7 +239,7 @@ mod tests {
         let tempdir = tempfile::tempdir().expect("failed to create temp dir");
         let default_config = config!(v0);
         let hot_config_path = tempdir.path().join("hot.toml");
-        let mut hot = HotConfig::new(default_config.clone(), merge_config, &hot_config_path).expect("failed to new HotConfig");
+        let mut hot = HotConfig::new(default_config, merge_config, &hot_config_path).expect("failed to new HotConfig");
         assert!(!hot.check_modified());
         write_toml_file(&hot_config_path, &config!(v1));
         assert!(hot.check_modified());

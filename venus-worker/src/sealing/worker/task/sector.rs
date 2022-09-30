@@ -182,9 +182,10 @@ impl Default for Sector {
 impl Sector {
     #[allow(dead_code)]
     pub fn new(plan: Option<String>) -> Self {
-        let mut s = Sector::default();
-        s.plan = plan;
-        s
+        Sector {
+            plan,
+            ..Default::default()
+        }
     }
 
     pub fn update_state(&mut self, next: State) {
