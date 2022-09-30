@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://venus.filecoin.io/Overview.html" title="Filecoin Docs">
+  <a href="https://venus.filecoin.io/" title="Filecoin Docs">
     <img src="docs/images/venus_logo_big2.jpg" alt="Project Venus Logo" width="330" />
   </a>
 </p>
