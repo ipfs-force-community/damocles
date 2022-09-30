@@ -163,24 +163,28 @@ pub struct Sector {
     pub phases: Phases,
 }
 
-impl Sector {
-    pub fn new(plan: Option<String>) -> Self {
-        Sector {
+impl Default for Sector {
+    fn default() -> Self {
+        Self {
             version: CURRENT_SECTOR_VERSION,
-            plan,
-
+            plan: None,
             state: Default::default(),
             prev_state: None,
             retry: 0,
-
             base: None,
-
             deals: None,
-
             finalized: None,
-
             phases: Default::default(),
         }
+    }
+}
+
+impl Sector {
+    #[allow(dead_code)]
+    pub fn new(plan: Option<String>) -> Self {
+        let mut s = Sector::default();
+        s.plan = plan;
+        s
     }
 
     pub fn update_state(&mut self, next: State) {

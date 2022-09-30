@@ -8,7 +8,7 @@ use self::planner::default_plan;
 
 use super::{super::failure::*, CtrlCtx};
 use crate::logging::{debug, error, info, warn, warn_span};
-use crate::metadb::{rocks::RocksMeta, MetaDocumentDB, MetaError, PrefixedMetaDB};
+use crate::metadb::{rocks::RocksMeta, MaybeDirty, MetaDocumentDB, PrefixedMetaDB, Saved};
 use crate::rpc::sealer::{ReportStateReq, SectorFailure, SectorID, SectorStateChange, WorkerIdentifier};
 use crate::store::Store;
 use crate::types::SealProof;
@@ -35,7 +35,7 @@ const SECTOR_META_PREFIX: &str = "meta";
 const SECTOR_TRACE_PREFIX: &str = "trace";
 
 pub struct Task<'c> {
-    sector: Sector,
+    sector: Saved<Sector, &'static str, PrefixedMetaDB<&'c RocksMeta>>,
     _trace: Vec<Trace>,
 
     ctx: &'c Ctx,
@@ -43,8 +43,7 @@ pub struct Task<'c> {
     store: &'c Store,
     ident: WorkerIdentifier,
 
-    sector_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
-    _trace_meta: MetaDocumentDB<PrefixedMetaDB<'c, RocksMeta>>,
+    _trace_meta: MetaDocumentDB<PrefixedMetaDB<&'c RocksMeta>>,
 }
 
 // properties
@@ -77,26 +76,19 @@ impl<'c> Task<'c> {
             ..
         } = s;
 
-        let sector_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &*store_meta));
+        let sector_meta = PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &*store_meta);
+        let mut sector: Saved<Sector, _, _> = Saved::load(SECTOR_INFO_KEY, sector_meta).context("load sector").crit()?;
 
-        let sector: Sector = sector_meta
-            .get(SECTOR_INFO_KEY)
-            .or_else(|e| match e {
-                MetaError::NotFound => {
-                    // meta data not found means that we are dealing with a new sector.
-                    // in this case we can load the sealing_thread hot config without any side effects.
-                    store_config.reload_if_needed().context("reload sealing thread hot config")?;
-
-                    let _ = get_planner(store_config.plan().as_deref())?;
-                    let empty = Sector::new(store_config.plan().as_ref().cloned());
-                    sector_meta.set(SECTOR_INFO_KEY, &empty)?;
-                    Ok(empty)
-                }
-
-                MetaError::Failure(ie) => Err(ie),
+        store_config
+            .reload_if_needed(|_, new_config| {
+                sector.plan = new_config.plan.clone();
+                Ok(true)
             })
-            .context("load or create sector")
+            .context("reload sealing thread hot config")
             .crit()?;
+
+        // create sector or sync sector plan
+        sector.sync().context("init sync sector").crit()?;
 
         ctrl_ctx
             .update_state(|cst| cst.job.plan = sector.plan.clone().unwrap_or_else(|| default_plan().to_owned()))
@@ -117,7 +109,6 @@ impl<'c> Task<'c> {
                 location: s.location.to_pathbuf(),
             },
 
-            sector_meta,
             _trace_meta: trace_meta,
         })
     }
@@ -288,7 +279,11 @@ impl<'c> Task<'c> {
                             // `conig::sealing::request_task_max_retries` times, this task is really considered idle,
                             // break this task loop. that we have a chance to reload `sealing_thread` hot config file,
                             // or do something else.
-                            self.finalize()?;
+
+                            if self.store.config.check_modified() {
+                                // cleanup sector if the hot config modified
+                                self.finalize()?;
+                            }
                             return Ok(());
                         }
                     }
@@ -348,15 +343,14 @@ impl<'c> Task<'c> {
         }
     }
 
-    fn sync<F: FnOnce(&mut Sector) -> Result<()>>(&mut self, modify_fn: F) -> Result<(), Failure> {
-        modify_fn(&mut self.sector).crit()?;
-        self.sector_meta.set(SECTOR_INFO_KEY, &self.sector).crit()
+    fn sync<F: FnOnce(&mut MaybeDirty<Sector>) -> Result<()>>(&mut self, modify_fn: F) -> Result<(), Failure> {
+        modify_fn(self.sector.inner_mut()).crit()?;
+        self.sector.sync().context("sync sector").crit()
     }
 
-    fn finalize(self) -> Result<(), Failure> {
-        self.store.cleanup().crit()?;
-        self.sector_meta.remove(SECTOR_INFO_KEY).crit()?;
-        Ok(())
+    fn finalize(mut self) -> Result<(), Failure> {
+        self.store.cleanup().context("cleanup store").crit()?;
+        self.sector.delete().context("remove sector").crit()
     }
 
     fn sector_path(&self, sector_id: &SectorID) -> String {

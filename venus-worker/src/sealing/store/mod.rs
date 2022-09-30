@@ -14,7 +14,7 @@ use crate::infra::util::PlaceHolder;
 use crate::logging::{info, warn};
 use crate::metadb::rocks::RocksMeta;
 use crate::sealing::{
-    hot_config::{result_flatten, HotConfig},
+    hot_config::HotConfig,
     worker::{Ctrl, Worker},
 };
 use crate::types::SealProof;
@@ -169,12 +169,20 @@ impl Config {
     }
 
     /// Reload hot config when the content of hot config modified
-    pub fn reload_if_needed(&mut self) -> Result<()> {
-        result_flatten(self.hot_config.if_modified(|config| {
-            (self.allowed_miners, self.allowed_proof_types) = Self::extract_allowed(&config.sealing)?;
+    pub fn reload_if_needed(&mut self, f: impl FnOnce(&SealingWithPlan, &SealingWithPlan) -> Result<bool>) -> Result<()> {
+        if self.hot_config.if_modified(f)? {
+            let config = self.hot_config.config();
             info!(config = ?config, "sealing thread reload hot config");
-            Ok(())
-        }))
+
+            (self.allowed_miners, self.allowed_proof_types) = Self::extract_allowed(&config.sealing)?;
+        }
+
+        Ok(())
+    }
+
+    /// Returns `true` if the hot config modified.
+    pub fn check_modified(&self) -> bool {
+        self.hot_config.check_modified()
     }
 
     /// Returns the plan config item
@@ -256,10 +264,13 @@ fn customized_sealing_config(common: &SealingOptional, customized: Option<&Seali
     }
 }
 
+/// sealing config with plan
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct SealingWithPlan {
-    plan: Option<String>,
-    sealing: Sealing,
+pub struct SealingWithPlan {
+    /// sealing plan
+    pub plan: Option<String>,
+    /// sealing config
+    pub sealing: Sealing,
 }
 
 /// Merge hot config and default config
