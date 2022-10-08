@@ -44,5 +44,5 @@ For general help in using `venus-cluster`, please refer to the [documentation](h
 - [Slack](https://filecoinproject.slack.com/archives/CEHHJNJS3) (For live discussion with the Community)
 - [GitHub](https://github.com/ipfs-force-community/venus-cluster/issues) (Feature/Bug reports, Contributions)
 - [Twitter](https://twitter.com/venus_filecoin) (Get the news fast)
-- [Meetups](https://venushub.io/meetup/) (A weekly newsletter about Databend)
+- [Meetups](https://venushub.io/meetup/) (A monthly online meetup about Venus in general)
 - [I'm feeling lucky](https://github.com/ipfs-force-community/venus-cluster/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) (Pick up a good first issue now!)
