@@ -7,8 +7,6 @@
 
 <h1 align="center">venus-cluster</h1>
 
-#
-
 `venus-cluster` is a solution for `Filecoin` storage power clusters, focusing on growing and maintaining said storage power. Compared with `lotus`, it tries to make breakthroughs in the following aspects:
 
 - Simplifies sealing state machine
