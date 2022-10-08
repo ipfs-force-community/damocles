@@ -58,7 +58,7 @@ func New(
 	prover core.Prover,
 	snapup core.SnapUpSectorManager,
 	workerMgr core.WorkerManager,
-	scfg modules.SafeConfig,
+	scfg *modules.SafeConfig,
 ) (*Sealer, error) {
 	return &Sealer{
 		capi:      capi,
@@ -92,7 +92,7 @@ type Sealer struct {
 	sectorTracker core.SectorTracker
 
 	prover core.Prover
-	scfg   modules.SafeConfig
+	scfg   *modules.SafeConfig
 }
 
 func (s *Sealer) checkSectorNumber(ctx context.Context, sid abi.SectorID) (bool, error) {
