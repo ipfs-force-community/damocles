@@ -38,4 +38,13 @@ Venus is a universally open project and welcomes contributions of all kinds: cod
 
 1. If the proposal entails a protocol change, please first submit a [Filecoin Improvement Proposal](https://github.com/filecoin-project/FIPs).
 2. If the change is complex and requires prior discussion, [open an issue](https://github.com/ipfs-force-community/venus-cluster/issues) or a [discussion](https://github.com/ipfs-force-community/venus-cluster/discussions) to request feedback before you start working on a pull request. This is to avoid disappointment and sunk costs, in case the change is not actually needed or accepted.
-3. Please refrain from submitting PRs to adapt existing code to subjective preferences. The changeset should contain functional or technical improvements/enhancements, bug fixes, new features, or some other clear material contribution.
+
+## Community
+
+For general help in using `venus-cluster`, please refer to the [documentation](https://github.com/ipfs-force-community/venus-cluster/tree/main/docs) hosted within the repo. For additional help, you can use one of these channels to ask a question:
+
+- [Slack](https://filecoinproject.slack.com/archives/CEHHJNJS3) (For live discussion with the Community)
+- [GitHub](https://github.com/ipfs-force-community/venus-cluster/issues) (Feature/Bug reports, Contributions)
+- [Twitter](https://twitter.com/venus_filecoin) (Get the news fast)
+- [Meetups](https://venushub.io/meetup/) (A weekly newsletter about Databend)
+- [I'm feeling lucky](https://github.com/ipfs-force-community/venus-cluster/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) (Pick up a good first issue now!)
