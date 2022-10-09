@@ -159,7 +159,9 @@ impl Config {
     fn new(loc: &Location, config: Sealing, plan: Option<String>) -> Result<Self> {
         let default_config = SealingWithPlan { plan, sealing: config };
         let hot_config = HotConfig::new(default_config, merge_config, loc.hot_config_path()).context("new HotConfig")?;
-        let (allowed_miners, allowed_proof_types) = Self::extract_allowed(&hot_config.config().sealing)?;
+        let config = hot_config.config();
+        info!(config = ?config, "sealing thread config");
+        let (allowed_miners, allowed_proof_types) = Self::extract_allowed(&config.sealing)?;
 
         Ok(Self {
             allowed_miners,
