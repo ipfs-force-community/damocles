@@ -75,6 +75,10 @@ pub enum Event {
     CheckSealed,
 
     SkipSnap,
+
+    Finalize {
+        set_finalized: bool,
+    },
 }
 
 impl Debug for Event {
@@ -137,6 +141,8 @@ impl Debug for Event {
             Self::CheckSealed => "CheckSealed",
 
             Self::SkipSnap => "SkipSnap",
+
+            Self::Finalize { set_finalized: _ } => "Finalize",
         };
 
         f.write_str(name)
@@ -294,6 +300,8 @@ impl Event {
             Self::CheckSealed => {}
 
             Self::SkipSnap => {}
+
+            Self::Finalize { set_finalized: _ } => {}
         };
     }
 }

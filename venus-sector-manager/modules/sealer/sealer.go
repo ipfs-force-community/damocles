@@ -352,6 +352,21 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Me
 	return core.Empty, nil
 }
 
+func (s *Sealer) ReportFinalizedEx(ctx context.Context, sid abi.SectorID, setFinalized bool) (core.Meta, error) {
+	sectorLogger(sid).Debug("sector finalized")
+	if setFinalized {
+		if err := s.state.Finalize(ctx, sid, nil); err != nil {
+			return core.Empty, sectorStateErr(err)
+		}
+	}
+
+	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, sid); err != nil {
+		log.With("sector", util.FormatSectorID(sid)).Errorf("release reserved: %s", err)
+	}
+
+	return core.Empty, nil
+}
+
 func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason string) (core.Meta, error) {
 	err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
 		if dealCount := len(st.Pieces); dealCount > 0 {

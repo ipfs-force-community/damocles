@@ -116,7 +116,11 @@ func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.Rep
 }
 
 func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Meta, error) {
-	log.Warnf("report finalized for m-%d-s-%d", sid.Miner, sid.Number)
+	return s.ReportFinalizedEx(ctx, sid, false)
+}
+
+func (s *Sealer) ReportFinalizedEx(ctx context.Context, sid abi.SectorID, setFinalized bool) (core.Meta, error) {
+	log.Warnf("report finalized for m-%d-s-%d. set_finalized: %t", sid.Miner, sid.Number, setFinalized)
 	return core.Empty, nil
 }
 

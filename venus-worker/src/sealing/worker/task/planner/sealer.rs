@@ -90,7 +90,7 @@ impl Planner for SealerPlanner {
         Ok(next)
     }
 
-    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure> {
+    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Event, Failure> {
         let state = task.sector.state;
         let inner = Sealer { task };
         match state {
@@ -126,7 +126,7 @@ impl Planner for SealerPlanner {
 
             State::ProofSubmitted => inner.handle_proof_submitted(),
 
-            State::Finished => return Ok(None),
+            State::Finished => return Ok(Event::Finalize { set_finalized: true }),
 
             State::Aborted => {
                 return Err(TaskAborted.into());

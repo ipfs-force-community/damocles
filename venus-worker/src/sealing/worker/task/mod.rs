@@ -135,7 +135,7 @@ impl<'c> Task<'c> {
         Ok(())
     }
 
-    fn report_finalized(&self) -> Result<(), Failure> {
+    fn report_finalized(&self, set_finalized: bool) -> Result<(), Failure> {
         let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
             Some(sid) => sid,
             None => return Ok(()),
@@ -143,8 +143,9 @@ impl<'c> Task<'c> {
 
         let _ = call_rpc! {
             self.ctx.global.rpc,
-            report_finalized,
+            report_finalized_ex,
             sector_id,
+            set_finalized,
         }?;
 
         Ok(())
@@ -268,7 +269,16 @@ impl<'c> Task<'c> {
             };
 
             match handle_res {
-                Ok(Some(evt)) => {
+                Ok(Event::Finalize { set_finalized }) => {
+                    if let Err(rerr) = self.report_finalized(set_finalized) {
+                        error!("report finalized failed: {:?}", rerr);
+                    }
+
+                    self.finalize()?;
+                    return Ok(());
+                }
+
+                Ok(evt) => {
                     if let Event::Idle = evt {
                         task_idle_count += 1;
                         if task_idle_count > self.store.config.request_task_max_retries {
@@ -290,15 +300,6 @@ impl<'c> Task<'c> {
                         }
                     }
                     event.replace(evt);
-                }
-
-                Ok(None) => {
-                    if let Err(rerr) = self.report_finalized() {
-                        error!("report finalized failed: {:?}", rerr);
-                    }
-
-                    self.finalize()?;
-                    return Ok(());
                 }
 
                 Err(Failure(Level::Abort, aerr)) => {
@@ -386,7 +387,7 @@ impl<'c> Task<'c> {
         )
     }
 
-    fn handle(&mut self, event: Option<Event>) -> Result<Option<Event>, Failure> {
+    fn handle(&mut self, event: Option<Event>) -> Result<Event, Failure> {
         self.interruptted()?;
 
         let prev = self.sector.state;

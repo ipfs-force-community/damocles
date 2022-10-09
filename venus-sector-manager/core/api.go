@@ -46,6 +46,8 @@ type SealerAPI interface {
 
 	ReportFinalized(context.Context, abi.SectorID) (Meta, error)
 
+	ReportFinalizedEx(ctx context.Context, sid abi.SectorID, setFinalized bool) (Meta, error)
+
 	ReportAborted(context.Context, abi.SectorID, string) (Meta, error)
 
 	// Snap

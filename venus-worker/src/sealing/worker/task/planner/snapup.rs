@@ -54,7 +54,7 @@ impl Planner for SnapUpPlanner {
         Ok(next)
     }
 
-    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure> {
+    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Event, Failure> {
         let state = task.sector.state;
         let inner = SnapUp { task };
         match state {
@@ -72,7 +72,13 @@ impl Planner for SnapUpPlanner {
 
             State::Persisted => inner.submit(),
 
-            State::Finished => return Ok(None),
+            State::Finished => {
+                return Ok(Event::Finalize {
+                    // upgrading sectors need another way to finalize since the older files
+                    // should be kept and would be cleaned in future epoch.
+                    set_finalized: false,
+                });
+            }
 
             State::Aborted => {
                 return Err(TaskAborted.into());

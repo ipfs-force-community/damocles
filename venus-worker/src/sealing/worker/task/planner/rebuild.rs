@@ -69,7 +69,7 @@ impl Planner for RebuildPlanner {
         Ok(next)
     }
 
-    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure> {
+    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Event, Failure> {
         let state = task.sector.state;
         let inner = Rebuild { task };
 
@@ -98,7 +98,7 @@ impl Planner for RebuildPlanner {
 
             State::Persisted => inner.submit_persist(),
 
-            State::Finished => return Ok(None),
+            State::Finished => return Ok(Event::Finalize { set_finalized: true }),
 
             State::Aborted => {
                 return Err(TaskAborted.into());

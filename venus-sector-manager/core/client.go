@@ -33,6 +33,10 @@ var UnavailableSealerCliClient = SealerCliClient{
 
 	ReportFinalized: func(context.Context, abi.SectorID) (Meta, error) { panic("sealer client unavailable") },
 
+	ReportFinalizedEx: func(ctx context.Context, sid abi.SectorID, setFinalized bool) (Meta, error) {
+		panic("sealer client unavailable")
+	},
+
 	ReportAborted: func(context.Context, abi.SectorID, string) (Meta, error) { panic("sealer client unavailable") },
 
 	CheckProvable: func(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
@@ -117,6 +121,8 @@ type SealerCliClient struct {
 	RestoreSector func(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
 
 	ReportFinalized func(context.Context, abi.SectorID) (Meta, error)
+
+	ReportFinalizedEx func(ctx context.Context, sid abi.SectorID, setFinalized bool) (Meta, error)
 
 	ReportAborted func(context.Context, abi.SectorID, string) (Meta, error)
 
