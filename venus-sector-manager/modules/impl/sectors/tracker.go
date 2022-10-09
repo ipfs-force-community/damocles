@@ -154,7 +154,8 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgra
 		SealedCID:    sinfo.SealedCID,
 	}, proofType)
 
-	_, err = t.prover.GenerateSingleVanillaProof(ctx, replica, []uint64{rand.Uint64()})
+	// use randUint64 % nodeNums as challenge, notice nodeNums = ssize / 32B
+	_, err = t.prover.GenerateSingleVanillaProof(ctx, replica, []uint64{rand.Uint64() % (uint64(ssize) / 32)})
 
 	if err != nil {
 		return fmt.Errorf("generate vanilla proof of %s failed: %w", sref.ID, err)
