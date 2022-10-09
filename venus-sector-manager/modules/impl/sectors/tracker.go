@@ -3,14 +3,18 @@ package sectors
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sync"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
+	chainAPI "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
@@ -22,14 +26,18 @@ type sectorStoreInstances struct {
 	cacheDir   objstore.Store
 }
 
-func NewTracker(indexer core.SectorIndexer) (*Tracker, error) {
+func NewTracker(indexer core.SectorIndexer, prover core.Prover, capi chainAPI.API) (*Tracker, error) {
 	return &Tracker{
 		indexer: indexer,
+		prover:  prover,
+		capi:    capi,
 	}, nil
 }
 
 type Tracker struct {
 	indexer core.SectorIndexer
+	prover  core.Prover
+	capi    chainAPI.API
 }
 
 func (t *Tracker) SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, sector builtin.ExtendedSectorInfo, locator core.SectorLocator) (core.PrivateSectorInfo, error) {
@@ -127,7 +135,31 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgra
 		return nil
 	}
 
-	// TODO strict check, winning post?
+	proofType, err := sref.ProofType.RegisteredWindowPoStProof()
+	if err != nil {
+		return err
+	}
+
+	addr, err := address.NewIDAddress(uint64(sref.ID.Miner))
+	if err != nil {
+		return err
+	}
+	sinfo, err := t.capi.StateSectorGetInfo(ctx, addr, sref.ID.Number, types.EmptyTSK)
+	if err != nil {
+		return err
+	}
+	replica := privateInfo.ToFFI(core.SectorInfo{
+		SealProof:    sref.ProofType,
+		SectorNumber: sref.ID.Number,
+		SealedCID:    sinfo.SealedCID,
+	}, proofType)
+
+	_, err = t.prover.GenerateSingleVanillaProof(ctx, replica, []uint64{rand.Uint64()})
+
+	if err != nil {
+		return fmt.Errorf("generate vanilla proof of %s failed: %w", sref.ID, err)
+	}
+
 	return nil
 }
 
