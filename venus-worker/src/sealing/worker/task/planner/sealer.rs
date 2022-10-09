@@ -178,7 +178,11 @@ impl<'c, 't> Sealer<'c, 't> {
 
     fn handle_allocated(&self) -> ExecResult {
         if !self.task.store.config.enable_deals {
-            return Ok(Event::AcquireDeals(None));
+            return Ok(if self.task.store.config.disable_cc {
+                Event::Idle
+            } else {
+                Event::AcquireDeals(None)
+            });
         }
 
         let sector_id = self.task.sector_id()?.clone();
