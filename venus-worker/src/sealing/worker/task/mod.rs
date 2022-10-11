@@ -211,7 +211,7 @@ impl<'c> Task<'c> {
                 ?event,
             );
 
-            let enter = span.enter();
+            let _enter = span.enter();
 
             let prev = self.sector.state;
             let is_empty = match self.sector.base.as_ref() {
@@ -292,14 +292,13 @@ impl<'c> Task<'c> {
                     event.replace(evt);
                 }
 
-                Ok(None) => {
-                    if let Err(rerr) = self.report_finalized() {
-                        error!("report finalized failed: {:?}", rerr);
+                Ok(None) => match self.report_finalized().context("report finalized") {
+                    Ok(_) => {
+                        self.finalize()?;
+                        return Ok(());
                     }
-
-                    self.finalize()?;
-                    return Ok(());
-                }
+                    Err(terr) => self.retry(terr.1)?,
+                },
 
                 Err(Failure(Level::Abort, aerr)) => {
                     if let Err(rerr) = self.report_aborted(aerr.to_string()) {
@@ -311,38 +310,39 @@ impl<'c> Task<'c> {
                     return Err(aerr.abort());
                 }
 
-                Err(Failure(Level::Temporary, terr)) => {
-                    if self.sector.retry >= self.store.config.max_retries {
-                        // reset retry times;
-                        self.sync(|s| {
-                            s.retry = 0;
-                            Ok(())
-                        })?;
-
-                        return Err(terr.perm());
-                    }
-
-                    self.sync(|s| {
-                        warn!(retry = s.retry, "temp error occurred: {:?}", terr,);
-
-                        s.retry += 1;
-
-                        Ok(())
-                    })?;
-
-                    info!(
-                        interval = ?self.store.config.recover_interval,
-                        "wait before recovering"
-                    );
-
-                    self.wait_or_interruptted(self.store.config.recover_interval)?;
-                }
+                Err(Failure(Level::Temporary, terr)) => self.retry(terr)?,
 
                 Err(f) => return Err(f),
             }
-
-            drop(enter);
         }
+    }
+
+    fn retry(&mut self, temp_err: anyhow::Error) -> Result<(), Failure> {
+        if self.sector.retry >= self.store.config.max_retries {
+            // reset retry times;
+            self.sync(|s| {
+                s.retry = 0;
+                Ok(())
+            })?;
+
+            return Err(temp_err.perm());
+        }
+
+        self.sync(|s| {
+            warn!(retry = s.retry, "temp error occurred: {:?}", temp_err);
+
+            s.retry += 1;
+
+            Ok(())
+        })?;
+
+        info!(
+            interval = ?self.store.config.recover_interval,
+            "wait before recovering"
+        );
+
+        self.wait_or_interruptted(self.store.config.recover_interval)?;
+        Ok(())
     }
 
     fn sync<F: FnOnce(&mut MaybeDirty<Sector>) -> Result<()>>(&mut self, modify_fn: F) -> Result<(), Failure> {

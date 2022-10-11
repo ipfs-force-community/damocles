@@ -335,8 +335,10 @@ func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.Rep
 func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Meta, error) {
 	sectorLogger(sid).Debug("sector finalized")
 	if err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
-		// upgrading sectors are not finalized via api calls
-		if st.Upgraded {
+
+		// Upgrading sectors are not finalized via api calls
+		// Except in the case of sector rebuild, because the prerequisite for sector rebuild is that the sector has been finalized.
+		if !bool(st.NeedRebuild) && bool(st.Upgraded) {
 			return false, nil
 		}
 
