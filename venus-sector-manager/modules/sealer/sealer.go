@@ -60,7 +60,6 @@ func New(
 	snapup core.SnapUpSectorManager,
 	rebuild core.RebuildSectorManager,
 	workerMgr core.WorkerManager,
-	scfg *modules.SafeConfig,
 ) (*Sealer, error) {
 	return &Sealer{
 		scfg:      scfg,
@@ -78,7 +77,6 @@ func New(
 		sectorTracker: sectorTracker,
 
 		prover: prover,
-		scfg:   scfg,
 	}, nil
 }
 
@@ -98,7 +96,6 @@ type Sealer struct {
 	sectorTracker core.SectorTracker
 
 	prover core.Prover
-	scfg   *modules.SafeConfig
 }
 
 func (s *Sealer) checkSectorNumber(ctx context.Context, sid abi.SectorID) (bool, error) {
