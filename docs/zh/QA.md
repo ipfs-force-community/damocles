@@ -198,3 +198,14 @@ venus-worker worker --config="path/to/your_config_file.toml" disable_dump --chil
 ```
 
 可根据 dump 文件进行 debug。
+
+## Q: 
+```
+...storage_proofs_porep::stacked::vanilla::create_label::multi: create labels
+thread '<unnamed>' panicked at 'assertion failed: `(left == right)`
+  left: `0`,
+ right: `2`, .../storage-proofs-porep-11.1.1/src/stacked/vanilla/cores.rs:151:5
+```
+是什么错误？ 如何处理？
+
+**A**: 这个错误大概率是 venus-worker 中 PC1 的 `cgroup.cpuset` 配置问题引发的. 参考: [`cgroup.cpuset` 配置注意事项](./03.venus-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#cgroupcpuset-%E9%85%8D%E7%BD%AE%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9)
