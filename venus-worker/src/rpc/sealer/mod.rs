@@ -98,7 +98,7 @@ pub struct AcquireDealsSpec {
 }
 
 /// assigned ticket
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "PascalCase")]
 pub struct Ticket {
     /// raw ticket data
@@ -284,7 +284,7 @@ pub struct SectorPublicInfo {
     pub comm_r: [u8; 32],
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorPrivateInfo {
     // for now, snap up allocator only allow non-splited sectors
@@ -342,6 +342,18 @@ pub struct StoreBasicInfo {
     pub meta: Option<HashMap<String, String>>,
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SectorRebuildInfo {
+    pub sector: AllocatedSector,
+    pub ticket: Ticket,
+    pub pieces: Option<Deals>,
+
+    #[serde(rename = "IsSnapUp")]
+    pub is_snapup: bool,
+    pub upgrade_public: Option<SectorPublicInfo>,
+}
+
 /// defines the SealerRpc service
 #[rpc]
 pub trait Sealer {
@@ -365,9 +377,13 @@ pub trait Sealer {
     #[rpc(name = "Venus.PollPreCommitState")]
     fn poll_pre_commit_state(&self, id: SectorID) -> Result<PollPreCommitStateResp>;
 
+    ///// api definition
+    // #[rpc(name = "Venus.SubmitPersisted")]
+    // fn submit_persisted(&self, id: SectorID, instance: String) -> Result<bool>;
+
     /// api definition
-    #[rpc(name = "Venus.SubmitPersisted")]
-    fn submit_persisted(&self, id: SectorID, instance: String) -> Result<bool>;
+    #[rpc(name = "Venus.SubmitPersistedEx")]
+    fn submit_persisted_ex(&self, id: SectorID, instance: String, is_upgrade: bool) -> Result<bool>;
 
     /// api definition
     #[rpc(name = "Venus.WaitSeed")]
@@ -410,4 +426,8 @@ pub trait Sealer {
 
     #[rpc(name = "Venus.StoreBasicInfo")]
     fn store_basic_info(&self, instance_name: String) -> Result<Option<StoreBasicInfo>>;
+
+    // rebuild
+    #[rpc(name = "Venus.AllocateRebuildSector")]
+    fn allocate_rebuild_sector(&self, spec: AllocateSectorSpec) -> Result<Option<SectorRebuildInfo>>;
 }

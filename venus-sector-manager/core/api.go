@@ -31,7 +31,10 @@ type SealerAPI interface {
 
 	PollPreCommitState(context.Context, abi.SectorID) (PollPreCommitStateResp, error)
 
+	// TODO：维持兼容性，应当在将来移除
 	SubmitPersisted(context.Context, abi.SectorID, string) (bool, error)
+
+	SubmitPersistedEx(ctx context.Context, sid abi.SectorID, instanceName string, isUpgrade bool) (bool, error)
 
 	WaitSeed(context.Context, abi.SectorID) (WaitSeedResp, error)
 
@@ -49,6 +52,9 @@ type SealerAPI interface {
 	AllocateSanpUpSector(ctx context.Context, spec AllocateSnapUpSpec) (*AllocatedSnapUpSector, error)
 
 	SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapupInfo SnapUpOnChainInfo) (SubmitSnapUpProofResp, error)
+
+	// Rebuild
+	AllocateRebuildSector(ctx context.Context, spec AllocateSectorSpec) (*SectorRebuildInfo, error)
 
 	// Workers
 	WorkerPing(ctx context.Context, winfo WorkerInfo) (Meta, error)
@@ -101,6 +107,9 @@ type SealerCliAPI interface {
 	StoreReleaseReserved(ctx context.Context, sid abi.SectorID) (bool, error)
 
 	StoreList(ctx context.Context) ([]StoreDetailedInfo, error)
+
+	// Sectors
+	SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt RebuildOptions) (bool, error)
 }
 
 type RandomnessAPI interface {

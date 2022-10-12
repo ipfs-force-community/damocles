@@ -28,7 +28,7 @@ impl Worker {
     }
 
     fn seal_one(&mut self, ctx: &Ctx, state: Option<State>) -> Result<(), Failure> {
-        let task = Task::build(ctx, &self.ctrl_ctx, &self.store)?;
+        let task = Task::build(ctx, &self.ctrl_ctx, &mut self.store)?;
         task.exec(state)
     }
 }

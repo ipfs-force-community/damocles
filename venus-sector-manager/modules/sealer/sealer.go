@@ -47,6 +47,7 @@ func sectorStateErr(err error) error {
 }
 
 func New(
+	scfg *modules.SafeConfig,
 	capi chain.API,
 	rand core.RandomnessAPI,
 	sector core.SectorManager,
@@ -57,10 +58,11 @@ func New(
 	sectorTracker core.SectorTracker,
 	prover core.Prover,
 	snapup core.SnapUpSectorManager,
+	rebuild core.RebuildSectorManager,
 	workerMgr core.WorkerManager,
-	scfg *modules.SafeConfig,
 ) (*Sealer, error) {
 	return &Sealer{
+		scfg:      scfg,
 		capi:      capi,
 		rand:      rand,
 		sector:    sector,
@@ -68,17 +70,18 @@ func New(
 		deal:      deal,
 		commit:    commit,
 		snapup:    snapup,
+		rebuild:   rebuild,
 		workerMgr: workerMgr,
 
 		sectorIdxer:   sectorIdxer,
 		sectorTracker: sectorTracker,
 
 		prover: prover,
-		scfg:   scfg,
 	}, nil
 }
 
 type Sealer struct {
+	scfg      *modules.SafeConfig
 	capi      chain.API
 	rand      core.RandomnessAPI
 	sector    core.SectorManager
@@ -86,13 +89,13 @@ type Sealer struct {
 	deal      core.DealManager
 	commit    core.CommitmentManager
 	snapup    core.SnapUpSectorManager
+	rebuild   core.RebuildSectorManager
 	workerMgr core.WorkerManager
 
 	sectorIdxer   core.SectorIndexer
 	sectorTracker core.SectorTracker
 
 	prover core.Prover
-	scfg   *modules.SafeConfig
 }
 
 func (s *Sealer) checkSectorNumber(ctx context.Context, sid abi.SectorID) (bool, error) {
@@ -246,12 +249,16 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (core
 }
 
 func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) (bool, error) {
+	return s.SubmitPersistedEx(ctx, sid, instance, false)
+}
+
+func (s *Sealer) SubmitPersistedEx(ctx context.Context, sid abi.SectorID, instance string, isUpgrade bool) (bool, error) {
 	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
 		return false, sectorStateErr(err)
 	}
 
-	ok, err := s.checkPersistedFiles(ctx, sid, state.SectorType, instance, false)
+	ok, err := s.checkPersistedFiles(ctx, sid, state.SectorType, instance, isUpgrade)
 	if err != nil {
 		return false, fmt.Errorf("check persisted filed: %w", err)
 	}
@@ -260,7 +267,14 @@ func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance
 		return false, nil
 	}
 
-	err = s.sectorIdxer.Normal().Update(ctx, sid, core.SectorAccessStores{
+	var indexer core.SectorTypedIndexer
+	if isUpgrade {
+		indexer = s.sectorIdxer.Upgrade()
+	} else {
+		indexer = s.sectorIdxer.Normal()
+	}
+
+	err = indexer.Update(ctx, sid, core.SectorAccessStores{
 		SealedFile: instance,
 		CacheDir:   instance,
 	})
@@ -342,8 +356,10 @@ func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.Rep
 func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Meta, error) {
 	sectorLogger(sid).Debug("sector finalized")
 	if err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
-		// upgrading sectors are not finalized via api calls
-		if st.Upgraded {
+
+		// Upgrading sectors are not finalized via api calls
+		// Except in the case of sector rebuild, because the prerequisite for sector rebuild is that the sector has been finalized.
+		if !bool(st.NeedRebuild) && bool(st.Upgraded) {
 			return false, nil
 		}
 
@@ -681,4 +697,22 @@ func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core
 	storeCfg := store.InstanceConfig(ctx)
 	basic := storeConfig2StoreBasic(&storeCfg)
 	return &basic, nil
+}
+
+func (s *Sealer) AllocateRebuildSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorRebuildInfo, error) {
+	info, err := s.rebuild.Allocate(ctx, spec)
+	if err != nil {
+		return nil, fmt.Errorf("allocate rebuild sector: %w", err)
+	}
+
+	if info == nil {
+		return nil, nil
+	}
+
+	_, err = s.state.Load(ctx, info.Sector.ID, core.WorkerOnline)
+	if err != nil {
+		return nil, fmt.Errorf("load sector state from online database: %w", err)
+	}
+
+	return info, nil
 }

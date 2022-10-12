@@ -12,6 +12,9 @@ pub struct WorkerInfo {
     /// store location
     pub location: PathBuf,
 
+    /// current plan of the worker
+    pub plan: String,
+
     pub sector_id: Option<SectorID>,
 
     /// index for other control operations

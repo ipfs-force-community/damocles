@@ -7,6 +7,7 @@ const DefaultWorkerListenPort = 17890
 type WorkerThreadInfo struct {
 	Index         int           `json:"index"`
 	Location      string        `json:"location"`
+	Plan          string        `json:"plan"`
 	SectorID      *abi.SectorID `json:"sector_id"`
 	Paused        bool          `json:"paused"`
 	PausedElapsed *uint64       `json:"paused_elapsed"`

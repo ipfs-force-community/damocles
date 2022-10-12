@@ -75,6 +75,10 @@ def_state! {
     Aborted,
     SnapEncoded,
     SnapProved,
+    SealedChecked,
+    SnapPieceAdded,
+    SnapTreeDBuilt,
+    SnapDone,
 }
 
 impl std::fmt::Debug for State {
@@ -152,28 +156,35 @@ pub struct Sector {
     // deal pieces
     pub deals: Option<Deals>,
 
+    // this field should only be set when the snapup procedures are required by the sector,
+    // no matter it is a snapup- or rebuild- sector
     pub finalized: Option<Finalized>,
 
     pub phases: Phases,
 }
 
-impl Sector {
-    pub fn new(plan: Option<String>) -> Self {
-        Sector {
+impl Default for Sector {
+    fn default() -> Self {
+        Self {
             version: CURRENT_SECTOR_VERSION,
-            plan,
-
+            plan: None,
             state: Default::default(),
             prev_state: None,
             retry: 0,
-
             base: None,
-
             deals: None,
-
             finalized: None,
-
             phases: Default::default(),
+        }
+    }
+}
+
+impl Sector {
+    #[allow(dead_code)]
+    pub fn new(plan: Option<String>) -> Self {
+        Sector {
+            plan,
+            ..Default::default()
         }
     }
 

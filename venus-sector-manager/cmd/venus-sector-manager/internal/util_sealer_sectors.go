@@ -52,6 +52,12 @@ var flagListEnableSnapup = &cli.BoolFlag{
 	Value: false,
 }
 
+var flagListEnableRebuild = &cli.BoolFlag{
+	Name:  "rebuild",
+	Usage: "enable rebuild jobs in listing",
+	Value: false,
+}
+
 var utilSealerSectorsCmd = &cli.Command{
 	Name: "sectors",
 	Subcommands: []*cli.Command{
@@ -69,6 +75,7 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsResendPreCommitCmd,
 		utilSealerSectorsResendProveCommitCmd,
 		utilSealerSectorsImportCommitCmd,
+		utilSealerSectorsRebuildCmd,
 	},
 }
 
@@ -78,21 +85,6 @@ func extractListWorkerState(cctx *cli.Context) core.SectorWorkerState {
 	}
 
 	return core.WorkerOnline
-}
-
-func extractListWorkerJob(cctx *cli.Context) core.SectorWorkerJob {
-	enableSealing := cctx.Bool(flagListEnableSealing.Name)
-	enableSnapup := cctx.Bool(flagListEnableSnapup.Name)
-
-	if enableSealing && enableSnapup {
-		return core.SectorWorkerJobAll
-	}
-
-	if enableSnapup {
-		return core.SectorWorkerJobSnapUp
-	}
-
-	return core.SectorWorkerJobSealing
 }
 
 var utilSealerSectorsAbortCmd = &cli.Command{
@@ -140,6 +132,7 @@ var utilSealerSectorsListCmd = &cli.Command{
 		flagListOffline,
 		flagListEnableSealing,
 		flagListEnableSnapup,
+		flagListEnableRebuild,
 		&cli.StringFlag{
 			Name:  "miner",
 			Usage: "show sectors of the given miner only ",
@@ -153,7 +146,7 @@ var utilSealerSectorsListCmd = &cli.Command{
 
 		defer stop()
 
-		states, err := cli.Sealer.ListSectors(gctx, extractListWorkerState(cctx), extractListWorkerJob(cctx))
+		states, err := cli.Sealer.ListSectors(gctx, extractListWorkerState(cctx), core.SectorWorkerJobAll)
 		if err != nil {
 			return err
 		}
@@ -168,21 +161,63 @@ var utilSealerSectorsListCmd = &cli.Command{
 			minerID = &mid
 		}
 
+		selectors := []struct {
+			name    string
+			jobType core.SectorWorkerJob
+		}{
+			{
+				name:    flagListEnableSealing.Name,
+				jobType: core.SectorWorkerJobSealing,
+			},
+			{
+				name:    flagListEnableSnapup.Name,
+				jobType: core.SectorWorkerJobSnapUp,
+			},
+			{
+				name:    flagListEnableRebuild.Name,
+				jobType: core.SectorWorkerJobRebuild,
+			},
+		}
+
 		count := 0
 		fmt.Fprintln(os.Stdout, "Sectors:")
+
 		for _, state := range states {
 			if minerID != nil && state.ID.Miner != *minerID {
 				continue
 			}
 
-			count++
+			flag := false
+			for _, sel := range selectors {
+				selectorMatched := cctx.Bool(sel.name)
+				typeMatched := state.MatchWorkerJob(sel.jobType)
 
-			var upMark string
-			if state.Upgraded {
-				upMark = "(up)"
+				if selectorMatched && typeMatched {
+					flag = true
+					break
+				}
 			}
 
-			fmt.Fprintf(os.Stdout, "%s%s:\n", util.FormatSectorID(state.ID), upMark)
+			if !flag {
+				continue
+			}
+			count++
+
+			marks := make([]string, 0, 2)
+			if state.Upgraded {
+				marks = append(marks, "upgrade")
+			}
+
+			if state.NeedRebuild {
+				marks = append(marks, "rebuild")
+			}
+
+			var sectorMark string
+			if len(marks) > 0 {
+				sectorMark = fmt.Sprintf("(%s)", strings.Join(marks, ", "))
+			}
+
+			fmt.Fprintf(os.Stdout, "%s%s:\n", util.FormatSectorID(state.ID), sectorMark)
 			if state.LatestState == nil {
 				fmt.Fprintln(os.Stdout, "NULL")
 				continue
@@ -1454,6 +1489,9 @@ var utilSealerSectorsStateCmd = &cli.Command{
 			return state.TerminateInfo.TerminateCid.String()
 		}))
 
+		// Rebuild
+		fmt.Fprintf(os.Stdout, "\nRebuild: %v\n", state.NeedRebuild)
+
 		fmt.Fprintln(os.Stdout, "")
 
 		return nil
@@ -1771,11 +1809,11 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*co
 		return nil, fmt.Errorf("no proof")
 	}
 
-	if sinfo.Ticket.Epoch == 0 || len(sinfo.Ticket.Value) == 0 {
+	if len(sinfo.Ticket.Value) == 0 {
 		return nil, fmt.Errorf("no ticket")
 	}
 
-	if sinfo.Seed.Epoch == 0 || len(sinfo.Seed.Value) == 0 {
+	if len(sinfo.Seed.Value) == 0 {
 		return nil, fmt.Errorf("no seed")
 	}
 
@@ -1852,6 +1890,7 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*co
 			Expiration: sinfo.Expiration,
 		}
 
+		// 这个零值行为在重建扇区时会作为判断依据，一旦改变，需要同步修正
 		state.UpgradedInfo = &core.SectorUpgradedInfo{}
 
 		if sinfo.ReplicaUpdateMessage != nil {
@@ -1864,4 +1903,51 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*co
 	}
 
 	return state, nil
+}
+
+var utilSealerSectorsRebuildCmd = &cli.Command{
+	Name:      "rebuild",
+	Usage:     "rebuild specified sector",
+	ArgsUsage: "<miner actor> <sector number>",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "pieces-available",
+			Usage: "if all pieces are available in venus-market, this flag is used for imported sectors",
+			Value: false,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		if count := cctx.Args().Len(); count < 2 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		miner, err := ShouldActor(cctx.Args().Get(0), true)
+		if err != nil {
+			return fmt.Errorf("invalid miner actor id: %w", err)
+		}
+
+		sectorNum, err := strconv.ParseUint(cctx.Args().Get(1), 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid sector number: %w", err)
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		_, err = cli.Sealer.SectorSetForRebuild(gctx, abi.SectorID{
+			Miner:  miner,
+			Number: abi.SectorNumber(sectorNum),
+		}, core.RebuildOptions{
+			PiecesAvailable: cctx.Bool("pieces-available"),
+		})
+		if err != nil {
+			return fmt.Errorf("set sector for rebuild failed: %w", err)
+		}
+
+		return nil
+	},
 }

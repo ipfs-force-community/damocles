@@ -80,3 +80,8 @@ type WorkerManager interface {
 	Update(ctx context.Context, winfo WorkerPingInfo) error
 	All(ctx context.Context, filter func(*WorkerPingInfo) bool) ([]WorkerPingInfo, error)
 }
+
+type RebuildSectorManager interface {
+	Set(ctx context.Context, sid abi.SectorID, info SectorRebuildInfo) error
+	Allocate(ctx context.Context, spec AllocateSectorSpec) (*SectorRebuildInfo, error)
+}

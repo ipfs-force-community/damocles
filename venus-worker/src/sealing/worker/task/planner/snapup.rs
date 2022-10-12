@@ -1,8 +1,6 @@
 use std::collections::HashMap;
-use std::os::unix::fs::symlink;
 
 use anyhow::{anyhow, Context, Result};
-use vc_processors::builtin::tasks::{STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE};
 
 use super::{
     super::{call_rpc, cloned_required, field_required, Finalized},
@@ -12,8 +10,7 @@ use crate::logging::{debug, warn};
 use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    cached_filenames_for_sector, snap_generate_partition_proofs, snap_verify_sector_update_proof, tree_d_path_in_dir, SnapEncodeInput,
-    SnapProveInput, TransferInput, TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
+    cached_filenames_for_sector, TransferInput, TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
 };
 
 pub struct SnapUpPlanner;
@@ -98,8 +95,8 @@ impl<'c, 't> SnapUp<'c, 't> {
             allocate_snapup_sector,
             AllocateSnapUpSpec {
                 sector: AllocateSectorSpec {
-                    allowed_miners: self.task.store.allowed_miners.as_ref().cloned(),
-                    allowed_proof_types: self.task.store.allowed_proof_types.as_ref().cloned(),
+                    allowed_miners: Some(self.task.store.config.allowed_miners.clone()),
+                    allowed_proof_types: Some(self.task.store.config.allowed_proof_types.clone()),
                 },
                 deals: AcquireDealsSpec {
                     max_deals: self.task.store.config.max_deals,
@@ -112,13 +109,13 @@ impl<'c, 't> SnapUp<'c, 't> {
             Ok(a) => a,
             Err(e) => {
                 warn!("sectors are not allocated yet, so we can retry even though we got the err {:?}", e);
-                return Ok(Event::Retry);
+                return Ok(Event::Idle);
             }
         };
 
         let allocated = match maybe_allocated {
             Some(a) => a,
-            None => return Ok(Event::Retry),
+            None => return Ok(Event::Idle),
         };
 
         if allocated.pieces.is_empty() {
@@ -140,15 +137,9 @@ impl<'c, 't> SnapUp<'c, 't> {
     }
 
     fn add_piece(&self) -> ExecResult {
-        let sector_id = self.task.sector_id()?;
-        let proof_type = self.task.sector_proof_type()?;
-
-        let staged_filepath = self.task.staged_file(sector_id);
-        staged_filepath.prepare().context("prepare staged file").perm()?;
-
         field_required!(deals, self.task.sector.deals.as_ref());
 
-        let pieces = common::add_pieces(self.task, proof_type.into(), staged_filepath, deals)?;
+        let pieces = common::add_pieces(self.task, deals)?;
 
         Ok(Event::AddPiece(pieces))
     }
@@ -159,16 +150,12 @@ impl<'c, 't> SnapUp<'c, 't> {
     }
 
     fn snap_encode(&self) -> ExecResult {
-        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_SNAP_ENCODE).crit()?;
-
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
         field_required!(
             access_instance,
             self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
         );
-
-        cloned_required!(piece_infos, self.task.sector.phases.pieces);
 
         debug!("find access store named {}", access_instance);
         let access_store = self
@@ -262,99 +249,11 @@ impl<'c, 't> SnapUp<'c, 't> {
             .context("link snapup sector files")
             .perm()?;
 
-        // init update file
-        let update_file = self.task.update_file(sector_id);
-        debug!(path=?update_file.full(),  "trying to init update file");
-        {
-            let file = update_file.init_file().perm()?;
-            file.set_len(proof_type.sector_size()).context("fallocate for update file").perm()?;
-        }
-
-        let update_cache_dir = self.task.update_cache_dir(sector_id);
-        debug!(path=?update_cache_dir.full(),  "trying to init update cache dir");
-        update_cache_dir.prepare().context("prepare update cache dir").perm()?;
-
-        // tree d
-        debug!("trying to prepare tree_d");
-        let prepared_dir = self.task.prepared_dir(sector_id);
-        symlink(
-            tree_d_path_in_dir(prepared_dir.as_ref()),
-            tree_d_path_in_dir(update_cache_dir.as_ref()),
-        )
-        .context("link prepared tree_d")
-        .crit()?;
-
-        // staged file should be already exists, do nothing
-        let staged_file = self.task.staged_file(sector_id);
-
-        let snap_encode_out = self
-            .task
-            .ctx
-            .global
-            .processors
-            .snap_encode
-            .process(SnapEncodeInput {
-                registered_proof: proof_type.into(),
-                new_replica_path: update_file.into(),
-                new_cache_path: update_cache_dir.into(),
-                sector_path: sealed_file.into(),
-                sector_cache_path: cache_dir.into(),
-                staged_data_path: staged_file.into(),
-                piece_infos,
-            })
-            .perm()?;
-
-        Ok(Event::SnapEncode(snap_encode_out))
+        common::snap_encode(self.task, sector_id, proof_type).map(Event::SnapEncode)
     }
 
     fn snap_prove(&self) -> ExecResult {
-        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_SNAP_PROVE).crit()?;
-
-        let sector_id = self.task.sector_id()?;
-        let proof_type = self.task.sector_proof_type()?;
-        field_required!(encode_out, self.task.sector.phases.snap_encode_out.as_ref());
-        field_required!(comm_r_old, self.task.sector.finalized.as_ref().map(|f| f.public.comm_r));
-
-        let sealed_file = self.task.sealed_file(sector_id);
-        let cached_dir = self.task.cache_dir(sector_id);
-        let update_file = self.task.update_file(sector_id);
-        let update_cache_dir = self.task.update_cache_dir(sector_id);
-
-        let vannilla_proofs = snap_generate_partition_proofs(
-            (*proof_type).into(),
-            comm_r_old,
-            encode_out.comm_r_new,
-            encode_out.comm_d_new,
-            sealed_file.into(),
-            cached_dir.into(),
-            update_file.into(),
-            update_cache_dir.into(),
-        )
-        .perm()?;
-
-        let proof = self
-            .task
-            .ctx
-            .global
-            .processors
-            .snap_prove
-            .process(SnapProveInput {
-                registered_proof: (*proof_type).into(),
-                vannilla_proofs: vannilla_proofs.into_iter().map(|b| b.0).collect(),
-                comm_r_old,
-                comm_r_new: encode_out.comm_r_new,
-                comm_d_new: encode_out.comm_d_new,
-            })
-            .perm()?;
-
-        let verified =
-            snap_verify_sector_update_proof(proof_type.into(), &proof, comm_r_old, encode_out.comm_r_new, encode_out.comm_d_new).perm()?;
-
-        if !verified {
-            return Err(anyhow!("generated an invalid update proof").perm());
-        }
-
-        Ok(Event::SnapProve(proof))
+        common::snap_prove(self.task).map(Event::SnapProve)
     }
 
     fn persist(&self) -> ExecResult {

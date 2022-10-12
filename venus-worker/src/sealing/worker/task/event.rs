@@ -1,22 +1,27 @@
 use std::fmt::{self, Debug};
 
 use anyhow::{anyhow, Result};
-use forest_address::Address;
 
 use super::{
     sector::{Base, Finalized, Sector, State},
     Planner,
 };
-use crate::logging::trace;
-use crate::rpc::sealer::{AllocatedSector, Deals, Seed, Ticket};
+use crate::rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, Seed, Ticket};
 use crate::sealing::processor::{
-    to_prover_id, PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
-    SealPreCommitPhase2Output, SectorId, SnapEncodeOutput,
+    to_prover_id, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output,
+    SectorId, SnapEncodeOutput,
 };
+use crate::{logging::trace, metadb::MaybeDirty};
 
 pub enum Event {
     SetState(State),
 
+    // No specified tasks available from sector_manager.
+    Idle,
+
+    // If `Planner::exec` returns `Event::Retry` it will be retried indefinitely
+    // until `Planner::exec` returns another `Event` or an error occurs
+    #[allow(dead_code)]
     Retry,
 
     Allocate(AllocatedSector),
@@ -63,12 +68,21 @@ pub enum Event {
     SnapProve(Vec<u8>),
 
     RePersist,
+
+    // for rebuild
+    AllocatedRebuildSector(SectorRebuildInfo),
+
+    CheckSealed,
+
+    SkipSnap,
 }
 
 impl Debug for Event {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             Self::SetState(_) => "SetState",
+
+            Self::Idle => "Idle",
 
             Self::Retry => "Retry",
 
@@ -116,6 +130,13 @@ impl Debug for Event {
             Self::SnapProve(_) => "SnapProve",
 
             Self::RePersist => "RePersist",
+
+            // for rebuild
+            Self::AllocatedRebuildSector(_) => "AllocatedRebuildSector",
+
+            Self::CheckSealed => "CheckSealed",
+
+            Self::SkipSnap => "SkipSnap",
         };
 
         f.write_str(name)
@@ -137,7 +158,7 @@ macro_rules! mem_replace {
 }
 
 impl Event {
-    pub fn apply<P: Planner>(self, p: &P, s: &mut Sector) -> Result<()> {
+    pub fn apply<P: Planner>(self, p: &P, s: &mut MaybeDirty<Sector>) -> Result<()> {
         let next = if let Event::SetState(s) = self {
             s
         } else {
@@ -154,17 +175,16 @@ impl Event {
         Ok(())
     }
 
-    fn apply_changes(self, s: &mut Sector) {
+    fn apply_changes(self, s: &mut MaybeDirty<Sector>) {
         match self {
             Self::SetState(_) => {}
+
+            Self::Idle => {}
 
             Self::Retry => {}
 
             Self::Allocate(sector) => {
-                let mut prover_id: ProverId = Default::default();
-                let actor_addr_payload = Address::new_id(sector.id.miner).payload_bytes();
-                prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
-
+                let prover_id = to_prover_id(sector.id.miner);
                 let sector_id = SectorId::from(sector.id.number);
 
                 let base = Base {
@@ -190,7 +210,9 @@ impl Event {
             }
 
             Self::PC1(ticket, out) => {
-                replace!(s.phases.ticket, ticket);
+                if s.phases.ticket.as_ref() != Some(&ticket) {
+                    replace!(s.phases.ticket, ticket);
+                }
                 replace!(s.phases.pc1out, out);
             }
 
@@ -238,15 +260,7 @@ impl Event {
 
             // for snap up
             Self::AllocatedSnapUpSector(sector, deals, finalized) => {
-                let prover_id = to_prover_id(sector.id.miner);
-                let sector_id = SectorId::from(sector.id.number);
-
-                let base = Base {
-                    allocated: sector,
-                    prove_input: (prover_id, sector_id),
-                };
-
-                replace!(s.base, base);
+                Self::Allocate(sector).apply_changes(s);
                 replace!(s.deals, deals);
                 replace!(s.finalized, finalized);
             }
@@ -260,6 +274,26 @@ impl Event {
             }
 
             Self::RePersist => {}
+
+            // for rebuild
+            Self::AllocatedRebuildSector(rebuild) => {
+                Self::Allocate(rebuild.sector).apply_changes(s);
+                Self::AcquireDeals(rebuild.pieces).apply_changes(s);
+                Self::AssignTicket(Some(rebuild.ticket)).apply_changes(s);
+                mem_replace!(
+                    s.finalized,
+                    rebuild.upgrade_public.map(|p| {
+                        Finalized {
+                            public: p,
+                            private: Default::default(),
+                        }
+                    })
+                );
+            }
+
+            Self::CheckSealed => {}
+
+            Self::SkipSnap => {}
         };
     }
 }

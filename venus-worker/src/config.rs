@@ -20,7 +20,7 @@ pub const LOCAL_HOST: &str = "127.0.0.1";
 pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(180);
 
 /// configurations for sealing sectors
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sealing {
     /// specified miner actors
     pub allowed_miners: Option<Vec<u64>>,
@@ -54,6 +54,9 @@ pub struct Sealing {
 
     /// ignore proof state check
     pub ignore_proof_check: bool,
+
+    /// max retry times for request task from sector manager
+    pub request_task_max_retries: u32,
 }
 
 impl Default for Sealing {
@@ -70,12 +73,13 @@ impl Default for Sealing {
             recover_interval: Duration::from_secs(60),
             rpc_polling_interval: Duration::from_secs(180),
             ignore_proof_check: false,
+            request_task_max_retries: 3,
         }
     }
 }
 
 /// configurations for sealing sectors
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SealingOptional {
     /// specified miner actors
     pub allowed_miners: Option<Vec<u64>>,
@@ -115,6 +119,9 @@ pub struct SealingOptional {
 
     /// ignore proof state check
     pub ignore_proof_check: Option<bool>,
+
+    /// max retry times for request task from sector manager
+    pub request_task_max_retries: Option<u32>,
 }
 
 /// configuration for remote store
@@ -133,6 +140,13 @@ pub struct SealingThread {
     /// store location
     pub location: String,
 
+    #[serde(flatten)]
+    pub inner: SealingThreadInner,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SealingThreadInner {
+    /// sealing plan
     pub plan: Option<String>,
 
     /// special sealing configuration

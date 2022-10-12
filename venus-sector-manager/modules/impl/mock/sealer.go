@@ -100,7 +100,11 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedR
 }
 
 func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance string) (bool, error) {
-	log.Warnf("sector m-%d-s-%d is in the instance %s", sid.Miner, sid.Number, instance)
+	return s.SubmitPersistedEx(ctx, sid, instance, false)
+}
+
+func (s *Sealer) SubmitPersistedEx(ctx context.Context, sid abi.SectorID, instanceName string, isUpgrade bool) (bool, error) {
+	log.Warnf("sector m-%d-s-%d(up=%v) is in the instance %s", sid.Miner, sid.Number, isUpgrade, instanceName)
 	return true, nil
 }
 
@@ -253,4 +257,12 @@ func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core
 		Path: instanceName,
 		Meta: map[string]string{},
 	}, nil
+}
+
+func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt core.RebuildOptions) (bool, error) {
+	return false, nil
+}
+
+func (s *Sealer) AllocateRebuildSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorRebuildInfo, error) {
+	return nil, nil
 }
