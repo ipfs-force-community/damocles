@@ -208,4 +208,4 @@ thread '<unnamed>' panicked at 'assertion failed: `(left == right)`
 ```
 是什么错误？ 如何处理？
 
-**A**: 这个错误的原因是 venus-worker 中 PC1 的 `cgroup.cpuset` 配置问题引发的. 参考: [`cgroup.cpuset` 配置注意事项](./03.venus-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#cgroupcpuset-%E9%85%8D%E7%BD%AE%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9)
+**A**: 这个错误大概率是 venus-worker 中 PC1 的 `cgroup.cpuset` 配置问题引发的. 参考: [`cgroup.cpuset` 配置注意事项](./03.venus-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#cgroupcpuset-%E9%85%8D%E7%BD%AE%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9)
