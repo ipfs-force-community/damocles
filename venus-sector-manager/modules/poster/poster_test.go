@@ -366,7 +366,7 @@ func TestHandleHeadChange(t *testing.T) {
 
 		dinfos = poster.fetchMinerProvingDeadlineInfos(ctx, mids, ts)
 		require.Len(t, dinfos, minerCount, "dlines for all mienrs")
-		poster.handleHeadChange(ctx, mockTipSet(t, dl.Open-1), ts, dinfos)
+		poster.handleHeadChange(ctx, mockTipSet(t, dl.Challenge-1), ts, dinfos)
 		require.Equal(t, 0, countRunners(poster), "runner count")
 	}
 }

@@ -119,14 +119,14 @@ func TestScheduler(t *testing.T) {
 			dl := randomDeadline()
 			sched := newScheduler(dl, &mockRunner{})
 
-			require.Falsef(t, sched.shouldAbort(nil, dl.Open), "%#v: advanced to open", dl)
+			require.Falsef(t, sched.shouldAbort(nil, dl.Challenge), "%#v: advanced to challenge", dl)
 			require.Falsef(t, sched.shouldAbort(nil, dl.Last()), "%#v: advanced to last", dl)
-			require.Truef(t, sched.shouldAbort(nil, dl.Close), "%#v: advanced to close", dl)
+			require.Truef(t, sched.shouldAbort(nil, dl.Close), "%#v: advanced to challenge", dl)
 
-			require.Falsef(t, sched.shouldAbort(&dl.Open, dl.Open), "%#v: revert to open", dl)
+			require.Falsef(t, sched.shouldAbort(&dl.Challenge, dl.Challenge), "%#v: revert to challenge", dl)
 
-			before := dl.Open - 1
-			require.True(t, sched.shouldAbort(&before, dl.Open), "%#v: revert to before", dl)
+			before := dl.Challenge - 1
+			require.True(t, sched.shouldAbort(&before, dl.Challenge), "%#v: revert to before", dl)
 		}
 	})
 

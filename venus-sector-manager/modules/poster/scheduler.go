@@ -48,9 +48,9 @@ func (s *scheduler) couldSubmit(pcfg *modules.MinerPoStConfig, height abi.ChainE
 	return height >= s.dl.Open+abi.ChainEpoch(submitConfidence)
 }
 
-// 回退至 Open 之前，或已到达 Close 之后
+// 回退至 Challenge 之前，或已到达 Close 之后
 func (s *scheduler) shouldAbort(revert *abi.ChainEpoch, advance abi.ChainEpoch) bool {
-	if revert != nil && *revert < s.dl.Open {
+	if revert != nil && *revert < s.dl.Challenge {
 		return true
 	}
 
