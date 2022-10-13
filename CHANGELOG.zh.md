@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.5.0-rc1
+- venus-sector-manager
+  - MongoDB 数据库支持。[文档](./docs/zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#commonmongokvstore) [#323](https://github.com/ipfs-force-community/venus-cluster/issues/323)
+  - metrics 支持。 [文档](./docs/zh/14.venus-sector-manager%E7%9A%84mertics%E4%BD%BF%E7%94%A8.md) [[#339](https://github.com/ipfs-force-community/venus-cluster/issues/339)]
+
+  - Poster 改造:
+    - Poster 重构，支持多 miner、多 deadline、多 partition 并行 [[#136](https://github.com/ipfs-force-community/venus-cluster/issues/136)]
+    - 支持配置 `GasOverPremium`, `feecap` 和 `maxfee`. 具体参考[配置文档](./docs/zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md) [[#337](https://github.com/ipfs-force-community/venus-cluster/pull/337)]
+    - 限制单条消息 recover 扇区的数量   增加 `MaxRecoverSectorLimit` 配置项， 参考[配置文档](./docs/zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md) [[#364](https://github.com/ipfs-force-community/venus-cluster/issues/364)]
+  - 支持本地 solo 模式的 market [[#357](https://github.com/ipfs-force-community/venus-cluster/pull/357)], [[#361](https://github.com/ipfs-force-community/venus-cluster/pull/361)]
+
+  - CLI 相关:
+    - proving deadline 相关显示优化 [[#365](https://github.com/ipfs-force-community/venus-cluster/issues/365)]
+    - 原内嵌数据库 badger 中数据迁移到 mongodb 的工具支持。`venus-sector-manager util migrate-badger-mongo`
+    - 支持验证扇区文件内容 `venus-sector-manager util sealer proving --miner <miner_id> check --slow <deadlineIdx>` [[#430](https://github.com/ipfs-force-community/venus-cluster/issues/430)]
+    - sealing_thread 列表新增 plan 列。 `venus-sector-manager util worker info <worker instance name or address>`，显示 sealing_thread 的 plan 信息 [[#428](https://github.com/ipfs-force-community/venus-cluster/issues/428)]
+    - 增加从 lotus-miner 导入扇区详细数据的工具 `venus-sector-manager util sealer sectors import` [[#327](https://github.com/ipfs-force-community/venus-cluster/pull/327)]
+  - 杂项:
+    - 跟踪消息上链逻辑增加状态为 ReplaceMsg 的消息处理 [[#435](https://github.com/ipfs-force-community/venus-cluster/issues/435)]
+    - 引入 venus v1.6.1; 引入 filecoin-ffi 内存泄漏修复后的版本; 引入 lotus v1.17.0 并进行兼容性修复 [#331](https://github.com/ipfs-force-community/venus-cluster/issues/331)
+
+- venus-worker
+  - 支持扇区重建功能。[文档](./docs/zh/16.%E6%89%87%E5%8C%BA%E9%87%8D%E5%BB%BA%E7%9A%84%E6%94%AF%E6%8C%81.md) [[#362](https://github.com/ipfs-force-community/venus-cluster/issues/362)]
+  - `sealing_thread` 配置热更新支持。[文档](https://github.com/ipfs-force-community/venus-cluster/blob/main/docs/zh/03.venus-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#sealing_thread-%E9%85%8D%E7%BD%AE%E7%83%AD%E6%9B%B4%E6%96%B0)
+
+  - 优化 add_piece, 包括：
+    - 新增 add_pieces 外部执行器。 目的是为了进行并发控制, 避免所有的 add_pieces 同时启动，导致内存不足。[配置文档](./docs/zh/03.venus-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#processorsstage_name)(`[[processors.add_pieces]]` & `processors.limitation.concurrent.add_pieces`) [[#403](https://github.com/ipfs-force-community/venus-cluster/issues/403)]
+    - add piece 算法优化, 大幅减少 add 超大 Piece 文件的内存使用。[[#415](https://github.com/ipfs-force-community/venus-cluster/issues/415)]
+    - worker 支持加载本地 piece 文件。[配置文档](./docs/zh/03.venus-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#worker)(`worker.local_pieces_dir` 配置项) [[#444](https://github.com/ipfs-force-community/venus-cluster/issues/444)]
+
+  - PC1 大页内存支持。[文档](./docs/zh/15.venus-worker_PC1_HugeTLB_Pages_%E6%94%AF%E6%8C%81.md)
+  - CLI 相关:
+    - sealing_thread 列表新增 plan 列。 `venus-worker worker list`，显示 sealing_thread 的 plan 信息 [[#428](https://github.com/ipfs-force-community/venus-cluster/issues/428)]
+  - 杂项：
+    - vc-processors 优化日志输出。[[#348](https://github.com/ipfs-force-community/venus-cluster/issues/348)]
+    - 移除过大尺寸的日志。[[#417](https://github.com/ipfs-force-community/venus-cluster/pull/417)]
+    - 修复 `venus-worker-util hwinfo` 报错 segmentation fault. [[#341](https://github.com/ipfs-force-community/venus-cluster/issues/341)]
+    - 减少不必要的数据库写入操作
+
 ## v0.4.0-rc1
 
 - venus-sector-manager
@@ -29,7 +68,7 @@
     - 增加查询订单所属扇区的子命令
     - 增加用于重发 pre / prove 上链信息的子命令
   - 配置调整：
-    - 增加 `[[Common.PersistStores]]` 中的 `AllowMiners ` 和 `DenyMiners` 配置项
+    - 增加 `[[Common.PersistStores]]` 中的 `AllowMiners` 和 `DenyMiners` 配置项
     - 增加 `[[Common.PersistStores]]` 中的 `Meta` 配置项
     - 增加 `[[Common.PersistStores]]` 中的 `Plugin` 配置项
     - 增加 `[[Common.PersistStores]]` 中的 `ReadOnly` 配置项
