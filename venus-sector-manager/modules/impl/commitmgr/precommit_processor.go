@@ -11,7 +11,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
-	miner0 "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 
@@ -52,6 +51,7 @@ func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []c
 				slog.Error("get pre-commit params failed: ", err)
 				return
 			}
+
 			enc := new(bytes.Buffer)
 			if err := params.MarshalCBOR(enc); err != nil {
 				slog.Error("serialize pre-commit sector parameters failed: ", err)
@@ -105,7 +105,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 
 		infos = append(infos, core.PreCommitEntry{
 			Deposit: deposit,
-			Pci:     params,
+			Pcsp:    params,
 		})
 	}
 
@@ -118,21 +118,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	deposit := big.Zero()
 	if mcfg.Commitment.Pre.SendFund {
 		for i := range infos {
-			pci := infos[i].Pci
-			// TODO: how to ensure the fields are matched here?
-			// for now, we can just rely on that miner0 won't change any more.
-			params.Sectors = append(params.Sectors, miner0.SectorPreCommitInfo{
-				SealProof:              pci.SealProof,
-				SectorNumber:           pci.SectorNumber,
-				SealedCID:              pci.SealedCID,
-				SealRandEpoch:          pci.SealRandEpoch,
-				DealIDs:                pci.DealIDs,
-				Expiration:             pci.Expiration,
-				ReplaceCapacity:        pci.ReplaceCapacity,
-				ReplaceSectorDeadline:  pci.ReplaceSectorDeadline,
-				ReplaceSectorPartition: pci.ReplaceSectorPartition,
-				ReplaceSectorNumber:    pci.ReplaceSectorNumber,
-			})
+			params.Sectors = append(params.Sectors, *infos[i].Pcsp)
 			deposit = big.Add(deposit, infos[i].Deposit)
 		}
 	}

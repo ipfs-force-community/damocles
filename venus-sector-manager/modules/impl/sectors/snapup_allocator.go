@@ -12,7 +12,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
-	market8 "github.com/filecoin-project/specs-actors/v8/actors/builtin/market"
+	market8 "github.com/filecoin-project/go-state-types/builtin/v9/market"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
