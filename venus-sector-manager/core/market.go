@@ -1,7 +1,7 @@
 package core
 
 import (
-	market8 "github.com/filecoin-project/go-state-types/builtin/v8/market"
+	market9 "github.com/filecoin-project/go-state-types/builtin/v9/market"
 )
 
-type DealProposal = market8.DealProposal
+type DealProposal = market9.DealProposal
