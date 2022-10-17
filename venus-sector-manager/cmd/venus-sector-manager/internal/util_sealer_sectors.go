@@ -18,14 +18,8 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
-	stminer "github.com/filecoin-project/go-state-types/builtin/v8/miner"
+	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
 
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
-
-	"github.com/filecoin-project/venus/app/submodule/chain"
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/adt"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
@@ -413,7 +407,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(chain.NewAPIBlockstore(extAPI.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(NewAPIBlockstore(extAPI.Chain)))
 		mas, err := miner.Load(store, mact)
 		if err != nil {
 			return err
@@ -708,7 +702,7 @@ var utilSealerSectorsRenewCmd = &cli.Command{
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(chain.NewAPIBlockstore(fapi.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(NewAPIBlockstore(fapi.Chain)))
 		mas, err := miner.Load(store, mact)
 		if err != nil {
 			return err

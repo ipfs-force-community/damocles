@@ -6,8 +6,8 @@ import (
 	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/builtin/v8/miner"
 	"github.com/filecoin-project/go-state-types/dline"
+	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs/go-cid"
 )
@@ -209,7 +209,7 @@ type AggregateInput struct {
 
 type PreCommitEntry struct {
 	Deposit abi.TokenAmount
-	Pci     *miner.SectorPreCommitInfo
+	Pcsp    *miner.PreCommitSectorParams
 }
 
 type MessageInfo struct {

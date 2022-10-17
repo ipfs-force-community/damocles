@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/venus/fixtures/networks"
+	builtinactors "github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/policy"
-	builtinactors "github.com/filecoin-project/venus/venus-shared/builtin-actors"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
@@ -45,7 +45,7 @@ func SetupNetwork(name string) error {
 		return fmt.Errorf("invalid network name %s", name)
 	}
 
-	return builtinactors.SetNetworkBundle(networkType)
+	return builtinactors.SetNetworkBundle(int(networkType))
 }
 
 const (
