@@ -54,7 +54,7 @@ func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*core.MinerInf
 		return nil, fmt.Errorf("get proving deadline info: %w", err)
 	}
 
-	sealProof, err := miner.SealProofTypeFromSectorSize(minfo.SectorSize, constants.NewestNetworkVersion)
+	sealProof, err := miner.SealProofTypeFromSectorSize(minfo.SectorSize, constants.TestNetworkVersion)
 	if err != nil {
 		return nil, err
 	}

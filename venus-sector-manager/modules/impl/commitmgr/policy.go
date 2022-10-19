@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/venus/venus-shared/actors"
+	"github.com/filecoin-project/go-state-types/actors"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"

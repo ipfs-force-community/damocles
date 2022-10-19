@@ -16,7 +16,6 @@ import (
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 	"github.com/filecoin-project/go-state-types/network"
 
-	"github.com/filecoin-project/venus/app/submodule/chain"
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/adt"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
@@ -289,7 +288,7 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 				return err
 			}
 
-			store := adt.WrapStore(ctx, cbor.NewCborStore(chain.NewAPIBlockstore(api.Chain)))
+			store := adt.WrapStore(ctx, cbor.NewCborStore(NewAPIBlockstore(api.Chain)))
 			mst, err := miner.Load(store, mact)
 			if err != nil {
 				return err
@@ -839,7 +838,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(chain.NewAPIBlockstore(api.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(NewAPIBlockstore(api.Chain)))
 
 		mst, err := miner.Load(store, mact)
 		if err != nil {

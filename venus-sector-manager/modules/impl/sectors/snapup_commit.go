@@ -12,7 +12,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/builtin"
-	stminer "github.com/filecoin-project/go-state-types/builtin/v8/miner"
+	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors/policy"
@@ -370,18 +370,15 @@ func (h *snapupCommitHandler) submitMessage() error {
 	}
 
 	msg := types.Message{
-		From:   mcfg.SnapUp.Sender.Std(),
-		To:     h.maddr,
-		Method: builtin.MethodsMiner.ProveReplicaUpdates,
-		Params: enc.Bytes(),
-		Value:  msgValue,
+		From:      mcfg.SnapUp.Sender.Std(),
+		To:        h.maddr,
+		Method:    builtin.MethodsMiner.ProveReplicaUpdates,
+		Params:    enc.Bytes(),
+		Value:     msgValue,
+		GasFeeCap: mcfg.SnapUp.GetGasFeeCap().Std(),
 	}
 
-	spec := messager.MsgMeta{
-		GasOverEstimation: mcfg.SnapUp.GasOverEstimation,
-		MaxFeeCap:         mcfg.SnapUp.MaxFeeCap.Std(),
-	}
-
+	spec := mcfg.SnapUp.FeeConfig.GetSendSpec()
 	mcid := msg.Cid().String()
 	has, err := h.committer.messager.HasMessageByUid(h.committer.ctx, mcid)
 	if err != nil {

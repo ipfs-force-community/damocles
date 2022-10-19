@@ -7,12 +7,12 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/go-state-types/builtin/v8/miner"
+	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 )
 
-func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector core.SectorState) (*miner.SectorPreCommitInfo, big.Int, core.TipSetToken, error) {
+func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector core.SectorState) (*miner.PreCommitSectorParams, big.Int, core.TipSetToken, error) {
 	stateMgr := p.api
 	tok, _, err := stateMgr.ChainHead(ctx)
 	if err != nil {
@@ -74,7 +74,7 @@ func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector core.Sec
 		return nil, big.Zero(), nil, fmt.Errorf("getting initial pledge collateral: %w", err)
 	}
 
-	return params, deposit, tok, nil
+	return infoToPreCommitSectorParams(params), deposit, tok, nil
 }
 
 func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, mid abi.ActorID, sn abi.SectorNumber, tok core.TipSetToken) (abi.TokenAmount, error) {
@@ -102,4 +102,15 @@ func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, mid abi.Actor
 	}
 
 	return collateral, nil
+}
+
+func infoToPreCommitSectorParams(info *miner.SectorPreCommitInfo) *miner.PreCommitSectorParams {
+	return &miner.PreCommitSectorParams{
+		SealProof:     info.SealProof,
+		SectorNumber:  info.SectorNumber,
+		SealedCID:     info.SealedCID,
+		SealRandEpoch: info.SealRandEpoch,
+		DealIDs:       info.DealIDs,
+		Expiration:    info.Expiration,
+	}
 }

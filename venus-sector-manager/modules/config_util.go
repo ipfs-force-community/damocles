@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"encoding"
 	"fmt"
 	"math"
 	mbig "math/big"
@@ -8,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
@@ -28,10 +28,10 @@ func ActorIDFromConfigKey(key string) (abi.ActorID, error) {
 }
 
 var (
-	_ toml.TextMarshaler   = Duration(0)
-	_ toml.TextUnmarshaler = (*Duration)(nil)
-	_ toml.TextMarshaler   = FIL{}
-	_ toml.TextUnmarshaler = (*FIL)(nil)
+	_ encoding.TextMarshaler   = Duration(0)
+	_ encoding.TextUnmarshaler = (*Duration)(nil)
+	_ encoding.TextMarshaler   = FIL{}
+	_ encoding.TextUnmarshaler = (*FIL)(nil)
 )
 
 type MustAddress address.Address
