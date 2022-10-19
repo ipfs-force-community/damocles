@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/docker/go-units"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli/v2"
 
@@ -135,7 +135,7 @@ var utilMinerCreateCmd = &cli.Command{
 			return fmt.Errorf("failed to parse sector size: %w", err)
 		}
 
-		sealProof, err := miner.SealProofTypeFromSectorSize(abi.SectorSize(ssize), constants.NewestNetworkVersion)
+		sealProof, err := miner.SealProofTypeFromSectorSize(abi.SectorSize(ssize), constants.TestNetworkVersion)
 		if err != nil {
 			return fmt.Errorf("invalid sector size %d: %w", ssize, err)
 		}
@@ -190,7 +190,7 @@ var utilMinerCreateCmd = &cli.Command{
 
 		var pid abi.PeerID
 		if s := cctx.String("peer"); s != "" {
-			id, err := peer.IDFromString(s)
+			id, err := peer.Decode(s)
 			if err != nil {
 				return fmt.Errorf("parse peer id %s: %w", s, err)
 			}
