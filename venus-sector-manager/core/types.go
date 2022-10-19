@@ -6,10 +6,11 @@ import (
 	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
+	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/ipfs/go-cid"
+
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
 
 type AllocateSectorSpec struct {
