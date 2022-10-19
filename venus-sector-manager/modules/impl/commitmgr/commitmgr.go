@@ -131,7 +131,7 @@ func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, val
 
 	mlog = mlog.With("from", from.String(), "to", to.String(), "method", method, "raw-mcid", bk.Cid())
 
-	mcid := cid.Cid{}
+	var mcid cid.Cid
 
 	for i := 0; ; i++ {
 		r := []byte{byte(i)}
