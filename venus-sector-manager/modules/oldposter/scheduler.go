@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
-	"github.com/filecoin-project/go-state-types/builtin/v8/miner"
+	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	"github.com/filecoin-project/venus/pkg/clock"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
