@@ -457,12 +457,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bs58"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
-
-[[package]]
 name = "bstr"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1130,7 +1124,7 @@ dependencies = [
 [[package]]
 name = "filecoin-hashers"
 version = "6.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#7533c265c0315dd42e6a67706a147fc21a53bb26"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1351,7 +1345,7 @@ dependencies = [
 [[package]]
 name = "fr32"
 version = "4.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#7533c265c0315dd42e6a67706a147fc21a53bb26"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -2253,14 +2247,14 @@ dependencies = [
 
 [[package]]
 name = "multiaddr"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c580bfdd8803cce319b047d239559a22f809094aaea4ac13902a1fdcfcd4261"
+checksum = "8b8d2f5ee4645ab2c09b846006f3bb0916e728a0384982544dba553be727d772"
 dependencies = [
  "arrayref",
- "bs58",
  "byteorder 1.4.3",
  "data-encoding",
+ "multibase 0.9.1",
  "multihash 0.16.1",
  "percent-encoding 2.1.0",
  "serde",
@@ -3373,7 +3367,7 @@ dependencies = [
 [[package]]
 name = "sha2raw"
 version = "6.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#7533c265c0315dd42e6a67706a147fc21a53bb26"
 dependencies = [
  "block-buffer 0.9.0",
  "byteorder 1.4.3",
@@ -3476,7 +3470,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "storage-proofs-core"
 version = "11.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#7533c265c0315dd42e6a67706a147fc21a53bb26"
 dependencies = [
  "aes",
  "anyhow",
@@ -3517,7 +3511,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-porep"
 version = "11.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#7533c265c0315dd42e6a67706a147fc21a53bb26"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3559,7 +3553,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-post"
 version = "11.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#7533c265c0315dd42e6a67706a147fc21a53bb26"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3587,7 +3581,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-update"
 version = "11.1.1"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#aead79843f0ff99c4dfd80305410dd7f38b82091"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v11.1.1#7533c265c0315dd42e6a67706a147fc21a53bb26"
 dependencies = [
  "anyhow",
  "bellperson",
