@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,15 +14,14 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/hako/durafmt"
-	"github.com/urfave/cli/v2"
-
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 	miner8 "github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	"github.com/hako/durafmt"
+	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/venus/pkg/chain"
 	"github.com/filecoin-project/venus/venus-shared/actors"
@@ -55,6 +55,7 @@ var utilSealerProvingCmd = &cli.Command{
 		utilSealerProvingSectorInfoCmd,
 		utilSealerProvingWinningVanillaCmd,
 		utilSealerProvingCompactPartitionsCmd,
+		utilSealerProvingRecoverFaultsCmd,
 	},
 }
 
@@ -957,6 +958,95 @@ var utilSealerProvingCompactPartitionsCmd = &cli.Command{
 			From:   minfo.Worker,
 			To:     maddr,
 			Method: stbuiltin.MethodsMiner.CompactPartitions,
+			Value:  big.Zero(),
+			Params: sp,
+		}
+
+		err = waitMessage(actx, api, msg, cctx.String("exid"), nil, nil)
+		if err != nil {
+			return fmt.Errorf("wait message: %w", err)
+		}
+
+		return nil
+	},
+}
+
+var utilSealerProvingRecoverFaultsCmd = &cli.Command{
+	Name:  "recover-faults",
+	Usage: "recover faults manually",
+	Flags: []cli.Flag{
+		&cli.Uint64Flag{
+			Name:     "deadline",
+			Usage:    "fast path to declare fault with a whole deadline",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:  "miner",
+			Usage: "Specify the address of the miner to run this command",
+		},
+		&cli.StringFlag{
+			Name:  "from",
+			Usage: "Specify the address of the address to send message, default miner's worker",
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		api, actx, astop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer astop()
+
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		if err != nil {
+			return fmt.Errorf("extract miner address: %w", err)
+		}
+
+		minfo, err := api.Chain.StateMinerInfo(actx, maddr, types.EmptyTSK)
+		if err != nil {
+			return err
+		}
+
+		ddlIndex := cctx.Uint64("deadline")
+
+		partitions, err := api.Chain.StateMinerPartitions(actx, maddr, ddlIndex, types.EmptyTSK)
+		if err != nil {
+			return err
+		}
+		params := miner8.DeclareFaultsRecoveredParams{}
+		for idx, partiton := range partitions {
+			s, err := partiton.FaultySectors.All(math.MaxUint64)
+			if err != nil {
+				return err
+			}
+			sectors := bitfield.New()
+			for _, sid := range s {
+				sectors.Set(sid)
+			}
+			params.Recoveries = append(params.Recoveries, miner8.RecoveryDeclaration{
+				Deadline:  ddlIndex,
+				Partition: uint64(idx),
+				Sectors:   sectors,
+			})
+		}
+
+		sp, err := actors.SerializeParams(&params)
+		if err != nil {
+			return fmt.Errorf("serializing params: %w", err)
+		}
+
+		sendAddr := minfo.Worker
+		if s := cctx.String("from"); s != "" {
+			from, err := address.NewFromString(s)
+			if err != nil {
+				return err
+			}
+			sendAddr = from
+		}
+
+		msg := &messager.UnsignedMessage{
+			From:   sendAddr,
+			To:     maddr,
+			Method: stbuiltin.MethodsMiner.DeclareFaultsRecovered,
 			Value:  big.Zero(),
 			Params: sp,
 		}
