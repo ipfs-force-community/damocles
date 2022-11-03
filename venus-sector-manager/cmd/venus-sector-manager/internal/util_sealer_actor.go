@@ -25,6 +25,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
+	chain2 "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
@@ -288,7 +289,7 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 				return err
 			}
 
-			store := adt.WrapStore(ctx, cbor.NewCborStore(NewAPIBlockstore(api.Chain)))
+			store := adt.WrapStore(ctx, cbor.NewCborStore(chain2.NewAPIBlockstore(api.Chain)))
 			mst, err := miner.Load(store, mact)
 			if err != nil {
 				return err
@@ -838,7 +839,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(NewAPIBlockstore(api.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(chain2.NewAPIBlockstore(api.Chain)))
 
 		mst, err := miner.Load(store, mact)
 		if err != nil {
