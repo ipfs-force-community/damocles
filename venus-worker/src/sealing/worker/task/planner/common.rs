@@ -31,7 +31,7 @@ pub fn add_pieces<'t>(task: &'t Task<'_>, deals: &Deals) -> Result<Vec<PieceInfo
         staged_filepath.prepare().context("prepare staged file").perm()?;
     }
 
-    let piece_store = task.ctx.global.piece_store.as_ref().context("piece store is required").perm()?;
+    let piece_store = task.ctx.global.piece_store.as_ref();
 
     let mut pieces = Vec::with_capacity(deals.len());
 
