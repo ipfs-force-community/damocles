@@ -1,9 +1,16 @@
 # Changelog
 
+## v0.4.0-rc4
+- venus-sector-manager
+  - 适配和支持 nv17-rc5
+
+- venus-worker
+  - 修复 venus-worker 配置 `enable_deals=false` 时触发的 bug [#501](https://github.com/ipfs-force-community/venus-cluster/issues/501)
+
 ## v0.4.0-rc3-nv17
 - venus-sector-manager
-  - 适配和支持nv17
-  - 兼容 venus v1.8.0-RC3 引入了配置项 `GasOverPremium`, `feecap` 和 `maxfee`. 具体参考[配置文档](./docs/zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md) [#337]
+  - 适配和支持 nv17-rc3
+  - 兼容 venus v1.8.0-rc3 引入了配置项 `GasOverPremium`, `feecap` 和 `maxfee`. 具体参考[配置文档](./docs/zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md) [#337]
 
 ## v0.4.0-rc3
 - venus-sector-manager
