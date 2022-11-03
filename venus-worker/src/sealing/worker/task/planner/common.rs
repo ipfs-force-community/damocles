@@ -26,7 +26,7 @@ pub fn add_pieces<'t>(
 ) -> Result<Vec<PieceInfo>, Failure> {
     let _token = task.ctx.global.limit.acquire(STAGE_NAME_ADD_PIECES).crit()?;
 
-    let piece_store = task.ctx.global.piece_store.as_ref().context("piece store is required").perm()?;
+    let piece_store = task.ctx.global.piece_store.as_ref();
 
     let pieces: Vec<_> = deals
         .iter()

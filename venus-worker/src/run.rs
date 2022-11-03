@@ -15,7 +15,7 @@ use crate::{
     config,
     infra::{
         objstore::{attached::AttachedManager, filestore::FileStore, ObjectStore},
-        piecestore::{proxy::ProxyPieceStore, PieceStore},
+        piecestore::{proxy::ProxyPieceStore, EmptyPieceStore, PieceStore},
     },
     logging::info,
     rpc::sealer::SealerClient,
@@ -132,12 +132,10 @@ pub fn start_deamon(cfg_path: String) -> Result<()> {
         .map(|u| u.origin().ascii_serialization())
         .context("parse rpc url origin")?;
 
-    let piece_store: Option<Arc<dyn PieceStore>> = if cfg.sealing.enable_deals.unwrap_or(false) {
-        Some(Arc::new(
-            ProxyPieceStore::new(&rpc_origin, cfg.sector_manager.piece_token.as_ref().cloned()).context("build proxy piece store")?,
-        ))
+    let piece_store: Arc<dyn PieceStore> = if cfg.sealing.enable_deals.unwrap_or(false) {
+        Arc::new(ProxyPieceStore::new(&rpc_origin, cfg.sector_manager.piece_token.as_ref().cloned()).context("build proxy piece store")?)
     } else {
-        None
+        Arc::new(EmptyPieceStore)
     };
 
     let ext_locks = Arc::new(create_resource_pool(&cfg.processors.ext_locks, &None));

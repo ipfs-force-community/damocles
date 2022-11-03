@@ -46,7 +46,7 @@ pub struct GlobalModules {
     pub limit: Arc<Pool>,
     pub ext_locks: Arc<Pool>,
     pub rt: Arc<Runtime>,
-    pub piece_store: Option<Arc<dyn PieceStore>>,
+    pub piece_store: Arc<dyn PieceStore>,
 }
 
 #[derive(Clone)]
