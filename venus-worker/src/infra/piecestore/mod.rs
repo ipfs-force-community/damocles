@@ -8,6 +8,15 @@ pub trait PieceStore: Send + Sync {
     fn get(&self, c: &Cid) -> Option<PieceFile>;
 }
 
+/// EmptyPieceStore always returns None
+pub struct EmptyPieceStore;
+
+impl PieceStore for EmptyPieceStore {
+    fn get(&self, _c: &Cid) -> Option<PieceFile> {
+        None
+    }
+}
+
 pub struct ComposePieceStore<P1, P2> {
     first: P1,
     second: P2,
