@@ -29,6 +29,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
+	chain2 "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/lotusminer"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
@@ -449,7 +450,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(NewAPIBlockstore(extAPI.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(chain2.NewAPIBlockstore(extAPI.Chain)))
 		mas, err := miner.Load(store, mact)
 		if err != nil {
 			return err
@@ -744,7 +745,7 @@ var utilSealerSectorsRenewCmd = &cli.Command{
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(NewAPIBlockstore(fapi.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(chain2.NewAPIBlockstore(fapi.Chain)))
 		mas, err := miner.Load(store, mact)
 		if err != nil {
 			return err
