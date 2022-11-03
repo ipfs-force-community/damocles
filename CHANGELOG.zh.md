@@ -1,8 +1,15 @@
 # Changelog
 
+## v0.5.0-beta2-nv17
+- venus-sector-manager
+  - 适配和支持 nv17-rc5
+
+- venus-worker
+  - 修复 venus-worker 配置 enable_deals=false 时触发的 bug [#501](https://github.com/ipfs-force-community/venus-cluster/issues/501)
+
 ## v0.5.0-beta1-nv17
 - venus-sector-manager
-  - 适配和支持nv17
+  - 适配和支持 nv17-rc3
 
 
 ## v0.5.0-beta1
