@@ -355,6 +355,17 @@ func (c *CommitmentMgrImpl) pollTerminateState(ctx context.Context, sector *core
 
 			mlog.Debug("poll finished")
 			break
+		} else if state == core.OnChainStateFailed {
+			sector.TerminateInfo.AddedHeight = 0
+
+			err := c.smgr.Update(ctx, sector.ID, core.WorkerOffline, sector.TerminateInfo)
+			if err != nil {
+				mlog.Errorf("Update sector TerminateInfo failed: %s", err)
+			}
+
+			mlog.Warn("terminate msg failed, check whether need re terminate")
+			mlog.Debug("poll finished")
+			break
 		}
 	}
 }
