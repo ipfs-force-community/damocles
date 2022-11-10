@@ -116,9 +116,10 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	params := core.PreCommitSectorBatchParams{}
 
 	deposit := big.Zero()
-	if mcfg.Commitment.Pre.SendFund {
-		for i := range infos {
-			params.Sectors = append(params.Sectors, *infos[i].Pcsp)
+
+	for i := range infos {
+		params.Sectors = append(params.Sectors, *infos[i].Pcsp)
+		if mcfg.Commitment.Pre.SendFund {
 			deposit = big.Add(deposit, infos[i].Deposit)
 		}
 	}
