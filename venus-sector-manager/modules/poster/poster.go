@@ -161,6 +161,8 @@ CHAIN_HEAD_LOOP:
 				continue CHAIN_HEAD_LOOP
 			}
 
+			mlog.Debug("chain notify get change", changes)
+
 			var lowest, highest *types.TipSet = nil, nil
 			if len(changes) == 1 && changes[0].Type == chain.HCCurrent {
 				highest = changes[0].Val

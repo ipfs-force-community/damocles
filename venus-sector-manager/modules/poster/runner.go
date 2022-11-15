@@ -315,6 +315,7 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 
 		if len(xsinfos) == 0 {
 			// nothing to prove for this batch
+			alog.Warn("no good sector to prove")
 			return false, nil
 		}
 
