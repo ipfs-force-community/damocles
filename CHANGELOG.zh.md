@@ -1,6 +1,13 @@
 # Changelog
 
-## v0.5.0-beta2-nv17
+## v0.5.0-beta3
+- venus-sector-manager
+  - 适配和支持 nv17 [#522](https://github.com/ipfs-force-community/venus-cluster/pull/522)
+  - 修复 Terminate Sector 消息 failed 不能正确退出监听的问题 [#507](https://github.com/ipfs-force-community/venus-cluster/issues/507)
+  - 修复在开启消息聚合消息，同时关闭从ctrl地址发送质押，生成消息时，没有包含扇区的问题 [#510](https://github.com/ipfs-force-community/venus-cluster/issues/510)
+  - 修复 SnapUp 没有正确处理 errormsg 的问题 [#524](https://github.com/ipfs-force-community/venus-cluster/issues/524)
+
+## v0.5.0-beta2
 - venus-sector-manager
   - 适配和支持 nv17-rc5
 
