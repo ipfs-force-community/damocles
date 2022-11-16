@@ -241,6 +241,7 @@ func (sc *SnapUpCommitter) commitSector(ctx context.Context, state core.SectorSt
 var errMsgNotLanded = fmt.Errorf("msg not landed")
 var errMsgNoReceipt = fmt.Errorf("msg without receipt")
 var errMsgPending = fmt.Errorf("pending msg")
+var errMsgTempErr = fmt.Errorf("msg temp error")
 
 func newTempErr(err error, retryAfter time.Duration) snapupCommitTempError {
 	te := snapupCommitTempError{
@@ -474,7 +475,11 @@ func (h *snapupCommitHandler) waitForMessage() error {
 			return newTempErr(errMsgNoReceipt, mcfg.SnapUp.Retry.PollInterval.Std())
 		}
 
-		if msg.Receipt.ExitCode != exitcode.Ok {
+		switch msg.Receipt.ExitCode {
+		case exitcode.Ok:
+		case exitcode.SysErrInsufficientFunds, exitcode.SysErrOutOfGas:
+			return newTempErr(errMsgTempErr, mcfg.SnapUp.Retry.PollInterval.Std())
+		default:
 			return fmt.Errorf("failed on-chain message with exitcode=%s, error=%q", msg.Receipt.ExitCode, maybeMsg)
 		}
 
