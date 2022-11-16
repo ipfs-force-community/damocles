@@ -19,7 +19,7 @@ require (
 	github.com/filecoin-project/specs-actors v0.9.15 // indirect
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.8.0-rc4
+	github.com/filecoin-project/venus v1.8.0
 	github.com/golang/mock v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
@@ -43,7 +43,7 @@ require (
 )
 
 require (
-	github.com/filecoin-project/lotus v1.18.0-rc5
+	github.com/filecoin-project/lotus v1.18.0
 	github.com/ipfs-force-community/venus-cluster-assets v0.1.0
 	github.com/ipfs-force-community/venus-objstore v0.0.3
 )
