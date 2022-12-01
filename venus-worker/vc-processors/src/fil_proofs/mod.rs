@@ -3,9 +3,8 @@
 
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;
-use std::io;
-use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
+use std::{fmt, io};
 
 use anyhow::{Context, Result};
 use filecoin_proofs::{get_base_tree_leafs, get_base_tree_size, DefaultBinaryTree, DefaultPieceHasher, StoreConfig, BINARY_ARITY};
@@ -36,17 +35,33 @@ pub type ActorID = u64;
 
 pub type SnarkProof = crate::b64serde::BytesVec;
 
+#[derive(Debug)]
+pub struct PanicError {
+    pub message: String,
+}
+
+impl std::error::Error for PanicError {}
+
+impl fmt::Display for PanicError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Panic: {}", self.message)
+    }
+}
+
 macro_rules! safe_call {
     ($ex:expr) => {
-        match catch_unwind(AssertUnwindSafe(move || $ex.map_err(|e| format!("{:?}", e)))) {
-            Ok(r) => r.map_err(anyhow::Error::msg),
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || $ex)) {
+            Ok(r) => r,
             Err(p) => {
-                let error_msg = match p.downcast_ref::<&'static str>() {
+                let error_msg = match p.downcast_ref::<&str>() {
                     Some(message) => message.to_string(),
-                    _ => format!("non-str unwind err: {:?}", p),
+                    None => p
+                        .downcast_ref::<String>()
+                        .cloned()
+                        .unwrap_or_else(|| format!("non-str unwind err: {:?}", p)),
                 };
 
-                Err(anyhow::Error::msg(error_msg))
+                Err(crate::fil_proofs::PanicError { message: error_msg }.into())
             }
         }
     };
