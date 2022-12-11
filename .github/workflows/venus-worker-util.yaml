@@ -5,7 +5,7 @@ on:
     branches: [ main, release/**, dev/coop/** ]
 
   # push:
-  #   branches: [ main, release/** ]
+  #   branches: [ main, release/**, dev/coop/** ]
 
 jobs:
   build:
@@ -23,18 +23,6 @@ jobs:
           toolchain: '1.60.0'
           override: true
           components: rustfmt, clippy
-
-      - name: setup build cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            venus-worker/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('venus-worker-util/Cargo.lock') }}
 
       - name: test venus-worker-util
         run: make test-worker-util
