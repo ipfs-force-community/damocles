@@ -2,10 +2,12 @@ name: venus-worker
 
 on:
   pull_request:
-    branches: [ main, release/**, dev/coop/** ]
+    branches: ["main", "release/**", "dev/coop/**"]
+    paths-ignore: ["*.md", "docs/**"]
 
   push:
-    branches: [ main, release/**, dev/coop/** ]
+    branches: ["main", "release/**", "dev/coop/**"]
+    paths-ignore: ["*.md", "docs/**"]
 
 jobs:
   build:
@@ -16,10 +18,15 @@ jobs:
       - name: dependencies
         run: sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
 
+      - name: read rust toolchain
+        id: read-rust-toolchain
+        run: |
+          echo "toolchain=$(cat ./rust-toolchain)" >> "$GITHUB_OUTPUT"
+
       - name: setup rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: '1.60.0'
+          toolchain: ${{ steps.read-rust-toolchain.outputs.toolchain }}
           override: true
           components: rustfmt, clippy
 
