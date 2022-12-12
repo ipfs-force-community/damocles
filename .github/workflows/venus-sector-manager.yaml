@@ -2,15 +2,16 @@ name: venus-sector-manager
 
 on:
   pull_request:
-    branches: [ main, release/**, dev/coop/** ]
+    branches: ["main", "release/**", "dev/coop/**"]
+    paths-ignore: ["*.md", "docs/**"]
 
-  # push:
-  #   branches: [ main, release/** ]
+  push:
+    branches: ["main", "release/**", "dev/coop/**"]
+    paths-ignore: ["*.md", "docs/**"]
 
 jobs:
   build:
     runs-on: ubuntu-20.04
-
     steps:
       - uses: actions/checkout@v2
 
@@ -20,19 +21,26 @@ jobs:
       - name: setup go
         uses: actions/setup-go@v2
         with:
-          go-version: '1.18'
+          go-version: "1.18"
 
-      - name: install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
+      - name: cache paths
+        id: cache-paths
+        run: |
+          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
 
-      - name: setup build cache
+      - name: setup go cache
         uses: actions/cache@v3
         continue-on-error: false
         with:
           path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
+            ${{ steps.cache-paths.outputs.go-build }}
+            ${{ steps.cache-paths.outputs.go-mod }}
           key: ${{ runner.os }}-go-${{ hashFiles('venus-sector-manager/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      - name: install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
 
       - name: test venus-sector-manager
         run: make test-smgr
@@ -48,7 +56,6 @@ jobs:
 
       - name: show bins
         run: ls -lha ./dist/bin/
-
 
       # - name: upload venus-sector-manager
       #   uses: actions/upload-artifact@v2
