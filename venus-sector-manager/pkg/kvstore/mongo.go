@@ -116,7 +116,7 @@ func (m MongoStore) Put(ctx context.Context, key Key, val Val) error {
 }
 
 func (m MongoStore) Del(ctx context.Context, key Key) error {
-	_, err := m.col.DeleteOne(ctx, bson.M{"_id": key})
+	_, err := m.col.DeleteOne(ctx, bson.M{"_id": KeyToString(key)})
 	return err
 }
 
