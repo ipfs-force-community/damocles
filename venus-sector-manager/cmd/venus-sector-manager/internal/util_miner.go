@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/docker/go-units"
+	"github.com/filecoin-project/go-address"
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli/v2"
@@ -65,6 +66,25 @@ var utilMinerInfoCmd = &cli.Command{
 			fmt.Printf("\t%s\n", addr)
 		}
 
+		if minfo.Beneficiary != address.Undef {
+			fmt.Println()
+			fmt.Printf("Beneficiary:\t%s\n", minfo.Beneficiary)
+			if minfo.Beneficiary != minfo.Owner {
+				fmt.Printf("Beneficiary Quota:\t%s\n", minfo.BeneficiaryTerm.Quota)
+				fmt.Printf("Beneficiary Used Quota:\t%s\n", minfo.BeneficiaryTerm.UsedQuota)
+				fmt.Printf("Beneficiary Expiration:\t%s\n", minfo.BeneficiaryTerm.Expiration)
+			}
+		}
+
+		if minfo.PendingBeneficiaryTerm != nil {
+			fmt.Printf("Pending Beneficiary Term:\n")
+			fmt.Printf("New Beneficiary:\t%s\n", minfo.PendingBeneficiaryTerm.NewBeneficiary)
+			fmt.Printf("New Quota:\t%s\n", minfo.PendingBeneficiaryTerm.NewQuota)
+			fmt.Printf("New Expiration:\t%s\n", minfo.PendingBeneficiaryTerm.NewExpiration)
+			fmt.Printf("Approved By Beneficiary:\t%t\n", minfo.PendingBeneficiaryTerm.ApprovedByBeneficiary)
+			fmt.Printf("Approved By Nominee:\t%t\n", minfo.PendingBeneficiaryTerm.ApprovedByNominee)
+		}
+		fmt.Println()
 		fmt.Printf("WokerChangeEpoch: %d\n", minfo.WorkerChangeEpoch)
 		if minfo.PeerId != nil {
 			fmt.Printf("PeerID: %s\n", *minfo.PeerId)
