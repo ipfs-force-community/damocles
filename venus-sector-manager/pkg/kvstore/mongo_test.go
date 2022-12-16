@@ -37,12 +37,19 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func DelteAll(t *testing.T, ctx context.Context, kv kvstore.KVStore) {
+func DeleteAll(ctx context.Context, kv kvstore.KVStore) error {
 	iter, err := kv.Scan(ctx, nil)
-	require.NoError(t, err)
-	for iter.Next() {
-		require.NoError(t, kv.Del(ctx, iter.Key()))
+	if err != nil {
+		return fmt.Errorf("Scan all record: %w", err)
+
 	}
+	for iter.Next() {
+		k := iter.Key()
+		if err := kv.Del(ctx, k); err != nil {
+			return fmt.Errorf("Delete key: %s;  %w", string(k), err)
+		}
+	}
+	return nil
 }
 
 func TestMongoStore_PutGet(t *testing.T) {
@@ -50,7 +57,7 @@ func TestMongoStore_PutGet(t *testing.T) {
 	require.NoError(t, err)
 	ctx := context.TODO()
 
-	DelteAll(t, ctx, kv)
+	require.NoError(t, DeleteAll(ctx, kv))
 
 	err = kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
@@ -74,7 +81,7 @@ func TestMongoStore_Has(t *testing.T) {
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
-	DelteAll(t, ctx, kv)
+	require.NoError(t, DeleteAll(ctx, kv))
 
 	err = kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
@@ -93,7 +100,7 @@ func TestMongoStore_Scan(t *testing.T) {
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
-	DelteAll(t, ctx, kv)
+	require.NoError(t, DeleteAll(ctx, kv))
 
 	err = kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
@@ -132,7 +139,7 @@ func TestMongoStore_ScanNil(t *testing.T) {
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
-	DelteAll(t, ctx, kv)
+	require.NoError(t, DeleteAll(ctx, kv))
 
 	err = kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
@@ -158,7 +165,7 @@ func TestMongoStore_Del(t *testing.T) {
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
-	DelteAll(t, ctx, kv)
+	require.NoError(t, DeleteAll(ctx, kv))
 
 	err = kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
