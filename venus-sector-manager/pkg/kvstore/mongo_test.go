@@ -36,10 +36,28 @@ func TestMain(m *testing.M) {
 
 	os.Exit(m.Run())
 }
+
+func DeleteAll(ctx context.Context, kv kvstore.KVStore) error {
+	iter, err := kv.Scan(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Scan all record: %w", err)
+
+	}
+	for iter.Next() {
+		k := iter.Key()
+		if err := kv.Del(ctx, k); err != nil {
+			return fmt.Errorf("Delete key: %s;  %w", string(k), err)
+		}
+	}
+	return nil
+}
+
 func TestMongoStore_PutGet(t *testing.T) {
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
+
+	require.NoError(t, DeleteAll(ctx, kv))
 
 	err = kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
@@ -63,6 +81,7 @@ func TestMongoStore_Has(t *testing.T) {
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
+	require.NoError(t, DeleteAll(ctx, kv))
 
 	err = kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
@@ -81,6 +100,7 @@ func TestMongoStore_Scan(t *testing.T) {
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
+	require.NoError(t, DeleteAll(ctx, kv))
 
 	err = kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
@@ -119,6 +139,7 @@ func TestMongoStore_ScanNil(t *testing.T) {
 	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
 	require.NoError(t, err)
 	ctx := context.TODO()
+	require.NoError(t, DeleteAll(ctx, kv))
 
 	err = kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
@@ -138,4 +159,33 @@ func TestMongoStore_ScanNil(t *testing.T) {
 		cnt++
 	}
 	require.Equal(t, 4, cnt)
+}
+
+func TestMongoStore_Del(t *testing.T) {
+	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
+	require.NoError(t, err)
+	ctx := context.TODO()
+	require.NoError(t, DeleteAll(ctx, kv))
+
+	err = kv.Put(ctx, testKey1, testValue1)
+	require.NoError(t, err)
+	err = kv.Put(ctx, testKey2, testValue2)
+	require.NoError(t, err)
+	err = kv.Del(ctx, testKey2)
+	require.NoError(t, err)
+
+	iter, err := kv.Scan(ctx, nil)
+	require.NoError(t, err)
+
+	cnt := 0
+	for iter.Next() {
+		cnt++
+	}
+	require.Equal(t, 1, cnt)
+
+	_, err = kv.Get(ctx, testKey1)
+	require.NoError(t, err)
+
+	_, err = kv.Get(ctx, testKey2)
+	require.Equal(t, kvstore.ErrKeyNotFound, err)
 }
