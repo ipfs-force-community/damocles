@@ -218,13 +218,11 @@ var utilSealerSectorsListCmd = &cli.Command{
 			}
 
 			fmt.Fprintf(os.Stdout, "%s%s:\n", util.FormatSectorID(state.ID), sectorMark)
-			if state.LatestState == nil {
-				fmt.Fprintln(os.Stdout, "NULL")
-				continue
-			}
 
-			fmt.Fprintf(os.Stdout, "\tWorker: %s @ %s\n", state.LatestState.Worker.Instance, state.LatestState.Worker.Location)
-			fmt.Fprintf(os.Stdout, "\tState: %s => %s @%s\n", state.LatestState.StateChange.Prev, state.LatestState.StateChange.Next, state.LatestState.StateChange.Event)
+			if state.LatestState != nil {
+				fmt.Fprintf(os.Stdout, "\tWorker: %s @ %s\n", state.LatestState.Worker.Instance, state.LatestState.Worker.Location)
+				fmt.Fprintf(os.Stdout, "\tState: %s => %s @%s\n", state.LatestState.StateChange.Prev, state.LatestState.StateChange.Next, state.LatestState.StateChange.Event)
+			}
 
 			fmt.Fprintf(os.Stdout, "\tFinalized: %v, Removed: %v\n", state.Finalized, state.Removed)
 
