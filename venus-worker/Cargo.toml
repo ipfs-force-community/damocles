@@ -1,6 +1,6 @@
 [package]
 name = "venus-worker"
-version = "0.5.0-beta3"
+version = "0.5.0-beta4"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2021"
 exclude = [

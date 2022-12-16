@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.0-beta4
+- venus-secotr-manager
+  - 修改 snapup 对于消息处理和可重试错误的逻辑，在遇到 outofgas 或者钱不足等问题时自己进行重试 [#545](https://github.com/ipfs-force-community/venus-cluster/pull/545)
+  - 修复 mongodb 删除数据的 bug [#548](https://github.com/ipfs-force-community/venus-cluster/pull/548)
+
+- venus-worker
+  - 修复 WindowPoS 无法识别部分错误扇区的 bug [#535](https://github.com/ipfs-force-community/venus-cluster/issues/535)
+
 ## v0.5.0-beta3
 - venus-sector-manager
   - 适配和支持 nv17 [#522](https://github.com/ipfs-force-community/venus-cluster/pull/522)
