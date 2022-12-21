@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.5.0
+- venus-secotr-manager
+  - 修改 cli list sector 中对于不存在 laststate 的结构的扇区不输出其他信息的 bug [#551](https://github.com/ipfs-force-community/venus-cluster/pull/551)
+
 ## v0.5.0-beta4
 - venus-secotr-manager
   - 修改 snapup 对于消息处理和可重试错误的逻辑，在遇到 outofgas 或者钱不足等问题时自己进行重试 [#545](https://github.com/ipfs-force-community/venus-cluster/pull/545)
