@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.0
+- venus-sector-manager
+  - 修改 snapup 对于消息处理和可重试错误的逻辑，在遇到 outofgas 或者钱不足等问题时自行重试 [#545](https://github.com/ipfs-force-community/venus-cluster/pull/545)
+  - 修改 cli list sector 中对于不存在 laststate 的结构的扇区不输出其他信息的 bug [#551](https://github.com/ipfs-force-community/venus-cluster/pull/551)
+
+- venus-worker
+  - 修复 WindowPoS 无法识别部分错误扇区的 bug [#535](https://github.com/ipfs-force-community/venus-cluster/issues/535)
+
 ## v0.4.0-rc5
 - venus-sector-manager
   - 适配和支持 nv17 [#521](https://github.com/ipfs-force-community/venus-cluster/pull/521)
