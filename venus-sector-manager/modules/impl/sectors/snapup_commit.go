@@ -381,19 +381,24 @@ func (h *snapupCommitHandler) submitMessage() error {
 
 	spec := mcfg.SnapUp.FeeConfig.GetSendSpec()
 	mcid := msg.Cid().String()
-	has, err := h.committer.messager.HasMessageByUid(h.committer.ctx, mcid)
-	if err != nil {
-		return newTempErr(fmt.Errorf("check if message exists: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
-	}
-
-	if !has {
-		uid, err := h.committer.messager.PushMessageWithId(h.committer.ctx, mcid, &msg, &spec)
+	for i := 0; ; i++ {
+		mcidTemp := fmt.Sprintf("%s-%d", mcid, i)
+		has, err := h.committer.messager.HasMessageByUid(h.committer.ctx, mcidTemp)
 		if err != nil {
-			return newTempErr(fmt.Errorf("push ProveReplicaUpdates message: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
+			return newTempErr(fmt.Errorf("check if message exists: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
 		}
-
-		mcid = uid
+		if !has {
+			mcid = mcidTemp
+			break
+		}
 	}
+
+	uid, err := h.committer.messager.PushMessageWithId(h.committer.ctx, mcid, &msg, &spec)
+	if err != nil {
+		return newTempErr(fmt.Errorf("push ProveReplicaUpdates message: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
+	}
+
+	mcid = uid
 
 	msgID := core.SectorUpgradeMessageID(mcid)
 	if err := h.committer.state.Update(h.committer.ctx, h.state.ID, core.WorkerOnline, &msgID); err != nil {
@@ -478,7 +483,13 @@ func (h *snapupCommitHandler) waitForMessage() error {
 		switch msg.Receipt.ExitCode {
 		case exitcode.Ok:
 		case exitcode.SysErrInsufficientFunds, exitcode.SysErrOutOfGas:
-			return newTempErr(errMsgTempErr, mcfg.SnapUp.Retry.PollInterval.Std())
+			// should resend here
+			h.state.UpgradeMessageID = nil
+			err = h.committer.state.Update(h.committer.ctx, h.state.ID, core.WorkerOnline, &h.state)
+			if err != nil {
+				return newTempErr(fmt.Errorf("update sector state: %w", err), mcfg.SnapUp.Retry.LocalFailureWait.Std())
+			}
+			return newTempErr(fmt.Errorf("%s: %w", errMsgTempErr, err), mcfg.SnapUp.Retry.PollInterval.Std())
 		default:
 			return fmt.Errorf("failed on-chain message with exitcode=%s, error=%q", msg.Receipt.ExitCode, maybeMsg)
 		}
