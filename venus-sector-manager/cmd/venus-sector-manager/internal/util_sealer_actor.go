@@ -24,7 +24,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
-	chain2 "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
@@ -33,7 +33,9 @@ var utilSealerActorCmd = &cli.Command{
 	Usage: "Manipulate the miner actor",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name: "miner",
+			Name:     "miner",
+			Required: true,
+			Usage:    "miner actor id/address",
 		},
 	},
 	Subcommands: []*cli.Command{
@@ -52,17 +54,11 @@ var utilSealerActorCmd = &cli.Command{
 }
 
 var utilSealerActorBalanceCmd = &cli.Command{
-	Name:      "balance",
-	ArgsUsage: "<miner actor id/address>",
+	Name: "balance",
 	Action: func(cctx *cli.Context) error {
-		args := cctx.Args()
-		if count := args.Len(); count < 1 {
-			return fmt.Errorf("1 args required, got %d", count)
-		}
-
-		miner, err := ShouldAddress(args.Get(0), true, true)
+		miner, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
-			return fmt.Errorf("parse to actor: %w", err)
+			return err
 		}
 
 		mlog := Log.With("miner", miner.String())
@@ -99,11 +95,16 @@ var utilSealerActorAddBalanceCmd = &cli.Command{
 			Name: "exid",
 		},
 	},
-	ArgsUsage: "<from address> <miner actor id/address> <amount>",
+	ArgsUsage: "<from address> <amount>",
 	Action: func(cctx *cli.Context) error {
+		to, err := ShouldAddress(cctx.String("miner"), false, true)
+		if err != nil {
+			return err
+		}
+
 		args := cctx.Args()
-		if count := args.Len(); count < 3 {
-			return fmt.Errorf("3 args required, got %d", count)
+		if count := args.Len(); count < 2 {
+			return fmt.Errorf("2 args required, got %d", count)
 		}
 
 		from, err := ShouldAddress(args.Get(0), true, false)
@@ -111,12 +112,7 @@ var utilSealerActorAddBalanceCmd = &cli.Command{
 			return fmt.Errorf("parse from address: %w", err)
 		}
 
-		to, err := ShouldAddress(args.Get(1), true, true)
-		if err != nil {
-			return fmt.Errorf("parse to actor: %w", err)
-		}
-
-		value, err := modules.ParseFIL(args.Get(2))
+		value, err := modules.ParseFIL(args.Get(1))
 		if err != nil {
 			return fmt.Errorf("parse value: %w", err)
 		}
@@ -169,7 +165,7 @@ var utilSealerActorWithdrawCmd = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
 		}
@@ -277,7 +273,7 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
 		}
@@ -301,7 +297,7 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 				return err
 			}
 
-			store := adt.WrapStore(ctx, cbor.NewCborStore(chain2.NewAPIBlockstore(api.Chain)))
+			store := adt.WrapStore(ctx, cbor.NewCborStore(chain.NewAPIBlockstore(api.Chain)))
 			mst, err := miner.Load(store, mact)
 			if err != nil {
 				return err
@@ -378,7 +374,7 @@ var utilSealerActorControlList = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
 		}
@@ -421,7 +417,7 @@ var utilSealerActorControlSet = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
 		}
@@ -535,7 +531,7 @@ var utilSealerActorSetOwnerCmd = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
 		}
@@ -627,7 +623,7 @@ var utilSealerActorProposeChangeWorker = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
 		}
@@ -734,7 +730,7 @@ var utilSealerActorConfirmChangeWorker = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
 		}
@@ -841,7 +837,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
 		}
@@ -851,7 +847,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(chain2.NewAPIBlockstore(api.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(chain.NewAPIBlockstore(api.Chain)))
 
 		mst, err := miner.Load(store, mact)
 		if err != nil {
@@ -965,10 +961,6 @@ var utilSealerActorProposeChangeBeneficiary = &cli.Command{
 			Usage: "Overwrite the current beneficiary change proposal",
 			Value: false,
 		},
-		&cli.StringFlag{
-			Name:  "miner",
-			Usage: "specify the address of miner actor",
-		},
 	},
 	Action: func(cctx *cli.Context) error {
 		if cctx.NArg() != 3 {
@@ -980,7 +972,7 @@ var utilSealerActorProposeChangeBeneficiary = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
 		}
@@ -1094,10 +1086,6 @@ var utilSealerActorConfirmChangeBeneficiary = &cli.Command{
 			Name:  "new-beneficiary",
 			Usage: "send confirmation from the new beneficiary address",
 		},
-		&cli.StringFlag{
-			Name:  "miner",
-			Usage: "specify the address of miner actor",
-		},
 	},
 	Action: func(cctx *cli.Context) error {
 		api, ctx, stop, err := extractAPI(cctx)
@@ -1106,7 +1094,7 @@ var utilSealerActorConfirmChangeBeneficiary = &cli.Command{
 		}
 		defer stop()
 
-		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
 		}
