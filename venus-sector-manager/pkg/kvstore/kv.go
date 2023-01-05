@@ -38,7 +38,13 @@ type KVStore interface {
 
 	// in most implementations, scan will hold a read lock
 	Scan(context.Context, Prefix) (Iter, error)
+}
 
+type DB interface {
 	Run(context.Context) error
 	Close(context.Context) error
+
+	// OpenCollection opens a collection with the given name and returns a KVStore,
+	// creating it if needed.
+	OpenCollection(name string) (KVStore, error)
 }

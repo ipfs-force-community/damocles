@@ -53,13 +53,14 @@ func DeleteAll(ctx context.Context, kv kvstore.KVStore) error {
 }
 
 func TestMongoStore_PutGet(t *testing.T) {
-	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
-	require.NoError(t, err)
+	kv, kvstop := testMongoKV(t, "test")
+	defer kvstop()
+
 	ctx := context.TODO()
 
 	require.NoError(t, DeleteAll(ctx, kv))
 
-	err = kv.Put(ctx, testKey1, testValue1)
+	err := kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
 
 	val, err := kv.Get(ctx, testKey1)
@@ -78,12 +79,13 @@ func TestMongoStore_PutGet(t *testing.T) {
 }
 
 func TestMongoStore_Has(t *testing.T) {
-	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
-	require.NoError(t, err)
+	kv, kvstop := testMongoKV(t, "test")
+	defer kvstop()
+
 	ctx := context.TODO()
 	require.NoError(t, DeleteAll(ctx, kv))
 
-	err = kv.Put(ctx, testKey1, testValue1)
+	err := kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
 
 	exist, err := kv.Has(ctx, testKey1)
@@ -97,12 +99,13 @@ func TestMongoStore_Has(t *testing.T) {
 
 // this case will also test the usage of iter
 func TestMongoStore_Scan(t *testing.T) {
-	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
-	require.NoError(t, err)
+	kv, kvstop := testMongoKV(t, "test")
+	defer kvstop()
+
 	ctx := context.TODO()
 	require.NoError(t, DeleteAll(ctx, kv))
 
-	err = kv.Put(ctx, testKey1, testValue1)
+	err := kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
 	err = kv.Put(ctx, testKey2, testValue2)
 	require.NoError(t, err)
@@ -136,12 +139,13 @@ func TestMongoStore_Scan(t *testing.T) {
 }
 
 func TestMongoStore_ScanNil(t *testing.T) {
-	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
-	require.NoError(t, err)
+	kv, kvstop := testMongoKV(t, "test")
+	defer kvstop()
+
 	ctx := context.TODO()
 	require.NoError(t, DeleteAll(ctx, kv))
 
-	err = kv.Put(ctx, testKey1, testValue1)
+	err := kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
 	err = kv.Put(ctx, testKey2, testValue2)
 	require.NoError(t, err)
@@ -162,12 +166,13 @@ func TestMongoStore_ScanNil(t *testing.T) {
 }
 
 func TestMongoStore_Del(t *testing.T) {
-	kv, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs", "test")
-	require.NoError(t, err)
+	kv, kvstop := testMongoKV(t, "test")
+	defer kvstop()
+
 	ctx := context.TODO()
 	require.NoError(t, DeleteAll(ctx, kv))
 
-	err = kv.Put(ctx, testKey1, testValue1)
+	err := kv.Put(ctx, testKey1, testValue1)
 	require.NoError(t, err)
 	err = kv.Put(ctx, testKey2, testValue2)
 	require.NoError(t, err)
@@ -188,4 +193,14 @@ func TestMongoStore_Del(t *testing.T) {
 
 	_, err = kv.Get(ctx, testKey2)
 	require.Equal(t, kvstore.ErrKeyNotFound, err)
+}
+
+func testMongoKV(t *testing.T, collection string) (kvstore.KVStore, func()) {
+	db, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs")
+	require.NoError(t, err)
+	kv, err := db.OpenCollection(collection)
+	require.NoError(t, err)
+	return kv, func() {
+		db.Close(context.Background())
+	}
 }

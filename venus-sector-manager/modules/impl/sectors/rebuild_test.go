@@ -29,7 +29,7 @@ func (m *mockMinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*core.Mine
 
 func TestRebuildManager(t *testing.T) {
 	scfg, _ := testmodules.MockSafeConfig(10, nil)
-	kvstore, stop := testutil.TestKVStore(t)
+	kvstore, stop := testutil.TestKVStore(t, "test")
 	defer stop()
 
 	minfos := map[abi.ActorID]*core.MinerInfo{}
