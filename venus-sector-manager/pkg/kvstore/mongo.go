@@ -3,7 +3,6 @@ package kvstore
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,10 +13,8 @@ import (
 )
 
 var (
-	mlog        = logging.New("mongo")
-	Upsert      = true
-	db          *mongo.Client
-	connectOnce sync.Once
+	mlog   = logging.New("mongo")
+	Upsert = true
 )
 
 func KeyToString(k Key) string {
@@ -33,6 +30,7 @@ type KvInMongo struct {
 
 var _ KVStore = (*MongoStore)(nil)
 var _ Iter = (*MongoIter)(nil)
+var _ DB = (*mongoDB)(nil)
 
 type MongoStore struct {
 	col *mongo.Collection
@@ -133,39 +131,33 @@ func (m MongoStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
 	return &MongoIter{cur: cur}, nil
 }
 
-func (m MongoStore) Run(ctx context.Context) error {
+type mongoDB struct {
+	inner *mongo.Database
+}
+
+func (db mongoDB) Run(context.Context) error {
 	return nil
 }
 
-func (m MongoStore) Close(ctx context.Context) error {
+func (db mongoDB) Close(context.Context) error {
 	return nil
 }
 
-func conn(ctx context.Context, dsn string) (*mongo.Client, error) {
-	var err error
-	connectOnce.Do(func() {
-		db, err = mongo.NewClient(options.Client().ApplyURI(dsn).SetAppName("venus-cluster"))
-		if err != nil {
-			err = fmt.Errorf("new client: %w", err)
-			return
-		}
-
-		if err = db.Connect(ctx); err != nil {
-			err = fmt.Errorf("connect: %w", err)
-			return
-		}
-	},
-	)
-
-	return db, nil
+func (db mongoDB) OpenCollection(name string) (KVStore, error) {
+	return MongoStore{col: db.inner.Collection(name)}, nil
 }
 
-func OpenMongo(ctx context.Context, dsn string, dbName string, sub string) (KVStore, error) {
-	client, err := conn(ctx, dsn)
+func OpenMongo(ctx context.Context, dsn string, dbName string) (DB, error) {
+	client, err := mongo.NewClient(options.Client().ApplyURI(dsn).SetAppName("venus-cluster"))
 	if err != nil {
+		err = fmt.Errorf("new mongo client %s, %w", dsn, err)
 		return nil, err
 	}
 
-	col := client.Database(dbName).Collection(sub)
-	return MongoStore{col: col}, nil
+	if err = client.Connect(ctx); err != nil {
+		err = fmt.Errorf("connect to %s, %w", dsn, err)
+		return nil, err
+	}
+
+	return &mongoDB{inner: client.Database(dbName)}, nil
 }

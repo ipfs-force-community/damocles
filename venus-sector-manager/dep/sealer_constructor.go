@@ -34,6 +34,7 @@ import (
 )
 
 type (
+	UnderlyingDB                kvstore.DB
 	OnlineMetaStore             kvstore.KVStore
 	OfflineMetaStore            kvstore.KVStore
 	PersistedObjectStoreManager objstore.Manager
@@ -107,98 +108,79 @@ func ProvideSafeConfig(cfg *modules.Config, locker confmgr.RLocker) (*modules.Sa
 	}, nil
 }
 
-func BuildCommonMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (CommonMetaStore, error) {
-	var store kvstore.KVStore
-	var err error
-	sub := "common"
-	if scfg.Common.MongoKVStore.Enable {
-		mongoCfg := scfg.Common.MongoKVStore
-		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		dir := home.Sub(sub)
-		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-		if err != nil {
-			return nil, err
-		}
+func BuildUnderlyingDB(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, home *homedir.Home) (UnderlyingDB, error) {
+	commonCfg := scfg.MustCommonConfig()
+
+	if commonCfg.MongoKVStore != nil && commonCfg.MongoKVStore.Enable { // For compatibility with v0.5
+		return BuildMongoDB(gctx, lc, commonCfg.MongoKVStore)
 	}
 
-	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return store.Run(gctx)
-		},
-
-		OnStop: func(ctx context.Context) error {
-			return store.Close(ctx)
-		},
-	})
-
-	return store, nil
+	switch commonCfg.DB.Driver {
+	case "badger", "Badger":
+		return BuildBadgerDB(lc, commonCfg.DB.Badger, home)
+	case "mongo", "Mongo":
+		return BuildMongoDB(gctx, lc, commonCfg.DB.Mongo)
+	default:
+		return nil, fmt.Errorf("unsupported db driver %s", commonCfg.DB.Driver)
+	}
 }
 
-func BuildOnlineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (OnlineMetaStore, error) {
-	var store kvstore.KVStore
-	var err error
-
-	sub := "meta"
-	if scfg.Common.MongoKVStore.Enable {
-		mongoCfg := scfg.Common.MongoKVStore
-		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		dir := home.Sub(sub)
-		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-		if err != nil {
-			return nil, err
-		}
+func BuildBadgerDB(lc fx.Lifecycle, badgerCfg *modules.BadgerDBConfig, home *homedir.Home) (UnderlyingDB, error) {
+	if badgerCfg == nil {
+		return nil, fmt.Errorf("invalid badger config")
 	}
+
+	baseDir := badgerCfg.BaseDir
+	if baseDir == "" {
+		baseDir = home.Dir()
+	}
+	db := kvstore.OpenBadger(baseDir)
+
 	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return store.Run(gctx)
+		OnStart: func(ctx context.Context) error {
+			return db.Run(ctx)
 		},
 
 		OnStop: func(ctx context.Context) error {
-			return store.Close(ctx)
+			return db.Close(ctx)
 		},
 	})
 
-	return store, nil
+	return db, nil
 }
 
-func BuildOfflineMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (OfflineMetaStore, error) {
-	var store kvstore.KVStore
-	var err error
-	sub := "offline_meta"
-
-	if scfg.Common.MongoKVStore.Enable {
-		mongoCfg := scfg.Common.MongoKVStore
-		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		dir := home.Sub(sub)
-		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-		if err != nil {
-			return nil, err
-		}
+func BuildMongoDB(gctx GlobalContext, lc fx.Lifecycle, mongoCfg *modules.MongoDBConfig) (UnderlyingDB, error) {
+	if mongoCfg == nil {
+		return nil, fmt.Errorf("invalid mongodb config")
 	}
 
+	db, err := kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName)
+	if err != nil {
+		return nil, err
+	}
 	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return store.Run(gctx)
+		OnStart: func(ctx context.Context) error {
+			return db.Run(ctx)
 		},
 
 		OnStop: func(ctx context.Context) error {
-			return store.Close(ctx)
+			return db.Close(ctx)
 		},
 	})
 
-	return store, nil
+	return db, err
+}
+
+func BuildCommonMetaStore(db UnderlyingDB) (CommonMetaStore, error) {
+	return db.OpenCollection("common")
+}
+
+func BuildOnlineMetaStore(db UnderlyingDB) (OnlineMetaStore, error) {
+	return db.OpenCollection("meta")
+}
+
+func BuildOfflineMetaStore(db UnderlyingDB) (OfflineMetaStore, error) {
+	return db.OpenCollection("offline_meta")
 }
 
 func BuildSectorNumberAllocator(meta OnlineMetaStore) (core.SectorNumberAllocator, error) {
@@ -398,67 +380,12 @@ func BuildCommitmentManager(
 	return mgr, nil
 }
 
-func BuildSectorIndexMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (SectorIndexMetaStore, error) {
-	var store kvstore.KVStore
-	var err error
-	sub := "sector-index"
-
-	if scfg.Common.MongoKVStore.Enable {
-		mongoCfg := scfg.Common.MongoKVStore
-		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		dir := home.Sub(sub)
-		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return store.Run(gctx)
-		},
-
-		OnStop: func(ctx context.Context) error {
-			return store.Close(ctx)
-		},
-	})
-
-	return store, nil
+func BuildSectorIndexMetaStore(db UnderlyingDB) (SectorIndexMetaStore, error) {
+	return db.OpenCollection("sector-index")
 }
 
-func BuildSnapUpMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (SnapUpMetaStore, error) {
-	var store kvstore.KVStore
-	var err error
-	sub := "snapup"
-
-	if scfg.Common.MongoKVStore.Enable {
-		mongoCfg := scfg.Common.MongoKVStore
-		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		dir := home.Sub(sub)
-		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return store.Run(gctx)
-		},
-
-		OnStop: func(ctx context.Context) error {
-			return store.Close(ctx)
-		},
-	})
-	return store, nil
+func BuildSnapUpMetaStore(db UnderlyingDB) (SnapUpMetaStore, error) {
+	return db.OpenCollection("snapup")
 }
 
 func openObjStore(cfg objstore.Config, pluginPath string) (objstore.Store, error) {
@@ -673,76 +600,24 @@ func BuildSnapUpManager(
 }
 
 func BuildRebuildManager(
-	gctx GlobalContext,
-	lc fx.Lifecycle,
-	home *homedir.Home,
+	db UnderlyingDB,
 	scfg *modules.SafeConfig,
 	minerInfoAPI core.MinerInfoAPI,
 ) (core.RebuildSectorManager, error) {
-	var store kvstore.KVStore
-	var err error
-	sub := "rebuild"
-
-	if scfg.Common.MongoKVStore.Enable {
-		mongoCfg := scfg.Common.MongoKVStore
-		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		dir := home.Sub(sub)
-		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-		if err != nil {
-			return nil, err
-		}
+	store, err := db.OpenCollection("rebuild")
+	if err != nil {
+		return nil, err
 	}
-	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return store.Run(gctx)
-		},
-
-		OnStop: func(ctx context.Context) error {
-			return store.Close(ctx)
-		},
-	})
 
 	mgr, err := sectors.NewRebuildManager(scfg, minerInfoAPI, store)
 	if err != nil {
 		return nil, fmt.Errorf("construct rebuild manager: %w", err)
 	}
-
 	return mgr, nil
 }
 
-func BuildWorkerMetaStore(gctx GlobalContext, lc fx.Lifecycle, home *homedir.Home, scfg *modules.SafeConfig) (WorkerMetaStore, error) {
-	var store kvstore.KVStore
-	var err error
-	sub := "worker"
-
-	if scfg.Common.MongoKVStore.Enable {
-		mongoCfg := scfg.Common.MongoKVStore
-		store, err = kvstore.OpenMongo(gctx, mongoCfg.DSN, mongoCfg.DatabaseName, sub)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		dir := home.Sub(sub)
-		store, err = kvstore.OpenBadger(kvstore.DefaultBadgerOption(dir))
-		if err != nil {
-			return nil, err
-		}
-	}
-	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return store.Run(gctx)
-		},
-
-		OnStop: func(ctx context.Context) error {
-			return store.Close(ctx)
-		},
-	})
-
-	return store, nil
+func BuildWorkerMetaStore(db UnderlyingDB) (WorkerMetaStore, error) {
+	return db.OpenCollection("worker")
 }
 
 func BuildWorkerManager(meta WorkerMetaStore) (core.WorkerManager, error) {

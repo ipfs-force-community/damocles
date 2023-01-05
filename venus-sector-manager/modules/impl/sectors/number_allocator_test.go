@@ -11,7 +11,7 @@ import (
 )
 
 func TestAllocatorNext(t *testing.T) {
-	store, stop := testutil.TestKVStore(t)
+	store, stop := testutil.TestKVStore(t, "test")
 	defer stop()
 
 	allocator, err := NewNumerAllocator(store)

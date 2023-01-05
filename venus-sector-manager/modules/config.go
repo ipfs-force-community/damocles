@@ -30,6 +30,13 @@ type SafeConfig struct {
 	sync.Locker
 }
 
+func (sc *SafeConfig) MustCommonConfig() CommonConfig {
+	sc.Lock()
+	defer sc.Unlock()
+
+	return sc.Common
+}
+
 func (sc *SafeConfig) MustMinerConfig(mid abi.ActorID) MinerConfig {
 	mc, err := sc.MinerConfig(mid)
 	if err != nil {
@@ -83,22 +90,46 @@ func defaultCommonAPIConfig(example bool) CommonAPIConfig {
 	return cfg
 }
 
-type MongoKVStoreConfig struct {
-	Enable       bool
+type DBConfig struct {
+	Driver string
+	Badger *BadgerDBConfig
+	Mongo  *MongoDBConfig
+}
+
+func defaultDBConfig(example bool) DBConfig {
+	return DBConfig{
+		Driver: "badger",
+		Badger: defaultBadgerDBConfig(),
+		Mongo:  nil,
+	}
+}
+
+type BadgerDBConfig struct {
+	BaseDir string
+}
+
+func defaultBadgerDBConfig() *BadgerDBConfig {
+	return &BadgerDBConfig{
+		BaseDir: "",
+	}
+}
+
+type MongoDBConfig struct {
+	Enable       bool // For compatibility with v0.5
 	DSN          string
 	DatabaseName string
 }
 
-func defaultMongoKVStoreConfig(example bool) MongoKVStoreConfig {
-	cfg := MongoKVStoreConfig{
-		Enable: false,
-	}
-	if example {
-		cfg.DSN = "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000"
-		cfg.DatabaseName = "test"
-	}
-	return cfg
-}
+// func defaultMongoDBConfig(example bool) *MongoDBConfig {
+// 	cfg := MongoDBConfig{
+// 		Enable: false,
+// 	}
+// 	if example {
+// 		cfg.DSN = "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000"
+// 		cfg.DatabaseName = "test"
+// 	}
+// 	return &cfg
+// }
 
 type PieceStoreConfig struct {
 	Name   string
@@ -117,7 +148,8 @@ type CommonConfig struct {
 	API           CommonAPIConfig
 	PieceStores   []PieceStoreConfig
 	PersistStores []PersistStoreConfig
-	MongoKVStore  MongoKVStoreConfig
+	MongoKVStore  *MongoDBConfig // For compatibility with v0.5
+	DB            DBConfig
 }
 
 func exampleFilestoreConfig() objstore.Config {
@@ -132,7 +164,8 @@ func defaultCommonConfig(example bool) CommonConfig {
 		API:           defaultCommonAPIConfig(example),
 		PieceStores:   []PieceStoreConfig{},
 		PersistStores: []PersistStoreConfig{},
-		MongoKVStore:  defaultMongoKVStoreConfig(example),
+		MongoKVStore:  nil,
+		DB:            defaultDBConfig(example),
 	}
 
 	if example {

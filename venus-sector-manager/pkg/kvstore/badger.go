@@ -3,6 +3,8 @@ package kvstore
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"sync"
 
 	"github.com/dgraph-io/badger/v2"
 
@@ -21,22 +23,12 @@ func (bl *blogger) Warningf(format string, args ...interface{}) {
 	bl.ZapLogger.Warnf(format, args...)
 }
 
-func DefaultBadgerOption(path string) badger.Options {
-	opt := badger.DefaultOptions(path)
-
-	opt = opt.WithLogger(&blogger{blog.With("path", path)})
-	return opt
-}
-
-func OpenBadger(opt badger.Options) (*BadgerKVStore, error) {
-	db, err := badger.Open(opt)
-	if err != nil {
-		return nil, err
+func OpenBadger(basePath string) DB {
+	return &badgerDB{
+		basePath: basePath,
+		dbs:      make(map[string]*badger.DB),
+		mu:       sync.Mutex{},
 	}
-
-	return &BadgerKVStore{
-		db: db,
-	}, nil
 }
 
 type BadgerKVStore struct {
@@ -123,12 +115,6 @@ func (b *BadgerKVStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
 	}, nil
 }
 
-func (b *BadgerKVStore) Run(context.Context) error { return nil }
-
-func (b *BadgerKVStore) Close(context.Context) error {
-	return b.db.Close()
-}
-
 var _ Iter = (*BadgerIter)(nil)
 
 type BadgerIter struct {
@@ -185,4 +171,47 @@ func (bi *BadgerIter) View(ctx context.Context, cb Callback) error {
 func (bi *BadgerIter) Close() {
 	bi.iter.Close()
 	bi.txn.Discard()
+}
+
+var _ DB = (*badgerDB)(nil)
+
+type badgerDB struct {
+	basePath string
+	dbs      map[string]*badger.DB
+	mu       sync.Mutex
+}
+
+func (db *badgerDB) Run(context.Context) error {
+	return nil
+}
+
+func (db *badgerDB) Close(context.Context) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	var lastError error
+	for k, innerDB := range db.dbs {
+		if err := innerDB.Close(); err != nil {
+			lastError = err
+		}
+		delete(db.dbs, k)
+	}
+	return lastError
+}
+
+func (db *badgerDB) OpenCollection(name string) (KVStore, error) {
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	if innerDB, ok := db.dbs[name]; ok {
+		return &BadgerKVStore{db: innerDB}, nil
+	}
+	path := filepath.Join(db.basePath, name)
+	opts := badger.DefaultOptions(path).WithLogger(&blogger{blog.With("path", path)})
+	innerDB, err := badger.Open(opts)
+	if err != nil {
+		return nil, fmt.Errorf("open sub badger %s, %w", name, err)
+	}
+	db.dbs[name] = innerDB
+	return &BadgerKVStore{db: innerDB}, nil
 }

@@ -46,6 +46,7 @@ func Product() dix.Option {
 		dix.Override(new(ConfDirPath), BuildConfDirPath),
 		dix.Override(new(*modules.Config), ProvideConfig),
 		dix.Override(new(*modules.SafeConfig), ProvideSafeConfig),
+		dix.Override(new(UnderlyingDB), BuildUnderlyingDB),
 		dix.Override(new(core.SectorManager), BuildLocalSectorManager),
 		dix.Override(new(core.SectorStateManager), BuildLocalSectorStateManager),
 		dix.Override(new(core.SectorNumberAllocator), BuildSectorNumberAllocator),
