@@ -154,6 +154,10 @@ func (s *Sealer) WorkerPingInfoList(ctx context.Context) ([]core.WorkerPingInfo,
 	return winfos, nil
 }
 
+func (s *Sealer) WorkerPingInfoRemove(ctx context.Context, name string) error {
+	return s.workerMgr.Remove(ctx, name)
+}
+
 func (s *Sealer) SectorIndexerFind(ctx context.Context, indexType core.SectorIndexType, sid abi.SectorID) (core.SectorIndexLocation, error) {
 	var indexer core.SectorTypedIndexer
 
