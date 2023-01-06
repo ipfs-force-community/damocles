@@ -79,6 +79,7 @@ type WorkerManager interface {
 	Load(ctx context.Context, name string) (WorkerPingInfo, error)
 	Update(ctx context.Context, winfo WorkerPingInfo) error
 	All(ctx context.Context, filter func(*WorkerPingInfo) bool) ([]WorkerPingInfo, error)
+	Remove(ctx context.Context, name string) error
 }
 
 type RebuildSectorManager interface {

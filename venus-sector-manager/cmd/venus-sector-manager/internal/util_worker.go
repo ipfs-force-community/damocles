@@ -22,6 +22,7 @@ var utilWorkerCmd = &cli.Command{
 	Usage: "utils for worker management",
 	Subcommands: []*cli.Command{
 		utilWorkerListCmd,
+		utilWorkerRemoveCmd,
 		utilWorkerInfoCmd,
 		utilWorkerPauseCmd,
 		utilWorkerResumeCmd,
@@ -74,6 +75,40 @@ var utilWorkerListCmd = &cli.Command{
 			)
 		}
 
+		return nil
+	},
+}
+
+var utilWorkerRemoveCmd = &cli.Command{
+	Name:      "remove",
+	Usage:     "remove the specific worker",
+	ArgsUsage: "<worker instance name>",
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if args.Len() < 1 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+		name := args.First()
+
+		a, actx, stopper, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("get api: %w", err)
+		}
+		defer stopper()
+
+		workerInfo, err := a.Sealer.WorkerGetPingInfo(actx, name)
+		if err != nil {
+			return RPCCallError("WorkerGetPingInfo", err)
+		}
+
+		if workerInfo == nil {
+			return fmt.Errorf("worker info not found. please make sure the instance name is correct: %s", name)
+		}
+
+		if err = a.Sealer.WorkerPingInfoRemove(actx, name); err != nil {
+			return err
+		}
+		fmt.Printf("'%s' removed\n", name)
 		return nil
 	},
 }

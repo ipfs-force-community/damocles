@@ -74,3 +74,11 @@ func (m *Manager) All(ctx context.Context, filter func(*core.WorkerPingInfo) boo
 
 	return infos, nil
 }
+
+func (m *Manager) Remove(ctx context.Context, name string) error {
+	key := makeWorkerKey(name)
+	if err := m.kv.Del(ctx, key); err != nil {
+		return fmt.Errorf("try to remove the worker meta %s: %w", name, err)
+	}
+	return nil
+}

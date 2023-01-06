@@ -206,6 +206,10 @@ func (s *Sealer) WorkerPingInfoList(ctx context.Context) ([]core.WorkerPingInfo,
 	return nil, nil
 }
 
+func (s *Sealer) WorkerPingInfoRemove(ctx context.Context, name string) error {
+	return nil
+}
+
 func (s *Sealer) SectorIndexerFind(ctx context.Context, indexType core.SectorIndexType, sid abi.SectorID) (core.SectorIndexLocation, error) {
 	return core.SectorIndexLocation{
 		Found:    false,
