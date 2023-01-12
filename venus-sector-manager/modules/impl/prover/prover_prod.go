@@ -5,6 +5,7 @@ package prover
 
 import (
 	"context"
+	"time"
 
 	ffi "github.com/filecoin-project/filecoin-ffi"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -69,7 +70,22 @@ func (prover) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofTyp
 }
 
 func (prover) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
-	return ffi.GenerateSingleVanillaProof(replica, challenges)
+	start := time.Now()
+
+	resCh := make(chan core.Result[[]byte], 1)
+	go func() {
+		resCh <- core.Wrap(ffi.GenerateSingleVanillaProof(replica, si.Challenge))
+	}()
+
+	select {
+	case r := <-resCh:
+		return r.Unwrap()
+	case <-ctx.Done():
+		log.Errorw("failed to generate valilla PoSt proof before context cancellation", "err", ctx.Err(), "duration", time.Now().Sub(start), "cache", replica.CacheDirPath, "sealed", replica.SealedSectorPath)
+
+		// this will leave the GenerateSingleVanillaProof goroutine hanging, but that's still less bad than failing PoSt
+		return nil, fmt.Errorf("failed to generate vanilla proof before context cancellation: %w", ctx.Err())
+	}
 }
 
 func (prover) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {

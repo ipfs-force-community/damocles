@@ -37,11 +37,6 @@ var HomeFlag = &cli.StringFlag{
 	Value: "~/.venus-sector-manager",
 }
 
-var NetFlag = &cli.StringFlag{
-	Name:  "net",
-	Value: "mainnet",
-}
-
 var SealerListenFlag = &cli.StringFlag{
 	Name:  "listen",
 	Value: ":1789",

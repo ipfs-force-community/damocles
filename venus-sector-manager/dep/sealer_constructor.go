@@ -22,6 +22,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/mock"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/sectors"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/worker"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
@@ -290,6 +291,11 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config,
 		return nil, err
 	}
 
+	err = policy.SetupNetwork(gctx, ccli)
+	if err != nil {
+		return nil, err
+	}
+
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			ccloser()
@@ -457,8 +463,8 @@ func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMeta
 	return sectors.NewIndexer(storeMgr, kv, upgrade)
 }
 
-func BuildSectorTracker(indexer core.SectorIndexer, prover core.Prover, capi chain.API) (core.SectorTracker, error) {
-	return sectors.NewTracker(indexer, prover, capi)
+func BuildSectorTracker(indexer core.SectorIndexer, prover core.Prover, capi chain.API, scfg *modules.SafeConfig) (core.SectorTracker, error) {
+	return sectors.NewTracker(indexer, prover, capi, scfg.MustCommonConfig().Proving)
 }
 
 type MarketAPIRelatedComponets struct {

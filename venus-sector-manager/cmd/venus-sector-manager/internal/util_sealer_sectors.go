@@ -337,7 +337,7 @@ var utilSealerSectorsCheckExpireCmd = &cli.Command{
 			return sectors[i].Expiration < sectors[j].Expiration
 		})
 
-		blockDelaySecs := policy.NetParams.Network.BlockDelay
+		blockDelaySecs := policy.NetParams.BlockDelaySecs
 		fmt.Fprintf(os.Stdout, "Sectors(%d):\n", len(sectors))
 		for _, sector := range sectors {
 			MaxExpiration := sector.Activation + specpolicy.GetSectorMaxLifetime(sector.SealProof, nv)
