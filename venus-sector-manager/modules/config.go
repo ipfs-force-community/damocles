@@ -144,12 +144,28 @@ type PersistStoreConfig struct {
 	objstore.StoreSelectPolicy
 }
 
+type SectorTrackerConfig struct {
+	ParallelCheckLimit    int
+	SingleCheckTimeout    Duration
+	PartitionCheckTimeout Duration
+}
+
+func defaultSectorTrackerConfig() SectorTrackerConfig {
+	cfg := SectorTrackerConfig{
+		ParallelCheckLimit:    128,
+		PartitionCheckTimeout: Duration(20 * time.Minute),
+		SingleCheckTimeout:    Duration(10 * time.Minute),
+	}
+	return cfg
+}
+
 type CommonConfig struct {
 	API           CommonAPIConfig
 	PieceStores   []PieceStoreConfig
 	PersistStores []PersistStoreConfig
 	MongoKVStore  *MongoDBConfig // For compatibility with v0.5
 	DB            DBConfig
+	SectorTracker SectorTrackerConfig
 }
 
 func exampleFilestoreConfig() objstore.Config {
@@ -166,6 +182,7 @@ func defaultCommonConfig(example bool) CommonConfig {
 		PersistStores: []PersistStoreConfig{},
 		MongoKVStore:  nil,
 		DB:            defaultDBConfig(example),
+		SectorTracker: defaultSectorTrackerConfig(),
 	}
 
 	if example {

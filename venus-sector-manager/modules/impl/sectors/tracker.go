@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -13,6 +14,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	chainAPI "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
@@ -26,11 +28,15 @@ type sectorStoreInstances struct {
 	cacheDir   objstore.Store
 }
 
-func NewTracker(indexer core.SectorIndexer, prover core.Prover, capi chainAPI.API) (*Tracker, error) {
+func NewTracker(indexer core.SectorIndexer, prover core.Prover, capi chainAPI.API, stCfg modules.SectorTrackerConfig) (*Tracker, error) {
 	return &Tracker{
 		indexer: indexer,
 		prover:  prover,
 		capi:    capi,
+
+		parallelCheckLimit:    stCfg.ParallelCheckLimit,
+		singleCheckTimeout:    time.Duration(stCfg.SingleCheckTimeout),
+		partitionCheckTimeout: time.Duration(stCfg.PartitionCheckTimeout),
 	}, nil
 }
 
@@ -38,6 +44,10 @@ type Tracker struct {
 	indexer core.SectorIndexer
 	prover  core.Prover
 	capi    chainAPI.API
+
+	parallelCheckLimit    int
+	singleCheckTimeout    time.Duration
+	partitionCheckTimeout time.Duration
 }
 
 func (t *Tracker) SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, sector builtin.ExtendedSectorInfo, locator core.SectorLocator) (core.PrivateSectorInfo, error) {
@@ -154,8 +164,15 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgra
 		SealedCID:    sinfo.SealedCID,
 	}, proofType)
 
+	scCtx := ctx
+	if t.singleCheckTimeout > 0 {
+		var scCancel context.CancelFunc
+		scCtx, scCancel = context.WithTimeout(ctx, t.singleCheckTimeout)
+		defer scCancel()
+	}
+
 	// use randUint64 % nodeNums as challenge, notice nodeNums = ssize / 32B
-	_, err = t.prover.GenerateSingleVanillaProof(ctx, replica, []uint64{rand.Uint64() % (uint64(ssize) / 32)})
+	_, err = t.prover.GenerateSingleVanillaProof(scCtx, replica, []uint64{rand.Uint64() % (uint64(ssize) / 32)})
 
 	if err != nil {
 		return fmt.Errorf("generate vanilla proof of %s failed: %w", sref.ID, err)
@@ -165,13 +182,36 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgra
 }
 
 func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
+	limit := t.parallelCheckLimit
+	if limit <= 0 {
+		limit = len(sectors)
+	}
+	throttle := make(chan struct{}, limit)
+
+	if t.partitionCheckTimeout > 0 {
+		var pcCancel context.CancelFunc
+		ctx, pcCancel = context.WithTimeout(ctx, t.partitionCheckTimeout)
+		defer pcCancel()
+	}
+
 	results := make([]string, len(sectors))
 	var wg sync.WaitGroup
 	wg.Add(len(sectors))
 
 	for ti := range sectors {
+		select {
+		case throttle <- struct{}{}:
+		case <-ctx.Done():
+			results[ti] = fmt.Sprintf("waiting for check worker: %s", ctx.Err())
+			wg.Done()
+			continue
+		}
+
 		go func(i int) {
 			defer wg.Done()
+			defer func() {
+				<-throttle
+			}()
 
 			sector := sectors[i]
 

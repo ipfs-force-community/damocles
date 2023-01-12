@@ -457,8 +457,8 @@ func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMeta
 	return sectors.NewIndexer(storeMgr, kv, upgrade)
 }
 
-func BuildSectorTracker(indexer core.SectorIndexer, prover core.Prover, capi chain.API) (core.SectorTracker, error) {
-	return sectors.NewTracker(indexer, prover, capi)
+func BuildSectorTracker(indexer core.SectorIndexer, prover core.Prover, capi chain.API, scfg *modules.SafeConfig) (core.SectorTracker, error) {
+	return sectors.NewTracker(indexer, prover, capi, scfg.MustCommonConfig().SectorTracker)
 }
 
 type MarketAPIRelatedComponets struct {
