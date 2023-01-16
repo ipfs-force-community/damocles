@@ -28,7 +28,7 @@ type sectorStoreInstances struct {
 	cacheDir   objstore.Store
 }
 
-func NewTracker(indexer core.SectorIndexer, prover core.Prover, capi chainAPI.API, stCfg modules.SectorTrackerConfig) (*Tracker, error) {
+func NewTracker(indexer core.SectorIndexer, prover core.Prover, capi chainAPI.API, stCfg modules.ProvingConfig) (*Tracker, error) {
 	return &Tracker{
 		indexer: indexer,
 		prover:  prover,

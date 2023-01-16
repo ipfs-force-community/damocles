@@ -144,14 +144,34 @@ type PersistStoreConfig struct {
 	objstore.StoreSelectPolicy
 }
 
-type SectorTrackerConfig struct {
-	ParallelCheckLimit    int
-	SingleCheckTimeout    Duration
+type ProvingConfig struct {
+	// Maximum number of sector checks to run in parallel. (0 = unlimited)
+	//
+	// WARNING: Setting this value too high may make the node crash by running out of stack
+	// WARNING: Setting this value too low may make sector challenge reading much slower, resulting in failed PoSt due
+	// to late submission.
+	ParallelCheckLimit int
+
+	// Maximum amount of time a proving pre-check can take for a sector. If the check times out the sector will be skipped
+	//
+	// WARNING: Setting this value too low risks in sectors being skipped even though they are accessible, just reading the
+	// test challenge took longer than this timeout
+	// WARNING: Setting this value too high risks missing PoSt deadline in case IO operations related to this sector are
+	// blocked (e.g. in case of disconnected NFS mount)
+	SingleCheckTimeout Duration
+
+	// Maximum amount of time a proving pre-check can take for an entire partition. If the check times out, sectors in
+	// the partition which didn't get checked on time will be skipped
+	//
+	// WARNING: Setting this value too low risks in sectors being skipped even though they are accessible, just reading the
+	// test challenge took longer than this timeout
+	// WARNING: Setting this value too high risks missing PoSt deadline in case IO operations related to this partition are
+	// blocked or slow
 	PartitionCheckTimeout Duration
 }
 
-func defaultSectorTrackerConfig() SectorTrackerConfig {
-	cfg := SectorTrackerConfig{
+func defaultProvingConfig() ProvingConfig {
+	cfg := ProvingConfig{
 		ParallelCheckLimit:    128,
 		PartitionCheckTimeout: Duration(20 * time.Minute),
 		SingleCheckTimeout:    Duration(10 * time.Minute),
@@ -165,7 +185,7 @@ type CommonConfig struct {
 	PersistStores []PersistStoreConfig
 	MongoKVStore  *MongoDBConfig // For compatibility with v0.5
 	DB            DBConfig
-	SectorTracker SectorTrackerConfig
+	Proving       ProvingConfig
 }
 
 func exampleFilestoreConfig() objstore.Config {
@@ -182,7 +202,7 @@ func defaultCommonConfig(example bool) CommonConfig {
 		PersistStores: []PersistStoreConfig{},
 		MongoKVStore:  nil,
 		DB:            defaultDBConfig(example),
-		SectorTracker: defaultSectorTrackerConfig(),
+		Proving:       defaultProvingConfig(),
 	}
 
 	if example {
