@@ -120,7 +120,7 @@ func ProvidePlugins(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 		return nil, err
 	}
 	plugins.Init(gctx, func(p *vsmplugin.Plugin, err error) {
-		log.Warnf("call Plugin OnInit failure '%s/%s', err: %w", p.Kind, p.Name, err)
+		log.Warnf("call Plugin OnInit failure '%s/%s', err: %s", p.Kind, p.Name, err)
 	})
 	_ = plugins.ForeachAllKind(func(p *vsmplugin.Plugin) error {
 		log.Infof("loaded plugin '%s/%s', build time: '%s'.", p.Kind, p.Name, p.BuildTime)
