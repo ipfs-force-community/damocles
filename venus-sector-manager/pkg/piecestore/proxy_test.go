@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -47,7 +46,7 @@ func TestStorePoxy(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, random.WriteRandomBytes(100, tmpFile))
 		tmpFile.Seek(0, io.SeekStart) //nolint
-		expectBytes, err := ioutil.ReadAll(tmpFile)
+		expectBytes, err := io.ReadAll(tmpFile)
 		require.NoError(t, err)
 		tmpFile.Seek(0, io.SeekStart) //nolint
 		_, err = storeProxy.locals[0].Put(ctx, resourceID, tmpFile)
@@ -60,7 +59,7 @@ func TestStorePoxy(t *testing.T) {
 		storeProxy.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		result, err := ioutil.ReadAll(w.Body)
+		result, err := io.ReadAll(w.Body)
 		assert.Nil(t, err)
 		assert.Equal(t, expectBytes, result)
 	})

@@ -62,11 +62,11 @@ var utilMigrateBadgerMongo = &cli.Command{
 		}
 
 		for _, sub := range subStores {
-			badgerKV, err := badger.OpenCollection(sub)
+			badgerKV, err := badger.OpenCollection(cctx.Context, sub)
 			if err != nil {
 				return fmt.Errorf("open badger collection: %s, %w", sub, err)
 			}
-			mongoKV, err := mongo.OpenCollection(sub)
+			mongoKV, err := mongo.OpenCollection(cctx.Context, sub)
 			if err != nil {
 				return fmt.Errorf("open mongodb collection: %s, %w", sub, err)
 			}

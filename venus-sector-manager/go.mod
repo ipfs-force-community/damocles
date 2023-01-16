@@ -3,7 +3,8 @@ module github.com/ipfs-force-community/venus-cluster/venus-sector-manager
 go 1.18
 
 require (
-	github.com/BurntSushi/toml v1.1.0
+	contrib.go.opencensus.io/exporter/prometheus v0.4.0
+	github.com/BurntSushi/toml v1.2.1
 	github.com/dgraph-io/badger/v2 v2.2007.3
 	github.com/docker/go-units v0.4.0
 	github.com/dtynn/dix v0.1.2
@@ -16,44 +17,35 @@ require (
 	github.com/filecoin-project/go-jsonrpc v0.1.8
 	github.com/filecoin-project/go-paramfetch v0.0.4
 	github.com/filecoin-project/go-state-types v0.9.8
-	github.com/filecoin-project/specs-actors v0.9.15 // indirect
+	github.com/filecoin-project/lotus v1.18.0
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
 	github.com/filecoin-project/specs-storage v0.4.1
 	github.com/filecoin-project/venus v1.9.0
 	github.com/golang/mock v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/ipfs-force-community/venus-cluster-assets v0.1.0
+	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230116055308-f64066b0a939
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.2.0
 	github.com/ipfs/go-ipfs-blockstore v1.2.0
 	github.com/ipfs/go-ipld-cbor v0.0.6
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/jbenet/go-random v0.0.0-20190219211222-123a90aedc0c
-	github.com/libp2p/go-libp2p-core v0.20.0 // indirect
+	github.com/libp2p/go-libp2p v0.22.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mroth/weightedrand v0.4.1
 	github.com/multiformats/go-multiaddr v0.6.0
 	github.com/multiformats/go-multihash v0.2.1
 	github.com/shirou/gopsutil/v3 v3.22.5
 	github.com/stretchr/testify v1.8.0
-	github.com/urfave/cli/v2 v2.8.1
-	github.com/whyrusleeping/cbor-gen v0.0.0-20220514204315-f29c37e9c44c
-	go.uber.org/fx v1.15.0
-	go.uber.org/zap v1.22.0
-)
-
-require (
-	github.com/filecoin-project/lotus v1.18.0
-	github.com/ipfs-force-community/venus-cluster-assets v0.1.0
-	github.com/ipfs-force-community/venus-objstore v0.0.3
-)
-
-require (
-	contrib.go.opencensus.io/exporter/prometheus v0.4.0
-	github.com/libp2p/go-libp2p v0.22.0
 	github.com/strikesecurity/strikememongo v0.2.4
+	github.com/urfave/cli/v2 v2.23.7
+	github.com/whyrusleeping/cbor-gen v0.0.0-20220514204315-f29c37e9c44c
 	go.mongodb.org/mongo-driver v1.10.1
 	go.opencensus.io v0.23.0
+	go.uber.org/fx v1.15.0
+	go.uber.org/zap v1.22.0
 )
 
 require (
@@ -73,7 +65,7 @@ require (
 	github.com/cilium/ebpf v0.4.0 // indirect
 	github.com/containerd/cgroups v1.0.4 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/crackcomm/go-gitignore v0.0.0-20170627025303-887ab5e44cc3 // indirect
 	github.com/daaku/go.zipexe v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -102,6 +94,7 @@ require (
 	github.com/filecoin-project/go-statestore v0.2.0 // indirect
 	github.com/filecoin-project/go-storedcounter v0.1.0 // indirect
 	github.com/filecoin-project/pubsub v1.0.0 // indirect
+	github.com/filecoin-project/specs-actors v0.9.15 // indirect
 	github.com/filecoin-project/specs-actors/v3 v3.1.2 // indirect
 	github.com/filecoin-project/specs-actors/v4 v4.0.2 // indirect
 	github.com/filecoin-project/specs-actors/v5 v5.0.6 // indirect
@@ -168,6 +161,7 @@ require (
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.2.0 // indirect
+	github.com/libp2p/go-libp2p-core v0.20.0 // indirect
 	github.com/libp2p/go-libp2p-kad-dht v0.18.0 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.5.0 // indirect
 	github.com/libp2p/go-libp2p-pubsub v0.8.0 // indirect

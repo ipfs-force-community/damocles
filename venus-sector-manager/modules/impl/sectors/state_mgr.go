@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/filecoin-project/go-state-types/abi"
+	vsmplugin "github.com/ipfs-force-community/venus-cluster/vsm-plugin"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
@@ -29,10 +30,11 @@ func init() {
 
 var _ core.SectorStateManager = (*StateManager)(nil)
 
-func NewStateManager(online kvstore.KVStore, offline kvstore.KVStore) (*StateManager, error) {
+func NewStateManager(online kvstore.KVStore, offline kvstore.KVStore, plugins *vsmplugin.LoadedPlugins) (*StateManager, error) {
 	return &StateManager{
 		online:  online,
 		offline: offline,
+		plugins: plugins,
 		locker: &sectorsLocker{
 			sectors: map[abi.SectorID]*sectorLocker{},
 		},
@@ -42,6 +44,8 @@ func NewStateManager(online kvstore.KVStore, offline kvstore.KVStore) (*StateMan
 type StateManager struct {
 	online  kvstore.KVStore
 	offline kvstore.KVStore
+
+	plugins *vsmplugin.LoadedPlugins
 
 	locker *sectorsLocker
 }
@@ -174,6 +178,17 @@ func (sm *StateManager) Import(ctx context.Context, ws core.SectorWorkerState, s
 		return false, err
 	}
 
+	_ = sm.plugins.Foreach(vsmplugin.SyncSectorState, func(p *vsmplugin.Plugin) error {
+		m := vsmplugin.DeclareSyncSectorStateManifest(p.Manifest)
+		if m.OnImport == nil {
+			return nil
+		}
+		if err := m.OnImport(ws, state, override); err != nil {
+			log.Errorf("call plugin OnImport '%s': %w", p.Name, err)
+		}
+		return nil
+	})
+
 	return true, nil
 }
 
@@ -212,7 +227,21 @@ func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofTyp
 		}
 	}
 
-	return sm.save(ctx, key, state, ws)
+	if err = sm.save(ctx, key, state, ws); err != nil {
+		return err
+	}
+
+	_ = sm.plugins.Foreach(vsmplugin.SyncSectorState, func(p *vsmplugin.Plugin) error {
+		m := vsmplugin.DeclareSyncSectorStateManifest(p.Manifest)
+		if m.OnInit == nil {
+			return nil
+		}
+		if err := m.OnInit(sid, proofType, ws); err != nil {
+			log.Errorf("call plugin OnInit '%s': %w", p.Name, err)
+		}
+		return nil
+	})
+	return nil
 }
 
 func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID, ws core.SectorWorkerState) (*core.SectorState, error) {
@@ -243,7 +272,21 @@ func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, ws core.Se
 		return fmt.Errorf("apply field vals: %w", err)
 	}
 
-	return sm.save(ctx, key, state, ws)
+	if err := sm.save(ctx, key, state, ws); err != nil {
+		return err
+	}
+
+	_ = sm.plugins.Foreach(vsmplugin.SyncSectorState, func(p *vsmplugin.Plugin) error {
+		m := vsmplugin.DeclareSyncSectorStateManifest(p.Manifest)
+		if m.OnUpdate == nil {
+			return nil
+		}
+		if err := m.OnUpdate(sid, ws, fieldvals); err != nil {
+			log.Errorf("call plugin OnInit '%s': %w", p.Name, err)
+		}
+		return nil
+	})
+	return nil
 }
 
 func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinalize core.SectorStateChangeHook) error {
@@ -275,6 +318,17 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 	if err := sm.online.Del(ctx, key); err != nil {
 		return fmt.Errorf("del from online store: %w", err)
 	}
+
+	_ = sm.plugins.Foreach(vsmplugin.SyncSectorState, func(p *vsmplugin.Plugin) error {
+		m := vsmplugin.DeclareSyncSectorStateManifest(p.Manifest)
+		if m.OnFinalize == nil {
+			return nil
+		}
+		if err := m.OnFinalize(sid); err != nil {
+			log.Errorf("call plugin OnFinalize '%s': %w", p.Name, err)
+		}
+		return nil
+	})
 
 	return nil
 }
@@ -308,6 +362,17 @@ func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore
 	if err := sm.offline.Del(ctx, key); err != nil {
 		return fmt.Errorf("del from offline store: %w", err)
 	}
+
+	_ = sm.plugins.Foreach(vsmplugin.SyncSectorState, func(p *vsmplugin.Plugin) error {
+		m := vsmplugin.DeclareSyncSectorStateManifest(p.Manifest)
+		if m.OnRestore == nil {
+			return nil
+		}
+		if err := m.OnRestore(sid); err != nil {
+			log.Errorf("call plugin OnRestore '%s': %w", p.Name, err)
+		}
+		return nil
+	})
 
 	return nil
 }

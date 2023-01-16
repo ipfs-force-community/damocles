@@ -1,7 +1,7 @@
 package objstore
 
 import (
-	objstore "github.com/ipfs-force-community/venus-objstore"
+	"github.com/ipfs-force-community/venus-cluster/vsm-plugin/objstore"
 )
 
 // errors
@@ -27,8 +27,3 @@ type (
 	InstanceInfo = objstore.InstanceInfo
 	Store        = objstore.Store
 )
-
-// for plugin
-type Constructor = objstore.Constructor
-
-var LoadConstructor = objstore.LoadConstructor

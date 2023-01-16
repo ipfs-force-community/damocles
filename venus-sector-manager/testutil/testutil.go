@@ -9,12 +9,15 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 )
 
-func TestKVStore(t *testing.T, collection string) (kvstore.KVStore, func()) {
+func TestKVStore(t *testing.T, collection string) kvstore.KVStore {
+	ctx := context.Background()
 	tmpdir := t.TempDir()
 	db := kvstore.OpenBadger(tmpdir)
-	kv, err := db.OpenCollection(collection)
+	require.NoError(t, db.Run(ctx))
+	kv, err := db.OpenCollection(ctx, collection)
 	require.NoErrorf(t, err, "open badger at %s/%s", tmpdir, collection)
-	return kv, func() {
-		db.Close(context.Background())
-	}
+	t.Cleanup(func() {
+		db.Close(ctx)
+	})
+	return kv
 }

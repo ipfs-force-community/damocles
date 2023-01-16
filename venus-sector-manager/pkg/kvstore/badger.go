@@ -11,9 +11,9 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
-var _ KVStore = (*BadgerKVStore)(nil)
+var _ KVStore = (*kvStore)(nil)
 
-var blog = logging.New("badger")
+var blog = logging.New("kv").With("driver", "badger")
 
 type blogger struct {
 	*logging.ZapLogger
@@ -31,11 +31,11 @@ func OpenBadger(basePath string) DB {
 	}
 }
 
-type BadgerKVStore struct {
+type kvStore struct {
 	db *badger.DB
 }
 
-func (b *BadgerKVStore) Get(ctx context.Context, key Key) (Val, error) {
+func (b *kvStore) Get(ctx context.Context, key Key) (Val, error) {
 	var val []byte
 	err := b.db.View(func(txn *badger.Txn) error {
 		switch item, err := txn.Get(key); err {
@@ -58,7 +58,7 @@ func (b *BadgerKVStore) Get(ctx context.Context, key Key) (Val, error) {
 	return val, nil
 }
 
-func (b *BadgerKVStore) Has(ctx context.Context, key Key) (bool, error) {
+func (b *kvStore) Has(ctx context.Context, key Key) (bool, error) {
 	err := b.db.View(func(txn *badger.Txn) error {
 		_, err := txn.Get(key)
 		return err
@@ -74,7 +74,7 @@ func (b *BadgerKVStore) Has(ctx context.Context, key Key) (bool, error) {
 	}
 }
 
-func (b *BadgerKVStore) View(ctx context.Context, key Key, cb Callback) error {
+func (b *kvStore) View(ctx context.Context, key Key, cb Callback) error {
 	return b.db.View(func(txn *badger.Txn) error {
 		switch item, err := txn.Get(key); err {
 		case nil:
@@ -90,25 +90,25 @@ func (b *BadgerKVStore) View(ctx context.Context, key Key, cb Callback) error {
 
 }
 
-func (b *BadgerKVStore) Put(ctx context.Context, key Key, val Val) error {
+func (b *kvStore) Put(ctx context.Context, key Key, val Val) error {
 	return b.db.Update(func(txn *badger.Txn) error {
 		return txn.Set(key, val)
 	})
 }
 
-func (b *BadgerKVStore) Del(ctx context.Context, key Key) error {
+func (b *kvStore) Del(ctx context.Context, key Key) error {
 	return b.db.Update(func(txn *badger.Txn) error {
 		return txn.Delete(key)
 	})
 }
 
-func (b *BadgerKVStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
+func (b *kvStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
 	txn := b.db.NewTransaction(false)
-	iter := txn.NewIterator(badger.DefaultIteratorOptions)
+	it := txn.NewIterator(badger.DefaultIteratorOptions)
 
 	return &BadgerIter{
 		txn:    txn,
-		iter:   iter,
+		iter:   it,
 		seeked: false,
 		valid:  false,
 		prefix: prefix,
@@ -199,12 +199,12 @@ func (db *badgerDB) Close(context.Context) error {
 	return lastError
 }
 
-func (db *badgerDB) OpenCollection(name string) (KVStore, error) {
+func (db *badgerDB) OpenCollection(_ context.Context, name string) (KVStore, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
 	if innerDB, ok := db.dbs[name]; ok {
-		return &BadgerKVStore{db: innerDB}, nil
+		return &kvStore{db: innerDB}, nil
 	}
 	path := filepath.Join(db.basePath, name)
 	opts := badger.DefaultOptions(path).WithLogger(&blogger{blog.With("path", path)})
@@ -213,5 +213,5 @@ func (db *badgerDB) OpenCollection(name string) (KVStore, error) {
 		return nil, fmt.Errorf("open sub badger %s, %w", name, err)
 	}
 	db.dbs[name] = innerDB
-	return &BadgerKVStore{db: innerDB}, nil
+	return &kvStore{db: innerDB}, nil
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"os"
 	"path/filepath"
@@ -864,7 +863,7 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 		}
 
 		if output := cctx.String("output"); output != "" {
-			if err := ioutil.WriteFile(output, vannilla, 0644); err != nil {
+			if err := os.WriteFile(output, vannilla, 0644); err != nil {
 				return fmt.Errorf("write vannilla proof into file: %w", err)
 			}
 

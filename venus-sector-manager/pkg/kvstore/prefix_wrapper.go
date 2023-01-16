@@ -3,7 +3,11 @@ package kvstore
 import (
 	"context"
 	"fmt"
+
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
+
+var log = logging.New("kv").With("driver", "prefix-wrapper")
 
 var _ KVStore = (*WrappedKVStore)(nil)
 
@@ -90,9 +94,13 @@ type WrappedIter struct {
 	inner     Iter
 }
 
-func (wi *WrappedIter) Next() bool                                  { return wi.inner.Next() }
-func (wi *WrappedIter) View(ctx context.Context, cb Callback) error { return wi.inner.View(ctx, cb) }
-func (wi *WrappedIter) Close()                                      { wi.inner.Close() }
+func (wi *WrappedIter) Next() bool { return wi.inner.Next() }
+
+func (wi *WrappedIter) View(ctx context.Context, cb Callback) error {
+	return wi.inner.View(ctx, cb)
+}
+
+func (wi *WrappedIter) Close() { wi.inner.Close() }
 
 func (wi *WrappedIter) Key() Key {
 	key := wi.inner.Key()

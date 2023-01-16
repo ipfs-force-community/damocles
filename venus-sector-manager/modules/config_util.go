@@ -39,7 +39,7 @@ type MustAddress address.Address
 func (ma MustAddress) MarshalText() ([]byte, error) {
 	addr := address.Address(ma)
 	if addr == address.Undef {
-		return nil, nil
+		return []byte{}, nil
 	}
 
 	return []byte(addr.String()), nil
@@ -184,7 +184,7 @@ func ParseFIL(raw string) (FIL, error) {
 
 func (f FIL) MarshalText() ([]byte, error) {
 	if f.Int == nil {
-		return nil, nil
+		return []byte{}, nil
 	}
 
 	return []byte(f.Short()), nil

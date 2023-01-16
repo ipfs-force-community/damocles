@@ -3,11 +3,7 @@ package kvstore
 import (
 	"context"
 	"fmt"
-
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
-
-var log = logging.New("kv")
 
 var (
 	ErrKeyNotFound      = fmt.Errorf("key not found")
@@ -46,5 +42,5 @@ type DB interface {
 
 	// OpenCollection opens a collection with the given name and returns a KVStore,
 	// creating it if needed.
-	OpenCollection(name string) (KVStore, error)
+	OpenCollection(ctx context.Context, name string) (KVStore, error)
 }

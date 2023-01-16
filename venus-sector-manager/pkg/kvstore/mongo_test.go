@@ -53,10 +53,8 @@ func DeleteAll(ctx context.Context, kv kvstore.KVStore) error {
 }
 
 func TestMongoStore_PutGet(t *testing.T) {
-	kv, kvstop := testMongoKV(t, "test")
-	defer kvstop()
-
 	ctx := context.TODO()
+	kv := testMongoKV(ctx, t, "test")
 
 	require.NoError(t, DeleteAll(ctx, kv))
 
@@ -79,10 +77,9 @@ func TestMongoStore_PutGet(t *testing.T) {
 }
 
 func TestMongoStore_Has(t *testing.T) {
-	kv, kvstop := testMongoKV(t, "test")
-	defer kvstop()
-
 	ctx := context.TODO()
+	kv := testMongoKV(ctx, t, "test")
+
 	require.NoError(t, DeleteAll(ctx, kv))
 
 	err := kv.Put(ctx, testKey1, testValue1)
@@ -99,10 +96,9 @@ func TestMongoStore_Has(t *testing.T) {
 
 // this case will also test the usage of iter
 func TestMongoStore_Scan(t *testing.T) {
-	kv, kvstop := testMongoKV(t, "test")
-	defer kvstop()
-
 	ctx := context.TODO()
+	kv := testMongoKV(ctx, t, "test")
+
 	require.NoError(t, DeleteAll(ctx, kv))
 
 	err := kv.Put(ctx, testKey1, testValue1)
@@ -139,10 +135,9 @@ func TestMongoStore_Scan(t *testing.T) {
 }
 
 func TestMongoStore_ScanNil(t *testing.T) {
-	kv, kvstop := testMongoKV(t, "test")
-	defer kvstop()
-
 	ctx := context.TODO()
+	kv := testMongoKV(ctx, t, "test")
+
 	require.NoError(t, DeleteAll(ctx, kv))
 
 	err := kv.Put(ctx, testKey1, testValue1)
@@ -166,10 +161,9 @@ func TestMongoStore_ScanNil(t *testing.T) {
 }
 
 func TestMongoStore_Del(t *testing.T) {
-	kv, kvstop := testMongoKV(t, "test")
-	defer kvstop()
-
 	ctx := context.TODO()
+	kv := testMongoKV(ctx, t, "test")
+
 	require.NoError(t, DeleteAll(ctx, kv))
 
 	err := kv.Put(ctx, testKey1, testValue1)
@@ -195,12 +189,14 @@ func TestMongoStore_Del(t *testing.T) {
 	require.Equal(t, kvstore.ErrKeyNotFound, err)
 }
 
-func testMongoKV(t *testing.T, collection string) (kvstore.KVStore, func()) {
+func testMongoKV(ctx context.Context, t *testing.T, collection string) kvstore.KVStore {
 	db, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs")
 	require.NoError(t, err)
-	kv, err := db.OpenCollection(collection)
+	require.NoError(t, db.Run(ctx))
+	kv, err := db.OpenCollection(ctx, collection)
 	require.NoError(t, err)
-	return kv, func() {
-		db.Close(context.Background())
-	}
+	t.Cleanup(func() {
+		db.Close(ctx)
+	})
+	return kv
 }
