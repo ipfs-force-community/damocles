@@ -155,7 +155,7 @@ var utilSealerProvingInfoCmd = &cli.Command{
 			faultPerc = float64(faults * 100 / proving)
 		}
 
-		blockDelaySecs := policy.NetParams.Network.BlockDelay
+		blockDelaySecs := policy.NetParams.BlockDelaySecs
 
 		fmt.Printf("Current Epoch:           %d\n", cd.CurrentEpoch)
 
@@ -312,8 +312,8 @@ var utilSealerProvingDeadlinesCmd = &cli.Command{
 
 			gapIdx := uint64(dlIdx) - di.Index
 			// 30 minutes a deadline
-			gapHeight := uint64(30*60) / policy.NetParams.Network.BlockDelay * gapIdx
-			open := HeightToTime(head, di.Open+abi.ChainEpoch(gapHeight), policy.NetParams.Network.BlockDelay)
+			gapHeight := uint64(30*60) / policy.NetParams.BlockDelaySecs * gapIdx
+			open := HeightToTime(head, di.Open+abi.ChainEpoch(gapHeight), policy.NetParams.BlockDelaySecs)
 
 			_, _ = fmt.Fprintf(tw, "%d\t%s\t%d\t%d (%d)\t%d%s\n", dlIdx, open, len(partitions), sectors, faults, provenPartitions, cur)
 		}
@@ -375,10 +375,10 @@ var utilSealerProvingDeadlineInfoCmd = &cli.Command{
 
 		gapIdx := dlIdx - di.Index
 		// 30 minutes a deadline
-		gapHeight := uint64(30*60) / policy.NetParams.Network.BlockDelay * gapIdx
+		gapHeight := uint64(30*60) / policy.NetParams.BlockDelaySecs * gapIdx
 
 		fmt.Printf("Deadline Index:           %d\n", dlIdx)
-		fmt.Printf("Deadline Open:            %s\n", HeightToTime(head, di.Open+abi.ChainEpoch(gapHeight), policy.NetParams.Network.BlockDelay))
+		fmt.Printf("Deadline Open:            %s\n", HeightToTime(head, di.Open+abi.ChainEpoch(gapHeight), policy.NetParams.BlockDelaySecs))
 		fmt.Printf("Partitions:               %d\n", len(partitions))
 		fmt.Printf("Proven Partitions:        %d\n", provenPartitions)
 		fmt.Printf("Current:                  %t\n\n", di.Index == dlIdx)

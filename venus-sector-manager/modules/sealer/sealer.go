@@ -264,7 +264,7 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedR
 	if curEpoch < confEpoch {
 		return core.WaitSeedResp{
 			ShouldWait: true,
-			Delay:      int(confEpoch-curEpoch) * int(policy.NetParams.Network.BlockDelay),
+			Delay:      int(confEpoch-curEpoch) * int(policy.NetParams.BlockDelaySecs),
 			Seed:       nil,
 		}, nil
 	}

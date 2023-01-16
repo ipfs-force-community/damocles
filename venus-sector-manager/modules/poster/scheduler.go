@@ -160,7 +160,7 @@ func (s *scheduler) runPost(ctx context.Context, di dline.Info, ts *types.TipSet
 			s.log.Errorf("checking sector recoveries: %v", err)
 		}
 
-		if ts.Height() > policy.NetParams.Network.ForkUpgradeParam.UpgradeIgnitionHeight {
+		if ts.Height() > policy.NetParams.ForkUpgradeParams.UpgradeIgnitionHeight {
 			return // FORK: declaring faults after ignition upgrade makes no sense
 		}
 

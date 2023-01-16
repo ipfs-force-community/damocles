@@ -6,7 +6,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/ver"
 )
@@ -26,10 +25,6 @@ func main() {
 		},
 		Flags: []cli.Flag{
 			internal.HomeFlag,
-			internal.NetFlag,
-		},
-		Before: func(cctx *cli.Context) error {
-			return policy.SetupNetwork(cctx.String(internal.NetFlag.Name))
 		},
 	}
 

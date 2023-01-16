@@ -23,10 +23,11 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/adt"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
-	"github.com/filecoin-project/venus/venus-shared/actors/policy"
+	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	chain2 "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
@@ -299,16 +300,11 @@ var utilSealerSectorsCheckExpireCmd = &cli.Command{
 			return sectors[i].Expiration < sectors[j].Expiration
 		})
 
-		networkConfig, err := api.Chain.StateGetNetworkParams(ctx)
-		if err != nil {
-			return err
-		}
-
-		blockDelaySecs := networkConfig.BlockDelaySecs
+		blockDelaySecs := policy.NetParams.BlockDelaySecs
 		fmt.Fprintf(os.Stdout, "Sectors(%d):\n", len(sectors))
 		for _, sector := range sectors {
-			MaxExpiration := sector.Activation + policy.GetSectorMaxLifetime(sector.SealProof, nv)
-			MaxExtendNow := currEpoch + policy.GetMaxSectorExpirationExtension()
+			MaxExpiration := sector.Activation + specpolicy.GetSectorMaxLifetime(sector.SealProof, nv)
+			MaxExtendNow := currEpoch + specpolicy.GetMaxSectorExpirationExtension()
 
 			if MaxExtendNow > MaxExpiration {
 				MaxExtendNow = MaxExpiration
@@ -380,7 +376,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 				return fmt.Errorf("getting network version: %w", err)
 			}
 
-			lbEpoch = head.Height() - policy.GetWinningPoStSectorSetLookback(nv)
+			lbEpoch = head.Height() - specpolicy.GetWinningPoStSectorSetLookback(nv)
 			if lbEpoch < 0 {
 				return fmt.Errorf("too early to terminate sectors")
 			}
@@ -810,12 +806,12 @@ var utilSealerSectorsRenewCmd = &cli.Command{
 				newExp = abi.ChainEpoch(cctx.Int64("new-expiration"))
 			}
 
-			maxExtendNow := currEpoch + policy.GetMaxSectorExpirationExtension()
+			maxExtendNow := currEpoch + specpolicy.GetMaxSectorExpirationExtension()
 			if newExp > maxExtendNow {
 				newExp = maxExtendNow
 			}
 
-			maxExp := si.Activation + policy.GetSectorMaxLifetime(si.SealProof, nv)
+			maxExp := si.Activation + specpolicy.GetSectorMaxLifetime(si.SealProof, nv)
 			if newExp > maxExp {
 				newExp = maxExp
 			}
@@ -858,11 +854,11 @@ var utilSealerSectorsRenewCmd = &cli.Command{
 		for l, exts := range extensions {
 			for newExp, numbers := range exts {
 				scount += len(numbers)
-				addrSectors, err := policy.GetAddressedSectorsMax(nv)
+				addrSectors, err := specpolicy.GetAddressedSectorsMax(nv)
 				if err != nil {
 					return err
 				}
-				declMax, err := policy.GetDeclarationsMax(nv)
+				declMax, err := specpolicy.GetDeclarationsMax(nv)
 				if err != nil {
 					return err
 				}
@@ -1050,7 +1046,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 					}
 				}
 
-				ml := policy.GetSectorMaxLifetime(si.SealProof, nv)
+				ml := specpolicy.GetSectorMaxLifetime(si.SealProof, nv)
 				// if the sector's missing less than "tolerance" of its maximum possible lifetime, don't bother extending it
 				if withinTolerance(si.Expiration-si.Activation, ml) {
 					continue
@@ -1098,11 +1094,11 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 			for l, exts := range extensions {
 				for newExp, numbers := range exts {
 					scount += len(numbers)
-					addressedMax, err := policy.GetAddressedSectorsMax(nv)
+					addressedMax, err := specpolicy.GetAddressedSectorsMax(nv)
 					if err != nil {
 						return fmt.Errorf("failed to get addressed sectors max")
 					}
-					declMax, err := policy.GetDeclarationsMax(nv)
+					declMax, err := specpolicy.GetDeclarationsMax(nv)
 					if err != nil {
 						return fmt.Errorf("failed to get declarations max")
 					}
