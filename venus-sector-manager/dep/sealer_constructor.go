@@ -144,22 +144,29 @@ func ProvidePlugins(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 func BuildUnderlyingDB(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, home *homedir.Home, loadedPlugins *vsmplugin.LoadedPlugins) (UnderlyingDB, error) {
 	commonCfg := scfg.MustCommonConfig()
 
+	var dbCfg modules.DBConfig
 	if commonCfg.MongoKVStore != nil && commonCfg.MongoKVStore.Enable { // For compatibility with v0.5
-		return BuildKVStoreMongoDB(gctx, lc, commonCfg.MongoKVStore)
+		dbCfg.Driver = "mongo"
+		dbCfg.Mongo = commonCfg.MongoKVStore
+	} else {
+		if commonCfg.DB == nil {
+			commonCfg.DB = modules.DefaultDBConfig()
+		}
+		dbCfg = *commonCfg.DB
 	}
-	if commonCfg.DB == nil {
-		commonCfg.DB = modules.DefaultDBConfig()
-	}
+	return BuildKVStoreDB(gctx, lc, dbCfg, home, loadedPlugins)
+}
 
-	switch commonCfg.DB.Driver {
+func BuildKVStoreDB(gctx GlobalContext, lc fx.Lifecycle, cfg modules.DBConfig, home *homedir.Home, loadedPlugins *vsmplugin.LoadedPlugins) (UnderlyingDB, error) {
+	switch cfg.Driver {
 	case "badger", "Badger":
-		return BuildKVStoreBadgerDB(lc, commonCfg.DB.Badger, home)
+		return BuildKVStoreBadgerDB(lc, cfg.Badger, home)
 	case "mongo", "Mongo":
-		return BuildKVStoreMongoDB(gctx, lc, commonCfg.DB.Mongo)
+		return BuildKVStoreMongoDB(gctx, lc, cfg.Mongo)
 	case "plugin", "Plugin":
-		return BuildPluginDB(lc, commonCfg.DB.Plugin, loadedPlugins)
+		return BuildPluginDB(lc, cfg.Plugin, loadedPlugins)
 	default:
-		return nil, fmt.Errorf("unsupported db driver '%s'", commonCfg.DB.Driver)
+		return nil, fmt.Errorf("unsupported db driver '%s'", cfg.Driver)
 	}
 }
 

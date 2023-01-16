@@ -17,7 +17,7 @@ var UtilCmd = &cli.Command{
 		utilWorkerCmd,
 		utilMessageCmd,
 		utilFetchParamCmd,
-		utilMigrateBadgerMongo,
+		utilMigrate,
 	},
 	Flags: []cli.Flag{
 		SealerListenFlag,
