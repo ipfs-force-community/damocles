@@ -534,7 +534,7 @@ func (pr *postRunner) handleFaults(baseLog *logging.ZapLogger) {
 		hflog.Errorf("checking sector recoveries: %v", err)
 	}
 
-	if pr.startCtx.ts.Height() > policy.NetParams.Network.ForkUpgradeParam.UpgradeIgnitionHeight {
+	if pr.startCtx.ts.Height() > policy.NetParams.ForkUpgradeParams.UpgradeIgnitionHeight {
 		return // FORK: declaring faults after ignition upgrade makes no sense
 	}
 

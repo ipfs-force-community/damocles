@@ -16,8 +16,8 @@ var GetMaxProveCommitDuration = policy.GetMaxProveCommitDuration
 
 func GetPreCommitChallengeDelay() abi.ChainEpoch {
 	// TODO: remove the guard code here
-	if NetParams.Network.PreCommitChallengeDelay > 0 {
-		return NetParams.Network.PreCommitChallengeDelay
+	if NetParams.PreCommitChallengeDelay > 0 {
+		return NetParams.PreCommitChallengeDelay
 	}
 
 	return policy.GetPreCommitChallengeDelay()
