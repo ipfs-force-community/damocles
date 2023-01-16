@@ -25,7 +25,7 @@ require (
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs-force-community/venus-cluster-assets v0.1.0
-	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230116055308-f64066b0a939
+	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230116055937-8a37cc2f5193
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.2.0
 	github.com/ipfs/go-ipfs-blockstore v1.2.0

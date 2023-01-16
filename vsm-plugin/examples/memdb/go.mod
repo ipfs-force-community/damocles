@@ -3,7 +3,7 @@ module github.com/ipfs-force-community/venus-cluster/vsm-plugin/examples/memdb
 go 1.18
 
 require (
-	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230116055308-f64066b0a939
+	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230116055937-8a37cc2f5193
 	github.com/stretchr/testify v1.8.0
 	github.com/tidwall/btree v1.6.0
 )
