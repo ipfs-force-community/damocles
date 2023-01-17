@@ -41,7 +41,6 @@ var utilMigrate = &cli.Command{
 		},
 	},
 	Action: func(cctx *cli.Context) error {
-
 		from := cctx.String("from")
 		to := cctx.String("to")
 		subStores := cctx.StringSlice("sub-stores")
