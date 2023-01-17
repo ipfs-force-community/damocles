@@ -111,7 +111,7 @@ PersistStores 的插件配置与 PieceStore 类似，详细请参考 venus-secto
 - [PieceStore 配置说明](../zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#commonpiecestores)
 - [PersistStores 配置说明](../zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#commonpersiststores)
 
-##### Example: [fsstore](https://github.com/ipfs-force-community/venus-cluster/tree/feat/0x5459/pluggable_database_support/venus-sector-manager/plugin/examples/fsstore)
+##### Example: [fsstore](https://github.com/ipfs-force-community/venus-cluster/tree/main/vsm-plugin/examples/fsstore)
 
 ---
 
@@ -175,7 +175,7 @@ Addr = "127.0.0.1:6379"
 ```
 
 
-##### Example: [memdb](https://github.com/ipfs-force-community/venus-cluster/tree/feat/0x5459/pluggable_database_support/venus-sector-manager/plugin/examples/memdb)
+##### Example: [memdb](https://github.com/ipfs-force-community/venus-cluster/tree/main/vsm-plugin/examples/memdb)
 
 ---
 

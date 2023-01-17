@@ -3,13 +3,12 @@ module github.com/ipfs-force-community/venus-cluster/vsm-plugin/examples/fsstore
 go 1.18
 
 require (
-	github.com/ipfs-force-community/venus-cluster/venus-sector-manager v0.0.0-20230112093856-86790d027983
-	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230116055937-8a37cc2f5193
+	github.com/ipfs-force-community/venus-cluster/venus-sector-manager v0.0.0-20230117084453-d1c01e43d23a
+	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230117084453-d1c01e43d23a
 )
 
 require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/ipfs-force-community/venus-objstore v0.0.3 // indirect
 	github.com/ipfs/go-log/v2 v2.5.1 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
