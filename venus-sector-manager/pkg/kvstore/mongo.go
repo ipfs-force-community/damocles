@@ -26,7 +26,7 @@ type KvInMongo struct {
 	RawKey Key    `bson:"raw"`
 }
 
-var _ KVStore = (*kvStore)(nil)
+var _ KVStore = (*MongoStore)(nil)
 var _ Iter = (*BadgerIter)(nil)
 var _ DB = (*mongoDB)(nil)
 
