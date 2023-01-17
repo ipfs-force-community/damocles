@@ -52,12 +52,31 @@ venus-sector-manager 插件机制基于 [Go plugin](https://pkg.go.dev/plugin#se
 `ObjStore` 允许用户创建自定的存储类型，例如 s3, fs 等。
 
 ##### Manifest:
+
+struct 定义:
 ```go
 type ObjStoreManifest struct {
 	Manifest
 
 	Constructor func(cfg objstore.Config) (objstore.Store, error)
 }
+```
+
+manifest.toml 示例:
+```toml
+# manifest.toml
+
+name = "s3store"
+description = "s3 plugin"
+# 插件类型设置为: ObjStore
+kind = "ObjStore"
+onInit = "OnInit"
+onShutdown = "OnShutdown"
+
+export = [
+	# `impl` is your function name
+	{extPoint="Constructor", impl="Open"},
+]
 ```
 
 `ObjStore` 插件只需要额外提供一个 `Constructor` 函数返回实现了 [objstore.Store](https://github.com/ipfs-force-community/venus-objstore/blob/00ad77fcbfed1df5c1613176521bce3ba3041fc7/objstore.go#L50-L61) 接口的对象即可。
@@ -101,6 +120,7 @@ PersistStores 的插件配置与 PieceStore 类似，详细请参考 venus-secto
 `KVStore` 插件允许用户使用其他 venus-sector-manager 不支持的数据库作为 venus-sector-manager 的扇区元数据信息存储。
 
 ##### Manifest:
+struct 定义:
 ```go
 type KVStoreManifest struct {
 	Manifest
@@ -108,6 +128,25 @@ type KVStoreManifest struct {
 	Constructor func(meta map[string]string) (kvstore.DB, error)
 }
 ```
+
+
+manifest.toml 示例:
+```toml
+# manifest.toml
+
+name = "kvstoreredis"
+description = "use redis as kvstore"
+# 插件类型设置为: KVStore
+kind = "KVStore"
+onInit = "OnInit"
+onShutdown = "OnShutdown"
+
+export = [
+	# `impl` is your function name
+	{extPoint="Constructor", impl="Open"},
+]
+```
+
 
 `KVStore` 插件也只需要额外提供一个 `Constructor` 函数返回实现了 [kvstore.DB](https://github.com/ipfs-force-community/venus-cluster/blob/dfc20a9a4d2728192bbbf830ddfd15b684b98ce9/venus-sector-manager/pkg/kvstore/kv.go#L39-L46) 接口的对象即可。
 
@@ -144,6 +183,8 @@ Addr = "127.0.0.1:6379"
 `SyncSectorState` 插件允许用户编写插件同步 venus-sector-manager 扇区变动信息。因为 KvStore 存储的是二进制数据，无法获取扇区结构化数据，本插件提供结构化变更数据，且允许多个 SyncSectorState 插件同时工作。
 
 Manifest:
+
+Struct 定义:
 ```go
 type SyncSectorStateManifest struct {
 	Manifest
@@ -154,6 +195,25 @@ type SyncSectorStateManifest struct {
 	OnFinalize func(...) error
 	OnRestore  func(...) error
 }
+```
+manifest.toml 示例:
+```toml
+# manifest.toml
+
+name = "mysqlsyncer"
+description = "sync sectors state to mysql"
+# 插件类型设置为: SyncSectorState
+kind = "SyncSectorState"
+onInit = "OnInit"
+onShutdown = "OnShutdown"
+
+export = [
+	{extPoint="OnImport", impl="OnImport"},
+	{extPoint="OnInit", impl="OnInit"},
+	{extPoint="OnUpdate", impl="OnUpdate"},
+	{extPoint="OnFinalize", impl="OnFinalize"},
+	{extPoint="OnRestore", impl="OnRestore"},
+]
 ```
 
 `SyncSectorState` 插件无需配置，当 venus-sector-manager 在插件目录中扫描到多个 `SyncSectorState` 插件时, 会[依次调用](https://github.com/ipfs-force-community/venus-cluster/blob/dfc20a9a4d2728192bbbf830ddfd15b684b98ce9/venus-sector-manager/modules/impl/sectors/state_mgr.go#L181)每一个 `SyncSectorState` 插件。我们可以通过编写不同的 `SyncSectorState` 插件将扇区状态数据同步到不同的目标数据库或者存储中。
