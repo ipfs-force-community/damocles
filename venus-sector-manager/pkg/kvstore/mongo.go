@@ -27,7 +27,7 @@ type KvInMongo struct {
 }
 
 var _ KVStore = (*MongoStore)(nil)
-var _ Iter = (*BadgerIter)(nil)
+var _ Iter = (*MongoIter)(nil)
 var _ DB = (*mongoDB)(nil)
 
 type MongoStore struct {
