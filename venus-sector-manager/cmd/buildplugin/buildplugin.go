@@ -44,7 +44,7 @@ func PluginManifest() *vsmplugin.Manifest {
 `
 
 func main() {
-	app := &cli.App{
+	app := cli.App{
 		Name:  "buildplugin",
 		Usage: "build venus-sector-manager plugin",
 		Flags: []cli.Flag{
