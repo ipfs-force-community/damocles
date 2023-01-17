@@ -13,7 +13,7 @@ import (
 
 var _ KVStore = (*BadgerKVStore)(nil)
 
-var blog = logging.New("badger")
+var blog = logging.New("kv").With("driver", "badger")
 
 type blogger struct {
 	*logging.ZapLogger
@@ -104,11 +104,11 @@ func (b *BadgerKVStore) Del(ctx context.Context, key Key) error {
 
 func (b *BadgerKVStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
 	txn := b.db.NewTransaction(false)
-	iter := txn.NewIterator(badger.DefaultIteratorOptions)
+	it := txn.NewIterator(badger.DefaultIteratorOptions)
 
 	return &BadgerIter{
 		txn:    txn,
-		iter:   iter,
+		iter:   it,
 		seeked: false,
 		valid:  false,
 		prefix: prefix,
@@ -199,7 +199,7 @@ func (db *badgerDB) Close(context.Context) error {
 	return lastError
 }
 
-func (db *badgerDB) OpenCollection(name string) (KVStore, error) {
+func (db *badgerDB) OpenCollection(_ context.Context, name string) (KVStore, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 

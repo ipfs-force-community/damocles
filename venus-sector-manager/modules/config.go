@@ -90,66 +90,76 @@ func defaultCommonAPIConfig(example bool) CommonAPIConfig {
 	return cfg
 }
 
-type DBConfig struct {
-	Driver string
-	Badger *BadgerDBConfig
-	Mongo  *MongoDBConfig
+type PluginConfig struct {
+	Dir string
 }
 
-func defaultDBConfig(example bool) DBConfig {
-	return DBConfig{
-		Driver: "badger",
-		Badger: defaultBadgerDBConfig(),
-		Mongo:  nil,
+func DefaultPluginConfig() *PluginConfig {
+	return &PluginConfig{
+		Dir: "",
 	}
 }
 
-type BadgerDBConfig struct {
+type DBConfig struct {
+	Driver string
+	Badger *KVStoreBadgerDBConfig
+	Mongo  *KVStoreMongoDBConfig
+	Plugin *KVStorePluginDBConfig
+}
+
+func DefaultDBConfig() *DBConfig {
+	return &DBConfig{
+		Driver: "badger",
+		Badger: defaultBadgerDBConfig(),
+		Mongo:  nil,
+		Plugin: nil,
+	}
+}
+
+type KVStoreBadgerDBConfig struct {
 	BaseDir string
 }
 
-func defaultBadgerDBConfig() *BadgerDBConfig {
-	return &BadgerDBConfig{
+func defaultBadgerDBConfig() *KVStoreBadgerDBConfig {
+	return &KVStoreBadgerDBConfig{
 		BaseDir: "",
 	}
 }
 
-type MongoDBConfig struct {
+type KVStoreMongoDBConfig struct {
 	Enable       bool // For compatibility with v0.5
 	DSN          string
 	DatabaseName string
 }
 
-// func defaultMongoDBConfig(example bool) *MongoDBConfig {
-// 	cfg := MongoDBConfig{
-// 		Enable: false,
-// 	}
-// 	if example {
-// 		cfg.DSN = "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000"
-// 		cfg.DatabaseName = "test"
-// 	}
-// 	return &cfg
-// }
+type KVStorePluginDBConfig struct {
+	PluginName string
+	Meta       map[string]string
+}
 
 type PieceStoreConfig struct {
-	Name   string
-	Path   string
-	Meta   map[string]string
-	Plugin string
+	Name       string
+	Path       string
+	Meta       map[string]string
+	Plugin     string // For compatibility with v0.5
+	PluginName string
 }
 
 type PersistStoreConfig struct {
 	objstore.Config
-	Plugin string
 	objstore.StoreSelectPolicy
+
+	Plugin     string // For compatibility with v0.5
+	PluginName string
 }
 
 type CommonConfig struct {
 	API           CommonAPIConfig
+	Plugins       *PluginConfig
 	PieceStores   []PieceStoreConfig
 	PersistStores []PersistStoreConfig
-	MongoKVStore  *MongoDBConfig // For compatibility with v0.5
-	DB            DBConfig
+	MongoKVStore  *KVStoreMongoDBConfig // For compatibility with v0.5
+	DB            *DBConfig
 }
 
 func exampleFilestoreConfig() objstore.Config {
@@ -165,16 +175,16 @@ func defaultCommonConfig(example bool) CommonConfig {
 		PieceStores:   []PieceStoreConfig{},
 		PersistStores: []PersistStoreConfig{},
 		MongoKVStore:  nil,
-		DB:            defaultDBConfig(example),
+		DB:            DefaultDBConfig(),
 	}
 
 	if example {
 		exampleCfg := exampleFilestoreConfig()
 		cfg.PieceStores = append(cfg.PieceStores, PieceStoreConfig{
-			Name:   exampleCfg.Name,
-			Path:   exampleCfg.Path,
-			Meta:   exampleCfg.Meta,
-			Plugin: "path/to/objstore-plugin",
+			Name:       exampleCfg.Name,
+			Path:       exampleCfg.Path,
+			Meta:       exampleCfg.Meta,
+			PluginName: "s3store",
 		})
 
 		cfg.PersistStores = append(cfg.PersistStores, PersistStoreConfig{
@@ -183,11 +193,8 @@ func defaultCommonConfig(example bool) CommonConfig {
 				Path: exampleCfg.Path,
 				Meta: exampleCfg.Meta,
 			},
-			Plugin: "path/to/objstore-plugin",
-			StoreSelectPolicy: objstore.StoreSelectPolicy{
-				AllowMiners: []abi.ActorID{1, 2},
-				DenyMiners:  []abi.ActorID{3, 4},
-			},
+			StoreSelectPolicy: objstore.StoreSelectPolicy{AllowMiners: []abi.ActorID{1, 2}, DenyMiners: []abi.ActorID{3, 4}},
+			PluginName:        "s3store",
 		})
 	}
 

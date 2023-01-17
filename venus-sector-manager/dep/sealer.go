@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/dtynn/dix"
+	vsmplugin "github.com/ipfs-force-community/venus-cluster/vsm-plugin"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -46,6 +47,7 @@ func Product() dix.Option {
 		dix.Override(new(ConfDirPath), BuildConfDirPath),
 		dix.Override(new(*modules.Config), ProvideConfig),
 		dix.Override(new(*modules.SafeConfig), ProvideSafeConfig),
+		dix.Override(new(*vsmplugin.LoadedPlugins), ProvidePlugins),
 		dix.Override(new(UnderlyingDB), BuildUnderlyingDB),
 		dix.Override(new(core.SectorManager), BuildLocalSectorManager),
 		dix.Override(new(core.SectorStateManager), BuildLocalSectorStateManager),

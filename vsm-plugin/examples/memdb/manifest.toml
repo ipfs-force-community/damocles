@@ -1,0 +1,10 @@
+# go run github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/buildplugin@latest --src-dir=./ --out-dir=./
+
+name = "memdb"
+description = ""
+kind = "KVStore"
+onInit = "OnInit"
+# onShutdown = "OnShutdown"
+export = [
+    {extPoint="Constructor", impl="Open"},
+]

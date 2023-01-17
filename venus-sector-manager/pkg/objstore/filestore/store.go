@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	objstore "github.com/ipfs-force-community/venus-objstore"
+	"github.com/ipfs-force-community/venus-cluster/vsm-plugin/objstore"
 	"github.com/shirou/gopsutil/v3/disk"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"

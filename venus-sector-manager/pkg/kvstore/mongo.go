@@ -8,12 +8,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
 var (
-	mlog   = logging.New("mongo")
+	mlog   = Log.With("driver", "mongo")
 	Upsert = true
 )
 
@@ -58,7 +56,7 @@ func (m *MongoIter) Next() bool {
 
 func (m *MongoIter) Key() Key {
 	if m.data == nil {
-		log.Error("wrong usage of KEY, should call next first")
+		mlog.Error("wrong usage of KEY, should call next first")
 		return nil
 	}
 	return m.data.RawKey
@@ -143,19 +141,19 @@ func (db mongoDB) Close(context.Context) error {
 	return nil
 }
 
-func (db mongoDB) OpenCollection(name string) (KVStore, error) {
+func (db mongoDB) OpenCollection(_ context.Context, name string) (KVStore, error) {
 	return MongoStore{col: db.inner.Collection(name)}, nil
 }
 
 func OpenMongo(ctx context.Context, dsn string, dbName string) (DB, error) {
 	client, err := mongo.NewClient(options.Client().ApplyURI(dsn).SetAppName("venus-cluster"))
 	if err != nil {
-		err = fmt.Errorf("new mongo client %s, %w", dsn, err)
+		err = fmt.Errorf("new mongo client %s: %w", dsn, err)
 		return nil, err
 	}
 
 	if err = client.Connect(ctx); err != nil {
-		err = fmt.Errorf("connect to %s, %w", dsn, err)
+		err = fmt.Errorf("connect to %s: %w", dsn, err)
 		return nil, err
 	}
 

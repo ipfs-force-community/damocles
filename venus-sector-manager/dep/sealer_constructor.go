@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"path/filepath"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc"
 	vapi "github.com/filecoin-project/venus/venus-shared/api"
+	vsmplugin "github.com/ipfs-force-community/venus-cluster/vsm-plugin"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -31,6 +31,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/filestore"
+	objstoreplugin "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore/plugin"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/piecestore"
 )
 
@@ -109,26 +110,69 @@ func ProvideSafeConfig(cfg *modules.Config, locker confmgr.RLocker) (*modules.Sa
 	}, nil
 }
 
-func BuildUnderlyingDB(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, home *homedir.Home) (UnderlyingDB, error) {
+func ProvidePlugins(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig) (*vsmplugin.LoadedPlugins, error) {
+	pluginsConfig := scfg.MustCommonConfig().Plugins
+	if pluginsConfig == nil {
+		pluginsConfig = modules.DefaultPluginConfig()
+	}
+	plugins, err := vsmplugin.Load(pluginsConfig.Dir)
+	if err != nil {
+		return nil, err
+	}
+	plugins.Init(gctx, func(p *vsmplugin.Plugin, err error) {
+		log.Warnf("call Plugin OnInit failure '%s/%s', err: %s", p.Kind, p.Name, err)
+	})
+	_ = plugins.ForeachAllKind(func(p *vsmplugin.Plugin) error {
+		log.Infof("loaded plugin '%s/%s', build time: '%s'.", p.Kind, p.Name, p.BuildTime)
+		return nil
+	})
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return nil
+		},
+
+		OnStop: func(ctx context.Context) error {
+			plugins.Shutdown(ctx, func(p *vsmplugin.Plugin, err error) {
+				log.Warnf("call OnShutdown for failure '%s/%s', err: %w", p.Kind, p.Name, err)
+			})
+			return nil
+		},
+	})
+	return plugins, nil
+}
+
+func BuildUnderlyingDB(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, home *homedir.Home, loadedPlugins *vsmplugin.LoadedPlugins) (UnderlyingDB, error) {
 	commonCfg := scfg.MustCommonConfig()
 
+	var dbCfg modules.DBConfig
 	if commonCfg.MongoKVStore != nil && commonCfg.MongoKVStore.Enable { // For compatibility with v0.5
-		return BuildMongoDB(gctx, lc, commonCfg.MongoKVStore)
+		dbCfg.Driver = "mongo"
+		dbCfg.Mongo = commonCfg.MongoKVStore
+	} else {
+		if commonCfg.DB == nil {
+			commonCfg.DB = modules.DefaultDBConfig()
+		}
+		dbCfg = *commonCfg.DB
 	}
+	return BuildKVStoreDB(gctx, lc, dbCfg, home, loadedPlugins)
+}
 
-	switch commonCfg.DB.Driver {
+func BuildKVStoreDB(gctx GlobalContext, lc fx.Lifecycle, cfg modules.DBConfig, home *homedir.Home, loadedPlugins *vsmplugin.LoadedPlugins) (UnderlyingDB, error) {
+	switch cfg.Driver {
 	case "badger", "Badger":
-		return BuildBadgerDB(lc, commonCfg.DB.Badger, home)
+		return BuildKVStoreBadgerDB(lc, cfg.Badger, home)
 	case "mongo", "Mongo":
-		return BuildMongoDB(gctx, lc, commonCfg.DB.Mongo)
+		return BuildKVStoreMongoDB(gctx, lc, cfg.Mongo)
+	case "plugin", "Plugin":
+		return BuildPluginDB(lc, cfg.Plugin, loadedPlugins)
 	default:
-		return nil, fmt.Errorf("unsupported db driver %s", commonCfg.DB.Driver)
+		return nil, fmt.Errorf("unsupported db driver '%s'", cfg.Driver)
 	}
 }
 
-func BuildBadgerDB(lc fx.Lifecycle, badgerCfg *modules.BadgerDBConfig, home *homedir.Home) (UnderlyingDB, error) {
+func BuildKVStoreBadgerDB(lc fx.Lifecycle, badgerCfg *modules.KVStoreBadgerDBConfig, home *homedir.Home) (UnderlyingDB, error) {
 	if badgerCfg == nil {
-		return nil, fmt.Errorf("invalid badger config")
+		*badgerCfg = *modules.DefaultDBConfig().Badger
 	}
 
 	baseDir := badgerCfg.BaseDir
@@ -150,7 +194,7 @@ func BuildBadgerDB(lc fx.Lifecycle, badgerCfg *modules.BadgerDBConfig, home *hom
 	return db, nil
 }
 
-func BuildMongoDB(gctx GlobalContext, lc fx.Lifecycle, mongoCfg *modules.MongoDBConfig) (UnderlyingDB, error) {
+func BuildKVStoreMongoDB(gctx GlobalContext, lc fx.Lifecycle, mongoCfg *modules.KVStoreMongoDBConfig) (UnderlyingDB, error) {
 	if mongoCfg == nil {
 		return nil, fmt.Errorf("invalid mongodb config")
 	}
@@ -159,6 +203,7 @@ func BuildMongoDB(gctx GlobalContext, lc fx.Lifecycle, mongoCfg *modules.MongoDB
 	if err != nil {
 		return nil, err
 	}
+
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			return db.Run(ctx)
@@ -172,16 +217,37 @@ func BuildMongoDB(gctx GlobalContext, lc fx.Lifecycle, mongoCfg *modules.MongoDB
 	return db, err
 }
 
-func BuildCommonMetaStore(db UnderlyingDB) (CommonMetaStore, error) {
-	return db.OpenCollection("common")
+func BuildPluginDB(lc fx.Lifecycle, pluginDBCfg *modules.KVStorePluginDBConfig, loadedPlugins *vsmplugin.LoadedPlugins) (UnderlyingDB, error) {
+	if pluginDBCfg == nil {
+		return nil, fmt.Errorf("invalid plugin db config")
+	}
+	db, err := kvstore.OpenPluginDB(pluginDBCfg.PluginName, pluginDBCfg.Meta, loadedPlugins)
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return db.Run(ctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return db.Close(ctx)
+		},
+	})
+	return db, err
 }
 
-func BuildOnlineMetaStore(db UnderlyingDB) (OnlineMetaStore, error) {
-	return db.OpenCollection("meta")
+func BuildCommonMetaStore(gctx GlobalContext, db UnderlyingDB) (CommonMetaStore, error) {
+	return db.OpenCollection(gctx, "common")
 }
 
-func BuildOfflineMetaStore(db UnderlyingDB) (OfflineMetaStore, error) {
-	return db.OpenCollection("offline_meta")
+func BuildOnlineMetaStore(gctx GlobalContext, db UnderlyingDB) (OnlineMetaStore, error) {
+	return db.OpenCollection(gctx, "meta")
+}
+
+func BuildOfflineMetaStore(gctx GlobalContext, db UnderlyingDB) (OfflineMetaStore, error) {
+	return db.OpenCollection(gctx, "offline_meta")
 }
 
 func BuildSectorNumberAllocator(meta OnlineMetaStore) (core.SectorNumberAllocator, error) {
@@ -193,7 +259,7 @@ func BuildSectorNumberAllocator(meta OnlineMetaStore) (core.SectorNumberAllocato
 	return sectors.NewNumerAllocator(store)
 }
 
-func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaStore) (core.SectorStateManager, error) {
+func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaStore, loadedPlugins *vsmplugin.LoadedPlugins) (core.SectorStateManager, error) {
 	onlineStore, err := kvstore.NewWrappedKVStore([]byte("sector-states"), online)
 	if err != nil {
 		return nil, err
@@ -204,7 +270,7 @@ func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaSto
 		return nil, err
 	}
 
-	return sectors.NewStateManager(onlineStore, offlineStore)
+	return sectors.NewStateManager(onlineStore, offlineStore, loadedPlugins)
 }
 
 func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (messager.API, error) {
@@ -386,58 +452,46 @@ func BuildCommitmentManager(
 	return mgr, nil
 }
 
-func BuildSectorIndexMetaStore(db UnderlyingDB) (SectorIndexMetaStore, error) {
-	return db.OpenCollection("sector-index")
+func BuildSectorIndexMetaStore(gctx GlobalContext, db UnderlyingDB) (SectorIndexMetaStore, error) {
+	return db.OpenCollection(gctx, "sector-index")
 }
 
-func BuildSnapUpMetaStore(db UnderlyingDB) (SnapUpMetaStore, error) {
-	return db.OpenCollection("snapup")
+func BuildSnapUpMetaStore(gctx GlobalContext, db UnderlyingDB) (SnapUpMetaStore, error) {
+	return db.OpenCollection(gctx, "snapup")
 }
 
-func openObjStore(cfg objstore.Config, pluginPath string) (objstore.Store, error) {
+func openObjStore(cfg objstore.Config, pluginName string, loadedPlugins *vsmplugin.LoadedPlugins) (st objstore.Store, err error) {
 	if cfg.Name == "" {
 		cfg.Name = cfg.Path
 	}
 
-	if pluginPath == "" {
-		st, err := filestore.Open(cfg, false)
-		if err != nil {
-			return nil, fmt.Errorf("open filestore: %w", err)
-		}
-
-		log.Infow("embed store constructed", "type", st.Type(), "ver", st.Version(), "instance", st.Instance(context.Background()))
-		return st, nil
+	if pluginName == "" {
+		// use embed fs objstore
+		st, err = filestore.Open(cfg, false)
+	} else {
+		// use plugin objstore
+		st, err = objstoreplugin.OpenPluginObjStore(pluginName, cfg, loadedPlugins)
 	}
 
-	absPath, err := filepath.Abs(pluginPath)
 	if err != nil {
-		return nil, fmt.Errorf("get abs path of objstore plugin %s: %w", pluginPath, err)
+		return
 	}
-
-	constructor, err := objstore.LoadConstructor(absPath)
-	if err != nil {
-		return nil, fmt.Errorf("load objstore constructor from %s: %w", absPath, err)
-	}
-
-	st, err := constructor(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("construct objstore use plugin %s: %w", absPath, err)
-	}
-
 	log.Infow("store constructed", "type", st.Type(), "ver", st.Version(), "instance", st.Instance(context.Background()))
 
-	return st, nil
+	return
 }
 
-func BuildPersistedFileStoreMgr(scfg *modules.Config, locker confmgr.RLocker, globalStore CommonMetaStore) (PersistedObjectStoreManager, error) {
-	locker.Lock()
-	persistCfg := scfg.Common.PersistStores
-	locker.Unlock()
+func BuildPersistedFileStoreMgr(scfg *modules.SafeConfig, globalStore CommonMetaStore, loadedPlugins *vsmplugin.LoadedPlugins) (PersistedObjectStoreManager, error) {
+	persistCfg := scfg.MustCommonConfig().PersistStores
 
 	stores := make([]objstore.Store, 0, len(persistCfg))
 	policy := map[string]objstore.StoreSelectPolicy{}
 	for pi := range persistCfg {
-		st, err := openObjStore(persistCfg[pi].Config, persistCfg[pi].Plugin)
+		// For compatibility with v0.5
+		if persistCfg[pi].PluginName == "" && persistCfg[pi].Plugin != "" {
+			persistCfg[pi].PluginName = persistCfg[pi].Plugin
+		}
+		st, err := openObjStore(persistCfg[pi].Config, persistCfg[pi].PluginName, loadedPlugins)
 		if err != nil {
 			return nil, fmt.Errorf("construct #%d persist store: %w", pi, err)
 		}
@@ -498,7 +552,7 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 	return mapi, nil
 }
 
-func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI) (MarketAPIRelatedComponets, error) {
+func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI, loadedPlugins *vsmplugin.LoadedPlugins) (MarketAPIRelatedComponets, error) {
 	mapi, err := BuildMarketAPI(gctx, lc, scfg, infoAPI)
 	if err != nil {
 		return MarketAPIRelatedComponets{}, fmt.Errorf("build market api: %w", err)
@@ -525,7 +579,11 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 			Meta:     pcfg.Meta,
 			ReadOnly: true,
 		}
-		st, err := openObjStore(cfg, pcfg.Plugin)
+		// For compatibility with v0.5
+		if pcfg.PluginName == "" && pcfg.Plugin != "" {
+			pcfg.PluginName = pcfg.Plugin
+		}
+		st, err := openObjStore(cfg, pcfg.PluginName, loadedPlugins)
 		if err != nil {
 			return MarketAPIRelatedComponets{}, fmt.Errorf("construct #%d piece store: %w", pi, err)
 		}
@@ -606,11 +664,12 @@ func BuildSnapUpManager(
 }
 
 func BuildRebuildManager(
+	gctx GlobalContext,
 	db UnderlyingDB,
 	scfg *modules.SafeConfig,
 	minerInfoAPI core.MinerInfoAPI,
 ) (core.RebuildSectorManager, error) {
-	store, err := db.OpenCollection("rebuild")
+	store, err := db.OpenCollection(gctx, "rebuild")
 	if err != nil {
 		return nil, err
 	}
@@ -622,8 +681,8 @@ func BuildRebuildManager(
 	return mgr, nil
 }
 
-func BuildWorkerMetaStore(db UnderlyingDB) (WorkerMetaStore, error) {
-	return db.OpenCollection("worker")
+func BuildWorkerMetaStore(gctx GlobalContext, db UnderlyingDB) (WorkerMetaStore, error) {
+	return db.OpenCollection(gctx, "worker")
 }
 
 func BuildWorkerManager(meta WorkerMetaStore) (core.WorkerManager, error) {

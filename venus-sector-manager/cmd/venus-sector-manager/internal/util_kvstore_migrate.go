@@ -3,80 +3,91 @@ package internal
 import (
 	"context"
 	"fmt"
+	"sync"
 
+	"github.com/dtynn/dix"
 	"github.com/urfave/cli/v2"
+	"go.uber.org/fx"
 
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
+	vsmplugin "github.com/ipfs-force-community/venus-cluster/vsm-plugin"
 )
 
 var defaultSubStore = []string{"common", "meta", "offline_meta", "sector-index", "snapup", "worker"}
 
-var utilMigrateBadgerMongo = &cli.Command{
-	Name:  "migrate-badger-mongo",
-	Usage: "migrate badger data into mongo default, can reverse with flag",
+var utilMigrate = &cli.Command{
+	Name:  "migrate",
+	Usage: "migrating venus-sector-manager's database data",
 	Flags: []cli.Flag{
 		HomeFlag,
 		&cli.StringFlag{
-			Name:        "badger-basedir",
-			Usage:       "specify the basedir of badger databases",
-			DefaultText: "the home dir",
+			Name:        "from",
+			Usage:       "the source database",
+			DefaultText: "the database currently in use. (read [Common.DB.Driver] value in the config file)",
+		},
+		&cli.StringFlag{
+			Name:     "to",
+			Usage:    "the dest database",
+			Required: true,
 		},
 		&cli.StringSliceFlag{
 			Name:  "sub-stores",
 			Usage: "sub stores name which need migrate",
 			Value: cli.NewStringSlice(defaultSubStore...),
 		},
-		&cli.StringFlag{
-			Name:     "mongo-dsn",
-			Usage:    "the dsn of mongo kv",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:     "mongo-dbname",
-			Usage:    "the db name of mongo kv",
-			Required: true,
-		},
-		&cli.BoolFlag{
-			Name:  "reverse",
-			Usage: "reverse dst and src kv-store, if this flag is true, will migrate data from mongo into local badger",
-			Value: false,
-		},
 	},
 	Action: func(cctx *cli.Context) error {
-		home, err := HomeFromCLICtx(cctx)
-		if err != nil {
-			return err
-		}
-		reverse := cctx.Bool("reverse")
+		from := cctx.String("from")
+		to := cctx.String("to")
 		subStores := cctx.StringSlice("sub-stores")
-		badgerBasedir := cctx.String("badger-basedir")
-		mongoDSN := cctx.String("mongo-dsn")
 
-		if badgerBasedir == "" {
-			badgerBasedir = home.Dir()
-		}
-		badger := kvstore.OpenBadger(badgerBasedir)
-		mongo, err := kvstore.OpenMongo(cctx.Context, cctx.String("mongo-dsn"), cctx.String("mongo-dbname"))
+		gctx := new(dep.GlobalContext)
+		lc := new(fx.Lifecycle)
+		scfg := new(*modules.SafeConfig)
+		home := new(*homedir.Home)
+		loadedPlugins := new(*vsmplugin.LoadedPlugins)
+
+		stop, err := Dep(cctx, gctx, lc, scfg, home, loadedPlugins)
 		if err != nil {
-			return fmt.Errorf("open mongodb dsn: %s, %w", mongoDSN, err)
+			return fmt.Errorf("construct dep: %w", err)
+		}
+		defer stop()
+
+		commonCfg := (*scfg).MustCommonConfig()
+		if commonCfg.DB == nil {
+			commonCfg.DB = modules.DefaultDBConfig()
 		}
 
+		dbCfg := *commonCfg.DB
+		if from == "" {
+			from = dbCfg.Driver
+		}
+
+		dbCfg.Driver = from
+		fromDB, err := dep.BuildKVStoreDB(*gctx, *lc, dbCfg, *home, *loadedPlugins)
+		if err != nil {
+			return fmt.Errorf("failed to build from db: '%s', %w", dbCfg.Driver, err)
+		}
+		dbCfg.Driver = to
+		toDB, err := dep.BuildKVStoreDB(*gctx, *lc, dbCfg, *home, *loadedPlugins)
+		if err != nil {
+			return fmt.Errorf("failed to build to db: '%s', %w", dbCfg.Driver, err)
+		}
 		for _, sub := range subStores {
-			badgerKV, err := badger.OpenCollection(sub)
+			fromKV, err := fromDB.OpenCollection(cctx.Context, sub)
 			if err != nil {
-				return fmt.Errorf("open badger collection: %s, %w", sub, err)
+				return fmt.Errorf("open from db collection: '%s/%s', %w", from, sub, err)
 			}
-			mongoKV, err := mongo.OpenCollection(sub)
+			toKV, err := toDB.OpenCollection(cctx.Context, sub)
 			if err != nil {
-				return fmt.Errorf("open mongodb collection: %s, %w", sub, err)
+				return fmt.Errorf("open to db collection: '%s/%s', %w", to, sub, err)
 			}
 
-			src, dst := badgerKV, mongoKV
-			if reverse {
-				src, dst = mongoKV, badgerKV
-			}
-
-			err = migrate(cctx.Context, src, dst)
+			err = migrate(cctx.Context, fromKV, toKV)
 			if err != nil {
 				return err
 			}
@@ -108,4 +119,37 @@ func migrate(ctx context.Context, src, dst kvstore.KVStore) error {
 		}
 	}
 	return nil
+}
+
+func Dep(cctx *cli.Context, wants ...interface{}) (stop func(), err error) {
+	gctx, gcancel := NewSigContext(cctx.Context)
+	cfgmu := &sync.RWMutex{}
+
+	var stopper dix.StopFunc
+	stopper, err = dix.New(
+		gctx,
+		dix.Options(
+			dix.Override(new(confmgr.WLocker), cfgmu),
+			dix.Override(new(confmgr.RLocker), cfgmu.RLocker()),
+			dix.Override(new(confmgr.ConfigManager), dep.BuildLocalConfigManager),
+			dix.Override(new(dep.ConfDirPath), dep.BuildConfDirPath),
+			dix.Override(new(*modules.Config), dep.ProvideConfig),
+			dix.Override(new(*modules.SafeConfig), dep.ProvideSafeConfig),
+			dix.Override(new(*vsmplugin.LoadedPlugins), dep.ProvidePlugins),
+			dix.If(len(wants) > 0, dix.Populate(dep.InvokePopulate, wants...)),
+		),
+		DepsFromCLICtx(cctx),
+		dix.Override(new(dep.GlobalContext), gctx),
+	)
+
+	if err != nil {
+		gcancel()
+		return
+	}
+
+	stop = func() {
+		stopper(cctx.Context) // nolint: errcheck
+		gcancel()
+	}
+	return
 }
