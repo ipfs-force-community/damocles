@@ -10,7 +10,30 @@ venus-sector-manager 插件机制基于 [Go plugin](https://pkg.go.dev/plugin#se
 
 插件开发者创建一个插件需要以下 5 步。
 1. 选择一个插件类型，或者发送 PR 给 venus-sector-manager 创建一个新的插件类型。
-2. 创建一个普通的 go package，并创建 `manifest.toml` 文件。[example](https://github.com/ipfs-force-community/venus-cluster/blob/dfc20a9a4d2728192bbbf830ddfd15b684b98ce9/venus-sector-manager/plugin/examples/memdb/manifest.toml#L3-L10)
+2. 创建一个普通的 go package，并创建 `manifest.toml` 文件。
+
+	`manifest.toml` 文件的内容会被解析为 `vsm-plugin/spi.go` 中的 `{Kind}Manifest` 结构体。
+
+	[manifest.toml example:](https://github.com/ipfs-force-community/venus-cluster/blob/dfc20a9a4d2728192bbbf830ddfd15b684b98ce9/venus-sector-manager/plugin/examples/memdb/manifest.toml#L3-L10)
+	```toml
+	# manifest.toml
+	
+	# 插件名称
+	name = "memdb"
+	# 插件描述
+	description = "kvstore in memory"
+	# 插件类型，当前支持: ObjStore | KVStore | SyncSectorState
+	kind = "KVStore"
+	# 指定插件的初始化函数
+	onInit = "OnInit"
+	# 指定插件的 Shutdown 函数
+	# onShutdown = "OnShutdown"
+	
+	# 导出此类型插件的特有方法
+	export = [
+		{extPoint="Constructor", impl="Open"},
+	]
+   ```
 3. 实现 `Init` 和 `Shutdown` 方法，所有的插件都需要实现这两个方法。
 4. 编写特定类型插件的特有方法实现插件逻辑
 5. 使用 `cmd/buildplugin` 命令编译插件，并且将编译后的 `.so` 文件移到 venus-sector-manager 的[插件目录](../zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#commonplugins)中。`go run github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/buildplugin@latest --src-dir=./ --out-dir=./`

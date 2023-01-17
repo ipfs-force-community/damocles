@@ -47,7 +47,9 @@ func (k Kind) String() (str string) {
 }
 
 type Manifest struct {
-	Name        string
+	// The plugin name
+	Name string
+	// The description of plugin
 	Description string
 	BuildTime   string
 	// OnInit defines the plugin init logic.
