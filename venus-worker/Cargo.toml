@@ -7,8 +7,6 @@ exclude = [
     ".github",
 ]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [workspace]
 members = [
     "vc-processors",
@@ -105,3 +103,6 @@ storage-proofs-core = { git = "https://github.com/ipfs-force-community/rust-fil-
 storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v11.1.1" }
 storage-proofs-post = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-post", branch = "force/master_v11.1.1" }
 storage-proofs-update = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-update", branch = "force/master_v11.1.1" }
+
+# tracking issue: https://github.com/ferrilab/funty/issues/7
+funty = { git = "https://github.com/ferrilab/funty/", rev = "7ef0d890fbcd8b3def1635ac1a877fc298488446" }
