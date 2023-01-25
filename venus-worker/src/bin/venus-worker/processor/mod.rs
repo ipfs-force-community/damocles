@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use vc_processors::{
     builtin::{
-        processors::BuiltinProcessor,
+        executor::BuiltinTaskExecutor,
         tasks::{
             AddPieces, SnapEncode, SnapProve, Transfer, TreeD, WindowPoSt, WinningPoSt, C2, PC1, PC2, STAGE_NAME_ADD_PIECES, STAGE_NAME_C2,
             STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE, STAGE_NAME_TRANSFER, STAGE_NAME_TREED,
@@ -75,7 +75,7 @@ the argument `hugepage_files_path` will be ignored.",
 
 pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
     match subargs.subcommand() {
-        (STAGE_NAME_ADD_PIECES, _) => run_consumer::<AddPieces, BuiltinProcessor>(),
+        (STAGE_NAME_ADD_PIECES, _) => run_consumer::<AddPieces, BuiltinTaskExecutor>(),
 
         (STAGE_NAME_PC1, Some(m)) => {
             use storage_proofs_porep::stacked::init_numa_mem_pool;
@@ -92,24 +92,24 @@ pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
                 (None, None) => {}
             }
 
-            run_consumer::<PC1, BuiltinProcessor>()
+            run_consumer::<PC1, BuiltinTaskExecutor>()
         }
 
-        (STAGE_NAME_PC2, _) => run_consumer::<PC2, BuiltinProcessor>(),
+        (STAGE_NAME_PC2, _) => run_consumer::<PC2, BuiltinTaskExecutor>(),
 
-        (STAGE_NAME_C2, _) => run_consumer::<C2, BuiltinProcessor>(),
+        (STAGE_NAME_C2, _) => run_consumer::<C2, BuiltinTaskExecutor>(),
 
-        (STAGE_NAME_TREED, _) => run_consumer::<TreeD, BuiltinProcessor>(),
+        (STAGE_NAME_TREED, _) => run_consumer::<TreeD, BuiltinTaskExecutor>(),
 
-        (STAGE_NAME_SNAP_ENCODE, _) => run_consumer::<SnapEncode, BuiltinProcessor>(),
+        (STAGE_NAME_SNAP_ENCODE, _) => run_consumer::<SnapEncode, BuiltinTaskExecutor>(),
 
-        (STAGE_NAME_SNAP_PROVE, _) => run_consumer::<SnapProve, BuiltinProcessor>(),
+        (STAGE_NAME_SNAP_PROVE, _) => run_consumer::<SnapProve, BuiltinTaskExecutor>(),
 
-        (STAGE_NAME_TRANSFER, _) => run_consumer::<Transfer, BuiltinProcessor>(),
+        (STAGE_NAME_TRANSFER, _) => run_consumer::<Transfer, BuiltinTaskExecutor>(),
 
-        (STAGE_NAME_WINDOW_POST, _) => run_consumer::<WindowPoSt, BuiltinProcessor>(),
+        (STAGE_NAME_WINDOW_POST, _) => run_consumer::<WindowPoSt, BuiltinTaskExecutor>(),
 
-        (STAGE_NAME_WINNING_POST, _) => run_consumer::<WinningPoSt, BuiltinProcessor>(),
+        (STAGE_NAME_WINNING_POST, _) => run_consumer::<WinningPoSt, BuiltinTaskExecutor>(),
 
         (other, _) => Err(anyhow!("unexpected subcommand `{}` of processor", other)),
     }

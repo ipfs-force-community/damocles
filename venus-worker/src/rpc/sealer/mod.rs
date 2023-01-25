@@ -2,15 +2,20 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use fil_clock::ChainEpoch;
-use fil_types::{ActorID, PaddedPieceSize, SectorNumber};
 use forest_cid::json::CidJson;
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use vc_processors::b64serde::{BytesArray32, BytesVec};
+use vc_processors::{
+    b64serde::{BytesArray32, BytesVec},
+    fil_proofs::ActorID,
+};
 
 use super::super::types::SealProof;
+
+/// SectorNumber is a numeric identifier for a sector. It is usually relative to a miner.
+pub type SectorNumber = u64;
 
 /// type alias for BytesArray32
 pub type Randomness = BytesArray32;
@@ -19,6 +24,56 @@ pub type B64Vec = BytesVec;
 
 /// type alias for u64
 pub type DealID = u64;
+
+/// Size of a piece in bytes.
+#[derive(PartialEq, Debug, Eq, Clone, Copy)]
+pub struct UnpaddedPieceSize(pub u64);
+
+impl UnpaddedPieceSize {
+    /// Converts unpadded piece size into padded piece size.
+    pub fn padded(self) -> PaddedPieceSize {
+        PaddedPieceSize(self.0 + (self.0 / 127))
+    }
+
+    /// Validates piece size.
+    pub fn validate(self) -> std::result::Result<(), &'static str> {
+        if self.0 < 127 {
+            return Err("minimum piece size is 127 bytes");
+        }
+
+        // is 127 * 2^n
+        if self.0 >> self.0.trailing_zeros() != 127 {
+            return Err("unpadded piece size must be a power of 2 multiple of 127");
+        }
+
+        Ok(())
+    }
+}
+
+/// Size of a piece in bytes with padding.
+#[derive(PartialEq, Debug, Eq, Clone, Copy, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct PaddedPieceSize(pub u64);
+
+impl PaddedPieceSize {
+    /// Converts padded piece size into an unpadded piece size.
+    pub fn unpadded(self) -> UnpaddedPieceSize {
+        UnpaddedPieceSize(self.0 - (self.0 / 128))
+    }
+
+    /// Validates piece size.
+    pub fn validate(self) -> std::result::Result<(), &'static str> {
+        if self.0 < 128 {
+            return Err("minimum piece size is 128 bytes");
+        }
+
+        if self.0.count_ones() != 1 {
+            return Err("padded piece size must be a power of 2");
+        }
+
+        Ok(())
+    }
+}
 
 /// contains miner actor id & sector number
 #[derive(Clone, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]

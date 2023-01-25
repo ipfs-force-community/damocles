@@ -29,96 +29,116 @@
 //!
 
 use std::env::{self, current_exe};
-use std::io::{self, BufRead, BufReader};
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
+use tokio::{
+    io,
+    io::{AsyncBufReadExt, BufReader},
+};
 use tracing::{info, warn, warn_span};
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, EnvFilter};
-use vc_processors::core::{
-    ext::{run_consumer, BoxedFinalizeHook, BoxedPrepareHook, ProducerBuilder},
-    Processor, Task,
+use vc_ipc::{
+    client::Client as IpcClient,
+    framed::{FramedExt, LinesCodec},
+    readwriter::{pipe, ReadWriterExt},
+    serded::Json,
+    server::Server as IpcServer,
 };
+use vc_processors::builtin::executor::TaskExecutor;
+use vc_processors::builtin::simple_processor::running_store::MemoryRunningStore;
+use vc_processors::builtin::simple_processor::SimpleProcessor;
+use vc_processors::builtin::task_id_extractor::Md5BincodeTaskIdExtractor;
+use vc_processors::core::{ProcessorClient, Task, TowerServiceWrapper};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 struct Num(pub u32);
 
 impl Task for Num {
-    const STAGE: &'static str = "pow";
+    const STAGE: &'static str = "sqr";
     type Output = Num;
 }
 
 #[derive(Copy, Clone, Default)]
-struct PowProc;
+struct PowExecutor;
 
-impl Processor<Num> for PowProc {
-    fn process(&self, task: Num) -> Result<<Num as Task>::Output> {
+impl TaskExecutor<Num> for PowExecutor {
+    fn exec(&self, task: Num) -> Result<<Num as Task>::Output> {
         if task.0 > 10086 {
             return Err(anyhow!("too large!!"));
         }
-
         Ok(Num(task.0.pow(2)))
     }
 }
 
-fn main() -> Result<()> {
-    tracing_subscriber::registry()
-        .with(fmt::layer().with_writer(std::io::stderr))
-        .with(
-            EnvFilter::builder()
-                .with_default_directive(LevelFilter::DEBUG.into())
-                .from_env()
-                .context("env filter")?,
-        )
-        .init();
+#[tokio::main]
+async fn main() -> Result<()> {
+    init_log()?;
 
     let args = env::args().collect::<Vec<String>>();
     if args.len() == 2 && args[1] == "sub" {
-        return run_consumer::<Num, PowProc>();
+        return run_sub().await;
     };
 
-    run_main()
+    run_main().await
 }
 
-fn run_main() -> Result<()> {
-    let _span = warn_span!("parent", pid = std::process::id()).entered();
-    let mut producer = ProducerBuilder::<BoxedPrepareHook<Num>, BoxedFinalizeHook<Num>>::new(
-        current_exe().context("get current exe")?,
-        vec!["sub".to_owned()],
+async fn run_sub() -> Result<()> {
+    let transport = pipe::listen().framed(LinesCodec::default()).serded(Json::default());
+
+    let sp = SimpleProcessor::new(
+        Md5BincodeTaskIdExtractor::default(),
+        PowExecutor::default(),
+        MemoryRunningStore::new(Duration::from_secs(3600 * 24 * 2)).spawn(),
     )
-    .stable_timeout(Duration::from_secs(5))
-    .build::<Num>()
-    .context("build producer")?;
+    .spawn();
 
-    producer.start_response_handler().context("start response handler")?;
+    let processor_service = tower::ServiceBuilder::new()
+        .buffer(10)
+        .rate_limit(10, Duration::from_secs(1))
+        .concurrency_limit(5)
+        .service(TowerServiceWrapper(sp));
 
-    info!(child = producer.child_pid(), "producer start");
+    let ipc_server: IpcServer<_, _, _> = (transport, processor_service).into();
+    ipc_server.serve().await.context("ipc server error")
+}
 
-    let stdin = io::stdin();
-    let mut reader = BufReader::new(stdin);
-    let mut line_buf = String::new();
+async fn run_main() -> Result<()> {
+    let _span = warn_span!("parent", pid = std::process::id()).entered();
+
+    let transport = pipe::connect(current_exe().context("get current exe")?, vec!["sub".to_owned()])
+        .context("connect to pipe")?
+        .framed(LinesCodec::default())
+        .serded(Json::default());
+
+    let ipc_client = IpcClient::new(Default::default(), transport).spawn();
+    let client = ProcessorClient::new(ipc_client);
+    // info!(child = producer.child_pid(), "producer start");
+
+    let mut reader = BufReader::new(io::stdin()).lines();
 
     loop {
         info!("please enter a number:");
 
-        line_buf.clear();
+        let line = match reader.next_line().await.context("read line from stdin")? {
+            Some(line) => line,
+            None => {
+                info!("exit");
+                return Ok(());
+            }
+        };
 
-        let size = reader.read_line(&mut line_buf).context("read line from stdin")?;
-        if size == 0 {
-            info!("exit");
-            return Ok(());
-        }
-
-        let num: u32 = line_buf
+        let num: u32 = line
             .as_str()
             .trim()
             .parse()
-            .with_context(|| format!("number required, got {:?}", line_buf))?;
+            .with_context(|| format!("number required, got {}", line))?;
         info!(num, "read in");
 
-        match producer.process(Num(num)) {
+        let task_id = client.start_task(Num(num)).await.context("start task")?;
+        match client.wait_task(&task_id).await {
             Ok(out) => {
                 info!("get output: {:?}", out);
             }
@@ -128,4 +148,17 @@ fn run_main() -> Result<()> {
             }
         };
     }
+}
+
+fn init_log() -> Result<()> {
+    tracing_subscriber::registry()
+        .with(fmt::layer().with_writer(std::io::stderr))
+        .with(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::DEBUG.into())
+                .from_env()
+                .context("env filter")?,
+        )
+        .init();
+    Ok(())
 }

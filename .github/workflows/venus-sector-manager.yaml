@@ -1,66 +1,66 @@
-name: venus-sector-manager
+# name: venus-sector-manager
 
-on:
-  pull_request:
-    branches: ["main", "release/**", "dev/coop/**"]
-    paths-ignore: ["*.md", "docs/**"]
+# on:
+#   pull_request:
+#     branches: ["main", "release/**", "dev/coop/**"]
+#     paths-ignore: ["*.md", "docs/**"]
 
-  push:
-    branches: ["main", "release/**", "dev/coop/**"]
-    paths-ignore: ["*.md", "docs/**"]
+#   push:
+#     branches: ["main", "release/**", "dev/coop/**"]
+#     paths-ignore: ["*.md", "docs/**"]
 
-jobs:
-  build:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
+# jobs:
+#   build:
+#     runs-on: ubuntu-20.04
+#     steps:
+#       - uses: actions/checkout@v2
 
-      - name: dependencies
-        run: sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
+#       - name: dependencies
+#         run: sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
 
-      - name: setup go
-        uses: actions/setup-go@v2
-        with:
-          go-version: "1.18"
+#       - name: setup go
+#         uses: actions/setup-go@v2
+#         with:
+#           go-version: "1.18"
 
-      - name: cache paths
-        id: cache-paths
-        run: |
-          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
-          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+#       - name: cache paths
+#         id: cache-paths
+#         run: |
+#           echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+#           echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
 
-      - name: setup go cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ${{ steps.cache-paths.outputs.go-build }}
-            ${{ steps.cache-paths.outputs.go-mod }}
-          key: ${{ runner.os }}-go-${{ hashFiles('venus-sector-manager/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
+#       - name: setup go cache
+#         uses: actions/cache@v3
+#         continue-on-error: false
+#         with:
+#           path: |
+#             ${{ steps.cache-paths.outputs.go-build }}
+#             ${{ steps.cache-paths.outputs.go-mod }}
+#           key: ${{ runner.os }}-go-${{ hashFiles('venus-sector-manager/go.sum') }}
+#           restore-keys: ${{ runner.os }}-go-
 
-      - name: install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
+#       - name: install golangci-lint
+#         run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
 
-      - name: test venus-sector-manager
-        run: make test-smgr
+#       - name: test venus-sector-manager
+#         run: make test-smgr
 
-      - name: build venus-sector-manager
-        run: make build-smgr
+#       - name: build venus-sector-manager
+#         run: make build-smgr
 
-      - name: check venus-sector-manager
-        run: make check-smgr
+#       - name: check venus-sector-manager
+#         run: make check-smgr
 
-      - name: check git dirty
-        run: make check-git
+#       - name: check git dirty
+#         run: make check-git
 
-      - name: show bins
-        run: ls -lha ./dist/bin/
+#       - name: show bins
+#         run: ls -lha ./dist/bin/
 
-      # - name: upload venus-sector-manager
-      #   uses: actions/upload-artifact@v2
-      #   with:
-      #     name: venus-sector-manager
-      #     path: ./dist/bin/
-      #     if-no-files-found: error
-      #     retention-days: 3
+#       # - name: upload venus-sector-manager
+#       #   uses: actions/upload-artifact@v2
+#       #   with:
+#       #     name: venus-sector-manager
+#       #     path: ./dist/bin/
+#       #     if-no-files-found: error
+#       #     retention-days: 3

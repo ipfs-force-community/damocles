@@ -9,14 +9,14 @@ pub use vc_processors::{
         STAGE_NAME_C1, STAGE_NAME_C2, STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE, STAGE_NAME_TRANSFER,
         STAGE_NAME_TREED,
     },
-    core::{Processor, Task as Input},
+    core::{Processor as ProcessorTrait, Task as Input},
 };
 
 pub mod external;
 mod safe;
 pub use safe::*;
 
-pub type ArcProcessor<I> = Arc<dyn Processor<I>>;
+pub type ArcProcessor<I> = Arc<dyn ProcessorTrait<I>>;
 pub type ArcAddPiecesProcessor = ArcProcessor<AddPiecesInput>;
 pub type ArcTreeDProcessor = ArcProcessor<TreeDInput>;
 pub type ArcPC1Processor = ArcProcessor<PC1Input>;

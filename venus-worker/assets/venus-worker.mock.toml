@@ -101,5 +101,6 @@ cgroup.cpuset = "28-31"
 # fields for c2 processor
 [[processors.c2]]
 cgroup.cpuset = "32-47"
+env={RUST_LOG="info"}
 
 [[processors.transfer]]

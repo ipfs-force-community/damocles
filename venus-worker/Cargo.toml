@@ -3,16 +3,12 @@ name = "venus-worker"
 version = "0.5.0-beta1"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2021"
-exclude = [
-    ".github",
-]
+exclude = [".github"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-members = [
-    "vc-processors",
-]
+members = ["vc-ipc", "vc-processors"]
 
 [dependencies]
 anyhow = "1"
@@ -27,7 +23,11 @@ fil_clock = "0.1"
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "time", "local-time"] }
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "time",
+    "local-time",
+] }
 crossterm = "0.20"
 jsonrpc-core = "18"
 jsonrpc-derive = "18"
@@ -55,10 +55,6 @@ features = ["blocking"]
 [dependencies.tokio]
 version = "1"
 features = ["rt", "rt-multi-thread"]
-
-[dependencies.fil_types]
-version = "0.2"
-features = ["json"]
 
 [dependencies.rocksdb]
 version = "0.16"
@@ -97,7 +93,7 @@ default = ["vc-processors/builtin", "vc-processors/ext-producer"]
 cuda = ["vc-processors/fil-proofs-cuda"]
 
 [patch.crates-io]
-filecoin-hashers = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-hashers", branch = "force/master_v11.1.1"}
+filecoin-hashers = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-hashers", branch = "force/master_v11.1.1" }
 filecoin-proofs = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-proofs", branch = "force/master_v11.1.1" }
 fr32 = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "fr32", branch = "force/master_v11.1.1" }
 sha2raw = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "sha2raw", branch = "force/master_v11.1.1" }

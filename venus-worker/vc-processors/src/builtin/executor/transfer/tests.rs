@@ -6,13 +6,8 @@ use hex::encode;
 use pretty_assertions::assert_eq;
 use rand::{rngs::OsRng, thread_rng, RngCore};
 
-use super::{
-    super::{
-        super::tasks::{TransferItem, TransferOption},
-        TransferRoute,
-    },
-    do_transfer, ensure_dest_parent,
-};
+use super::{do_transfer, ensure_dest_parent};
+use crate::builtin::tasks::{TransferItem, TransferOption, TransferRoute};
 
 struct TempDir(PathBuf);
 
@@ -122,7 +117,7 @@ fn transfer_failure_test() {
         "dest path is relative"
     );
 
-    let dest_path = tmp.touch(&rel_dest, None);
+    let dest_path = tmp.touch(rel_dest, None);
     let res = do_transfer(&TransferRoute {
         src: TransferItem {
             store_name: None,

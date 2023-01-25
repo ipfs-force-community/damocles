@@ -15,13 +15,28 @@
 //! You can use any number you like to replace `15`, and see what happens.
 //!
 
-use anyhow::{Context, Result};
+use std::time::Duration;
+
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, EnvFilter};
-use vc_processors::core::{ext::run_consumer, Processor, Task};
+use vc_ipc::{
+    framed::{FramedExt, LinesCodec},
+    readwriter::{pipe, ReadWriterExt},
+    serded::Json,
+    server::Server as IpcServer,
+};
+use vc_processors::{
+    builtin::{
+        executor::TaskExecutor,
+        simple_processor::{running_store::MemoryRunningStore, SimpleProcessor},
+        task_id_extractor::Md5BincodeTaskIdExtractor,
+    },
+    core::{Task, TowerServiceWrapper},
+};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 struct Num(pub u32);
 
@@ -31,15 +46,42 @@ impl Task for Num {
 }
 
 #[derive(Copy, Clone, Default)]
-struct PowProc;
+struct PowExecutor;
 
-impl Processor<Num> for PowProc {
-    fn process(&self, task: Num) -> Result<<Num as Task>::Output> {
+impl TaskExecutor<Num> for PowExecutor {
+    fn exec(&self, task: Num) -> Result<<Num as Task>::Output> {
+        if task.0 > 10086 {
+            return Err(anyhow!("too large!!"));
+        }
         Ok(Num(task.0.pow(2)))
     }
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
+    init_log()?;
+    info!("start sqr consumer");
+
+    let transport = pipe::listen().framed(LinesCodec::default()).serded(Json::default());
+
+    let sp = SimpleProcessor::new(
+        Md5BincodeTaskIdExtractor::default(),
+        PowExecutor::default(),
+        MemoryRunningStore::new(Duration::from_secs(3600 * 24 * 2)).spawn(),
+    )
+    .spawn();
+
+    let processor_service = tower::ServiceBuilder::new()
+        .buffer(10)
+        .rate_limit(10, Duration::from_secs(1))
+        .concurrency_limit(5)
+        .service(TowerServiceWrapper(sp));
+
+    let ipc_server: IpcServer<_, _, _> = (transport, processor_service).into();
+    ipc_server.serve().await.context("ipc server error")
+}
+
+fn init_log() -> Result<()> {
     tracing_subscriber::registry()
         .with(fmt::layer())
         .with(
@@ -49,7 +91,5 @@ fn main() -> Result<()> {
                 .context("env filter")?,
         )
         .init();
-
-    info!("start sqr consumer");
-    run_consumer::<Num, PowProc>()
+    Ok(())
 }

@@ -15,34 +15,39 @@
 //! ```
 
 use std::env::{self, current_exe};
-use std::io::{self, BufRead, BufReader};
 use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use filecoin_proofs_api::RegisteredSealProof;
+use tokio::io::{self, AsyncBufReadExt, BufReader};
 use tracing::{info, warn, warn_span};
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, EnvFilter};
-use vc_processors::{
-    builtin::tasks::TreeD,
-    core::{
-        ext::{run_consumer, ProducerBuilder, Request},
-        Processor, Task,
-    },
-    fil_proofs::RegisteredSealProof,
-};
+use vc_ipc::client::Client as IpcClient;
+use vc_ipc::framed::{FramedExt, LinesCodec};
+use vc_ipc::readwriter::{pipe, ReadWriterExt};
+use vc_ipc::serded::Json;
+use vc_ipc::server::Server as IpcServer;
+use vc_processors::builtin::executor::TaskExecutor;
+use vc_processors::builtin::simple_processor::running_store::MemoryRunningStore;
+use vc_processors::builtin::simple_processor::SimpleProcessor;
+use vc_processors::builtin::task_id_extractor::Md5BincodeTaskIdExtractor;
+use vc_processors::builtin::tasks::TreeD;
+use vc_processors::core::{ProcessorClient, Task, TowerServiceWrapper};
 
 #[derive(Clone, Copy, Default)]
 struct TreeDProc;
 
-impl Processor<TreeD> for TreeDProc {
-    fn process(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {
+impl TaskExecutor<TreeD> for TreeDProc {
+    fn exec(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {
         info!(dir = ?task.cache_dir, "process tree_d task");
         std::thread::sleep(Duration::from_secs(3));
         Ok(false)
     }
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(fmt::layer().with_writer(std::io::stderr))
         .with(
@@ -55,45 +60,58 @@ fn main() -> Result<()> {
 
     let args = env::args().collect::<Vec<String>>();
     if args.len() == 2 && args[1] == "sub" {
-        return run_consumer::<TreeD, TreeDProc>();
+        return run_sub().await;
     };
 
-    run_main()
+    run_main().await
 }
 
-fn run_main() -> Result<()> {
+async fn run_sub() -> Result<()> {
+    let transport = pipe::listen().framed(LinesCodec::default()).serded(Json::default());
+
+    let sp = SimpleProcessor::new(
+        Md5BincodeTaskIdExtractor::default(),
+        TreeDProc::default(),
+        MemoryRunningStore::new(Duration::from_secs(3600 * 24 * 2)).spawn(),
+    )
+    .spawn();
+
+    let processor_service = tower::ServiceBuilder::new()
+        .buffer(10)
+        .rate_limit(10, Duration::from_secs(1))
+        .concurrency_limit(5)
+        .service(TowerServiceWrapper(sp));
+
+    let ipc_server: IpcServer<_, _, _> = (transport, processor_service).into();
+    ipc_server.serve().await.context("ipc server error")
+}
+
+async fn run_main() -> Result<()> {
     let _span = warn_span!("parent", pid = std::process::id()).entered();
-    let mut producer = ProducerBuilder::<_, _>::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
-        .stable_timeout(Duration::from_secs(5))
-        .hook_prepare(move |_: &Request<TreeD>| -> Result<()> {
-            info!("token acquired");
-            Ok(())
-        })
-        .hook_finalize(move |_: &Request<TreeD>| {
-            info!("do nothing");
-        })
-        .build::<TreeD>()
-        .context("build producer")?;
 
-    producer.start_response_handler().context("start response handler")?;
+    let transport = pipe::connect(current_exe().context("get current exe")?, vec!["sub".to_owned()])
+        .context("connect to pipe")?
+        .framed(LinesCodec::default())
+        .serded(Json::default());
 
-    info!(child = producer.child_pid(), "producer start");
+    let ipc_client = IpcClient::new(Default::default(), transport).spawn();
+    let client = ProcessorClient::new(ipc_client);
+    // info!(child = producer.child_pid(), "producer start");
 
-    let stdin = io::stdin();
-    let mut reader = BufReader::new(stdin);
-    let mut line_buf = String::new();
+    let mut reader = BufReader::new(io::stdin()).lines();
 
     loop {
         info!("please enter a dir:");
-        line_buf.clear();
 
-        let size = reader.read_line(&mut line_buf).context("read line from stdin")?;
-        if size == 0 {
-            info!("exit");
-            return Ok(());
-        }
+        let line = match reader.next_line().await.context("read line from stdin")? {
+            Some(line) => line,
+            None => {
+                info!("exit");
+                return Ok(());
+            }
+        };
 
-        let loc = line_buf.as_str().trim();
+        let loc = line.as_str().trim();
         if loc.is_empty() {
             info!("get empty location");
             return Ok(());
@@ -102,11 +120,16 @@ fn run_main() -> Result<()> {
         let dir = PathBuf::from(loc);
         let staged_file_path = dir.join("staged");
 
-        match producer.process(TreeD {
-            registered_proof: RegisteredSealProof::StackedDrg2KiBV1_1,
-            staged_file: staged_file_path,
-            cache_dir: dir.clone(),
-        }) {
+        let task_id = client
+            .start_task(TreeD {
+                registered_proof: RegisteredSealProof::StackedDrg2KiBV1_1,
+                staged_file: staged_file_path,
+                cache_dir: dir.clone(),
+            })
+            .await
+            .context("start task")?;
+
+        match client.wait_task(&task_id).await {
             Ok(out) => {
                 info!("get output: {:?}", out);
             }

@@ -10,7 +10,7 @@ use rand::seq::SliceRandom;
 
 use self::sub::{ProcessingGuard, SubProcessor};
 
-use super::{Input, Processor};
+use super::{Input, ProcessorTrait};
 use crate::sealing::resource::Pool;
 
 pub mod config;
@@ -50,7 +50,7 @@ fn try_lock<'a, I: Input>(
     Ok(acquired)
 }
 
-impl<I> Processor<I> for ExtProcessor<I>
+impl<I> ProcessorTrait<I> for ExtProcessor<I>
 where
     I: Input,
 {

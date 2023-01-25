@@ -8,7 +8,7 @@ use crossbeam_channel::{bounded, unbounded, Sender};
 use tracing::debug;
 use vc_processors::core::{
     ext::{ProducerBuilder, Request},
-    Processor,
+    Processor as ProcessorTrait,
 };
 
 use super::{super::Input, config};
@@ -21,7 +21,7 @@ pub(super) struct SubProcessor<I: Input> {
     pub limiter: Sender<()>,
     pub locks: Vec<String>,
     pub weight: u16,
-    pub producer: Box<dyn Processor<I>>,
+    pub producer: Box<dyn ProcessorTrait<I>>,
     _cg: Option<cgroup::CtrlGroup>,
 }
 

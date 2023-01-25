@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
-use fil_types::ActorID;
+use vc_processors::fil_proofs::ActorID;
 
 use crate::infra::util::PlaceHolder;
 use crate::logging::{info, warn};

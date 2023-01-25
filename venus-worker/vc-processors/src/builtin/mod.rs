@@ -4,6 +4,12 @@
 #[allow(missing_docs)]
 pub mod tasks;
 
-#[cfg(feature = "builtin-processors")]
+// #[cfg(feature = "builtin-executor")]
 #[allow(missing_docs)]
-pub mod processors;
+pub mod executor;
+
+/// TODO: doc
+pub mod simple_processor;
+
+/// TODO: doc
+pub mod task_id_extractor;

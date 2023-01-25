@@ -1,4 +1,4 @@
-//! Built-in processors.
+//! Built-in local executors.
 //!
 
 use std::collections::BTreeMap;
@@ -8,11 +8,11 @@ use anyhow::{Context, Result};
 use filecoin_proofs_api::StorageProofsError;
 use tracing::debug;
 
-use super::tasks::{
+use crate::builtin::tasks::{
     AddPieces, SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, WindowPoSt, WindowPoStOutput, WinningPoSt, WinningPoStOutput, C2,
     PC1, PC2,
 };
-use crate::core::{Processor, Task};
+use crate::core::Task;
 use crate::fil_proofs::{
     create_tree_d, generate_window_post, generate_winning_post, seal_commit_phase2, seal_pre_commit_phase1, seal_pre_commit_phase2,
     snap_encode_into, snap_generate_sector_update_proof, to_prover_id, write_and_preprocess, PartitionProofBytes, PrivateReplicaInfo,
@@ -21,11 +21,27 @@ use crate::fil_proofs::{
 pub mod piece;
 mod transfer;
 
-#[derive(Copy, Clone, Default, Debug)]
-pub struct BuiltinProcessor;
+/// Task Executor
+pub trait TaskExecutor<T: Task> {
+    /// Execute the specified task `T`
+    fn exec(&self, task: T) -> anyhow::Result<T::Output>;
+}
 
-impl Processor<AddPieces> for BuiltinProcessor {
-    fn process(&self, task: AddPieces) -> Result<<AddPieces as Task>::Output> {
+impl<T, F> TaskExecutor<T> for F
+where
+    T: Task,
+    F: Fn(T) -> anyhow::Result<T::Output>,
+{
+    fn exec(&self, task: T) -> anyhow::Result<<T as Task>::Output> {
+        self(task)
+    }
+}
+
+#[derive(Copy, Clone, Default, Debug)]
+pub struct BuiltinTaskExecutor;
+
+impl TaskExecutor<AddPieces> for BuiltinTaskExecutor {
+    fn exec(&self, task: AddPieces) -> Result<<AddPieces as Task>::Output> {
         let staged_file = fs::OpenOptions::new()
             .create(true)
             .read(true)
@@ -55,14 +71,14 @@ impl Processor<AddPieces> for BuiltinProcessor {
     }
 }
 
-impl Processor<TreeD> for BuiltinProcessor {
-    fn process(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {
+impl TaskExecutor<TreeD> for BuiltinTaskExecutor {
+    fn exec(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {
         create_tree_d(task.registered_proof, Some(task.staged_file), task.cache_dir).map(|_| true)
     }
 }
 
-impl Processor<PC1> for BuiltinProcessor {
-    fn process(&self, task: PC1) -> Result<<PC1 as Task>::Output> {
+impl TaskExecutor<PC1> for BuiltinTaskExecutor {
+    fn exec(&self, task: PC1) -> Result<<PC1 as Task>::Output> {
         seal_pre_commit_phase1(
             task.registered_proof,
             task.cache_path,
@@ -76,20 +92,20 @@ impl Processor<PC1> for BuiltinProcessor {
     }
 }
 
-impl Processor<PC2> for BuiltinProcessor {
-    fn process(&self, task: PC2) -> Result<<PC2 as Task>::Output> {
+impl TaskExecutor<PC2> for BuiltinTaskExecutor {
+    fn exec(&self, task: PC2) -> Result<<PC2 as Task>::Output> {
         seal_pre_commit_phase2(task.pc1out, task.cache_dir, task.sealed_file)
     }
 }
 
-impl Processor<C2> for BuiltinProcessor {
-    fn process(&self, task: C2) -> Result<<C2 as Task>::Output> {
+impl TaskExecutor<C2> for BuiltinTaskExecutor {
+    fn exec(&self, task: C2) -> Result<<C2 as Task>::Output> {
         seal_commit_phase2(task.c1out, task.prover_id, task.sector_id)
     }
 }
 
-impl Processor<SnapEncode> for BuiltinProcessor {
-    fn process(&self, task: SnapEncode) -> Result<<SnapEncode as Task>::Output> {
+impl TaskExecutor<SnapEncode> for BuiltinTaskExecutor {
+    fn exec(&self, task: SnapEncode) -> Result<<SnapEncode as Task>::Output> {
         snap_encode_into(
             task.registered_proof,
             task.new_replica_path,
@@ -102,8 +118,8 @@ impl Processor<SnapEncode> for BuiltinProcessor {
     }
 }
 
-impl Processor<SnapProve> for BuiltinProcessor {
-    fn process(&self, task: SnapProve) -> Result<<SnapProve as Task>::Output> {
+impl TaskExecutor<SnapProve> for BuiltinTaskExecutor {
+    fn exec(&self, task: SnapProve) -> Result<<SnapProve as Task>::Output> {
         snap_generate_sector_update_proof(
             task.registered_proof,
             task.vannilla_proofs.into_iter().map(PartitionProofBytes).collect(),
@@ -114,16 +130,16 @@ impl Processor<SnapProve> for BuiltinProcessor {
     }
 }
 
-impl Processor<Transfer> for BuiltinProcessor {
-    fn process(&self, task: Transfer) -> Result<<Transfer as Task>::Output> {
+impl TaskExecutor<Transfer> for BuiltinTaskExecutor {
+    fn exec(&self, task: Transfer) -> Result<<Transfer as Task>::Output> {
         task.routes.into_iter().try_for_each(|route| transfer::do_transfer(&route))?;
 
         Ok(true)
     }
 }
 
-impl Processor<WindowPoSt> for BuiltinProcessor {
-    fn process(&self, task: WindowPoSt) -> Result<<WindowPoSt as Task>::Output> {
+impl TaskExecutor<WindowPoSt> for BuiltinTaskExecutor {
+    fn exec(&self, task: WindowPoSt) -> Result<<WindowPoSt as Task>::Output> {
         let replicas = BTreeMap::from_iter(task.replicas.into_iter().map(|rep| {
             (
                 rep.sector_id,
@@ -149,8 +165,8 @@ impl Processor<WindowPoSt> for BuiltinProcessor {
     }
 }
 
-impl Processor<WinningPoSt> for BuiltinProcessor {
-    fn process(&self, task: WinningPoSt) -> Result<<WinningPoSt as Task>::Output> {
+impl TaskExecutor<WinningPoSt> for BuiltinTaskExecutor {
+    fn exec(&self, task: WinningPoSt) -> Result<<WinningPoSt as Task>::Output> {
         let replicas = BTreeMap::from_iter(task.replicas.into_iter().map(|rep| {
             (
                 rep.sector_id,

@@ -11,7 +11,7 @@ use jsonrpc_core_client::transports::http;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use reqwest::Url;
 use tokio::runtime::Builder;
-use vc_processors::builtin::processors::BuiltinProcessor;
+use vc_processors::builtin::executor::BuiltinTaskExecutor;
 
 use crate::{
     config,
@@ -317,7 +317,7 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
 }
 
 fn compatible_for_piece_token(cfg: &mut config::Config) {
-    use vc_processors::builtin::processors::piece::fetcher::http::PieceHttpFetcher;
+    use vc_processors::builtin::executor::piece::fetcher::http::PieceHttpFetcher;
 
     if let Some(token) = &cfg.sector_manager.piece_token {
         match &mut cfg.processors.add_pieces {
