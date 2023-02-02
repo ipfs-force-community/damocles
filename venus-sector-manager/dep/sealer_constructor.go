@@ -297,6 +297,7 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Conf
 func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) core.SealerCliClient {
 	cli, err := buildSealerCliClient(gctx, lc, string(listen), false)
 	if err != nil {
+		log.Warnf("failed to build sealer cli client. err: %s", err)
 		cli = core.UnavailableSealerCliClient
 	}
 
