@@ -1,6 +1,8 @@
 unexport GOTAGS
 unexport GOFLAGS
 
+GO?=go
+
 FFI_PATH:=extern/filecoin-ffi/
 FFI_DEPS:=.install-filcrypto
 FFI_DEPS:=$(addprefix $(FFI_PATH),$(FFI_DEPS))
@@ -45,15 +47,15 @@ GOFLAGS+=-ldflags="$(ldflags)"
 
 build-venus-sector-manager:
 	rm -rf ./venus-sector-manager
-	go build -tags="$(GOTAGS)" $(GOFLAGS) -o venus-sector-manager ./cmd/venus-sector-manager
+	$(GO) build -tags="$(GOTAGS)" $(GOFLAGS) -o venus-sector-manager ./cmd/venus-sector-manager
 
 build-plugin-fsstore:
 	rm -rf ./plugin-fsstore.so
-	go run ./cmd/buildplugin/buildplugin.go --out-dir=./ --src-dir=./plugin/examples/fsstore/
+	$(GO) run ./cmd/buildplugin/buildplugin.go --out-dir=./ --src-dir=./plugin/examples/fsstore/
 
 build-plugin-memdb:
 	rm -rf ./plugin-memdb.so
-	go run ./cmd/buildplugin/buildplugin.go --out-dir=./ --src-dir=./plugin/examples/memdb/
+	$(GO) run ./cmd/buildplugin/buildplugin.go --out-dir=./ --src-dir=./plugin/examples/memdb/
 
 .PHONY: venus-sector-manager
 BINS+=venus-sector-manager
@@ -68,7 +70,7 @@ build-all-dev: $(MODULES) $(BUILDS)
 
 test-all: GOTAGS+=prod
 test-all: $(BUILD_DEPS)
-	go test -tags="$(GOTAGS)" $(GOFLAGS) -v -failfast `go list ./... | grep -v /extern/`
+	$(GO) test -tags="$(GOTAGS)" $(GOFLAGS) -v -failfast `go list ./... | grep -v /extern/`
 
 check-all: check-lint check-go-mod
 
@@ -76,7 +78,7 @@ check-lint: $(BUILD_DEPS)
 	golangci-lint run
 
 check-go-mod:
-	go mod tidy
+	$(GO) mod tidy
 
 dev-env:
-	go install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
+	$(GO) install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
