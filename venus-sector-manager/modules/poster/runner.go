@@ -54,7 +54,6 @@ type startContext struct {
 type proofResult struct {
 	sync.Mutex
 	proofs []miner.SubmitWindowedPoStParams
-	done   int
 }
 
 func postRunnerConstructor(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner {
@@ -84,7 +83,6 @@ type postRunner struct {
 	cancel context.CancelFunc
 
 	startOnce  sync.Once
-	submitOnce sync.Once
 	cancelOnce sync.Once
 
 	proofs proofResult
@@ -110,23 +108,14 @@ func (pr *postRunner) submit(pcfg *modules.MinerPoStConfig, ts *types.TipSet) {
 	// check for proofs
 	pr.proofs.Lock()
 	proofs := pr.proofs.proofs
-	done := pr.proofs.done
+	pr.proofs.proofs = nil
 	pr.proofs.Unlock()
 
 	if proofs == nil {
 		return
 	}
 
-	// TODO: submit anyway if current deadline is about to close
-	// and if we do this, we should avoid data race for the proofs
-	if want := len(proofs); want > done {
-		pr.log.Debugw("not all proofs generated", "want", want, "done", done)
-		return
-	}
-
-	pr.submitOnce.Do(func() {
-		go pr.submitPoSts(pcfg, ts, proofs)
-	})
+	go pr.submitPoSts(pcfg, ts, proofs)
 }
 
 func (pr *postRunner) abort() {
@@ -229,10 +218,6 @@ func (pr *postRunner) generatePoSt(baseLog *logging.ZapLogger) {
 		glog.Errorf("split partitions into batches: %v", err)
 		return
 	}
-
-	pr.proofs.Lock()
-	pr.proofs.proofs = make([]miner.SubmitWindowedPoStParams, len(partitionBatches))
-	pr.proofs.Unlock()
 
 	batchPartitionStartIdx := 0
 	for batchIdx := range partitionBatches {
@@ -412,8 +397,7 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 
 	defer func() {
 		pr.proofs.Lock()
-		pr.proofs.proofs[batchIdx] = params
-		pr.proofs.done++
+		pr.proofs.proofs = append(pr.proofs.proofs, params)
 		pr.proofs.Unlock()
 	}()
 
