@@ -1,3 +1,4 @@
+// Forked from https://github.com/filecoin-project/lotus
 package core
 
 // Result is a small wrapper type encapsulating Value/Error tuples, mostly for

@@ -1,4 +1,3 @@
-// go:build prod
 //go:build prod
 // +build prod
 
