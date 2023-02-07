@@ -515,14 +515,19 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 			Name:  "slow",
 			Usage: "run slower checks",
 		},
-		&cli.StringFlag{
-			Name:  "storage-id",
-			Usage: "filter sectors by storage path (path id)",
+		&cli.BoolFlag{
+			Name:  "faulty",
+			Usage: "only check faulty sectors",
+		},
+		&cli.BoolFlag{
+			Name:  "detail",
+			Usage: "show detail",
+			Value: false,
 		},
 	},
 	Action: func(cctx *cli.Context) error {
-		if cctx.Args().Len() != 1 {
-			return fmt.Errorf("must pass deadline index")
+		if cctx.NArg() != 1 {
+			return IncorrectNumArgs(cctx)
 		}
 
 		dlIdx, err := strconv.ParseUint(cctx.Args().Get(0), 10, 64)
@@ -556,10 +561,27 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 			return err
 		}
 
-		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
-		_, _ = fmt.Fprintln(tw, "deadline\tpartition\tsector\tstatus")
+		var filter *bitfield.BitField = nil
+		if cctx.Bool("faulty") {
+			t := bitfield.New()
+			filter = &t
+			for _, part := range partitions {
+				*filter, err = bitfield.MergeBitFields(*filter, part.FaultySectors)
+				if err != nil {
+					return fmt.Errorf("merge faulty sectors: %w", err)
+				}
+			}
+		}
 
-		var filter map[abi.SectorID]struct{}
+		showDetail := cctx.Bool("detail")
+		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
+		if showDetail {
+			_, _ = fmt.Fprintln(tw, "deadline\tpartition\tsector\tstatus")
+		} else {
+			_, _ = fmt.Fprintln(tw, "deadline\tpartition\tgood\tbad")
+		}
+
+		slow := cctx.Bool("slow")
 		for parIdx, par := range partitions {
 			sectors := make(map[abi.SectorNumber]struct{})
 
@@ -570,13 +592,12 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 
 			var tocheck []builtin.ExtendedSectorInfo
 			for _, info := range sectorInfos {
-				si := abi.SectorID{
-					Miner:  abi.ActorID(mid),
-					Number: info.SectorNumber,
-				}
-
 				if filter != nil {
-					if _, found := filter[si]; !found {
+					found, err := filter.IsSet(uint64(info.SectorNumber))
+					if err != nil {
+						return err
+					}
+					if !found {
 						continue
 					}
 				}
@@ -585,17 +606,21 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 				tocheck = append(tocheck, util.SectorOnChainInfoToExtended(info))
 			}
 
-			bad, err := api.Sealer.CheckProvable(ctx, abi.ActorID(mid), tocheck, cctx.Bool("slow"))
+			bad, err := api.Sealer.CheckProvable(ctx, abi.ActorID(mid), tocheck, slow)
 			if err != nil {
 				return err
 			}
 
-			for s := range sectors {
-				if err, exist := bad[s]; exist {
-					_, _ = fmt.Fprintf(tw, "%d\t%d\t%d\t%s\n", dlIdx, parIdx, s, color.RedString("bad")+fmt.Sprintf(" (%s)", err))
-				} else if !cctx.Bool("only-bad") {
-					_, _ = fmt.Fprintf(tw, "%d\t%d\t%d\t%s\n", dlIdx, parIdx, s, color.GreenString("good"))
+			if showDetail {
+				for s := range sectors {
+					if err, exist := bad[s]; exist {
+						_, _ = fmt.Fprintf(tw, "%d\t%d\t%d\t%s\n", dlIdx, parIdx, s, color.RedString("bad")+fmt.Sprintf(" (%s)", err))
+					} else if !cctx.Bool("only-bad") {
+						_, _ = fmt.Fprintf(tw, "%d\t%d\t%d\t%s\n", dlIdx, parIdx, s, color.GreenString("good"))
+					}
 				}
+			} else if len(sectors) != 0 {
+				_, _ = fmt.Fprintf(tw, "%d\t%d\t%d\t%d\n", dlIdx, parIdx, len(sectors)-len(bad), len(bad))
 			}
 		}
 

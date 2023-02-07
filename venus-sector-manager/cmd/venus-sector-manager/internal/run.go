@@ -37,6 +37,10 @@ func ShowHelpf(cctx *cli.Context, format string, args ...interface{}) error {
 	return ShowHelp(cctx, fmt.Errorf(format, args...))
 }
 
+func IncorrectNumArgs(cctx *cli.Context) error {
+	return ShowHelpf(cctx, "incorrect number of arguments, got %d", cctx.NArg())
+}
+
 func RunApp(app *cli.App) {
 	if err := app.Run(os.Args); err != nil {
 		var phe *PrintHelpErr
