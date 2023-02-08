@@ -412,7 +412,12 @@ pub fn persist_sector_files(task: &'_ Task<'_>, cache_dir: Entry, sealed_file: E
             break selected;
         }
 
-        debug!("no persist store selected, wait for next polling");
+        tracing::warn!(
+            required_size=required_size,
+            sector_id=?sector_id,
+            candidates=?candidates,
+            "no persist store selected, wait for next polling"
+        );
         task.wait_or_interruptted(task.store.config.rpc_polling_interval)?;
     };
 
