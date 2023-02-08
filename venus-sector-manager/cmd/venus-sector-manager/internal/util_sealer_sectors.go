@@ -59,7 +59,8 @@ var flagListEnableRebuild = &cli.BoolFlag{
 }
 
 var utilSealerSectorsCmd = &cli.Command{
-	Name: "sectors",
+	Name:  "sectors",
+	Usage: "tools for interacting with sectors",
 	Subcommands: []*cli.Command{
 		utilSealerSectorsAbortCmd,
 		utilSealerSectorsListCmd,

@@ -33,7 +33,8 @@ var utilMinerCmd = &cli.Command{
 
 var utilMinerInfoCmd = &cli.Command{
 	Name:      "info",
-	ArgsUsage: "[miner address]",
+	Usage:     "Print miner info",
+	ArgsUsage: "<miner address>",
 	Action: func(cctx *cli.Context) error {
 		maddr, err := ShouldAddress(cctx.Args().First(), true, true)
 		if err != nil {
@@ -108,7 +109,8 @@ var utilMinerInfoCmd = &cli.Command{
 }
 
 var utilMinerCreateCmd = &cli.Command{
-	Name: "create",
+	Name:  "create",
+	Usage: "sends a create miner message",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:     "from",

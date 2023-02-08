@@ -28,7 +28,8 @@ import (
 )
 
 var utilStorageCmd = &cli.Command{
-	Name: "storage",
+	Name:  "storage",
+	Usage: "manage sector storage (Persist Store)",
 	Subcommands: []*cli.Command{
 		utilStorageAttachCmd,
 		utilStorageFindCmd,
@@ -38,7 +39,8 @@ var utilStorageCmd = &cli.Command{
 }
 
 var utilStorageAttachCmd = &cli.Command{
-	Name: "attach",
+	Name:  "attach",
+	Usage: "attach local storage path and import sectors in this path",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name: "name",
@@ -325,10 +327,12 @@ SECTOR_LOOP:
 }
 
 var utilStorageFindCmd = &cli.Command{
-	Name: "find",
+	Name:  "find",
+	Usage: "find sector in the storage",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
-			Name: "upgrade",
+			Name:  "upgrade",
+			Usage: "find upgrade sectors",
 		},
 	},
 	ArgsUsage: "<actor id> <number>",
@@ -413,6 +417,7 @@ var utilStorageFindCmd = &cli.Command{
 
 var utilStorageListCmd = &cli.Command{
 	Name:      "list",
+	Usage:     "list local storage paths and capacity",
 	Flags:     []cli.Flag{},
 	ArgsUsage: "<actor id> <number>",
 	Action: func(cctx *cli.Context) error {
@@ -457,6 +462,7 @@ var utilStorageListCmd = &cli.Command{
 
 var utilStorageReleaseReservedCmd = &cli.Command{
 	Name:      "release-reserved",
+	Usage:     "manually release the reserved storage space",
 	Flags:     []cli.Flag{},
 	ArgsUsage: "<actor id> <number>",
 	Action: func(cctx *cli.Context) error {

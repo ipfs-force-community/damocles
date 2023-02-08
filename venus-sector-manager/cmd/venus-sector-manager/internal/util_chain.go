@@ -9,7 +9,8 @@ import (
 )
 
 var utilChainCmd = &cli.Command{
-	Name: "chain",
+	Name:  "chain",
+	Usage: "Interact with filecoin blockchain",
 	Subcommands: []*cli.Command{
 		utilChainHeadCmd,
 		utilChainPreCommitInfoCmd,
@@ -17,7 +18,8 @@ var utilChainCmd = &cli.Command{
 }
 
 var utilChainHeadCmd = &cli.Command{
-	Name: "head",
+	Name:  "head",
+	Usage: "Print chain head",
 	Action: func(cctx *cli.Context) error {
 		api, gctx, stop, err := extractAPI(cctx)
 		if err != nil {
