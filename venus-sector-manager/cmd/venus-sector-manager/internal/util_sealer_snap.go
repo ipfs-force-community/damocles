@@ -22,7 +22,7 @@ var utilSealerSnapCmd = &cli.Command{
 
 var utilSealerSnapFetchCmd = &cli.Command{
 	Name:      "fetch",
-	Usage:     "fetch activated cc sectors in specified deadline as snap candidates",
+	Usage:     "Fetch activated CC sectors in the specified deadline as snap candidates",
 	ArgsUsage: "<miner actor id/addr> <deadline index>",
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
