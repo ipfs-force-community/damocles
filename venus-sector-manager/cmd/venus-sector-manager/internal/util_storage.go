@@ -417,7 +417,7 @@ var utilStorageFindCmd = &cli.Command{
 
 var utilStorageListCmd = &cli.Command{
 	Name:      "list",
-	Usage:     "list local storage paths and capacity",
+	Usage:     "List local storage paths and capacity",
 	Flags:     []cli.Flag{},
 	ArgsUsage: "<actor id> <number>",
 	Action: func(cctx *cli.Context) error {
