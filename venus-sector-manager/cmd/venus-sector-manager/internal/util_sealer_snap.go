@@ -12,7 +12,7 @@ import (
 
 var utilSealerSnapCmd = &cli.Command{
 	Name:  "snap",
-	Usage: "tools for snap-up sectors",
+	Usage: "Commands for snap-up sectors",
 	Subcommands: []*cli.Command{
 		utilSealerSnapFetchCmd,
 		utilSealerSnapCandidatesCmd,
