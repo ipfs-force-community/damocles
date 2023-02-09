@@ -328,7 +328,7 @@ SECTOR_LOOP:
 
 var utilStorageFindCmd = &cli.Command{
 	Name:  "find",
-	Usage: "find sector in the storage",
+	Usage: "Find sector in the storage",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "upgrade",
