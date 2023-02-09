@@ -40,7 +40,7 @@ var utilStorageCmd = &cli.Command{
 
 var utilStorageAttachCmd = &cli.Command{
 	Name:  "attach",
-	Usage: "attach local storage path and import sectors in this path",
+	Usage: "Attach local storage path and import sectors in this path",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name: "name",
