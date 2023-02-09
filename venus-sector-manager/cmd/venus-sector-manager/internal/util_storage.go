@@ -462,7 +462,7 @@ var utilStorageListCmd = &cli.Command{
 
 var utilStorageReleaseReservedCmd = &cli.Command{
 	Name:      "release-reserved",
-	Usage:     "manually release the reserved storage space",
+	Usage:     "Manually release the reserved storage space",
 	Flags:     []cli.Flag{},
 	ArgsUsage: "<actor id> <number>",
 	Action: func(cctx *cli.Context) error {
