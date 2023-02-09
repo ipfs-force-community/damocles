@@ -332,7 +332,7 @@ var utilStorageFindCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "upgrade",
-			Usage: "find upgrade sectors",
+			Usage: "Find upgrade sectors",
 		},
 	},
 	ArgsUsage: "<actor id> <number>",
