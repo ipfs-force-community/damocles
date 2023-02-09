@@ -29,7 +29,7 @@ import (
 
 var utilStorageCmd = &cli.Command{
 	Name:  "storage",
-	Usage: "manage sector storage (Persist Store)",
+	Usage: "Manage persistent storage for sealed sectors",
 	Subcommands: []*cli.Command{
 		utilStorageAttachCmd,
 		utilStorageFindCmd,
