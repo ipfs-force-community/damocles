@@ -179,6 +179,41 @@ Addr = "127.0.0.1:6379"
 
 ---
 
+#### RegisterJsonRpcManifest 插件
+`RegisterJsonRpcManifest` 插件允许用户注册自定义的 jsonrpc 接口到 venus-sector-manager 中。
+
+Manifest:
+
+Struct 定义:
+```go
+type RegisterJsonRpcManifest struct {
+	Manifest
+	
+	// Handler returns the jsonrpc namespace and handler
+	// See: https://github.com/ipfs-force-community/go-jsonrpc/blob/4e8fb6324df7a31eaa6b480ef9e2a175545ba04b/server.go#L137
+	Handler func() (namespace string, handler interface{})
+}
+```
+manifest.toml 示例:
+```toml
+# manifest.toml
+
+name = "AtomicCounter"
+description = "Expose a series of jsonrpc methods to implement an atomic counter"
+# 插件类型设置为: RegisterJsonRpc
+kind = "RegisterJsonRpc"
+onInit = "OnInit"
+onShutdown = "OnShutdown"
+
+export = [
+	{extPoint="Handler", impl="Handler"},
+]
+```
+
+`RegisterJsonRpc` 插件无需配置，当 venus-sector-manager 在插件目录中扫描到多个 `RegisterJsonRpc` 插件时, 会[依次调用](https://github.com/ipfs-force-community/venus-cluster/blob/dfc20a9a4d2728192bbbf830ddfd15b684b98ce9/venus-sector-manager/modules/impl/sectors/state_mgr.go#L181)每一个 `RegisterJsonRpc` 插件。我们可以通过编写多个的 `RegisterJsonRpc` 插件注册多个自定义 jsonrpc 接口。
+
+---
+
 #### SyncSectorState 插件 (未稳定的插件类型)
 `SyncSectorState` 插件允许用户编写插件同步 venus-sector-manager 扇区变动信息。因为 KvStore 存储的是二进制数据，无法获取扇区结构化数据，本插件提供结构化变更数据，且允许多个 SyncSectorState 插件同时工作。
 

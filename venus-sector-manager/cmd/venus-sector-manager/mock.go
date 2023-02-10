@@ -59,6 +59,6 @@ var mockCmd = &cli.Command{
 			return fmt.Errorf("construct mock api: %w", err)
 		}
 
-		return serveSealerAPI(gctx, stopper, node, cctx.String("listen"))
+		return serveSealerAPI(gctx, stopper, node, cctx.String("listen"), nil)
 	},
 }
