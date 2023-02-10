@@ -630,8 +630,8 @@ github.com/ipfs-force-community/go-jsonrpc v0.1.6 h1:8nWtwA/q/jjv8JXeEihHeu9Y0IE
 github.com/ipfs-force-community/go-jsonrpc v0.1.6/go.mod h1:XBBpuKIMaXIIzeqzO1iucq4GvbF8CxmXRFoezRh+Cx4=
 github.com/ipfs-force-community/venus-cluster-assets v0.1.0 h1:K/0+OV9Jm7HjSa7O9MAtgfLDIudQYZUTymhJsp8rGXg=
 github.com/ipfs-force-community/venus-cluster-assets v0.1.0/go.mod h1:ZHXQBvLbsmZrG9Zccpqn6Oba2Q/+cRm3RsHj/SRYSwg=
-github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230117084453-d1c01e43d23a h1:9s4zZG/OoGvr5l+mwj0Yg4Cdmba8ZqWpRhb9lQO3XT0=
-github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230117084453-d1c01e43d23a/go.mod h1:jKlItT3VJIGPfWi8IxktML7TcxICdlM+etmI6x2L454=
+github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230210082324-1a2521f2fb34 h1:jgAy31EvOqIfj/42NBs7/ibEuf3kZaXNOHCtdKIQVMY=
+github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230210082324-1a2521f2fb34/go.mod h1:jKlItT3VJIGPfWi8IxktML7TcxICdlM+etmI6x2L454=
 github.com/ipfs/bbloom v0.0.1/go.mod h1:oqo8CVWsJFMOZqTglBG4wydCE4IQA/G2/SEofB0rjUI=
 github.com/ipfs/bbloom v0.0.4 h1:Gi+8EGJ2y5qiD5FbsbpX/TMNcJw8gSqr7eyjHa4Fhvs=
 github.com/ipfs/bbloom v0.0.4/go.mod h1:cS9YprKXpoZ9lT0n/Mw/a6/aFV6DTjTLYHeA+gyqMG0=

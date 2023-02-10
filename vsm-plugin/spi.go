@@ -30,6 +30,8 @@ const (
 	KVStore Kind = 1 + iota
 	// ObjStore indicates it is a ObjStore plugin.
 	ObjStore
+	// RegisterJsonRpc indicates it is a RegisterJsonRpc plugin.
+	RegisterJsonRpc
 	// SyncSectorState indicates it is a SyncSectorState plugin.
 	SyncSectorState
 )
@@ -85,6 +87,14 @@ type SyncSectorStateManifest struct {
 	OnRestore  func(args ...interface{}) error
 }
 
+type RegisterJsonRpcManifest struct {
+	Manifest
+
+	// Handler returns the jsonrpc namespace and handler
+	// See: https://github.com/ipfs-force-community/go-jsonrpc/blob/4e8fb6324df7a31eaa6b480ef9e2a175545ba04b/server.go#L137
+	Handler func() (namespace string, handler interface{})
+}
+
 // ExportManifest exports a manifest to VSM as a known format.
 // it just casts sub-manifest to manifest.
 func ExportManifest(m interface{}) *Manifest {
@@ -105,4 +115,9 @@ func DeclareKVStoreManifest(m *Manifest) *KVStoreManifest {
 // DeclareSyncSectorStateManifest declares manifest as SyncSectorStateManifest.
 func DeclareSyncSectorStateManifest(m *Manifest) *SyncSectorStateManifest {
 	return (*SyncSectorStateManifest)(unsafe.Pointer(m))
+}
+
+// DeclareRegisterJsonRpcManifest declares manifest as DeclareRegisterJsonRpcManifest.
+func DeclareRegisterJsonRpcManifest(m *Manifest) *RegisterJsonRpcManifest {
+	return (*RegisterJsonRpcManifest)(unsafe.Pointer(m))
 }
