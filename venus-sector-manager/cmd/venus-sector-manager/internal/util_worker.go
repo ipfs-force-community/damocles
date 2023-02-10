@@ -19,7 +19,7 @@ import (
 var utilWorkerCmd = &cli.Command{
 	Name:  "worker",
 	Flags: []cli.Flag{},
-	Usage: "utils for worker management",
+	Usage: "Utils for worker management",
 	Subcommands: []*cli.Command{
 		utilWorkerListCmd,
 		utilWorkerRemoveCmd,
@@ -81,7 +81,7 @@ var utilWorkerListCmd = &cli.Command{
 
 var utilWorkerRemoveCmd = &cli.Command{
 	Name:      "remove",
-	Usage:     "remove the specific worker",
+	Usage:     "Remove the specific worker",
 	ArgsUsage: "<worker instance name>",
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
@@ -115,7 +115,7 @@ var utilWorkerRemoveCmd = &cli.Command{
 
 var utilWorkerInfoCmd = &cli.Command{
 	Name:      "info",
-	Usage:     "show details about the specific worker",
+	Usage:     "Show details about the specific worker",
 	ArgsUsage: "<worker instance name or address>",
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
@@ -177,7 +177,7 @@ var utilWorkerInfoCmd = &cli.Command{
 
 var utilWorkerPauseCmd = &cli.Command{
 	Name:      "pause",
-	Usage:     "pause the specified sealing thread inside target worker",
+	Usage:     "Pause the specified sealing thread inside target worker",
 	ArgsUsage: "<worker instance name or address> <thread index>",
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
@@ -221,7 +221,7 @@ var utilWorkerPauseCmd = &cli.Command{
 
 var utilWorkerResumeCmd = &cli.Command{
 	Name:      "resume",
-	Usage:     "resume the specified sealing thread inside target worker, with the given state if any",
+	Usage:     "Resume the specified sealing thread inside target worker, with the given state if any",
 	ArgsUsage: "<worker instance name or address> <thread index> [<next state>]",
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()

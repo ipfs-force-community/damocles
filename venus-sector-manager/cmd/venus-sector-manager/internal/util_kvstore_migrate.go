@@ -21,7 +21,7 @@ var defaultSubStore = []string{"common", "meta", "offline_meta", "sector-index",
 
 var utilMigrate = &cli.Command{
 	Name:  "migrate",
-	Usage: "migrating venus-sector-manager's database data",
+	Usage: "Migrating venus-sector-manager's database data",
 	Flags: []cli.Flag{
 		HomeFlag,
 		&cli.StringFlag{

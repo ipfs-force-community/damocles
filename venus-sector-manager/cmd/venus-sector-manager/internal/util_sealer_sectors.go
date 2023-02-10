@@ -89,7 +89,7 @@ func extractListWorkerState(cctx *cli.Context) core.SectorWorkerState {
 
 var utilSealerSectorsAbortCmd = &cli.Command{
 	Name:      "abort",
-	Usage:     "abort specified online sector job",
+	Usage:     "Abort specified online sector job",
 	ArgsUsage: "<miner actor> <sector number>",
 	Action: func(cctx *cli.Context) error {
 		if count := cctx.Args().Len(); count < 2 {
@@ -237,7 +237,7 @@ var utilSealerSectorsListCmd = &cli.Command{
 
 var utilSealerSectorsRestoreCmd = &cli.Command{
 	Name:  "restore",
-	Usage: "restore a sector state that may already finalized or aborted",
+	Usage: "Restore a sector state that may already finalized or aborted",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:   "force",
@@ -1158,7 +1158,7 @@ var utilSealerSectorsRemoveCmd = &cli.Command{
 
 var utilSealerSectorsStateCmd = &cli.Command{
 	Name:      "state",
-	Usage:     "load and display the detailed sector state",
+	Usage:     "Load and display the detailed sector state",
 	ArgsUsage: "<minerID> <sectorNum>",
 	Flags: []cli.Flag{
 		flagListOffline,
@@ -1297,7 +1297,7 @@ var utilSealerSectorsStateCmd = &cli.Command{
 
 var utilSealerSectorsFindDealCmd = &cli.Command{
 	Name:      "find-deal",
-	Usage:     "find the sectors to which the deal was assigned",
+	Usage:     "Find the sectors to which the deal was assigned",
 	ArgsUsage: "<dealID>",
 	Flags: []cli.Flag{
 		flagListOffline,
@@ -1342,7 +1342,7 @@ var utilSealerSectorsFindDealCmd = &cli.Command{
 
 var utilSealerSectorsResendPreCommitCmd = &cli.Command{
 	Name:      "resend-pre",
-	Usage:     "resend the pre commit on chain info for the specified sector, should only be used in situations that won't recover automatically",
+	Usage:     "Resend the pre commit on chain info for the specified sector, should only be used in situations that won't recover automatically",
 	ArgsUsage: "<minerID> <sectorNum>",
 	Flags:     []cli.Flag{},
 	Action: func(cctx *cli.Context) error {
@@ -1417,7 +1417,7 @@ var utilSealerSectorsResendPreCommitCmd = &cli.Command{
 
 var utilSealerSectorsResendProveCommitCmd = &cli.Command{
 	Name:      "resend-prove",
-	Usage:     "resend the prove commit on chain info for the specified sector, should only be used in situations that won't recover automatically",
+	Usage:     "Resend the prove commit on chain info for the specified sector, should only be used in situations that won't recover automatically",
 	ArgsUsage: "<minerID> <sectorNum>",
 	Flags:     []cli.Flag{},
 	Action: func(cctx *cli.Context) error {
@@ -1480,7 +1480,7 @@ var utilSealerSectorsResendProveCommitCmd = &cli.Command{
 
 var utilSealerSectorsImportCommitCmd = &cli.Command{
 	Name:  "import",
-	Usage: "import sector infos from the given lotus-miner / venus-sealer instance",
+	Usage: "Import sector infos from the given lotus-miner / venus-sealer instance",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "api",
@@ -1704,7 +1704,7 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*co
 
 var utilSealerSectorsRebuildCmd = &cli.Command{
 	Name:      "rebuild",
-	Usage:     "rebuild specified sector",
+	Usage:     "Rebuild specified sector",
 	ArgsUsage: "<miner actor> <sector number>",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{

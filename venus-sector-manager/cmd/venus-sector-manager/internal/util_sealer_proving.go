@@ -731,6 +731,7 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 
 var utilSealerProvingSectorInfoCmd = &cli.Command{
 	Name:      "sector-info",
+	Usage:     "Print sector info ",
 	ArgsUsage: "<sector number> ...",
 	Action: func(cctx *cli.Context) error {
 		api, actx, astop, err := extractAPI(cctx)
@@ -903,7 +904,7 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 
 var utilSealerProvingCompactPartitionsCmd = &cli.Command{
 	Name:  "compact-partitions",
-	Usage: "removes dead sectors from partitions and reduces the number of partitions used if possible",
+	Usage: "Removes dead sectors from partitions and reduces the number of partitions used if possible",
 	Flags: []cli.Flag{
 		&cli.Uint64Flag{
 			Name:     "deadline",
@@ -997,7 +998,7 @@ var utilSealerProvingCompactPartitionsCmd = &cli.Command{
 
 var utilSealerProvingRecoverFaultsCmd = &cli.Command{
 	Name:  "recover-faults",
-	Usage: "recover faults manually",
+	Usage: "Recover faults manually",
 	Flags: []cli.Flag{
 		&cli.Uint64Flag{
 			Name:     "deadline",

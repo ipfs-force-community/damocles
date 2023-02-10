@@ -145,7 +145,7 @@ var utilSealerActorAddBalanceCmd = &cli.Command{
 
 var utilSealerActorWithdrawCmd = &cli.Command{
 	Name:      "withdraw",
-	Usage:     "withdraw available balance",
+	Usage:     "Withdraw available balance",
 	ArgsUsage: "[amount (FIL)]",
 	Flags: []cli.Flag{
 		&cli.IntFlag{
@@ -258,7 +258,7 @@ var utilSealerActorWithdrawCmd = &cli.Command{
 
 var utilSealerActorRepayDebtCmd = &cli.Command{
 	Name:      "repay-debt",
-	Usage:     "pay down a miner's debt",
+	Usage:     "Pay down a miner's debt",
 	ArgsUsage: "[amount (FIL)]",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -805,7 +805,7 @@ var utilSealerActorConfirmChangeWorker = &cli.Command{
 
 var utilSealerActorCompactAllocatedCmd = &cli.Command{
 	Name:  "compact-allocated",
-	Usage: "compact allocated sectors bitfield",
+	Usage: "Compact allocated sectors bitfield",
 	Flags: []cli.Flag{
 		&cli.Uint64Flag{
 			Name:  "mask-last-offset",

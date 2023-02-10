@@ -7,7 +7,8 @@ import (
 )
 
 var UtilCmd = &cli.Command{
-	Name: "util",
+	Name:  "util",
+	Usage: "Commandline tools for venus-sector-manager",
 	Subcommands: []*cli.Command{
 		utilChainCmd,
 		utilMinerCmd,

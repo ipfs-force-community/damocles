@@ -41,7 +41,7 @@ var utilChainHeadCmd = &cli.Command{
 
 var utilChainPreCommitInfoCmd = &cli.Command{
 	Name:      "pci",
-	Usage:     "show on-chain pre-commit info for specified sector",
+	Usage:     "Show on-chain pre-commit info for specified sector",
 	ArgsUsage: "<miner actor id> <sector number>",
 	Action: func(cctx *cli.Context) error {
 		if count := cctx.Args().Len(); count < 2 {

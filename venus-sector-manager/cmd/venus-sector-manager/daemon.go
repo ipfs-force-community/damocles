@@ -16,6 +16,7 @@ import (
 
 var daemonCmd = &cli.Command{
 	Name:  "daemon",
+	Usage: "Commands for venus-sector-manager daemon",
 	Flags: []cli.Flag{},
 	Subcommands: []*cli.Command{
 		daemonInitCmd,
@@ -24,7 +25,8 @@ var daemonCmd = &cli.Command{
 }
 
 var daemonInitCmd = &cli.Command{
-	Name: "init",
+	Name:  "init",
+	Usage: "Init the venus-sector-manager configuration files",
 	Action: func(cctx *cli.Context) error {
 		home, err := internal.HomeFromCLICtx(cctx)
 		if err != nil {
@@ -54,17 +56,18 @@ var daemonInitCmd = &cli.Command{
 var (
 	daemonRunProxyFlag = &cli.StringFlag{
 		Name:  "proxy",
-		Usage: "set a remote sector manager instance address as proxy",
+		Usage: "Set a remote sector manager instance address as proxy",
 	}
 
 	daemonRunProxySectorIndexerOffFlag = &cli.BoolFlag{
 		Name:  "proxy-sector-indexer-off",
-		Usage: "disable proxied sector-indexer",
+		Usage: "Disable proxied sector-indexer",
 	}
 )
 
 var daemonRunCmd = &cli.Command{
-	Name: "run",
+	Name:  "run",
+	Usage: "Run the venus-sector-manager daemon",
 	Flags: []cli.Flag{
 		internal.SealerListenFlag,
 		internal.ConfDirFlag,
