@@ -11,6 +11,7 @@ import (
 
 var utilMarketCmd = &cli.Command{
 	Name:  "market",
+	Usage: "Inspect the storage market actor",
 	Flags: []cli.Flag{},
 	Subcommands: []*cli.Command{
 		utilMarketReleaseDealsCmd,

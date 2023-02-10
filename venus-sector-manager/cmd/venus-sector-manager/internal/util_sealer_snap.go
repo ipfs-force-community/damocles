@@ -61,7 +61,7 @@ var utilSealerSnapFetchCmd = &cli.Command{
 
 var utilSealerSnapCandidatesCmd = &cli.Command{
 	Name:  "candidates",
-	Usage: "show fetched cc sectors for specified miner",
+	Usage: "Show fetched cc sectors for specified miner",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "show-all",
@@ -124,7 +124,7 @@ var utilSealerSnapCandidatesCmd = &cli.Command{
 
 var utilSealerSnapCancelCommitmentCmd = &cli.Command{
 	Name:      "cancel-commit",
-	Usage:     "cancel inflight snapup commitment",
+	Usage:     "Cancel inflight snapup commitment",
 	ArgsUsage: "<miner actor id/addr> <sector number>",
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()

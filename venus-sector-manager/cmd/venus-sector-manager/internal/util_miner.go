@@ -24,7 +24,8 @@ import (
 )
 
 var utilMinerCmd = &cli.Command{
-	Name: "miner",
+	Name:  "miner",
+	Usage: "Miner-related utilities",
 	Subcommands: []*cli.Command{
 		utilMinerInfoCmd,
 		utilMinerCreateCmd,
@@ -110,7 +111,7 @@ var utilMinerInfoCmd = &cli.Command{
 
 var utilMinerCreateCmd = &cli.Command{
 	Name:  "create",
-	Usage: "sends a create miner message",
+	Usage: "Create a new miner_id by sending message",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:     "from",

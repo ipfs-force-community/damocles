@@ -11,7 +11,7 @@ import (
 
 var utilMessageCmd = &cli.Command{
 	Name:  "message",
-	Usage: "track message",
+	Usage: "Track message",
 	Subcommands: []*cli.Command{
 		utilMessageWaitCmd,
 		utilMessageSearchCmd,
