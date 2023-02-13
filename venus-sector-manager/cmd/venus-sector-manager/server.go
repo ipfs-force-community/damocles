@@ -64,7 +64,7 @@ func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node core.SealerA
 func buildRPCServer(hdl interface{}, plugins *vsmplugin.LoadedPlugins, opts ...jsonrpc.ServerOption) (*http.ServeMux, error) {
 	// use field
 	opts = append(opts, jsonrpc.WithProxyBind(jsonrpc.PBField))
-	hdl = proxy.MetricedSealerAPI(hdl)
+	hdl = proxy.MetricedSealerAPI(core.APINamespace, hdl)
 
 	server := jsonrpc.NewServer(opts...)
 
@@ -75,7 +75,7 @@ func buildRPCServer(hdl interface{}, plugins *vsmplugin.LoadedPlugins, opts ...j
 			m := vsmplugin.DeclareRegisterJsonRpcManifest(plugin.Manifest)
 			namespace, hdl := m.Handler()
 			log.Infof("register json rpc handler by plugin(%s). namespace: '%s'", plugin.Name, namespace)
-			server.Register(namespace, hdl)
+			server.Register(namespace, proxy.MetricedSealerAPI(namespace, hdl))
 			return nil
 		})
 	}

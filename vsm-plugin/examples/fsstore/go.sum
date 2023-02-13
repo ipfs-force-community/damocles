@@ -9,8 +9,8 @@ github.com/google/go-cmp v0.5.6/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.5.8/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/ipfs-force-community/venus-cluster/venus-sector-manager v0.0.0-20230117084453-d1c01e43d23a h1:75SlNZAemnRAOSoBi2Pym5YuEj3ZJmUADEu7p3DEbB8=
 github.com/ipfs-force-community/venus-cluster/venus-sector-manager v0.0.0-20230117084453-d1c01e43d23a/go.mod h1:w2gCJ6+ADMCuA/3PImHIzD1z6wvAa3uuR0hqvYhfG7w=
-github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230117084453-d1c01e43d23a h1:9s4zZG/OoGvr5l+mwj0Yg4Cdmba8ZqWpRhb9lQO3XT0=
-github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230117084453-d1c01e43d23a/go.mod h1:jKlItT3VJIGPfWi8IxktML7TcxICdlM+etmI6x2L454=
+github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230213034320-9fe8cd4a96ed h1:+xso3IK7tCFGXdG3Z2EMWdDr1x8VATMkAv36+J4gOOg=
+github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230213034320-9fe8cd4a96ed/go.mod h1:jKlItT3VJIGPfWi8IxktML7TcxICdlM+etmI6x2L454=
 github.com/ipfs/go-log/v2 v2.5.1 h1:1XdUzF7048prq4aBjDQQ4SL5RxftpRGdXhNRwKSAlcY=
 github.com/ipfs/go-log/v2 v2.5.1/go.mod h1:prSpmC1Gpllc9UYWxDiZDreBYw7zp4Iqp1kOLU9U5UI=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=

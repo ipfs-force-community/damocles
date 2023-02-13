@@ -2,16 +2,17 @@ package proxy
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/metrics"
 )
 
-func MetricedSealerAPI(a interface{}) interface{} {
-	return proxy(a)
+func MetricedSealerAPI(namespace string, hdl interface{}) interface{} {
+	return proxy(namespace, hdl)
 }
 
-func proxy(in interface{}) interface{} {
+func proxy(namespace string, in interface{}) interface{} {
 	fields := []reflect.StructField{}
 
 	valueIn := reflect.ValueOf(in)
@@ -28,7 +29,7 @@ func proxy(in interface{}) interface{} {
 		internalValue.Field(i).Set(reflect.MakeFunc(valueIn.Method(i).Type(), func(args []reflect.Value) (results []reflect.Value) {
 			ctx := args[0].Interface().(context.Context)
 			// upsert function name into context
-			ctx, _ = metrics.New(ctx, metrics.Upsert(metrics.Endpoint, funcName))
+			ctx, _ = metrics.New(ctx, metrics.Upsert(metrics.Endpoint, fmt.Sprintf("%s.%s", namespace, funcName)))
 			stop := metrics.Timer(ctx, metrics.APIRequestDuration, metrics.SinceInMilliseconds)
 			defer stop()
 			// pass tagged ctx back into function call
@@ -37,7 +38,7 @@ func proxy(in interface{}) interface{} {
 		}))
 	}
 
-	outStruct := reflect.StructOf([]reflect.StructField{reflect.StructField{
+	outStruct := reflect.StructOf([]reflect.StructField{{
 		Name: "Internal",
 		Type: reflect.TypeOf(internalValue.Addr().Interface()).Elem(),
 	}})

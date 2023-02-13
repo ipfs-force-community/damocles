@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/ipfs-force-community/venus-cluster/venus-sector-manager v0.0.0-20230117084453-d1c01e43d23a
-	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230117084453-d1c01e43d23a
+	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230213034320-9fe8cd4a96ed
 )
 
 require (
