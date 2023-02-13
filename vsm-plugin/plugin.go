@@ -44,6 +44,7 @@ func (s State) String() (str string) {
 
 // LoadedPlugins collects loaded plugins info.
 type LoadedPlugins struct {
+	dir     string
 	plugins map[Kind][]*Plugin
 }
 
@@ -94,7 +95,7 @@ func (p LoadedPlugins) Init(ctx context.Context, onError func(*Plugin, error)) {
 	for _, plugins := range p.plugins {
 		for _, plugin := range plugins {
 			if plugin.OnInit != nil {
-				if err := plugin.OnInit(ctx, plugin.Manifest); err != nil {
+				if err := plugin.OnInit(ctx, p.dir, plugin.Manifest); err != nil {
 					onError(plugin, err)
 					plugin.State = Disable
 					continue
@@ -123,6 +124,7 @@ func (p LoadedPlugins) Shutdown(ctx context.Context, onError func(*Plugin, error
 
 func Load(pluginDir string) (loadedPlugins *LoadedPlugins, err error) {
 	loadedPlugins = &LoadedPlugins{
+		dir:     pluginDir,
 		plugins: make(map[Kind][]*Plugin),
 	}
 	if pluginDir == "" {

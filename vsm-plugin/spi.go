@@ -55,9 +55,10 @@ type Manifest struct {
 	Description string
 	BuildTime   string
 	// OnInit defines the plugin init logic.
-	// it will be called after domain init.
+	// it will be called after VSM-daemon init.
 	// return error will stop load plugin process and VSM startup.
-	OnInit func(ctx context.Context, manifest *Manifest) error
+	// `pluginsDir` is the vsm plugins directory
+	OnInit func(ctx context.Context, pluginsDir string, manifest *Manifest) error
 	// OnShutDown defines the plugin cleanup logic.
 	// return error will write log and continue shutdown.
 	OnShutdown func(ctx context.Context, manifest *Manifest) error
