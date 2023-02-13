@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/ipfs-force-community/venus-cluster/venus-sector-manager v0.0.0-20230117084453-d1c01e43d23a
-	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230117084453-d1c01e43d23a
+	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230213034320-9fe8cd4a96ed
 )
 
 require (
@@ -17,5 +17,5 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/zap v1.22.0 // indirect
-	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
+	golang.org/x/sys v0.5.0 // indirect
 )
