@@ -30,11 +30,11 @@ use crate::{
     signal::Signal,
     types::SealProof,
     util::net::{local_interface_ip, rpc_addr, socket_addr_from_url},
-    watchdog::{GloablProcessors, GlobalModules, WatchDog},
+    watchdog::{GlobalModules, GlobalProcessors, WatchDog},
 };
 
 /// start a normal venus-worker daemon
-pub fn start_deamon(cfg_path: String) -> Result<()> {
+pub fn start_daemon(cfg_path: String) -> Result<()> {
     let runtime = Builder::new_multi_thread().enable_all().build().context("construct runtime")?;
 
     let mut cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path))?;
@@ -287,7 +287,7 @@ macro_rules! construct_sub_processor {
     };
 }
 
-fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<GloablProcessors> {
+fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<GlobalProcessors> {
     let add_pieces: processor::ArcAddPiecesProcessor = construct_sub_processor!(add_pieces, cfg, locks);
 
     let tree_d: processor::ArcTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks);
@@ -304,7 +304,7 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
 
     let transfer: processor::ArcTransferProcessor = construct_sub_processor!(transfer, cfg, locks);
 
-    Ok(GloablProcessors {
+    Ok(GlobalProcessors {
         add_pieces,
         tree_d,
         pc1,

@@ -13,7 +13,7 @@ import (
 
 var _ core.SectorNumberAllocator = (*NumberAllocator)(nil)
 
-func NewNumerAllocator(store kvstore.KVStore) (*NumberAllocator, error) {
+func NewNumberAllocator(store kvstore.KVStore) (*NumberAllocator, error) {
 	return &NumberAllocator{
 		store:  store,
 		locker: newSectorsLocker(),

@@ -237,7 +237,7 @@ WAIT_RET:
 	return nil
 }
 
-func OuputJSON(w io.Writer, v interface{}) error {
+func OutputJSON(w io.Writer, v interface{}) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "\t")
 	return enc.Encode(v)

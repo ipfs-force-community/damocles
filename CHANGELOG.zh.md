@@ -118,7 +118,7 @@
   - 支持新的可配置策略：
     - 各阶段是否随消息发送 funding [#122](https://github.com/ipfs-force-community/venus-cluster/issues/122)
     - SnapUp 提交重试次数 [#123](https://github.com/ipfs-force-community/venus-cluster/issues/123)
-  - 支持可配置的 `WindowPoSt Chanllenge Confidential` [#163](https://github.com/ipfs-force-community/venus-cluster/issues/163)
+  - 支持可配置的 `WindowPoSt Challenge Confidential` [#163](https://github.com/ipfs-force-community/venus-cluster/issues/163)
   - 迁入更多管理命令
   - 配置调整：
     - 新增 [Miners.Commitment.Terminate] 配置块
@@ -161,7 +161,7 @@
   - 参考文档：[08.snapdeal的支持](https://github.com/ipfs-force-community/venus-cluster/blob/9be393761645f5fbd3a415b5ff1f50ec9254943c/docs/zh/08.snapdeal%E7%9A%84%E6%94%AF%E6%8C%81.md)
 
 - 增强 venus-sector-manager 管理 venus-worker 实例的能力：
-  - 新增 venus-worker 定期向 venus-secotr-manager 上报一些统计数据的机制
+  - 新增 venus-worker 定期向 venus-sector-manager 上报一些统计数据的机制
   - 新增 venus-sector-manager 的 `util worker` 工具集
 
 - 增强 venus-sector-manager 根据功能拆分实例的能力：
@@ -175,8 +175,8 @@
 - 其他调整
   - venus-worker 的配置调整
     - 新增 [[sealing_thread.plan]] 项
-	- 新增 [attched_selection] 块，提供 `enable_space_weighted` 项，用于启用以剩余空间为权重选择持久化存储的策略，默认不启用
-  - venus-secotr-manager 的配置调整
+	- 新增 [attached_selection] 块，提供 `enable_space_weighted` 项，用于启用以剩余空间为权重选择持久化存储的策略，默认不启用
+  - venus-sector-manager 的配置调整
     - 废弃原 [Miners.Deal] 块，调整为 [Miners.Sector.EnableDeals] 项
     - 新增扇区生命周期项 [Miners.Sector.LifetimeDays]
     - 新增 [Miners.SnapUp] 块

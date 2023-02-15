@@ -19,7 +19,8 @@ var utilMarketCmd = &cli.Command{
 }
 
 var utilMarketReleaseDealsCmd = &cli.Command{
-	Name: "release-deals",
+	Name:  "release-deals",
+	Usage: "Manual release deals",
 	Flags: []cli.Flag{
 		&cli.Uint64Flag{
 			Name:     "miner",

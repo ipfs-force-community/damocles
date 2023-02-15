@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{value_t, App, AppSettings, Arg, SubCommand};
 use tokio::runtime::Builder;
 
-use venus_worker::{logging, start_deamon};
+use venus_worker::{logging, start_daemon};
 
 mod generator;
 mod processor;
@@ -15,7 +15,7 @@ pub fn main() -> Result<()> {
         .build()
         .context("construct tokio runtime")?;
 
-    let _rt_guart = rt.enter();
+    let _rt_guard = rt.enter();
 
     logging::init()?;
 
@@ -51,7 +51,7 @@ pub fn main() -> Result<()> {
         ("daemon", Some(m)) => {
             let cfg_path = value_t!(m, "config", String)?;
 
-            start_deamon(cfg_path)
+            start_daemon(cfg_path)
         }
 
         (generator::SUB_CMD_NAME, Some(args)) => generator::submatch(args),

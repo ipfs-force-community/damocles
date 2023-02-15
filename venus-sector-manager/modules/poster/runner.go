@@ -246,7 +246,7 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 	skipCount := uint64(0)
 	postSkipped := bitfield.New()
 
-	proveAttemp := func(alog *logging.ZapLogger) (bool, error) {
+	proveAttempt := func(alog *logging.ZapLogger) (bool, error) {
 		var partitions []miner.PoStPartition
 		var xsinfos []builtin.ExtendedSectorInfo
 		for partIdx, partition := range batch {
@@ -404,7 +404,7 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 	pblog := glog.With("batch-idx", batchIdx, "batch-count", len(batch), "partition-start", batchPartitionStartIdx)
 	for attempt := 0; ; attempt++ {
 		alog := pblog.With("attempt", attempt)
-		needRetry, err := proveAttemp(alog)
+		needRetry, err := proveAttempt(alog)
 		if err != nil {
 			alog.Errorf("attempt to generate window post proof: %v", err)
 		}

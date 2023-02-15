@@ -305,7 +305,7 @@ impl<'c, 't> Sealer<'c, 't> {
                 OnChainState::Failed => {
                     warn!("pre commit on-chain info failed: {:?}", state.desc);
                     // TODO: make it configurable
-                    self.task.wait_or_interruptted(Duration::from_secs(30))?;
+                    self.task.wait_or_interrupted(Duration::from_secs(30))?;
                     return Ok(Event::ReSubmitPC);
                 }
 
@@ -322,7 +322,7 @@ impl<'c, 't> Sealer<'c, 't> {
                 "waiting for next round of polling pre commit state",
             );
 
-            self.task.wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
+            self.task.wait_or_interrupted(self.task.store.config.rpc_polling_interval)?;
         }
 
         debug!("pre commit landed");
@@ -366,7 +366,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
             debug!(?delay, "waiting for next round of polling seed");
 
-            self.task.wait_or_interruptted(delay)?;
+            self.task.wait_or_interrupted(delay)?;
         };
 
         Ok(Event::AssignSeed(seed))
@@ -469,7 +469,7 @@ impl<'c, 't> Sealer<'c, 't> {
                     OnChainState::Failed => {
                         warn!("proof on-chain info failed: {:?}", state.desc);
                         // TODO: make it configurable
-                        self.task.wait_or_interruptted(Duration::from_secs(30))?;
+                        self.task.wait_or_interrupted(Duration::from_secs(30))?;
                         return Ok(Event::ReSubmitProof);
                     }
 
@@ -486,7 +486,7 @@ impl<'c, 't> Sealer<'c, 't> {
                     "waiting for next round of polling proof state",
                 );
 
-                self.task.wait_or_interruptted(self.task.store.config.rpc_polling_interval)?;
+                self.task.wait_or_interrupted(self.task.store.config.rpc_polling_interval)?;
             }
         }
 

@@ -66,7 +66,7 @@ pub trait ObjectStore: Send + Sync {
     /// instance name of the store
     fn instance(&self) -> String;
 
-    /// unique identifer of the given resource.
+    /// unique identifier of the given resource.
     /// for fs-like stores, this should return an abs path.
     /// for other stores, this may return a url, or path part of a url.
     fn uri(&self, resource: &Path) -> ObjResult<PathBuf>;

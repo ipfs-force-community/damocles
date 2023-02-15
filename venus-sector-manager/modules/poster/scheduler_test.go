@@ -38,7 +38,7 @@ func deadlineAt(periodStart abi.ChainEpoch, index uint64) *dline.Info {
 }
 
 func TestScheduler(t *testing.T) {
-	t.Run("isAcive", func(t *testing.T) {
+	t.Run("isActive", func(t *testing.T) {
 		for i := 0; i < 128; i++ {
 			dl := randomDeadline()
 			sched := newScheduler(dl, &mockRunner{})

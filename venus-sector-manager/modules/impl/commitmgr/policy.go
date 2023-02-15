@@ -30,7 +30,7 @@ func (pp PreCommitProcessor) sectorExpiration(ctx context.Context, state *core.S
 
 	av, err := actors.VersionForNetwork(nv)
 	if err != nil {
-		return 0, fmt.Errorf("unsupported network vrsion: %w", err)
+		return 0, fmt.Errorf("unsupported network version: %w", err)
 	}
 
 	mpcd, err := policy.GetMaxProveCommitDuration(av, state.SectorType)
@@ -110,11 +110,11 @@ func (pp PreCommitProcessor) ccSectorLifetime(ccLifetimeEpochs abi.ChainEpoch, p
 	}
 
 	if minExpiration := abi.ChainEpoch(policy.MinSectorExpiration); ccLifetimeEpochs < minExpiration {
-		log.Warnf("value for CommittedCapacitySectorLiftime is too short, using default minimum (%d epochs)", minExpiration)
+		log.Warnf("value for CommittedCapacitySectorLifetime is too short, using default minimum (%d epochs)", minExpiration)
 		return minExpiration
 	}
 	if maxExpiration := policy.GetMaxSectorExpirationExtension(); ccLifetimeEpochs > maxExpiration {
-		log.Warnf("value for CommittedCapacitySectorLiftime is too long, using default maximum (%d epochs)", maxExpiration)
+		log.Warnf("value for CommittedCapacitySectorLifetime is too long, using default maximum (%d epochs)", maxExpiration)
 		return maxExpiration
 	}
 
