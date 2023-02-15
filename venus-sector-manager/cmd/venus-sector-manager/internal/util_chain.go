@@ -70,7 +70,7 @@ var utilChainPreCommitInfoCmd = &cli.Command{
 			return RPCCallError("StateSectorPreCommitInfo", err)
 		}
 
-		if err := OuputJSON(os.Stdout, pci); err != nil {
+		if err := OutputJSON(os.Stdout, pci); err != nil {
 			return fmt.Errorf("output json: %w", err)
 		}
 

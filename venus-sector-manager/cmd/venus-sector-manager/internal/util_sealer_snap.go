@@ -53,7 +53,7 @@ var utilSealerSnapFetchCmd = &cli.Command{
 			return RPCCallError("SnapPreFetch", err)
 		}
 
-		Log.Infow("cadidate sectors fetched", "available-in-deadline", res.Total, "added", res.Diff)
+		Log.Infow("candidate sectors fetched", "available-in-deadline", res.Total, "added", res.Diff)
 
 		return nil
 	},

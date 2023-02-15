@@ -39,7 +39,7 @@ type DealInfo struct {
 	Piece       PieceInfo
 	Proposal    *DealProposal
 
-	// this is the flag for pieces from original implmentations
+	// this is the flag for pieces from original implementations
 	// if true, workers should use the piece data directly, instead of padding themselves
 	IsCompatible bool
 }
@@ -83,7 +83,7 @@ const (
 	OnChainStatePacked
 	OnChainStateLanded
 	OnChainStateNotFound
-	// worker whould try re-submit the info
+	// worker would try re-submit the info
 	OnChainStateFailed
 	// worker should enter perm err
 	OnChainStatePermFailed

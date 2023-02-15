@@ -256,7 +256,7 @@ func BuildSectorNumberAllocator(meta OnlineMetaStore) (core.SectorNumberAllocato
 		return nil, err
 	}
 
-	return sectors.NewNumerAllocator(store)
+	return sectors.NewNumberAllocator(store)
 }
 
 func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaStore, loadedPlugins *vsmplugin.LoadedPlugins) (core.SectorStateManager, error) {
@@ -522,7 +522,7 @@ func BuildSectorTracker(indexer core.SectorIndexer, prover core.Prover, capi cha
 	return sectors.NewTracker(indexer, prover, capi, scfg.MustCommonConfig().Proving)
 }
 
-type MarketAPIRelatedComponets struct {
+type MarketAPIRelatedComponents struct {
 	fx.Out
 
 	DealManager core.DealManager
@@ -553,15 +553,15 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 	return mapi, nil
 }
 
-func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI, loadedPlugins *vsmplugin.LoadedPlugins) (MarketAPIRelatedComponets, error) {
+func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI, loadedPlugins *vsmplugin.LoadedPlugins) (MarketAPIRelatedComponents, error) {
 	mapi, err := BuildMarketAPI(gctx, lc, scfg, infoAPI)
 	if err != nil {
-		return MarketAPIRelatedComponets{}, fmt.Errorf("build market api: %w", err)
+		return MarketAPIRelatedComponents{}, fmt.Errorf("build market api: %w", err)
 	}
 
 	if mapi == nil {
 		log.Warn("deal manager based on market api is disabled, use mocked")
-		return MarketAPIRelatedComponets{
+		return MarketAPIRelatedComponents{
 			DealManager: mock.NewDealManager(),
 			MarketAPI:   nil,
 		}, nil
@@ -586,7 +586,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 		}
 		st, err := openObjStore(cfg, pcfg.PluginName, loadedPlugins)
 		if err != nil {
-			return MarketAPIRelatedComponets{}, fmt.Errorf("construct #%d piece store: %w", pi, err)
+			return MarketAPIRelatedComponents{}, fmt.Errorf("construct #%d piece store: %w", pi, err)
 		}
 
 		stores = append(stores, st)
@@ -596,7 +596,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	http.DefaultServeMux.Handle(HTTPEndpointPiecestore, http.StripPrefix(HTTPEndpointPiecestore, proxy))
 	log.Info("piecestore proxy has been registered into default mux")
 
-	return MarketAPIRelatedComponets{
+	return MarketAPIRelatedComponents{
 		DealManager: dealmgr.New(mapi, infoAPI, scfg),
 		MarketAPI:   mapi,
 	}, nil

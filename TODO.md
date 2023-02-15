@@ -4,7 +4,7 @@
 - [ ] speed up cc sectors
 - [ ] more graceful way of using `tracing`
 - [ ] upgrade forest related libs
-- [ ] resource auto-dectection & config file generation
+- [ ] resource auto-detection & config file generation
 - [ ] remote store via http
 - [ ] commitment mgr: get sender in runtime
 - [x] remove pkg `xerrors`
@@ -13,7 +13,7 @@
 - [ ] handle submit error: FilesMissed
 - [ ] check status for upgrading sectors
 - [ ] cleanups & checks within steps of snap up planner
-- [ ] support more aquire policy in venus-market
+- [ ] support more acquire policy in venus-market
 - [ ] batch submit for upgraded sectors
 - [ ] venus-sector-manager: move module definitions into `/modules`
 - [ ] use repeated zeroes for AddPiece no matter what its deal_id is

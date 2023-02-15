@@ -166,7 +166,7 @@ impl<'c> Task<'c> {
         Ok(())
     }
 
-    fn interruptted(&self) -> Result<(), Failure> {
+    fn interrupted(&self) -> Result<(), Failure> {
         select! {
             recv(self.ctx.done) -> _done_res => {
                 Err(Interrupt.into())
@@ -183,7 +183,7 @@ impl<'c> Task<'c> {
         }
     }
 
-    fn wait_or_interruptted(&self, duration: Duration) -> Result<(), Failure> {
+    fn wait_or_interrupted(&self, duration: Duration) -> Result<(), Failure> {
         select! {
             recv(self.ctx.done) -> _done_res => {
                 Err(Interrupt.into())
@@ -278,7 +278,7 @@ impl<'c> Task<'c> {
                             );
 
                             // when the planner tries to request a task but fails(including no task) for more than
-                            // `conig::sealing::request_task_max_retries` times, this task is really considered idle,
+                            // `config::sealing::request_task_max_retries` times, this task is really considered idle,
                             // break this task loop. that we have a chance to reload `sealing_thread` hot config file,
                             // or do something else.
 
@@ -341,7 +341,7 @@ impl<'c> Task<'c> {
             "wait before recovering"
         );
 
-        self.wait_or_interruptted(self.store.config.recover_interval)?;
+        self.wait_or_interrupted(self.store.config.recover_interval)?;
         Ok(())
     }
 
@@ -387,7 +387,7 @@ impl<'c> Task<'c> {
     }
 
     fn handle(&mut self, event: Option<Event>) -> Result<Option<Event>, Failure> {
-        self.interruptted()?;
+        self.interrupted()?;
 
         let prev = self.sector.state;
         let planner = get_planner(self.sector.plan.as_deref()).perm()?;
@@ -401,7 +401,7 @@ impl<'c> Task<'c> {
                         "Event::{:?} captured", evt
                     );
 
-                    self.wait_or_interruptted(self.store.config.recover_interval)?;
+                    self.wait_or_interrupted(self.store.config.recover_interval)?;
                 }
 
                 other => {

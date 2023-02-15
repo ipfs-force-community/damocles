@@ -89,7 +89,7 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 			}
 			pe.processComputeProof(ctx, proofEvent.ID, req)
 		default:
-			log.Errorf("%s receive unexpect proof event type %s", pe.actor.Addr, proofEvent.Method)
+			log.Errorf("%s receive unexpected proof event type %s", pe.actor.Addr, proofEvent.Method)
 		}
 	}
 

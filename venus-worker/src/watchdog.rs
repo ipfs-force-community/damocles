@@ -41,7 +41,7 @@ pub struct Ctx {
 pub struct GlobalModules {
     pub rpc: Arc<SealerClient>,
     pub attached: Arc<AttachedManager>,
-    pub processors: GloablProcessors,
+    pub processors: GlobalProcessors,
     pub static_tree_d: HashMap<u64, PathBuf>,
     pub limit: Arc<Pool>,
     pub ext_locks: Arc<Pool>,
@@ -50,7 +50,7 @@ pub struct GlobalModules {
 }
 
 #[derive(Clone)]
-pub struct GloablProcessors {
+pub struct GlobalProcessors {
     pub add_pieces: ArcAddPiecesProcessor,
     pub tree_d: ArcTreeDProcessor,
     pub pc1: ArcPC1Processor,

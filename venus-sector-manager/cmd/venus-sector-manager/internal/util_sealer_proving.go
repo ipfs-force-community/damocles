@@ -1038,8 +1038,8 @@ var utilSealerProvingRecoverFaultsCmd = &cli.Command{
 			return err
 		}
 		params := miner8.DeclareFaultsRecoveredParams{}
-		for idx, partiton := range partitions {
-			s, err := partiton.FaultySectors.All(math.MaxUint64)
+		for idx, partition := range partitions {
+			s, err := partition.FaultySectors.All(math.MaxUint64)
 			if err != nil {
 				return err
 			}

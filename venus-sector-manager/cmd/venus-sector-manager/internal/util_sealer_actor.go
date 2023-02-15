@@ -882,7 +882,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 			if last <= m+1 {
 				return fmt.Errorf("highest allocated sector lower than mask offset %d: %d", m+1, last)
 			}
-			// securty to not brick a miner
+			// security to not brick a miner
 			if last > 1<<60 {
 				return fmt.Errorf("very high last sector number, refusing to mask: %d", last)
 			}

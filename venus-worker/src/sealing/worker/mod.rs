@@ -86,7 +86,7 @@ impl Module for Worker {
                 if !is_interrupt {
                     error!(?failure, "sealing failed");
                 } else {
-                    warn!("sealing interruptted");
+                    warn!("sealing interrupted");
                 }
 
                 match failure.0 {

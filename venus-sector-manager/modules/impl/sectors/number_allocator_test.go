@@ -13,7 +13,7 @@ import (
 func TestAllocatorNext(t *testing.T) {
 	store := testutil.TestKVStore(t, "test")
 
-	allocator, err := NewNumerAllocator(store)
+	allocator, err := NewNumberAllocator(store)
 	require.NoError(t, err, "new number allocator")
 
 	actorID := abi.ActorID(10086)
