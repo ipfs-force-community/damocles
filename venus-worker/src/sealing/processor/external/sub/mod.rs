@@ -87,7 +87,8 @@ pub(super) fn start_sub_processors<I: Input>(cfgs: &[config::Ext]) -> Result<Vec
             .hook_finalize(move |_: &Request<I>| {
                 // check this?
                 let _ = limit_rx.try_recv();
-            });
+            })
+            .auto_restart(sub_cfg.auto_restart);
 
         #[cfg(not(target_os = "macos"))]
         if let Some(preferred) = sub_cfg.numa_preferred {
@@ -100,7 +101,7 @@ pub(super) fn start_sub_processors<I: Input>(cfgs: &[config::Ext]) -> Result<Vec
             }
         }
 
-        let mut producer = builder.build::<I>().context("build ext producer")?;
+        let producer = builder.spawn::<I>().context("build ext producer")?;
 
         let name = format!("sub-{}-{}-{}", stage, std::process::id(), i);
 
@@ -118,8 +119,6 @@ pub(super) fn start_sub_processors<I: Input>(cfgs: &[config::Ext]) -> Result<Vec
                 .add_task(pid.into())
                 .with_context(|| format!("add task id {} into cgroup", pid))?;
         }
-
-        producer.start_response_handler().context("start response handler")?;
 
         procs.push(SubProcessor {
             limiter: limit_tx,

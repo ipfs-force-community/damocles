@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::env::{self, vars};
-use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
@@ -8,13 +7,14 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc, Mutex,
 };
-use std::thread;
 use std::time::Duration;
+use std::{fs, io, thread};
 
 use anyhow::{anyhow, Context, Result};
-use crossbeam_channel::{after, bounded, never, select, Sender};
+use crossbeam_channel::{after, bounded, never, select, Receiver, Sender};
+use fnv::FnvHashMap;
 use serde_json::{from_str, to_string};
-use tracing::{debug, error, info, warn, warn_span};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 use super::{ready_msg, Request, Response};
@@ -25,11 +25,7 @@ pub fn dump_error_resp_env(pid: u32) -> String {
     format!("DUMP_ERR_RESP_{}", pid)
 }
 
-pub fn start_response_handler<T: Task>(
-    child_pid: u32,
-    stdout: ChildStdout,
-    out_txes: Arc<Mutex<HashMap<u64, Sender<Response<T::Output>>>>>,
-) -> Result<()> {
+fn start_response_handler<T: Task>(child_pid: u32, stdout: ChildStdout, in_flight_requests: InflightRequests<T::Output>) -> Result<()> {
     let mut reader = BufReader::new(stdout);
     let mut line_buf = String::new();
 
@@ -38,8 +34,8 @@ pub fn start_response_handler<T: Task>(
 
         let size = reader.read_line(&mut line_buf).context("read line from stdout")?;
         if size == 0 {
-            warn!("child exited");
-            return Ok(());
+            error!("child exited");
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "child process exit").into());
         }
 
         let resp: Response<T::Output> = match from_str(line_buf.as_str()) {
@@ -52,9 +48,7 @@ pub fn start_response_handler<T: Task>(
 
         debug!(id = resp.id, size, "response received");
         // this should not be blocked
-        if let Some(out_tx) = out_txes.lock().map_err(|_| anyhow!("out txes poisoned"))?.remove(&resp.id) {
-            let _ = out_tx.send(resp);
-        }
+        in_flight_requests.complete(resp);
     }
 }
 
@@ -144,6 +138,7 @@ pub struct ProducerBuilder<HP, HF> {
     inherit_envs: bool,
     stable_timeout: Option<Duration>,
     hooks: Hooks<HP, HF>,
+    auto_restart: bool,
 }
 
 impl<HP, HF> ProducerBuilder<HP, HF> {
@@ -159,6 +154,7 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
                 prepare: None,
                 finalize: None,
             },
+            auto_restart: false,
         }
     }
 
@@ -199,93 +195,127 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
         self
     }
 
+    /// Set auto restart child process
+    pub fn auto_restart(mut self, auto_restart: bool) -> Self {
+        self.auto_restart = auto_restart;
+        self
+    }
+
     /// Build a Producer with the given options.
-    pub fn build<T: Task>(mut self) -> Result<Producer<T, HP, HF>> {
-        let mut envs = if self.inherit_envs {
-            let mut envs = HashMap::from_iter(vars());
-            envs.extend(self.envs.drain());
-            envs
-        } else {
-            self.envs
-        };
+    pub fn spawn<T: Task>(self) -> Result<Producer<T, HP, HF>> {
+        let ProducerBuilder {
+            bin,
+            args,
+            mut envs,
+            inherit_envs,
+            stable_timeout,
+            hooks,
+            auto_restart,
+        } = self;
 
-        let mut child = Command::new(self.bin)
-            .args(self.args)
-            .envs(envs.drain())
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .context("spawn command")?;
-
-        let stdin = child.stdin.take().context("stdin lost")?;
-
-        let stdout = child.stdout.take().context("stdout lost")?;
-
-        // this will always be called until we turn defer.0 into false
-        let mut defer = Defer(true, || {
-            let _ = child.kill();
-        });
-
-        let (stable_tx, stable_rx) = bounded(1);
-        let stable_hdl = wait_for_stable(stable_tx, T::STAGE, stdout);
-        let wait = self.stable_timeout.take().map(after).unwrap_or_else(never);
-
-        select! {
-            recv(stable_rx) -> ready_res => {
-                ready_res.context("stable chan broken")?.context("wait for stable")?
-            },
-
-            recv(wait) -> _ => {
-                return Err(anyhow!("timeout exceeded before child get ready"));
-            }
+        if inherit_envs {
+            envs.extend(vars());
         }
 
-        info!("producer ready");
+        let cmd = move || {
+            let mut cmd = Command::new(&bin);
+            cmd.args(args.clone())
+                .envs(envs.clone())
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::inherit());
+            cmd
+        };
 
-        let stdout = stable_hdl.join().map_err(|_| anyhow!("wait for stable handle to be joined"))?;
-        defer.0 = false;
-        drop(defer);
+        let (producer_inner, mut child_stdout) = ProducerInner::new(cmd(), T::STAGE, stable_timeout).context("create producer inner")?;
+        let child_pid = producer_inner.child_id();
+        let producer_inner = Arc::new(Mutex::new(producer_inner));
+        let in_flight_requests = InflightRequests::new();
 
-        Ok(Producer {
-            id: AtomicU64::new(0),
-            child,
-            stdin: Arc::new(Mutex::new(stdin)),
-            stdout: Some(stdout),
-            hooks: self.hooks,
-            out_txes: Arc::new(Mutex::new(HashMap::new())),
-        })
+        let producer = Producer {
+            next_id: AtomicU64::new(1),
+            inner: producer_inner.clone(),
+            hooks,
+            in_flight_requests: in_flight_requests.clone(),
+        };
+
+        thread::spawn(move || {
+            loop {
+                if let Err(e) =
+                    start_response_handler::<T>(child_pid, child_stdout, in_flight_requests.clone()).context("start response handler")
+                {
+                    error!(err=?e, "failed to start response handler. pid{}", child_pid);
+                    // child process exist, cancel all in flight requests
+                    in_flight_requests.cancel_all(format!("child process exited: {}", T::STAGE));
+                }
+
+                if !auto_restart {
+                    break;
+                }
+                thread::sleep(Duration::from_secs(3));
+
+                let mut inner = producer_inner.lock().unwrap();
+                match inner.restart_child(cmd(), T::STAGE, stable_timeout) {
+                    Ok(new_child_stdout) => {
+                        child_stdout = new_child_stdout;
+                    }
+                    Err(e) => {
+                        error!(err=?e, "unable to restart child process");
+                        break;
+                    }
+                }
+            }
+        });
+
+        Ok(producer)
     }
 }
 
-fn wait_for_stable(res_tx: Sender<Result<()>>, stage: &'static str, stdout: ChildStdout) -> thread::JoinHandle<ChildStdout> {
-    std::thread::spawn(move || {
-        let expected = ready_msg(stage);
-        let mut line = String::with_capacity(expected.len() + 1);
+fn wait_for_stable(stage: &'static str, stdout: ChildStdout, mut stable_timeout: Option<Duration>) -> Result<ChildStdout> {
+    fn inner(res_tx: Sender<Result<()>>, stage: &'static str, stdout: ChildStdout) -> thread::JoinHandle<ChildStdout> {
+        std::thread::spawn(move || {
+            let expected = ready_msg(stage);
+            let mut line = String::with_capacity(expected.len() + 1);
 
-        let mut buf = BufReader::new(stdout);
-        let res = buf.read_line(&mut line).map_err(|e| e.into()).and_then(|_| {
-            if line.as_str().trim() == expected.as_str() {
-                Ok(())
-            } else {
-                Err(anyhow!("unexpected first line: {}", line))
-            }
-        });
+            let mut buf = BufReader::new(stdout);
+            let res = buf.read_line(&mut line).map_err(|e| e.into()).and_then(|_| {
+                if line.as_str().trim() == expected.as_str() {
+                    Ok(())
+                } else {
+                    Err(anyhow!("unexpected first line: {}", line))
+                }
+            });
 
-        let _ = res_tx.send(res);
-        buf.into_inner()
-    })
+            let _ = res_tx.send(res);
+            buf.into_inner()
+        })
+    }
+
+    let (stable_tx, stable_rx) = bounded(0);
+    let stable_hdl = inner(stable_tx, stage, stdout);
+    let wait = stable_timeout.take().map(after).unwrap_or_else(never);
+
+    select! {
+        recv(stable_rx) -> ready_res => {
+            ready_res.context("stable chan broken")?.context("wait for stable")?;
+            info!("producer ready");
+            let stdout = stable_hdl.join().map_err(|_| anyhow!("wait for stable handle to be joined"))?;
+            Ok(stdout)
+        },
+
+        recv(wait) -> _ => {
+            Err(anyhow!("timeout exceeded before child get ready"))
+        }
+    }
 }
 
 /// Producer sends tasks to the child, and waits for the responses.
 /// It impl Processor.
 pub struct Producer<T: Task, HP, HF> {
-    id: AtomicU64,
-    child: Child,
-    stdin: Arc<Mutex<ChildStdin>>,
-    stdout: Option<ChildStdout>,
+    next_id: AtomicU64,
+    inner: Arc<Mutex<ProducerInner>>,
     hooks: Hooks<HP, HF>,
-    out_txes: Arc<Mutex<HashMap<u64, Sender<Response<T::Output>>>>>,
+    in_flight_requests: InflightRequests<T::Output>,
 }
 
 impl<T, HP, HF> Producer<T, HP, HF>
@@ -294,41 +324,122 @@ where
 {
     /// Returns the child's process id.
     pub fn child_pid(&self) -> u32 {
-        self.child.id()
+        self.inner.lock().unwrap().child_id()
     }
 
-    /// Starts response handler in background.
-    /// This method should only be called once, and should not block.
-    pub fn start_response_handler(&mut self) -> Result<()> {
-        let stdout = self.stdout.take().context("stdout lost")?;
-
-        let out_txes = self.out_txes.clone();
-        let pid = self.child_pid();
-        thread::spawn(move || {
-            let _span = warn_span!("response handler");
-            if let Err(e) = start_response_handler::<T>(pid, stdout, out_txes) {
-                error!("unexpected: {:?}", e);
-            }
-        });
-
-        Ok(())
+    /// Returns the child's process id.
+    pub fn next_id(&self) -> u64 {
+        self.next_id.fetch_add(1, Ordering::Relaxed)
     }
 
     fn send(&self, req: &Request<T>) -> Result<()> {
         let data = to_string(req).context("marshal request")?;
-        let mut writer = self.stdin.lock().map_err(|_| anyhow!("stdin writer poisoned"))?;
-        writeln!(writer, "{}", data).context("write request data")?;
-        Ok(())
+        self.inner.lock().unwrap().write_data(data)
     }
 }
 
-impl<T: Task, HP, HF> Drop for Producer<T, HP, HF> {
-    fn drop(&mut self) {
-        let _span = warn_span!("drop", pid = self.child.id()).entered();
-        info!("kill child");
+struct ProducerInner {
+    child: Child,
+    child_stdin: ChildStdin,
+}
+
+impl ProducerInner {
+    fn new(cmd: Command, stage: &'static str, stable_timeout: Option<Duration>) -> Result<(Self, ChildStdout)> {
+        let (child, child_stdin, child_stdout) = Self::create_child_and_wait_it(cmd, stage, stable_timeout)?;
+        Ok((Self { child, child_stdin }, child_stdout))
+    }
+
+    fn child_id(&self) -> u32 {
+        self.child.id()
+    }
+
+    fn write_data(&mut self, data: String) -> Result<()> {
+        writeln!(self.child_stdin, "{}", data).context("write request data")
+    }
+
+    /// restart_child restarts the child process
+    fn restart_child(&mut self, cmd: Command, stage: &'static str, stable_timeout: Option<Duration>) -> Result<ChildStdout> {
+        debug!("restart the child process: {:?}", cmd);
+        self.kill_child();
+
+        let (child, child_stdin, child_stdout) = Self::create_child_and_wait_it(cmd, stage, stable_timeout)?;
+        self.child = child;
+        self.child_stdin = child_stdin;
+
+        Ok(child_stdout)
+    }
+
+    fn create_child_and_wait_it(
+        mut cmd: Command,
+        stage: &'static str,
+        stable_timeout: Option<Duration>,
+    ) -> Result<(Child, ChildStdin, ChildStdout)> {
+        let mut child = cmd.spawn().context("spawn child process")?;
+        let child_stdin = child.stdin.take().context("child stdin lost")?;
+        let mut child_stdout = child.stdout.take().context("child stdout lost")?;
+        child_stdout = wait_for_stable(stage, child_stdout, stable_timeout).context("wait for child process stable")?;
+        Ok((child, child_stdin, child_stdout))
+    }
+
+    fn kill_child(&mut self) {
+        info!(pid = self.child.id(), "kill child");
         let _ = self.child.kill();
         let _ = self.child.wait();
-        info!("cleaned up");
+    }
+}
+
+impl Drop for ProducerInner {
+    fn drop(&mut self) {
+        self.kill_child()
+    }
+}
+
+#[derive(Debug, Default)]
+struct InflightRequests<O>(Arc<Mutex<FnvHashMap<u64, Sender<Response<O>>>>>);
+
+impl<O> InflightRequests<O> {
+    pub fn new() -> Self {
+        Self(Default::default())
+    }
+
+    /// sent represents the specified request data has sent to the target.
+    pub fn sent(&self, id: u64) -> Receiver<Response<O>> {
+        debug!("sent request: {}", id);
+        let (tx, rx) = bounded(0);
+        self.0.lock().unwrap().insert(id, tx);
+        rx
+    }
+
+    pub fn remove(&self, id: u64) {
+        self.0.lock().unwrap().remove(&id);
+    }
+
+    /// complete represents the specified response is ready
+    pub fn complete(&self, resp: Response<O>) {
+        if let Some(tx) = self.0.lock().unwrap().remove(&resp.id) {
+            let _ = tx.send(resp);
+        }
+    }
+
+    pub fn cancel_all(&self, err_msg: impl AsRef<str>) {
+        let mut inner = self.0.lock().unwrap();
+        let keys: Vec<_> = inner.keys().cloned().collect();
+        for id in keys {
+            if let Some(tx) = inner.remove(&id) {
+                let _ = tx.send(Response {
+                    id,
+                    err_msg: Some(err_msg.as_ref().to_string()),
+                    output: None,
+                });
+                debug!("canceled request: {}", id);
+            }
+        }
+    }
+}
+
+impl<T> Clone for InflightRequests<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
     }
 }
 
@@ -345,10 +456,7 @@ where
     HF: Fn(&Request<T>) + Send + Sync,
 {
     fn process(&self, task: T) -> Result<T::Output> {
-        let req = Request {
-            id: self.id.fetch_add(1, Ordering::Relaxed),
-            task,
-        };
+        let req = Request { id: self.next_id(), task };
 
         if let Some(p) = self.hooks.prepare.as_ref() {
             p(&req).context("prepare task")?;
@@ -360,22 +468,18 @@ where
             }
         });
 
-        let (output_tx, output_rx) = bounded(1);
-        self.out_txes
-            .lock()
-            .map_err(|_| anyhow!("out txes poisoned"))?
-            .insert(req.id, output_tx);
-
+        let rx = self.in_flight_requests.sent(req.id);
         if let Err(e) = self.send(&req) {
-            self.out_txes.lock().map_err(|_| anyhow!("out txes poisoned"))?.remove(&req.id);
+            self.in_flight_requests.remove(req.id);
             return Err(e);
         }
 
-        let mut output = output_rx.recv().map_err(|_| anyhow!("output channel broken"))?;
+        debug!("wait request: {}", req.id);
+        let mut output = rx.recv().map_err(|_| anyhow!("output channel broken"))?;
         if let Some(err_msg) = output.err_msg.take() {
             return Err(anyhow!(err_msg));
         }
-
+        debug!("request done: {}", req.id);
         output.output.take().context("output field lost")
     }
 }
