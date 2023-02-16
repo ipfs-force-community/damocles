@@ -4107,6 +4107,7 @@ dependencies = [
  "crossbeam-channel",
  "filecoin-proofs",
  "filecoin-proofs-api",
+ "fnv",
  "forest_address",
  "hex",
  "lazy_static",

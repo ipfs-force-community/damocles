@@ -95,7 +95,7 @@ fn run_main() -> Result<()> {
     });
 
     let _span = warn_span!("parent", pid = std::process::id()).entered();
-    let mut producer = ProducerBuilder::<_, _>::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
+    let producer = ProducerBuilder::<_, _>::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
         .stable_timeout(Duration::from_secs(5))
         .hook_prepare(move |_: &Request<TreeD>| -> Result<()> {
             let _ = limit_tx.send(());
@@ -105,10 +105,8 @@ fn run_main() -> Result<()> {
         .hook_finalize(move |_: &Request<TreeD>| {
             info!("do nothing");
         })
-        .build::<TreeD>()
+        .spawn::<TreeD>()
         .context("build producer")?;
-
-    producer.start_response_handler().context("start response handler")?;
 
     info!(child = producer.child_pid(), "producer start");
 

@@ -84,15 +84,13 @@ fn main() -> Result<()> {
 
 fn run_main() -> Result<()> {
     let _span = warn_span!("parent", pid = std::process::id()).entered();
-    let mut producer = ProducerBuilder::<BoxedPrepareHook<Num>, BoxedFinalizeHook<Num>>::new(
+    let producer = ProducerBuilder::<BoxedPrepareHook<Num>, BoxedFinalizeHook<Num>>::new(
         current_exe().context("get current exe")?,
         vec!["sub".to_owned()],
     )
     .stable_timeout(Duration::from_secs(5))
-    .build::<Num>()
+    .spawn::<Num>()
     .context("build producer")?;
-
-    producer.start_response_handler().context("start response handler")?;
 
     info!(child = producer.child_pid(), "producer start");
 
