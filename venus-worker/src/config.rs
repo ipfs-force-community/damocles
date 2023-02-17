@@ -358,4 +358,9 @@ impl Config {
     pub fn worker_local_pieces_dir(&self) -> Option<&PathBuf> {
         self.worker.as_ref().and_then(|w| w.local_pieces_dir.as_ref())
     }
+
+    /// render the config content
+    pub fn render(&self) -> Result<String> {
+        toml::to_string_pretty(self).context("serialize config to toml")
+    }
 }

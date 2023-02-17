@@ -38,7 +38,7 @@ pub fn start_daemon(cfg_path: String) -> Result<()> {
     let runtime = Builder::new_multi_thread().enable_all().build().context("construct runtime")?;
 
     let mut cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path))?;
-    info!("config loaded\n {:?}", cfg);
+    info!("config loaded\n {}", cfg.render()?);
     compatible_for_piece_token(&mut cfg);
 
     let dial_addr = rpc_addr(&cfg.sector_manager.rpc_client.addr, 0)?;

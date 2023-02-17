@@ -82,7 +82,7 @@ pub(super) fn start_sub_processors<I: Input>(cfgs: &[config::Ext]) -> Result<Vec
         let hook_limit_tx = limit_tx.clone();
         let mut builder = ProducerBuilder::new(bin, args)
             .inherit_envs(true)
-            .stable_timeout(sub_cfg.stable_wait.as_ref().cloned().unwrap_or(config::EXT_STABLE_WAIT))
+            .stable_timeout(sub_cfg.stable_wait)
             .hook_prepare(move |_: &Request<I>| -> Result<()> { hook_limit_tx.send(()).context("limit chan broken") })
             .hook_finalize(move |_: &Request<I>| {
                 // check this?

@@ -6,9 +6,6 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-/// default stable wait duration
-pub const EXT_STABLE_WAIT: Duration = Duration::from_secs(5);
-
 /// configurations for cgroup used in processor
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Cgroup {
@@ -25,10 +22,10 @@ pub struct Ext {
 
     pub args: Option<Vec<String>>,
 
-    #[serde(default)]
+    #[serde(default = "default_stable_wait")]
     #[serde(with = "humantime_serde")]
     /// wait duration before processor get ready
-    pub stable_wait: Option<Duration>,
+    pub stable_wait: Duration,
 
     /// cgroup params for the sub-process of the external processor
     pub cgroup: Option<Cgroup>,
@@ -65,4 +62,9 @@ fn default_weight() -> u16 {
 #[inline]
 fn default_auto_restart() -> bool {
     true
+}
+
+#[inline]
+fn default_stable_wait() -> Duration {
+    Duration::from_secs(5)
 }
