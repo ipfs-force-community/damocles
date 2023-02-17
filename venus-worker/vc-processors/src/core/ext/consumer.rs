@@ -19,6 +19,7 @@ pub fn run_with_processor<T: Task, P: Processor<T> + Send + Sync + Clone + 'stat
 
     let mut output = stdout();
     writeln!(output, "{}", ready_msg(T::STAGE)).context("write ready msg")?;
+    output.flush()?;
 
     let input = stdin();
     let mut line = String::new();
