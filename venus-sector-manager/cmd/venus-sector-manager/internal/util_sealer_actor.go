@@ -770,7 +770,7 @@ var utilSealerActorConfirmChangeWorker = &cli.Command{
 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
 			From:   mi.Owner,
 			To:     maddr,
-			Method: stbuiltin.MethodsMiner.ConfirmUpdateWorkerKey,
+			Method: stbuiltin.MethodsMiner.ConfirmChangeWorkerAddress,
 			Value:  big.Zero(),
 		}, nil)
 		if err != nil {

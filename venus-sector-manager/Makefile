@@ -49,19 +49,9 @@ build-venus-sector-manager:
 	rm -rf ./venus-sector-manager
 	$(GO) build -tags="$(GOTAGS)" $(GOFLAGS) -o venus-sector-manager ./cmd/venus-sector-manager
 
-build-plugin-fsstore:
-	rm -rf ./plugin-fsstore.so
-	$(GO) run ./cmd/buildplugin/buildplugin.go --out-dir=./ --src-dir=./plugin/examples/fsstore/
-
-build-plugin-memdb:
-	rm -rf ./plugin-memdb.so
-	$(GO) run ./cmd/buildplugin/buildplugin.go --out-dir=./ --src-dir=./plugin/examples/memdb/
-
 .PHONY: venus-sector-manager
 BINS+=venus-sector-manager
 BUILDS+=build-venus-sector-manager
-# BUILDS+=build-plugin-fsstore
-# BUILDS+=build-plugin-memdb
 
 build-all: GOTAGS+=prod
 build-all: $(BUILD_DEPS) $(BUILDS)
