@@ -357,6 +357,7 @@ impl ProducerInner {
 
     fn write_data(&mut self, data: String) -> Result<()> {
         writeln!(self.child_stdin, "{}", data).context("write request data")
+        // TODO: flush?
     }
 
     /// restart_child restarts the child process

@@ -1,16 +1,15 @@
 //! config for venus-worker
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
+use std::fs;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::str;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
 use byte_unit::Byte;
 use serde::{Deserialize, Serialize};
-use toml::from_slice;
 
 use crate::sealing::processor::external::config::Ext;
 
@@ -171,6 +170,12 @@ pub struct RPCServer {
 /// configurations for processors
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Processors {
+    // For compatibility, it is equivalent to `Limit.concurrent`
+    pub limit: Option<HashMap<String, usize>>,
+
+    #[serde(default)]
+    pub limitation: Limit,
+
     pub ext_locks: Option<HashMap<String, usize>>,
 
     /// static tree_d paths for cc sectors
@@ -199,12 +204,6 @@ pub struct Processors {
 
     /// section for transfer processor
     pub transfer: Option<Vec<Ext>>,
-
-    // For compatibility, it is equivalent to `Limit.concurrent`
-    pub limit: Option<HashMap<String, usize>>,
-
-    #[serde(default)]
-    pub limitation: Limit,
 }
 
 impl Processors {
@@ -241,8 +240,8 @@ pub struct WorkerInstanceConfig {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SectorManagerConfig {
-    pub piece_token: Option<String>,
     pub rpc_client: RPCClient,
+    pub piece_token: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -282,20 +281,15 @@ pub struct Config {
 }
 
 impl Config {
-    /// load config from the reader
-    pub fn from_reader<R: Read>(mut r: R) -> Result<Self> {
-        let mut content = Vec::with_capacity(1 << 10);
-        r.read_to_end(&mut content).context("read content")?;
-
-        let cfg = from_slice(&content).context("deserialize config")?;
-
-        Ok(cfg)
+    /// load config from the bytes
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        toml::from_str(str::from_utf8(bytes)?).context("deserialize config")
     }
 
     /// load from config file
     pub fn load<P: AsRef<Path>>(p: P) -> Result<Self> {
-        let f = File::open(p).context("open file")?;
-        Self::from_reader(f)
+        let bytes = fs::read(p.as_ref()).with_context(|| format!("read config file: {}", p.as_ref().display()))?;
+        Self::from_bytes(&bytes)
     }
 }
 
