@@ -22,6 +22,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/mock"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/sectors"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/worker"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/homedir"
@@ -304,6 +305,11 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config,
 	locker.Unlock()
 
 	ccli, ccloser, err := chain.New(gctx, api, token)
+	if err != nil {
+		return nil, err
+	}
+
+	err = policy.SetupNetwork(gctx, ccli)
 	if err != nil {
 		return nil, err
 	}
