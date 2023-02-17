@@ -10,7 +10,7 @@ import (
 	"github.com/tidwall/btree"
 )
 
-func OnInit(ctx context.Context, manifest *vsmplugin.Manifest) error { return nil }
+func OnInit(ctx context.Context, pluginsDir string, manifest *vsmplugin.Manifest) error { return nil }
 
 func Open(meta map[string]string) (kvstore.DB, error) {
 	return &memdb{
