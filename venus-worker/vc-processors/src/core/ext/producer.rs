@@ -244,10 +244,12 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
                 if let Err(e) =
                     start_response_handler::<T>(child_pid, child_stdout, in_flight_requests.clone()).context("start response handler")
                 {
-                    error!(err=?e, "failed to start response handler. pid{}", child_pid);
-                    // child process exist, cancel all in flight requests
-                    in_flight_requests.cancel_all(format!("child process exited: {}", T::STAGE));
+                    error!(err=?e, "failed to start response handler. pid: {}", child_pid);
                 }
+
+                // child process exist
+                // cancel all in flight requests
+                in_flight_requests.cancel_all(format!("child process exited: {}", T::STAGE));
 
                 if !auto_restart {
                     break;
@@ -359,7 +361,7 @@ impl ProducerInner {
 
     /// restart_child restarts the child process
     fn restart_child(&mut self, cmd: Command, stage: &'static str, stable_timeout: Option<Duration>) -> Result<ChildStdout> {
-        debug!("restart the child process: {:?}", cmd);
+        info!("restart the child process: {:?}", cmd);
         self.kill_child();
 
         let (child, child_stdin, child_stdout) = Self::create_child_and_wait_it(cmd, stage, stable_timeout)?;
