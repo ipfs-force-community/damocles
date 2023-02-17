@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -94,12 +93,12 @@ func (lm *localMgr) SetDefault(ctx context.Context, key string, c interface{}) e
 		return fmt.Errorf("marshal default content: %w", err)
 	}
 
-	return ioutil.WriteFile(fname, content, 0644)
+	return os.WriteFile(fname, content, 0644)
 }
 
 func (lm *localMgr) Load(ctx context.Context, key string, c interface{}) error {
 	fname := lm.cfgpath(key)
-	data, err := ioutil.ReadFile(fname)
+	data, err := os.ReadFile(fname)
 	if err != nil {
 		return fmt.Errorf("failed to load %s: %w", fname, err)
 	}
@@ -166,7 +165,7 @@ func (lm *localMgr) loadModified(ctx context.Context, fname string, c *cfgItem) 
 		return
 	}
 
-	data, err := ioutil.ReadFile(fname)
+	data, err := os.ReadFile(fname)
 	if err != nil {
 		l.Errorf("failed to load data: %s", err)
 		return
