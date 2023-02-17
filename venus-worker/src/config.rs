@@ -171,12 +171,6 @@ pub struct RPCServer {
 /// configurations for processors
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Processors {
-    // For compatibility, it is equivalent to `Limit.concurrent`
-    pub limit: Option<HashMap<String, usize>>,
-
-    #[serde(default)]
-    pub limitation: Limit,
-
     pub ext_locks: Option<HashMap<String, usize>>,
 
     /// static tree_d paths for cc sectors
@@ -205,6 +199,12 @@ pub struct Processors {
 
     /// section for transfer processor
     pub transfer: Option<Vec<Ext>>,
+
+    // For compatibility, it is equivalent to `Limit.concurrent`
+    pub limit: Option<HashMap<String, usize>>,
+
+    #[serde(default)]
+    pub limitation: Limit,
 }
 
 impl Processors {
@@ -241,8 +241,8 @@ pub struct WorkerInstanceConfig {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SectorManagerConfig {
-    pub rpc_client: RPCClient,
     pub piece_token: Option<String>,
+    pub rpc_client: RPCClient,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

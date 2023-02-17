@@ -19,7 +19,7 @@ use crate::{
         objstore::{attached::AttachedManager, filestore::FileStore, ObjectStore},
         piecestore::{local::LocalPieceStore, remote::RemotePieceStore, ComposePieceStore, EmptyPieceStore, PieceStore},
     },
-    logging::info,
+    logging::{info, warn},
     rpc::sealer::SealerClient,
     sealing::{
         ping, processor,
@@ -38,7 +38,11 @@ pub fn start_daemon(cfg_path: String) -> Result<()> {
     let runtime = Builder::new_multi_thread().enable_all().build().context("construct runtime")?;
 
     let mut cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path))?;
-    info!("config loaded\n {}", cfg.render()?);
+    match cfg.render() {
+        Ok(s) => info!("config loaded\n {}", s),
+        Err(e) => warn!(err=?e, "unable to render config"),
+    }
+
     compatible_for_piece_token(&mut cfg);
 
     let dial_addr = rpc_addr(&cfg.sector_manager.rpc_client.addr, 0)?;
