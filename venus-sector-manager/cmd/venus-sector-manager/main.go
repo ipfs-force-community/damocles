@@ -25,6 +25,13 @@ func main() {
 		},
 		Flags: []cli.Flag{
 			internal.HomeFlag,
+			internal.NetFlag,
+		},
+		Before: func(cctx *cli.Context) error {
+			if cctx.String(internal.NetFlag.Name) != "" {
+				log.Warnf("DEPRECATED: the '%s' flag is deprecated", internal.NetFlag.Name)
+			}
+			return nil
 		},
 	}
 

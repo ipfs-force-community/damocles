@@ -37,6 +37,12 @@ var HomeFlag = &cli.StringFlag{
 	Value: "~/.venus-sector-manager",
 }
 
+// Note: NetFlag is deprecated and will be removed in a future version.
+var NetFlag = &cli.StringFlag{
+	Name:  "net",
+	Usage: "DEPRECATED: venus-sector-manager will automatically get the network parameters",
+}
+
 var SealerListenFlag = &cli.StringFlag{
 	Name:  "listen",
 	Value: ":1789",
