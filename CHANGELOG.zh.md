@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.1-rc1
+- venus-sector-manager
+  - 适配和支持 nv18-rc1 [#610](https://github.com/ipfs-force-community/venus-cluster/pull/610)
+  - cli 移除 `--net` flag, 自动获取网络参数 [#574](https://github.com/ipfs-force-community/venus-cluster/pull/574)
+
 ## v0.4.0
 - venus-sector-manager
   - 修改 snapup 对于消息处理和可重试错误的逻辑，在遇到 outofgas 或者钱不足等问题时自行重试 [#545](https://github.com/ipfs-force-community/venus-cluster/pull/545)
