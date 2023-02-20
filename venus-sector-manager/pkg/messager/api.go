@@ -25,16 +25,14 @@ var MessageState = struct {
 	FillMsg,
 	OnChainMsg,
 	FailedMsg,
-	ReplacedMsg, // Has been on-chain after being replaced by off-chain services, usually by `mpool replace`, eg. `venus mpool replace`
-	NoWalletMsg mtypes.MessageState
+	NonceConflictMsg mtypes.MessageState // Has been on-chain after being replaced by off-chain services, usually by `mpool replace`, eg. `venus mpool replace`
 }{
 	mtypes.UnKnown,
 	mtypes.UnFillMsg,
 	mtypes.FillMsg,
 	mtypes.OnChainMsg,
 	mtypes.FailedMsg,
-	mtypes.ReplacedMsg,
-	mtypes.NoWalletMsg,
+	mtypes.NonceConflictMsg,
 }
 
 type API = mapi.IMessager

@@ -42,7 +42,7 @@ var utilMessageWaitCmd = &cli.Command{
 		}
 
 		fmt.Println("State:", msg.State.String())
-		if msg.State == messager.OnChainMsg || msg.State == messager.ReplacedMsg {
+		if msg.State == messager.OnChainMsg || msg.State == messager.NonceConflictMsg {
 			fmt.Println("Cid:", msg.SignedCid.String())
 			fmt.Println("Height:", msg.Height)
 			fmt.Println("Tipset:", msg.TipSetKey.String())
@@ -77,7 +77,7 @@ var utilMessageSearchCmd = &cli.Command{
 		}
 
 		fmt.Println("State:", msg.State.String())
-		if msg.State == messager.OnChainMsg || msg.State == messager.ReplacedMsg {
+		if msg.State == messager.OnChainMsg || msg.State == messager.NonceConflictMsg {
 			fmt.Println("Cid:", msg.SignedCid.String())
 			fmt.Println("Height:", msg.Height)
 			fmt.Println("Tipset:", msg.TipSetKey.String())

@@ -37,11 +37,6 @@ var HomeFlag = &cli.StringFlag{
 	Value: "~/.venus-sector-manager",
 }
 
-var NetFlag = &cli.StringFlag{
-	Name:  "net",
-	Value: "mainnet",
-}
-
 var SealerListenFlag = &cli.StringFlag{
 	Name:  "listen",
 	Value: ":1789",
@@ -213,12 +208,9 @@ WAIT_RET:
 		}
 
 		switch ret.State {
-		case messager.MessageState.OnChainMsg, messager.MessageState.ReplacedMsg:
+		case messager.MessageState.OnChainMsg, messager.MessageState.NonceConflictMsg:
 			mret = ret
 			break WAIT_RET
-
-		case messager.MessageState.NoWalletMsg:
-			mlog.Warnf("no wallet available for the sender %s, please check", rawMsg.From)
 
 		default:
 			mlog.Infof("msg state: %s", messager.MessageStateToString(ret.State))
