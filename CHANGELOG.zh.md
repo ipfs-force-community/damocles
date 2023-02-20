@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.1-rc1
+- venus-sector-manager
+  - 适配和支持 nv18-rc1 [#610](https://github.com/ipfs-force-community/venus-cluster/pull/610)
+  - cli 移除 `--net` flag, 自动获取网络参数 [#574](https://github.com/ipfs-force-community/venus-cluster/pull/574)
+
 ## v0.5.0
 - venus-secotr-manager
   - 修改 cli list sector 中对于不存在 laststate 的结构的扇区不输出其他信息的 bug [#551](https://github.com/ipfs-force-community/venus-cluster/pull/551)
