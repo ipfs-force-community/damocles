@@ -98,7 +98,7 @@ impl<'a> App<'a> {
             }
             None => 0,
         };
-        self.state.select(Some(i as usize));
+        self.state.select(Some(i));
     }
 
     fn ui<B: Backend>(&mut self, f: &mut Frame<B>) {

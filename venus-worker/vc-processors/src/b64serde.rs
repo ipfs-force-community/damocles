@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Error, Result};
-use base64::STANDARD;
+use base64::engine::general_purpose::STANDARD;
 use base64_serde::base64_serde_type;
 use serde::{Deserialize, Serialize};
 

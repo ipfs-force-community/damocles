@@ -16,7 +16,7 @@ pub fn create_hugepage_mem_files(numa_node_idx: u32, size: ByteSize, count: usiz
         .map_err(|_| anyhow!("invalid NUMA node: {}", numa_node_idx))?;
 
     let path = path.as_ref();
-    fs::create_dir_all(&path).with_context(|| format!("create hugepage memory files directory: '{}'", path.display()))?;
+    fs::create_dir_all(path).with_context(|| format!("create hugepage memory files directory: '{}'", path.display()))?;
 
     let filename = size.to_string_as(true).replace(' ', "_");
 

@@ -2,10 +2,9 @@
 
 use anyhow::{Context, Result};
 use crossterm::tty::IsTty;
-use time::format_description::well_known::Rfc3339;
 use tracing_subscriber::{
     filter::{self, FilterExt},
-    fmt::{layer, time::OffsetTime},
+    fmt::{layer, time::LocalTime},
     prelude::*,
     registry,
 };
@@ -36,7 +35,7 @@ pub fn init() -> Result<()> {
         .with_ansi(std::io::stderr().is_tty())
         .with_target(true)
         .with_thread_ids(true)
-        .with_timer(OffsetTime::local_rfc_3339().unwrap_or_else(|_| OffsetTime::new(time::UtcOffset::UTC, Rfc3339)))
+        .with_timer(LocalTime::rfc_3339())
         .with_filter(env_filter.or(worker_env_filter));
 
     registry().with(fmt_layer).init();

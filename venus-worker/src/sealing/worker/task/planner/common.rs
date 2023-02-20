@@ -20,7 +20,7 @@ use crate::sealing::processor::{
 };
 use crate::types::{SealProof, SIZE_32G};
 
-pub fn add_pieces<'t>(task: &'t Task<'_>, deals: &Deals) -> Result<Vec<PieceInfo>, Failure> {
+pub fn add_pieces(task: &Task<'_>, deals: &Deals) -> Result<Vec<PieceInfo>, Failure> {
     let _token = task.ctx.global.limit.acquire(STAGE_NAME_ADD_PIECES).crit()?;
 
     let seal_proof_type = task.sector_proof_type()?.into();
@@ -113,7 +113,7 @@ fn cleanup_before_pc1(cache_dir: &Entry, sealed_file: &Entry) -> Result<()> {
     // TODO: see if we have more graceful ways to handle restarting pc1
     let cache_dir_path: &Path = cache_dir.as_ref();
     if cache_dir_path.exists() {
-        remove_dir_all(&cache_dir)?;
+        remove_dir_all(cache_dir)?;
     }
     create_dir_all(cache_dir_path)?;
     debug!("init cache dir {:?} before pc1", cache_dir_path);

@@ -119,7 +119,7 @@ fn dump_to_file(child_pid: u32, dir: impl AsRef<Path>, data: &[u8]) -> Result<Pa
     let dir = dir.as_ref();
     ensure_dir(dir)?;
     let filename = format!("ext-processor-err-resp-{}-{}.json", child_pid, Uuid::new_v4().as_simple());
-    let path = dir.join(&filename);
+    let path = dir.join(filename);
     fs::write(&path, data)?;
     Ok(path)
 }
@@ -356,8 +356,8 @@ impl ProducerInner {
     }
 
     fn write_data(&mut self, data: String) -> Result<()> {
-        writeln!(self.child_stdin, "{}", data).context("write request data")
-        // TODO: flush?
+        writeln!(self.child_stdin, "{}", data).context("write request data to child process")?;
+        self.child_stdin.flush().context("flush data to child process")
     }
 
     /// restart_child restarts the child process

@@ -16,13 +16,6 @@ all: fmt clippy build-all
 
 check-all: check-fmt check-clippy
 
-# Add `--cfg unsound_local_offset` flag to allow time crate to get the local time zone. \
-See: https://docs.rs/time/0.3.9/time/index.html#feature-flags and \
-https://github.com/time-rs/time/issues/293#issuecomment-1005002386
-ifeq ($(findstring --cfg unsound_local_offset, $(RUSTFLAGS)), )
-RUSTFLAGS+=--cfg unsound_local_offset
-endif
-
 build-all:
 	cargo build --release --workspace $(VENUS_WORKER_FEATURE_FLAGS)
 

@@ -167,6 +167,6 @@ pub fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
 
 fn get_client(m: &ArgMatches<'_>) -> Result<WorkerClient> {
     let cfg_path = value_t!(m, "config", String).context("get config path")?;
-    let cfg = Config::load(&cfg_path)?;
+    let cfg = Config::load(cfg_path)?;
     connect(&cfg)
 }
