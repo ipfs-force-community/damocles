@@ -11,7 +11,7 @@ use super::PieceFetcher;
 
 /// Returns the static reference to the `PieceHttpFetcher`
 pub fn fetcher_ref() -> &'static PieceHttpFetcher {
-    &*PIECE_HTTP_FETCHER
+    &PIECE_HTTP_FETCHER
 }
 
 lazy_static! {

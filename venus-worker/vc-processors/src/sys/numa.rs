@@ -119,7 +119,7 @@ impl Bitmask {
 
     /// Returns size of the Bitmask
     pub fn size(&self) -> u64 {
-        unsafe { (*self.inner).size as u64 }
+        unsafe { (*self.inner).size }
     }
 }
 

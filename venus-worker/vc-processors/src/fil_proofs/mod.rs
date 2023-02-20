@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{fmt, io};
 
 use anyhow::{Context, Result};
@@ -246,7 +246,7 @@ pub fn snap_verify_sector_update_proof(
     }
 }
 
-pub fn tree_d_path_in_dir(dir: &PathBuf) -> PathBuf {
+pub fn tree_d_path_in_dir(dir: &Path) -> PathBuf {
     StoreConfig::data_path(dir, &CacheKey::CommDTree.to_string())
 }
 
@@ -296,7 +296,7 @@ fn create_tree_d_inner(registered_proof: RegisteredSealProof, in_path: Option<Pa
     };
 
     let cfg = StoreConfig::new(
-        &cache_path,
+        cache_path,
         CacheKey::CommDTree.to_string(),
         default_rows_to_discard(tree_leafs, BINARY_ARITY),
     );

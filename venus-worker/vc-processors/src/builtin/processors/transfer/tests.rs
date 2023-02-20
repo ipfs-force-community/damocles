@@ -122,7 +122,7 @@ fn transfer_failure_test() {
         "dest path is relative"
     );
 
-    let dest_path = tmp.touch(&rel_dest, None);
+    let dest_path = tmp.touch(rel_dest, None);
     let res = do_transfer(&TransferRoute {
         src: TransferItem {
             store_name: None,
@@ -173,7 +173,7 @@ fn transfer_test() {
         .map(|idx: usize| {
             let rel_f = PathBuf::from(rel_src_dir).join(idx.to_string());
             rng.fill_bytes(&mut data);
-            let src_file_path = tmp.touch(&rel_f, Some(&data[..]));
+            let src_file_path = tmp.touch(rel_f, Some(&data[..]));
             (src_file_path, tmp.0.join(rel_dest_dir).join(idx.to_string()))
         })
         .collect();

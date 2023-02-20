@@ -76,7 +76,7 @@ impl<'c> Task<'c> {
             ..
         } = s;
 
-        let sector_meta = PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &*store_meta);
+        let sector_meta = PrefixedMetaDB::wrap(SECTOR_META_PREFIX, store_meta);
         let mut sector: Saved<Sector, _, _> = Saved::load(SECTOR_INFO_KEY, sector_meta).context("load sector").crit()?;
 
         store_config
@@ -97,7 +97,7 @@ impl<'c> Task<'c> {
             .context("update ctrl state")
             .perm()?;
 
-        let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, &*store_meta));
+        let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, store_meta));
 
         Ok(Task {
             sector,
@@ -121,7 +121,7 @@ impl<'c> Task<'c> {
             None => return Ok(()),
         };
 
-        let _ = call_rpc! {
+        call_rpc! {
             self.ctx.global.rpc,
             report_state,
             sector_id,
@@ -141,7 +141,7 @@ impl<'c> Task<'c> {
             None => return Ok(()),
         };
 
-        let _ = call_rpc! {
+        call_rpc! {
             self.ctx.global.rpc,
             report_finalized,
             sector_id,
@@ -156,7 +156,7 @@ impl<'c> Task<'c> {
             None => return Ok(()),
         };
 
-        let _ = call_rpc! {
+        call_rpc! {
             self.ctx.global.rpc,
             report_aborted,
             sector_id,
@@ -228,17 +228,13 @@ impl<'c> Task<'c> {
 
             let handle_res = self.handle(event.take());
             if is_empty {
-                match self.sector.base.as_ref() {
-                    Some(base) => {
-                        self.ctrl_ctx
-                            .update_state(|cst| {
-                                cst.job.id.replace(base.allocated.id.clone());
-                            })
-                            .crit()?;
-                    }
-
-                    None => {}
-                };
+                if let Some(base) = self.sector.base.as_ref() {
+                    self.ctrl_ctx
+                        .update_state(|cst| {
+                            cst.job.id.replace(base.allocated.id.clone());
+                        })
+                        .crit()?;
+                }
             } else if self.sector.base.is_none() {
                 self.ctrl_ctx
                     .update_state(|cst| {
