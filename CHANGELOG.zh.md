@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1-rc2
+- venus-sector-manager
+  - 升级 jsonrpc 库
+
 ## v0.4.1-rc1
 - venus-sector-manager
   - 适配和支持 nv18-rc1 [#610](https://github.com/ipfs-force-community/venus-cluster/pull/610)
