@@ -39,7 +39,9 @@ type MustAddress address.Address
 func (ma MustAddress) MarshalText() ([]byte, error) {
 	addr := address.Address(ma)
 	if addr == address.Undef {
-		return nil, nil
+		// MarshalText returns nil will cause panic in the latest version of BurntSushi/toml
+		// See: https://github.com/BurntSushi/toml/blob/fcbab7400715a3a2a7b2810317b7a17e7195e8fe/encode.go#L243-L245
+		return []byte{}, nil
 	}
 
 	return []byte(addr.String()), nil
@@ -184,7 +186,9 @@ func ParseFIL(raw string) (FIL, error) {
 
 func (f FIL) MarshalText() ([]byte, error) {
 	if f.Int == nil {
-		return nil, nil
+		// MarshalText returns nil will cause panic in the latest version of BurntSushi/toml
+		// See: https://github.com/BurntSushi/toml/blob/fcbab7400715a3a2a7b2810317b7a17e7195e8fe/encode.go#L243-L245
+		return []byte{}, nil
 	}
 
 	return []byte(f.Short()), nil
