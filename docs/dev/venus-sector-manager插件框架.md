@@ -36,7 +36,7 @@ venus-sector-manager 插件机制基于 [Go plugin](https://pkg.go.dev/plugin#se
    ```
 3. 实现 `Init` 和 `Shutdown` 方法，所有的插件都需要实现这两个方法。
 4. 编写特定类型插件的特有方法实现插件逻辑
-5. 使用 `cmd/buildplugin` 命令编译插件，并且将编译后的 `.so` 文件移到 venus-sector-manager 的[插件目录](../zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#commonplugins)中。`go run github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/buildplugin@latest --src-dir=./ --out-dir=./`
+5. 使用 `cmd/plugin` 命令编译插件，并且将编译后的 `.so` 文件移到 venus-sector-manager 的[插件目录](../zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#commonplugins)中。`go run github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/plugin@latest -- build --src-dir=./ --out-dir=./`
 
 启动 venus-sector-manager 后会以日志的形式输出所有成功加载的插件。
 ```
@@ -267,3 +267,13 @@ venus-sector-manager 当前存在以下限制：
 
 - 插件仅能使用 go 编写
 - venus-sector-manager 与 plugin 的共同依赖包的版本必须一致
+
+针对「 venus-sector-manager 与 plugin 的共同依赖包的版本必须一致」的问题, vsm 提供了依赖版本检查工具可以自动修复或检查插件依赖版本。
+
+```shell
+# 仅检查依赖版本
+go run github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/plugin@latest -- check-dep /path/to/go.mod
+
+# 自动修复依赖版本
+go run github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/plugin@latest -- check-dep --fix /path/to/go.mod
+```
