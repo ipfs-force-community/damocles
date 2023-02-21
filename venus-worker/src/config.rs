@@ -355,6 +355,10 @@ impl Config {
 
     /// render the config content
     pub fn render(&self) -> Result<String> {
-        toml::to_string_pretty(self).context("serialize config to toml")
+        use std::io::Write;
+
+        let mut buf = Vec::new();
+        writeln!(&mut buf, "{:#?}", self)?;
+        Ok(String::from_utf8(buf)?)
     }
 }
