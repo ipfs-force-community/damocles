@@ -17,8 +17,9 @@ import (
 )
 
 var CheckDepCmd = &cli.Command{
-	Name:  "check-dep",
-	Usage: "Check venus-sector-manager plugin dependencies",
+	Name:    "check-dep",
+	Usage:   "Check venus-sector-manager plugin dependencies",
+	Aliases: []string{"checkdep"},
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:        "venus-cluster-branch",
@@ -53,7 +54,10 @@ var CheckDepCmd = &cli.Command{
 				return err
 			}
 			for _, diff := range diffs {
-				fmt.Printf("%s %s => %s\n", diff.Path, diff.Version, diff.VsmVersion)
+				fmt.Fprintf(os.Stderr, "%s %s => %s\n", diff.Path, diff.Version, diff.VsmVersion)
+			}
+			if len(diffs) != 0 {
+				return fmt.Errorf("the versions of dependencies is inconsistent with vsm")
 			}
 			return nil
 		}
@@ -178,6 +182,9 @@ func applyVersion(localMod *modfile.File, vsmDeps map[string]string) (changed bo
 				require.Mod.Version = vsmVersion
 			}
 		}
+	}
+	if changed {
+		localMod.SetRequire(localMod.Require)
 	}
 	return
 }
