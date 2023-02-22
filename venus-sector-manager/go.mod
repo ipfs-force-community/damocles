@@ -20,16 +20,16 @@ require (
 	github.com/filecoin-project/lotus v1.20.0-rc1
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.10.0-rc2
+	github.com/filecoin-project/venus v1.10.0-rc3
 	github.com/golang/mock v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs-force-community/venus-cluster-assets v0.1.0
 	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230213034320-9fe8cd4a96ed
-	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.3.2
 	github.com/ipfs/go-ipfs-blockstore v1.2.0
 	github.com/ipfs/go-ipld-cbor v0.0.6
+	github.com/ipfs/go-libipfs v0.4.1
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/jbenet/go-random v0.0.0-20190219211222-123a90aedc0c
 	github.com/libp2p/go-libp2p v0.23.4
@@ -126,6 +126,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/icza/backscanner v0.0.0-20210726202459-ac2ffc679f94 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
+	github.com/ipfs/go-block-format v0.1.1 // indirect
 	github.com/ipfs/go-blockservice v0.4.0 // indirect
 	github.com/ipfs/go-datastore v0.6.0 // indirect
 	github.com/ipfs/go-ds-badger2 v0.1.2 // indirect
