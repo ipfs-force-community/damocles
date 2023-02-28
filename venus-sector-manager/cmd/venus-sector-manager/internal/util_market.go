@@ -3,10 +3,13 @@ package internal
 import (
 	"fmt"
 
-	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
 	"github.com/urfave/cli/v2"
+
+	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-fil-markets/storagemarket"
+	"github.com/filecoin-project/go-state-types/abi"
+
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
 )
 
 var utilMarketCmd = &cli.Command{
@@ -45,7 +48,7 @@ var utilMarketReleaseDealsCmd = &cli.Command{
 		mlog := Log.With("miner", maddr)
 
 		for _, dealID := range cctx.Int64Slice("deal") {
-			err = api.Market.UpdateDealStatus(gctx, maddr, abi.DealID(dealID), market.DealStatusUndefine)
+			err = api.Market.UpdateDealStatus(gctx, maddr, abi.DealID(dealID), market.DealStatusUndefine, storagemarket.StorageDealAwaitingPreCommit)
 			if err == nil {
 				mlog.Infow("deal released", "deal-id", dealID)
 			} else {
