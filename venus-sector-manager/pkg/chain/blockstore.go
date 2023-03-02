@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	"github.com/ipfs/go-libipfs/blocks"
 )
 
 var errNotSupported = fmt.Errorf("not supported")
