@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.1
+- venus-sector-manager
+  - 适配和支持 nv18
+  - 修复订单释放 bug [#602](https://github.com/ipfs-force-community/venus-cluster/issues/602)
+
 ## v0.4.1-rc2
 - venus-sector-manager
   - 升级 jsonrpc 库
