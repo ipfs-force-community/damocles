@@ -63,7 +63,7 @@ func (b *Batcher) run() {
 			b.log.Info("time run out, checking processlist")
 		case s := <-b.pendingCh:
 			pending = append(pending, s)
-			b.log.Info("new sector reaches, checking processlist")
+			b.log.Infow("new sector reaches, checking processlist", "sid", s.ID.Number)
 		}
 
 		full := len(pending) >= b.processor.Threshold(b.mid)
@@ -126,7 +126,7 @@ func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, 
 		force:     make(chan struct{}),
 		stop:      make(chan struct{}),
 		processor: processor,
-		log:       log.With("miner", mid),
+		log:       l.With("miner", mid),
 	}
 	go b.run()
 
