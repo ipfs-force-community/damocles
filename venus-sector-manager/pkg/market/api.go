@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/filecoin-project/go-jsonrpc"
-	"github.com/filecoin-project/venus/venus-shared/api"
-	"github.com/filecoin-project/venus/venus-shared/api/market"
-	mtypes "github.com/filecoin-project/venus/venus-shared/types/market"
 	"github.com/ipfs/go-cid"
+
+	"github.com/filecoin-project/go-jsonrpc"
+
+	"github.com/filecoin-project/venus/venus-shared/api"
+
+	mkapi "github.com/filecoin-project/venus/venus-shared/api/market/v1"
+	mtypes "github.com/filecoin-project/venus/venus-shared/types/market"
 )
 
 const (
@@ -20,7 +23,7 @@ const (
 )
 
 type API interface {
-	market.IMarket
+	mkapi.IMarket
 
 	PieceResourceURL(c cid.Cid) string
 }
@@ -33,12 +36,12 @@ type (
 func New(ctx context.Context, addr, token string) (API, jsonrpc.ClientCloser, error) {
 	ainfo := api.NewAPIInfo(addr, token)
 
-	dialAddr, err := ainfo.DialArgs(api.VerString(market.MajorVersion))
+	dialAddr, err := ainfo.DialArgs(api.VerString(mkapi.MajorVersion))
 	if err != nil {
 		return nil, nil, fmt.Errorf("get dial args for connecting: %w", err)
 	}
 
-	cli, closer, err := market.NewIMarketRPC(ctx, dialAddr, ainfo.AuthHeader(), jsonrpc.WithRetry(true))
+	cli, closer, err := mkapi.NewIMarketRPC(ctx, dialAddr, ainfo.AuthHeader(), jsonrpc.WithRetry(true))
 	if err != nil {
 		return nil, nil, fmt.Errorf("construct market api client: %w", err)
 	}
@@ -63,7 +66,7 @@ func New(ctx context.Context, addr, token string) (API, jsonrpc.ClientCloser, er
 }
 
 type WrappedAPI struct {
-	market.IMarket
+	mkapi.IMarket
 	ResourceEndpoint string
 }
 

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/hashicorp/go-multierror"
 
@@ -115,7 +116,7 @@ func (dm *DealManager) Release(ctx context.Context, sid abi.SectorID, deals core
 		}
 
 		wg.Go(func() error {
-			return dm.market.UpdateDealStatus(ctx, maddr, dealID, market.DealStatusUndefine)
+			return dm.market.UpdateDealStatus(ctx, maddr, dealID, market.DealStatusUndefine, storagemarket.StorageDealAwaitingPreCommit)
 		})
 	}
 
