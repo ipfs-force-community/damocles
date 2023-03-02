@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/filecoin-project/venus/venus-shared/api/market/mock"
+	"github.com/filecoin-project/venus/venus-shared/api/market/v1/mock"
 )
 
 func setupStoreProxy(t *testing.T, resourceEndPoint string) *Proxy {
