@@ -26,3 +26,9 @@ check-clippy:
 
 dev-env:
 	rustup component add clippy rustfmt
+
+TAG:=test
+docker:
+	curl -O https://raw.githubusercontent.com/filecoin-project/venus-docs/master/script/docker/dockerfile
+	docker build --build-arg https_proxy=$(BUILD_DOCKER_PROXY) --build-arg BUILD_TARGET=venus-worker-util -t venus-worker-util .
+	docker tag venus-worker-util filvenus/venus-worker-util:$(TAG)

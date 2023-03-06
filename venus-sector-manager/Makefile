@@ -72,3 +72,9 @@ check-go-mod:
 
 dev-env:
 	$(GO) install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
+
+TAG:=test
+docker:
+	curl -O https://raw.githubusercontent.com/filecoin-project/venus-docs/master/script/docker/dockerfile
+	docker build --build-arg https_proxy=$(BUILD_DOCKER_PROXY) --build-arg BUILD_TARGET=venus-sector-manager  -t venus-sector-manager .
+	docker tag venus-sector-manager filvenus/venus-sector-manager:$(TAG)

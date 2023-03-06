@@ -56,3 +56,9 @@ upgrade-filecoin-proofs:
 	cargo update -p storage-proofs-post
 	cargo update -p storage-proofs-update
 	cargo update -p filecoin-proofs-api
+
+TAG:=test
+docker:
+	curl -O https://raw.githubusercontent.com/filecoin-project/venus-docs/master/script/docker/dockerfile
+	docker build --build-arg https_proxy=$(BUILD_DOCKER_PROXY) --build-arg BUILD_TARGET=venus-worker -t venus-worker .
+	docker tag venus-worker filvenus/venus-worker:$(TAG)
