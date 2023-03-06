@@ -56,3 +56,12 @@ dev-env:
 	$(MAKE) -C ./venus-sector-manager/ dev-env
 	$(MAKE) -C ./venus-worker/ dev-env
 	$(MAKE) -C ./venus-worker-util/ dev-env
+
+docker-smgr:
+	$(MAKE) -C ./venus-sector-manager/ docker
+
+docker-worker:
+	$(MAKE) -C ./venus-worker/ docker
+
+docker--worker-util:
+	$(MAKE) -C ./venus-worker-util/ docker
