@@ -17,6 +17,7 @@ impl LocalPieceStore {
 impl PieceStore for LocalPieceStore {
     fn get(&self, c: &Cid) -> Option<PieceFile> {
         let path = self.base.join(c.to_string());
+        tracing::debug!("load local piece: {}", path.display());
         if path.exists() {
             Some(PieceFile::Local(path))
         } else {
