@@ -14,6 +14,8 @@ import (
 	"github.com/filecoin-project/go-state-types/big"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
+
+	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
@@ -111,6 +113,16 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 		return fmt.Errorf("get chain head failed: %w", err)
 	}
 
+	nv, err := c.api.StateNetworkVersion(ctx, tok)
+	if err != nil {
+		return fmt.Errorf("get network version: %w", err)
+	}
+
+	arp, err := c.aggregateProofType(nv)
+	if err != nil {
+		return fmt.Errorf("get aggregate proof type: %w", err)
+	}
+
 	infos := []core.AggregateSealVerifyInfo{}
 	sectorsMap := map[abi.SectorNumber]core.SectorState{}
 	failed := map[abi.SectorID]struct{}{}
@@ -160,7 +172,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 	params.AggregateProof, err = c.prover.AggregateSealProofs(ctx, core.AggregateSealVerifyProofAndInfos{
 		Miner:          mid,
 		SealProof:      sectorsMap[infos[0].Number].SectorType,
-		AggregateProof: abi.RegisteredAggregationProof_SnarkPackV1,
+		AggregateProof: arp,
 		Infos:          infos,
 	}, proofs)
 
@@ -186,6 +198,13 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 	}
 
 	return nil
+}
+
+func (c CommitProcessor) aggregateProofType(nv network.Version) (abi.RegisteredAggregationProof, error) {
+	if nv < network.Version16 {
+		return abi.RegisteredAggregationProof_SnarkPackV1, nil
+	}
+	return abi.RegisteredAggregationProof_SnarkPackV2, nil
 }
 
 func (c CommitProcessor) Expire(ctx context.Context, sectors []core.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
