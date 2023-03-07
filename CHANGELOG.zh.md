@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.2
+- venus-sector-manager
+  - 消息聚合 bug 修复 [#639](https://github.com/ipfs-force-community/venus-cluster/issues/639)
+
 ## v0.4.1
 - venus-sector-manager
   - 适配和支持 nv18
