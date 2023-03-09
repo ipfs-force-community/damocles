@@ -416,10 +416,9 @@ var utilStorageFindCmd = &cli.Command{
 }
 
 var utilStorageListCmd = &cli.Command{
-	Name:      "list",
-	Usage:     "List local storage paths and capacity",
-	Flags:     []cli.Flag{},
-	ArgsUsage: "<actor id> <number>",
+	Name:  "list",
+	Usage: "List local storage paths and capacity",
+	Flags: []cli.Flag{},
 	Action: func(cctx *cli.Context) error {
 		api, actx, astop, err := extractAPI(cctx)
 		if err != nil {

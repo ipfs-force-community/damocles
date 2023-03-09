@@ -19,7 +19,7 @@ import (
 
 var defaultSubStore = []string{"common", "meta", "offline_meta", "sector-index", "snapup", "worker"}
 
-var utilMigrate = &cli.Command{
+var utilMigrateCmd = &cli.Command{
 	Name:  "migrate",
 	Usage: "Migrating venus-sector-manager's database data",
 	Flags: []cli.Flag{
