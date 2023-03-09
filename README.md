@@ -24,7 +24,7 @@ For instructions on more intricate details of `venus-cluster` configurations, pl
 
 ## Venus Architecture
 
-Venus architecture mianly compose of three parts: chain service, storage deal service and storage power service. Learn more about each of them [here](https://venus.filecoin.io/cs/).
+Venus architecture mianly compose of three parts: chain service, storage deal service and storage power service. Learn more about each of them [here](https://sophon.venus-fil.io/intro/#mining-architecture).
 
 ## Related Components
 
