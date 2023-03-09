@@ -229,6 +229,10 @@ func (s *Sealer) RemoveSector(ctx context.Context, sid abi.SectorID) error {
 	return nil
 }
 
+func (s *Sealer) FinalizeSector(context.Context, abi.SectorID) error {
+	return nil
+}
+
 func (s *Sealer) StoreReserveSpace(ctx context.Context, sid abi.SectorID, size uint64, candidates []string) (*core.StoreBasicInfo, error) {
 	if len(candidates) == 0 {
 		return nil, nil

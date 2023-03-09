@@ -103,12 +103,12 @@ type SealerCliAPI interface {
 
 	RemoveSector(context.Context, abi.SectorID) error
 
-	// Store
+	FinalizeSector(context.Context, abi.SectorID) error
+
 	StoreReleaseReserved(ctx context.Context, sid abi.SectorID) (bool, error)
 
 	StoreList(ctx context.Context) ([]StoreDetailedInfo, error)
 
-	// Sectors
 	SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt RebuildOptions) (bool, error)
 }
 
