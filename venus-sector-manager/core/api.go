@@ -79,7 +79,7 @@ type SealerCliAPI interface {
 
 	RestoreSector(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
 
-	CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error)
+	CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error)
 
 	SimulateWdPoSt(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
 

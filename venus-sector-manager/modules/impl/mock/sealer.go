@@ -151,7 +151,7 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 	return core.Empty, nil
 }
 
-func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
+func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict, sateCheck bool) (map[abi.SectorNumber]string, error) {
 	return nil, nil
 }
 

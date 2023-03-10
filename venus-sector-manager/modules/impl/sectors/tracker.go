@@ -7,11 +7,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ipfs/go-cid"
+
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -28,9 +30,10 @@ type sectorStoreInstances struct {
 	cacheDir   objstore.Store
 }
 
-func NewTracker(indexer core.SectorIndexer, prover core.Prover, capi chainAPI.API, stCfg modules.ProvingConfig) (*Tracker, error) {
+func NewTracker(indexer core.SectorIndexer, state core.SectorStateManager, prover core.Prover, capi chainAPI.API, stCfg modules.ProvingConfig) (*Tracker, error) {
 	return &Tracker{
 		indexer: indexer,
+		state:   state,
 		prover:  prover,
 		capi:    capi,
 
@@ -42,6 +45,7 @@ func NewTracker(indexer core.SectorIndexer, prover core.Prover, capi chainAPI.AP
 
 type Tracker struct {
 	indexer core.SectorIndexer
+	state   core.SectorStateManager
 	prover  core.Prover
 	capi    chainAPI.API
 
@@ -93,7 +97,7 @@ func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref core.SectorRef, up
 	return privateInfo, nil
 }
 
-func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator, strict bool) error {
+func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator, strict, stateCheck bool) error {
 	ssize, err := sref.ProofType.SectorSize()
 	if err != nil {
 		return fmt.Errorf("get sector size: %w", err)
@@ -158,6 +162,30 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgra
 	if err != nil {
 		return err
 	}
+
+	if stateCheck {
+		// local and chain consistency check
+		ss, err := t.state.Load(ctx, sref.ID, core.WorkerOffline)
+		if err != nil {
+			return fmt.Errorf("not exist in Offline, maybe in Online: %w", err)
+		}
+		// for snap: onChain.SealedCID == local.UpgradedInfo.SealedCID, onChain.SectorKeyCID == ss.Pre.CommR, for other(CC/DC): onChain.SealedCID == onChain.SealedCID
+		if !upgrade {
+			if !ss.Pre.CommR.Equals(sinfo.SealedCID) {
+				return fmt.Errorf("the SealedCID on the local and the chain is inconsistent")
+			}
+		} else {
+			if !sinfo.SectorKeyCID.Equals(ss.Pre.CommR) {
+				return fmt.Errorf("the SectorKeyCID on the local and the chain is inconsistent")
+			}
+
+			// 从 lotus 导入的扇区 UpgradedInfo 是空值,见代码: venus-sector-manager/cmd/venus-sector-manager/internal/util_sealer_sectors.go#L1735
+			if ss.UpgradedInfo.SealedCID != cid.Undef && !sinfo.SealedCID.Equals(ss.UpgradedInfo.SealedCID) {
+				return fmt.Errorf("the SealedCID on the local and the chain is inconsistent")
+			}
+		}
+	}
+
 	replica := privateInfo.ToFFI(core.SectorInfo{
 		SealProof:    sref.ProofType,
 		SectorNumber: sref.ID.Number,
@@ -181,7 +209,7 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgra
 	return nil
 }
 
-func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
+func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
 	limit := t.parallelCheckLimit
 	if limit <= 0 {
 		limit = len(sectors)
@@ -223,7 +251,7 @@ func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, sectors []built
 				ID:        abi.SectorID{Miner: mid, Number: sector.SectorNumber},
 				ProofType: sector.SealProof,
 			}
-			err := t.SingleProvable(ctx, sref, sector.SectorKey != nil, nil, strict)
+			err := t.SingleProvable(ctx, sref, sector.SectorKey != nil, nil, strict, stateCheck)
 			if err == nil {
 				return
 			}

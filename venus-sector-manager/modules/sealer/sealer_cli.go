@@ -52,8 +52,8 @@ func (s *Sealer) RestoreSector(ctx context.Context, sid abi.SectorID, forced boo
 	return core.Empty, nil
 }
 
-func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
-	return s.sectorTracker.Provable(ctx, mid, sectors, strict)
+func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
+	return s.sectorTracker.Provable(ctx, mid, sectors, strict, stateCheck)
 }
 
 func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
