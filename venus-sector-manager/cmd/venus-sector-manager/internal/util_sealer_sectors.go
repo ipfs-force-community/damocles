@@ -70,6 +70,7 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsExtendCmd,
 		utilSealerSectorsTerminateCmd,
 		utilSealerSectorsRemoveCmd,
+		utilSealerSectorsFinalizeCmd,
 		utilSealerSectorsStateCmd,
 		utilSealerSectorsFindDealCmd,
 		utilSealerSectorsResendPreCommitCmd,
@@ -1152,6 +1153,49 @@ var utilSealerSectorsRemoveCmd = &cli.Command{
 		}
 
 		fmt.Println("remove succeed")
+		return nil
+	},
+}
+
+var utilSealerSectorsFinalizeCmd = &cli.Command{
+	Name:      "finalize",
+	Usage:     "Mandatory label the sector status as the finalize, this is only to the sector that has been on the chain.",
+	ArgsUsage: "<sectorNum>",
+	Flags: []cli.Flag{
+		&cli.Uint64Flag{
+			Name:     "actor",
+			Required: true,
+			Usage:    "actor id, eg. 1000",
+		},
+		&cli.BoolFlag{
+			Name:  "really-do-it",
+			Usage: "pass this flag if you know what you are doing",
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		if !cctx.Bool("really-do-it") {
+			return fmt.Errorf("pass --really-do-it to confirm this action")
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		id, err := strconv.ParseUint(cctx.Args().Get(0), 10, 64)
+		if err != nil {
+			return fmt.Errorf("could not parse sector number: %w", err)
+		}
+
+		actor := cctx.Uint64("actor")
+		err = cli.Sealer.FinalizeSector(gctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(id)})
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("finalize succeed")
 		return nil
 	},
 }

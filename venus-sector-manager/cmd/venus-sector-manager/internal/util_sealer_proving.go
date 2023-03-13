@@ -516,6 +516,10 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 			Usage: "run slower checks",
 		},
 		&cli.BoolFlag{
+			Name:  "state-check",
+			Usage: "check the local status, only in the slow mode",
+		},
+		&cli.BoolFlag{
 			Name:  "faulty",
 			Usage: "only check faulty sectors",
 		},
@@ -582,6 +586,7 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 		}
 
 		slow := cctx.Bool("slow")
+		stateCheck := cctx.Bool("state-check")
 		for parIdx, par := range partitions {
 			sectors := make(map[abi.SectorNumber]struct{})
 
@@ -606,7 +611,7 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 				tocheck = append(tocheck, util.SectorOnChainInfoToExtended(info))
 			}
 
-			bad, err := api.Sealer.CheckProvable(ctx, abi.ActorID(mid), tocheck, slow)
+			bad, err := api.Sealer.CheckProvable(ctx, abi.ActorID(mid), tocheck, slow, stateCheck)
 			if err != nil {
 				return err
 			}

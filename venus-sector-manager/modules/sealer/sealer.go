@@ -589,7 +589,7 @@ func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proo
 		}, true, nil
 	})
 
-	err := s.sectorTracker.SingleProvable(ctx, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false)
+	err := s.sectorTracker.SingleProvable(ctx, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false, false)
 	if err != nil {
 		if errors.Is(err, objstore.ErrObjectNotFound) {
 			return false, nil

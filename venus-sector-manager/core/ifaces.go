@@ -61,8 +61,8 @@ type SectorIndexer interface {
 type SectorTracker interface {
 	SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, sectorInfo builtin.ExtendedSectorInfo, locator SectorLocator) (PrivateSectorInfo, error)
 	SinglePrivateInfo(ctx context.Context, sref SectorRef, upgrade bool, locator SectorLocator) (PrivateSectorInfo, error)
-	SingleProvable(ctx context.Context, sref SectorRef, upgrade bool, locator SectorLocator, strict bool) error
-	Provable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error)
+	SingleProvable(ctx context.Context, sref SectorRef, upgrade bool, locator SectorLocator, strict, stateCheck bool) error
+	Provable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error)
 	PubToPrivate(ctx context.Context, mid abi.ActorID, sectorInfo []builtin.ExtendedSectorInfo, typer SectorPoStTyper) ([]FFIPrivateSectorInfo, error)
 }
 

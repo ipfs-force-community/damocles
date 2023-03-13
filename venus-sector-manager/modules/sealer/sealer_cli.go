@@ -52,8 +52,8 @@ func (s *Sealer) RestoreSector(ctx context.Context, sid abi.SectorID, forced boo
 	return core.Empty, nil
 }
 
-func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
-	return s.sectorTracker.Provable(ctx, mid, sectors, strict)
+func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
+	return s.sectorTracker.Provable(ctx, mid, sectors, strict, stateCheck)
 }
 
 func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
@@ -267,6 +267,38 @@ func (s *Sealer) RemoveSector(ctx context.Context, sid abi.SectorID) error {
 	err = s.state.Update(ctx, state.ID, core.WorkerOffline, state.Removed)
 	if err != nil {
 		return fmt.Errorf("update sector Removed failed: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Sealer) FinalizeSector(ctx context.Context, sid abi.SectorID) error {
+	maddr, err := address.NewIDAddress(uint64(sid.Miner))
+	if err != nil {
+		return fmt.Errorf("invalid mienr actor id: %w", err)
+	}
+
+	ts, err := s.capi.ChainHead(ctx)
+	if err != nil {
+		return fmt.Errorf("getting chain head: %w", err)
+	}
+
+	si, err := s.capi.StateSectorGetInfo(ctx, maddr, sid.Number, ts.Key())
+	if err != nil {
+		return err
+	}
+	if si == nil {
+		return fmt.Errorf("sector %d for miner %s not found", sid, maddr)
+	}
+
+	if err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
+		return true, nil
+	}); err != nil {
+		return sectorStateErr(err)
+	}
+
+	if _, err := s.sectorIdxer.StoreMgr().ReleaseReserved(ctx, sid); err != nil {
+		log.With("sector", util.FormatSectorID(sid)).Errorf("release reserved: %s", err)
 	}
 
 	return nil

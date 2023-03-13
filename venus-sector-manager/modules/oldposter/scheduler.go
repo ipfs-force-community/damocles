@@ -571,7 +571,7 @@ func (s *scheduler) checkSectors(ctx context.Context, check bitfield.BitField, t
 		tocheck = append(tocheck, util.SectorOnChainInfoToExtended(info))
 	}
 
-	bad, err := s.sectorTracker.Provable(ctx, s.actor.ID, tocheck, mcfg.PoSt.StrictCheck)
+	bad, err := s.sectorTracker.Provable(ctx, s.actor.ID, tocheck, mcfg.PoSt.StrictCheck, false)
 	if err != nil {
 		return bitfield.BitField{}, fmt.Errorf("checking provable sectors: %w", err)
 	}

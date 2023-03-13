@@ -35,7 +35,7 @@ var UnavailableSealerCliClient = SealerCliClient{
 
 	ReportAborted: func(context.Context, abi.SectorID, string) (Meta, error) { panic("sealer client unavailable") },
 
-	CheckProvable: func(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
+	CheckProvable: func(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
 		panic("sealer client unavailable")
 	},
 
@@ -87,6 +87,10 @@ var UnavailableSealerCliClient = SealerCliClient{
 		panic("sealer client unavailable")
 	},
 
+	FinalizeSector: func(context.Context, abi.SectorID) error {
+		panic("sealer client unavailable")
+	},
+
 	StoreReleaseReserved: func(ctx context.Context, sid abi.SectorID) (bool, error) {
 		panic("sealer client unavailable")
 	},
@@ -124,7 +128,7 @@ type SealerCliClient struct {
 
 	ReportAborted func(context.Context, abi.SectorID, string) (Meta, error)
 
-	CheckProvable func(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error)
+	CheckProvable func(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error)
 
 	SimulateWdPoSt func(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
 
@@ -149,6 +153,8 @@ type SealerCliClient struct {
 	PollTerminateSectorState func(context.Context, abi.SectorID) (TerminateInfo, error)
 
 	RemoveSector func(context.Context, abi.SectorID) error
+
+	FinalizeSector func(context.Context, abi.SectorID) error
 
 	StoreReleaseReserved func(ctx context.Context, sid abi.SectorID) (bool, error)
 

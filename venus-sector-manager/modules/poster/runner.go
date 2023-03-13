@@ -753,7 +753,7 @@ func (pr *postRunner) checkSectors(clog *logging.ZapLogger, check bitfield.BitFi
 		tocheck = append(tocheck, util.SectorOnChainInfoToExtended(info))
 	}
 
-	bad, err := pr.deps.sectorTracker.Provable(pr.ctx, pr.mid, tocheck, pr.startCtx.pcfg.StrictCheck)
+	bad, err := pr.deps.sectorTracker.Provable(pr.ctx, pr.mid, tocheck, pr.startCtx.pcfg.StrictCheck, false)
 	if err != nil {
 		return bitfield.BitField{}, fmt.Errorf("checking provable sectors: %w", err)
 	}
