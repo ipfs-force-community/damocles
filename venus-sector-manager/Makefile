@@ -1,5 +1,7 @@
 unexport GOTAGS
 unexport GOFLAGS
+BUILD_GIT_FALLBACK := "Unknown (no git or not git repo)"
+export GIT_COMMIT?=$(subst -,.,$(shell git describe --always --match=NeVeRmAtCh --dirty 2> /dev/null || git rev-parse --short HEAD 2> /dev/null || echo ${BUILD_GIT_FALLBACK}))
 
 GO?=go
 
@@ -37,7 +39,7 @@ clean:
 	-$(MAKE) -C $(FFI_PATH) clean
 .PHONY: clean
 
-ldflags=-X=github.com/ipfs-force-community/venus-cluster/venus-sector-manager/ver.Commit=git.$(subst -,.,$(shell git describe --always --match=NeVeRmAtCh --dirty 2>/dev/null || git rev-parse --short HEAD 2>/dev/null))
+ldflags=-X=github.com/ipfs-force-community/venus-cluster/venus-sector-manager/ver.Commit=git.${GIT_COMMIT}
 ifneq ($(strip $(LDFLAGS)),)
 	ldflags+=-extldflags=$(LDFLAGS)
 endif
