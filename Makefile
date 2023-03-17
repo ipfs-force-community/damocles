@@ -56,3 +56,14 @@ dev-env:
 	$(MAKE) -C ./venus-sector-manager/ dev-env
 	$(MAKE) -C ./venus-worker/ dev-env
 	$(MAKE) -C ./venus-worker-util/ dev-env
+
+docker-smgr:
+	docker build \
+		-f Dockerfile.vsm \
+		-t venus-sector-manager \
+		--build-arg HTTPS_PROXY=${BUILD_DOCKER_PROXY} \
+		--build-arg BUILD_TARGET=venus-sector-manager \
+		.
+
+docker-worker:
+	$(MAKE) -C ./venus-worker/ docker
