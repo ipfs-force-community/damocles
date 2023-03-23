@@ -67,6 +67,10 @@ fn rpc_addr_from_multiaddr(ma: Multiaddr, ver: u32) -> Result<String> {
                 host.replace(h.to_string());
             }
 
+            Protocol::Dns(h) | Protocol::Dns4(h) | Protocol::Dns6(h) => {
+                host.replace(h.to_string());
+            }
+
             Protocol::Tcp(p) => {
                 port.replace(p);
             }
