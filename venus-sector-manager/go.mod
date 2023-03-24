@@ -5,7 +5,6 @@ go 1.18
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
 	github.com/BurntSushi/toml v1.2.1
-	github.com/cespare/xxhash v1.1.0
 	github.com/dgraph-io/badger/v2 v2.2007.3
 	github.com/docker/go-units v0.5.0
 	github.com/dtynn/dix v0.1.2
@@ -67,6 +66,7 @@ require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833 // indirect
+	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cilium/ebpf v0.4.0 // indirect
 	github.com/containerd/cgroups v1.0.4 // indirect

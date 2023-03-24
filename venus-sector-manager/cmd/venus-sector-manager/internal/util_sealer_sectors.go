@@ -14,7 +14,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cespare/xxhash"
 	"github.com/fatih/color"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
@@ -1809,39 +1808,16 @@ var utilSealerSectorsExportFilesCmd = &cli.Command{
 		}
 
 		fileCompare := func(srcPath, dstPath string) (bool, error) {
-			srcFile, err := os.Open(srcPath)
+			// only check file szie
+			srcStat, err := os.Stat(srcPath)
 			if err != nil {
 				return false, err
 			}
-			defer srcFile.Close()
-
-			dstFile, err := os.Open(dstPath)
+			dstStat, err := os.Stat(dstPath)
 			if err != nil {
 				return false, err
 			}
-			defer dstFile.Close()
-
-			const blockSize = 32 << 20
-			srcBuf := make([]byte, blockSize)
-			dstBuf := make([]byte, blockSize)
-			srcHash := xxhash.New()
-			dstHash := xxhash.New()
-			for {
-				n1, err1 := srcFile.Read(srcBuf)
-				n2, err2 := dstFile.Read(dstBuf)
-				if n1 != n2 || err1 != err2 {
-					return false, nil
-				}
-
-				if n1 == 0 {
-					break
-				}
-
-				srcHash.Write(srcBuf[:n1])
-				dstHash.Write(dstBuf[:n2])
-			}
-
-			return srcHash.Sum64() == dstHash.Sum64(), nil
+			return srcStat.Size() == dstStat.Size(), nil
 		}
 
 		copyFile := func(srcPath, dstPath string) error {
