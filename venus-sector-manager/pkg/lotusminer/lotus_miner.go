@@ -12,15 +12,24 @@ import (
 
 const (
 	FinalizeSector        = sealing.FinalizeSector
+	Proving               = sealing.Proving
 	FinalizeReplicaUpdate = sealing.FinalizeReplicaUpdate
 	UpdateActivating      = sealing.UpdateActivating
 	ReleaseSectorKey      = sealing.ReleaseSectorKey
+	SectorStorePrefix     = sealing.SectorStorePrefix
+)
+
+var (
+	StorageCounterDSPrefix = sealing.StorageCounterDSPrefix
 )
 
 type (
-	StorageMiner = api.StorageMiner
-	SectorInfo   = api.SectorInfo
-	SectorState  = sealing.SectorState
+	StorageMiner      = api.StorageMiner
+	SectorInfo        = api.SectorInfo
+	SectorPiece       = api.SectorPiece
+	SectorSealingInfo = sealing.SectorInfo
+	SectorState       = sealing.SectorState
+	PieceDealInfo     = api.PieceDealInfo
 )
 
 func New(ctx context.Context, addr string, token string) (StorageMiner, jsonrpc.ClientCloser, error) {

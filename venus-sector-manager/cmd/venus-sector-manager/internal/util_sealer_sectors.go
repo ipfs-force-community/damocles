@@ -2,23 +2,33 @@ package internal
 
 import (
 	"bufio"
+	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
-	cbor "github.com/ipfs/go-ipld-cbor"
-	"github.com/urfave/cli/v2"
-
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
+	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	"github.com/ipfs/go-cid"
+	"github.com/ipfs/go-datastore"
+	levelds "github.com/ipfs/go-ds-leveldb"
+	u "github.com/ipfs/go-ipfs-util"
+	cbor "github.com/ipfs/go-ipld-cbor"
+	ldbopts "github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/adt"
@@ -75,8 +85,9 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsFindDealCmd,
 		utilSealerSectorsResendPreCommitCmd,
 		utilSealerSectorsResendProveCommitCmd,
-		utilSealerSectorsImportCommitCmd,
+		utilSealerSectorsImportCmd,
 		utilSealerSectorsRebuildCmd,
+		utilSealerSectorsExportCmd,
 	},
 }
 
@@ -1521,9 +1532,9 @@ var utilSealerSectorsResendProveCommitCmd = &cli.Command{
 	},
 }
 
-var utilSealerSectorsImportCommitCmd = &cli.Command{
+var utilSealerSectorsImportCmd = &cli.Command{
 	Name:  "import",
-	Usage: "Import sector infos from the given lotus-miner / venus-sealer instance",
+	Usage: "Import sector infos from the given lotus-miner instance",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "api",
@@ -1538,9 +1549,9 @@ var utilSealerSectorsImportCommitCmd = &cli.Command{
 			Usage: "override the previous sector state",
 			Value: false,
 		},
-		&cli.Uint64Flag{
-			Name:  "number",
-			Usage: "import the specified sector number only if this flag is set",
+		&cli.Uint64SliceFlag{
+			Name:  "numbers",
+			Usage: "import the specified sector numbers only if this flag is set",
 		},
 	},
 	Action: func(cctx *cli.Context) error {
@@ -1573,8 +1584,12 @@ var utilSealerSectorsImportCommitCmd = &cli.Command{
 		minerID := abi.ActorID(mid)
 
 		var numbers []abi.SectorNumber
-		if cctx.IsSet("number") {
-			numbers = []abi.SectorNumber{abi.SectorNumber(cctx.Uint64("number"))}
+		if cctx.IsSet("numbers") {
+			nums := cctx.Uint64Slice("numbers")
+			numbers = make([]abi.SectorNumber, 0, len(nums))
+			for _, num := range nums {
+				numbers = append(numbers, abi.SectorNumber(num))
+			}
 		} else {
 			numbers, err = mcli.SectorsList(gctx)
 			if err != nil {
@@ -1618,10 +1633,329 @@ var utilSealerSectorsImportCommitCmd = &cli.Command{
 	},
 }
 
+var utilSealerSectorsExportCmd = &cli.Command{
+	Name:  "export",
+	Usage: "Commands for export sector infos to the given lotus-miner instance",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:     "miner",
+			Required: true,
+		},
+	},
+	Subcommands: []*cli.Command{
+		utilSealerSectorsExportMetadataCmd,
+		utilSealerSectorsExportFilesCmd,
+	},
+}
+
+var utilSealerSectorsExportMetadataCmd = &cli.Command{
+	Name:  "metadata",
+	Usage: "Export metadata of the sectors",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:  "dest-repo",
+			Value: "~/.lotusminer",
+		},
+		&cli.Uint64Flag{
+			Name:  "next-number",
+			Usage: "Specify the sector number of the new sector",
+		},
+		&cli.BoolFlag{
+			Name:  "only-next-number",
+			Usage: "Only update the next sector number",
+			Value: false,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		onlyNextSid := cctx.Bool("only-next-number")
+		if onlyNextSid {
+			if !cctx.IsSet("next-number") {
+				return fmt.Errorf("flag next-number must be set when only update the value of it")
+			}
+		}
+
+		destRepo := cctx.String("dest-repo")
+		ds, err := openDestDatastore(destRepo)
+		if err != nil {
+			return fmt.Errorf("open datastore %s: %w", destRepo, err)
+		}
+		defer ds.Close()
+
+		nextSid := abi.SectorNumber(0)
+		ctx := cctx.Context
+
+		if !onlyNextSid {
+			minerID, err := ShouldActor(cctx.String("miner"), true)
+			if err != nil {
+				return fmt.Errorf("invalid miner actor id: %w", err)
+			}
+
+			cli, gctx, stop, err := extractAPI(cctx)
+			if err != nil {
+				return err
+			}
+			defer stop()
+
+			states, err := cli.Sealer.ListSectors(gctx, core.WorkerOffline, core.SectorWorkerJobAll)
+			if err != nil {
+				return err
+			}
+
+			failCounts := 0
+			for _, state := range states {
+				if state.ID.Miner != minerID {
+					continue
+				}
+
+				if state.NeedRebuild { // todo skip need-rebuild?
+					continue
+				}
+
+				// Skip the existing sector, which may be sealed before switching
+				sectorKey := datastore.NewKey(lotusminer.SectorStorePrefix).ChildString(fmt.Sprint(state.ID.Number))
+				has, _ := ds.Has(ctx, sectorKey)
+				if has {
+					continue
+				}
+
+				sector, err := sectorState2SectorInfo(ctx, cli, state)
+				if err != nil {
+					fmt.Fprintf(os.Stdout, "sector %v to sector info err: %s\n", state.ID.Number, err)
+					failCounts++
+				} else {
+					buf, err := cborutil.Dump(sector)
+					if err != nil {
+						fmt.Fprintf(os.Stdout, "cborutil dump sector %v err: %s\n", state.ID.Number, err)
+						failCounts++
+					} else {
+						if err = ds.Put(ctx, sectorKey, buf); err != nil {
+							fmt.Fprintf(os.Stdout, "put sector %v err: %s\n", state.ID.Number, err)
+							failCounts++
+						}
+					}
+				}
+
+				if nextSid < state.ID.Number {
+					nextSid = state.ID.Number
+				}
+			}
+			fmt.Fprintf(os.Stdout, "export failure counts: %d\n", failCounts)
+		}
+
+		// export the sector number of the new sector
+		if cctx.IsSet("next-number") {
+			nextNumber := cctx.Uint64("next-number")
+			fmt.Fprintf(os.Stdout, "next sector number: %d\n", nextNumber)
+			if nextSid < abi.SectorNumber(nextNumber) {
+				nextSid = abi.SectorNumber(nextNumber)
+			}
+		}
+		buf := make([]byte, binary.MaxVarintLen64)
+		size := binary.PutUvarint(buf, uint64(nextSid))
+		err = ds.Put(ctx, datastore.NewKey(lotusminer.StorageCounterDSPrefix), buf[:size])
+		if err != nil {
+			return fmt.Errorf("update next sector number: %v", err)
+		}
+		fmt.Fprintf(os.Stdout, "update next sector number: %d\n", nextSid)
+
+		return nil
+	},
+}
+
+var utilSealerSectorsExportFilesCmd = &cli.Command{
+	Name:  "files",
+	Usage: "Export the files of the sectors",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:     "dest-path",
+			Required: true,
+		},
+		&cli.Uint64SliceFlag{
+			Name:  "numbers",
+			Usage: "Export the specified sector numbers only if this flag is set",
+		},
+		&cli.BoolFlag{
+			Name:  "reserve",
+			Usage: "Reserve source files",
+			Value: false,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		destPath := cctx.String("dest-path")
+		absPath, err := filepath.Abs(destPath)
+		if err != nil {
+			return fmt.Errorf("get abs path: %w", err)
+		}
+
+		ctx := cctx.Context
+
+		minerID, err := ShouldActor(cctx.String("miner"), true)
+		if err != nil {
+			return fmt.Errorf("invalid miner actor id: %w", err)
+		}
+
+		numbers := make(map[abi.SectorNumber]struct{})
+		if cctx.IsSet("numbers") {
+			nums := cctx.Uint64Slice("numbers")
+			for _, num := range nums {
+				numbers[abi.SectorNumber(num)] = struct{}{}
+			}
+		}
+
+		find := func(number abi.SectorNumber) bool {
+			_, ok := numbers[number]
+			return ok
+		}
+
+		fileCompare := func(srcPath, dstPath string) (bool, error) {
+			// only check file szie
+			srcStat, err := os.Stat(srcPath)
+			if err != nil {
+				return false, err
+			}
+			dstStat, err := os.Stat(dstPath)
+			if err != nil {
+				return false, err
+			}
+			return srcStat.Size() == dstStat.Size(), nil
+		}
+
+		copyFile := func(srcPath, dstPath string) error {
+			src, err := os.Open(srcPath)
+			if err != nil {
+				return err
+			}
+			defer src.Close()
+
+			dst, err := os.Create(dstPath)
+			if err != nil {
+				return err
+			}
+			defer dst.Close()
+
+			buf := make([]byte, 1024*1024) // 1M
+			_, err = io.CopyBuffer(dst, src, buf)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer stop()
+
+		states, err := cli.Sealer.ListSectors(gctx, core.WorkerOffline, core.SectorWorkerJobAll)
+		if err != nil {
+			return err
+		}
+
+		failCounts, totalCunts := 0, 0
+		var lockCts sync.Mutex
+		var wg sync.WaitGroup
+		reserve := cctx.Bool("reserve")
+		throttle := make(chan struct{}, 5)
+		for _, state := range states {
+			if state.ID.Miner != minerID {
+				continue
+			}
+
+			if len(numbers) > 0 && !find(state.ID.Number) {
+				continue
+			}
+
+			loc, err := cli.Sealer.ProvingSectorInfo(ctx, state.ID)
+			if err != nil {
+				fmt.Fprintf(os.Stdout, "find sector %v location: %s\n", state.ID.Number, err)
+				failCounts++
+				continue
+			}
+
+			// move
+			fmt.Fprintf(os.Stdout, "move sector %d file ...\n", state.ID.Number)
+			totalCunts++
+			wg.Add(1)
+			throttle <- struct{}{}
+			go func(sid abi.SectorNumber) {
+				defer wg.Done()
+				defer func() {
+					<-throttle
+				}()
+
+				for _, dir := range []string{loc.Private.SealedSectorPath, loc.Private.CacheDirPath} {
+					if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+						if err != nil {
+							return err
+						}
+
+						if !info.IsDir() && !strings.Contains(info.Name(), ".json") {
+							destPath := ""
+							if dir == loc.Private.SealedSectorPath {
+								destPath = filepath.Join(absPath, loc.Private.SealedSectorURI)
+							} else {
+								destPath = filepath.Join(absPath, loc.Private.CacheDirURI, info.Name())
+							}
+
+							if reserve {
+								needMove := false
+								_, err := os.Stat(destPath)
+								if err != nil {
+									if os.IsNotExist(err) {
+										needMove = true
+									} else {
+										fmt.Fprintf(os.Stdout, "stat path %s: %s", destPath, err)
+									}
+								} else {
+									if equal, _ := fileCompare(path, destPath); !equal {
+										needMove = true
+									}
+								}
+
+								if needMove {
+									fmt.Fprintf(os.Stdout, "copy file from %s to %s\n", path, destPath)
+									err = copyFile(path, destPath)
+									if err != nil {
+										return fmt.Errorf("copy %s to %s err: %w", path, destPath, err)
+									}
+								}
+
+							} else {
+								fmt.Fprintf(os.Stdout, "move file from %s to %s\n", path, destPath)
+								err = os.Rename(path, destPath)
+								if err != nil {
+									return fmt.Errorf("move %s to %s err: %w", path, destPath, err)
+								}
+							}
+						} else {
+							if err := os.MkdirAll(filepath.Join(absPath, loc.Private.CacheDirURI), 0755); err != nil {
+								return err
+							}
+						}
+						return nil
+					}); err != nil {
+						fmt.Fprintf(os.Stdout, "export sector %v file: %s\n", sid, err)
+						lockCts.Lock()
+						failCounts++
+						lockCts.Unlock()
+						return
+					}
+				}
+			}(state.ID.Number)
+		}
+		wg.Wait()
+		fmt.Fprintf(os.Stdout, "export failure counts: %d, total: %d\n", failCounts, totalCunts)
+
+		return nil
+	},
+}
+
 func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*core.SectorState, error) {
 	var upgraded core.SectorUpgraded
 	switch lotusminer.SectorState(sinfo.State) {
-	case lotusminer.FinalizeSector:
+	case lotusminer.FinalizeSector, lotusminer.Proving:
 
 	case lotusminer.FinalizeReplicaUpdate,
 		lotusminer.UpdateActivating,
@@ -1743,6 +2077,109 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*co
 	}
 
 	return state, nil
+}
+
+func openDestDatastore(repoPath string) (datastore.Batching, error) {
+	path := filepath.Join(repoPath, "datastore", "metadata")
+	return levelds.NewDatastore(path, &levelds.Options{
+		Compression: ldbopts.NoCompression,
+		NoSync:      false,
+		Strict:      ldbopts.StrictAll,
+		ReadOnly:    false,
+	})
+}
+
+func sectorState2SectorInfo(ctx context.Context, api *API, state *core.SectorState) (*lotusminer.SectorSealingInfo, error) {
+	var toChainCid = func(mid string) *cid.Cid {
+		undefCid := cid.NewCidV0(u.Hash([]byte("undef")))
+		c := &undefCid
+		if len(mid) > 0 {
+			if msg, err := api.Messager.GetMessageByUid(ctx, mid); err == nil {
+				c = msg.SignedCid
+			}
+		}
+
+		return c
+	}
+
+	unKnownCid := func() *cid.Cid {
+		c, _ := cid.Decode("bafy2bzacebp3shtrn43k7g3unredz7fxn4gj533d3o43tqn2p2ipxxhrvchve")
+		return &c
+	}
+
+	sector := lotusminer.SectorSealingInfo{}
+	sector.State = lotusminer.Proving
+	sector.SectorNumber = state.ID.Number
+
+	sector.SectorType = state.SectorType
+
+	// Packing
+	// sector.CreationTime = 0
+	pieces := make([]lotusminer.SectorPiece, 0)
+	for pi := range state.Pieces {
+		piece := state.Pieces[pi]
+		pieces = append(pieces, lotusminer.SectorPiece{
+			Piece: abi.PieceInfo{
+				Size:     piece.Piece.Size,
+				PieceCID: piece.Piece.Cid,
+			},
+			DealInfo: &lotusminer.PieceDealInfo{
+				PublishCid:   unKnownCid(),
+				DealID:       piece.ID,
+				DealProposal: piece.Proposal,
+			},
+		})
+	}
+	sector.Pieces = pieces
+
+	// PreCommit1
+	if state.Ticket != nil {
+		sector.TicketValue = abi.SealRandomness(state.Ticket.Ticket)
+		sector.TicketEpoch = state.Ticket.Epoch
+	}
+	sector.PreCommit1Out = []byte("")
+
+	// PreCommit2
+	if state.Pre != nil {
+		sector.CommD = &state.Pre.CommD
+		sector.CommR = &state.Pre.CommR
+	}
+	if state.Proof != nil {
+		sector.Proof = state.Proof.Proof
+	}
+	if state.MessageInfo.CommitCid != nil {
+		sector.PreCommitMessage = toChainCid(state.MessageInfo.PreCommitCid.String())
+	}
+
+	// WaitSeed
+	if state.Seed != nil {
+		sector.SeedValue = abi.InteractiveSealRandomness(state.Seed.Seed)
+		sector.SeedEpoch = state.Seed.Epoch
+	}
+
+	// Committing
+	if state.MessageInfo.CommitCid != nil {
+		sector.CommitMessage = toChainCid(state.MessageInfo.CommitCid.String())
+	}
+	sector.InvalidProofs = 0
+
+	// CCUpdate
+	sector.CCUpdate = bool(state.Upgraded)
+	if state.Upgraded && state.UpgradedInfo != nil {
+		sector.UpdateSealed = &state.UpgradedInfo.SealedCID
+		sector.UpdateUnsealed = &state.UpgradedInfo.UnsealedCID
+		sector.ReplicaUpdateProof = state.UpgradedInfo.Proof
+		mid := *state.UpgradeMessageID
+		sector.ReplicaUpdateMessage = toChainCid(string(mid))
+	}
+
+	// Termination
+	if state.TerminateInfo.TerminateCid != nil {
+		sector.TerminateMessage = toChainCid(state.TerminateInfo.TerminateCid.String())
+		sector.TerminatedAt = state.TerminateInfo.TerminatedAt
+	}
+
+	return &sector, nil
 }
 
 var utilSealerSectorsRebuildCmd = &cli.Command{

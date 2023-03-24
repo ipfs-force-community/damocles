@@ -316,7 +316,7 @@ type SectorIndexLocation struct {
 }
 
 type SectorAccessStores struct {
-	SealedFile string
+	SealedFile string // name for storage instance
 	CacheDir   string
 }
 
