@@ -105,36 +105,35 @@ var utilSealerSectorsAbortCmd = &cli.Command{
 	Usage:     "Abort specified online sector job",
 	ArgsUsage: "<miner actor> <sector number>",
 	Action: func(cctx *cli.Context) error {
-		if count := cctx.Args().Len(); count < 2 {
-			return fmt.Errorf("both miner actor id & sector number are required, only %d args provided", count)
-		}
+		return fmt.Errorf("this command is not available in the current version, please use the `venus-worker worker -c <config file path> resume --state Aborted --index <index>` or `venus-sector-manager util worker resume <worker instance name or address> <thread index> Aborted` commands instead.\n See: https://github.com/ipfs-force-community/venus-cluster/blob/main/docs/en/11.task-status-flow.md#1-for-a-sector-sealing-task-that-has-been-paused-due-to-an-error-and-cannot-be-resumed-such-as-the-ticket-has-expired-you-can-use")
+		// if count := cctx.Args().Len(); count < 2 {
+		// 	return fmt.Errorf("both miner actor id & sector number are required, only %d args provided", count)
+		// }
 
-		miner, err := ShouldActor(cctx.Args().Get(0), true)
-		if err != nil {
-			return fmt.Errorf("invalid miner actor id: %w", err)
-		}
+		// miner, err := ShouldActor(cctx.Args().Get(0), true)
+		// if err != nil {
+		// 	return fmt.Errorf("invalid miner actor id: %w", err)
+		// }
 
-		sectorNum, err := strconv.ParseUint(cctx.Args().Get(1), 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid sector number: %w", err)
-		}
+		// sectorNum, err := strconv.ParseUint(cctx.Args().Get(1), 10, 64)
+		// if err != nil {
+		// 	return fmt.Errorf("invalid sector number: %w", err)
+		// }
 
-		cli, gctx, stop, err := extractAPI(cctx)
-		if err != nil {
-			return err
-		}
+		// cli, gctx, stop, err := extractAPI(cctx)
+		// if err != nil {
+		// 	return err
+		// }
 
-		defer stop()
+		// defer stop()
 
-		_, err = cli.Sealer.ReportAborted(gctx, abi.SectorID{
-			Miner:  miner,
-			Number: abi.SectorNumber(sectorNum),
-		}, "aborted via CLI")
-		if err != nil {
-			return fmt.Errorf("abort sector failed: %w", err)
-		}
-
-		return nil
+		// _, err = cli.Sealer.ReportAborted(gctx, abi.SectorID{
+		// 	Miner:  miner,
+		// 	Number: abi.SectorNumber(sectorNum),
+		// }, "aborted via CLI")
+		// if err != nil {
+		// 	return fmt.Errorf("abort sector failed: %w", err)
+		// }
 	},
 }
 
