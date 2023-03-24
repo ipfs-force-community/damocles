@@ -3,9 +3,7 @@ package internal
 import (
 	"bufio"
 	"context"
-	"crypto/sha512"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,15 +14,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/cespare/xxhash"
 	"github.com/fatih/color"
-	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-datastore"
-	levelds "github.com/ipfs/go-ds-leveldb"
-	u "github.com/ipfs/go-ipfs-util"
-	cbor "github.com/ipfs/go-ipld-cbor"
-	ldbopts "github.com/syndtr/goleveldb/leveldb/opt"
-	"github.com/urfave/cli/v2"
-
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	cborutil "github.com/filecoin-project/go-cbor-util"
@@ -32,6 +23,13 @@ import (
 	"github.com/filecoin-project/go-state-types/big"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	"github.com/ipfs/go-cid"
+	"github.com/ipfs/go-datastore"
+	levelds "github.com/ipfs/go-ds-leveldb"
+	u "github.com/ipfs/go-ipfs-util"
+	cbor "github.com/ipfs/go-ipld-cbor"
+	ldbopts "github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/adt"
@@ -1591,7 +1589,7 @@ var utilSealerSectorsImportCmd = &cli.Command{
 		if cctx.IsSet("numbers") {
 			nums := cctx.Uint64Slice("numbers")
 			numbers = make([]abi.SectorNumber, 0, len(nums))
-			for num := range nums {
+			for _, num := range nums {
 				numbers = append(numbers, abi.SectorNumber(num))
 			}
 		} else {
@@ -1812,22 +1810,39 @@ var utilSealerSectorsExportFilesCmd = &cli.Command{
 		}
 
 		fileCompare := func(srcPath, dstPath string) (bool, error) {
-			fileHash := make([]string, 2)
-			for idx, path := range []string{srcPath, dstPath} {
-				file, err := os.Open(path)
-				if err != nil {
-					return false, err
+			srcFile, err := os.Open(srcPath)
+			if err != nil {
+				return false, err
+			}
+			defer srcFile.Close()
+
+			dstFile, err := os.Open(dstPath)
+			if err != nil {
+				return false, err
+			}
+			defer dstFile.Close()
+
+			const blockSize = 32 << 20
+			srcBuf := make([]byte, blockSize)
+			dstBuf := make([]byte, blockSize)
+			srcHash := xxhash.New()
+			dstHash := xxhash.New()
+			for {
+				n1, err1 := srcFile.Read(srcBuf)
+				n2, err2 := dstFile.Read(dstBuf)
+				if n1 != n2 || err1 != err2 {
+					return false, nil
 				}
 
-				hash := sha512.New()
-				_, err = io.Copy(hash, file)
-				if err != nil {
-					return false, err
+				if n1 == 0 {
+					break
 				}
-				fileHash[idx] = hex.EncodeToString(hash.Sum(nil))
+
+				srcHash.Write(srcBuf[:n1])
+				dstHash.Write(dstBuf[:n2])
 			}
 
-			return fileHash[0] == fileHash[1], nil
+			return srcHash.Sum64() == dstHash.Sum64(), nil
 		}
 
 		copyFile := func(srcPath, dstPath string) error {
@@ -2134,7 +2149,7 @@ func sectorState2SectorInfo(ctx context.Context, api *API, state *core.SectorSta
 				PieceCID: piece.Piece.Cid,
 			},
 			DealInfo: &lotusminer.PieceDealInfo{
-				PublishCid:   unKnownCid(), // todo not exist
+				PublishCid:   unKnownCid(),
 				DealID:       piece.ID,
 				DealProposal: piece.Proposal,
 			},
@@ -2147,7 +2162,7 @@ func sectorState2SectorInfo(ctx context.Context, api *API, state *core.SectorSta
 		sector.TicketValue = abi.SealRandomness(state.Ticket.Ticket)
 		sector.TicketEpoch = state.Ticket.Epoch
 	}
-	sector.PreCommit1Out = []byte("") // todo not exist
+	sector.PreCommit1Out = []byte("")
 
 	// PreCommit2
 	if state.Pre != nil {
@@ -2171,7 +2186,7 @@ func sectorState2SectorInfo(ctx context.Context, api *API, state *core.SectorSta
 	if state.MessageInfo.CommitCid != nil {
 		sector.CommitMessage = toChainCid(state.MessageInfo.CommitCid.String())
 	}
-	sector.InvalidProofs = 0 // todo not exist
+	sector.InvalidProofs = 0
 
 	// CCUpdate
 	sector.CCUpdate = bool(state.Upgraded)
