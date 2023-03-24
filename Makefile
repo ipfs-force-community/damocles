@@ -67,3 +67,13 @@ docker-smgr:
 
 docker-worker:
 	$(MAKE) -C ./venus-worker/ docker
+
+
+docker: docker-smgr docker-worker
+
+TAG:=test
+docker-push:docker
+	docker tag venus-sector-manager filvenus/venus-sector-manager:$(TAG)
+	docker push filvenus/venus-sector-manager:$(TAG)
+	docker tag venus-worker filvenus/venus-worker:$(TAG)
+	docker push filvenus/venus-worker:$(TAG)
