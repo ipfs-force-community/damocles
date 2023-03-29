@@ -70,9 +70,6 @@ features = ["tls", "http"]
 version = "4"
 features = ["serde"]
 
-[target.'cfg(target_os = "linux")'.dependencies]
-cgroups-rs = "0.3"
-
 [target.'cfg(target_os = "macos")'.dependencies]
 vc-processors = { path = "./vc-processors" }
 
