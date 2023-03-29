@@ -12,17 +12,15 @@ use vc_processors::core::{
 };
 
 use super::{super::Input, config};
-use crate::logging::info;
 use crate::sealing::resource::{self, Pool};
 
-mod cgroup;
+const DEFAULT_CGROUP_GROUP_NAME: &str = "vc-worker";
 
 pub(super) struct SubProcessor<I: Input> {
     pub limiter: Sender<()>,
     pub locks: Vec<String>,
     pub weight: u16,
     pub producer: Box<dyn Processor<I>>,
-    _cg: Option<cgroup::CtrlGroup>,
 }
 
 impl<I: Input> SubProcessor<I> {
@@ -94,6 +92,18 @@ pub(super) fn start_sub_processors<I: Input>(cfgs: &[config::Ext]) -> Result<Vec
         if let Some(preferred) = sub_cfg.numa_preferred {
             builder = builder.numa_preferred(preferred);
         }
+        if let Some(cgroup) = &sub_cfg.cgroup {
+            if let Some(cpuset) = cgroup.cpuset.as_ref() {
+                let cgname = format!(
+                    "{}/sub-{}-{}-{}",
+                    cgroup.group_name.as_deref().unwrap_or(DEFAULT_CGROUP_GROUP_NAME),
+                    stage,
+                    std::process::id(),
+                    i
+                );
+                builder = builder.cpuset(cgname, cpuset.to_string());
+            }
+        }
 
         if let Some(envs) = sub_cfg.envs.as_ref() {
             for (k, v) in envs {
@@ -103,29 +113,11 @@ pub(super) fn start_sub_processors<I: Input>(cfgs: &[config::Ext]) -> Result<Vec
 
         let producer = builder.spawn::<I>().context("build ext producer")?;
 
-        let name = format!("sub-{}-{}-{}", stage, std::process::id(), i);
-
-        let mut cg = sub_cfg
-            .cgroup
-            .as_ref()
-            .map(|c| cgroup::CtrlGroup::new(&name, c))
-            .transpose()
-            .with_context(|| format!("construct cgroup with name {}", name))?;
-
-        if let Some(inner) = cg.as_mut() {
-            let pid = producer.child_pid() as u64;
-            info!(child = pid, group = name.as_str(), "add into cgroup");
-            inner
-                .add_task(pid.into())
-                .with_context(|| format!("add task id {} into cgroup", pid))?;
-        }
-
         procs.push(SubProcessor {
             limiter: limit_tx,
             locks: sub_cfg.locks.as_ref().cloned().unwrap_or_default(),
             weight: sub_cfg.weight,
             producer: Box::new(producer),
-            _cg: cg,
         });
     }
 
