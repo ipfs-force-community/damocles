@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.6.0
+## v0.6.0-rc1
 - venus-sector-manager
   - 插件支持自定义数据库。 [#561](https://github.com/ipfs-force-community/venus-cluster/issues/561)
   - 插件支持自定义注册 jsonrpc 接口。 [#595](https://github.com/ipfs-force-community/venus-cluster/issues/595)
