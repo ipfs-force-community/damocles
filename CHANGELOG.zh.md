@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.6.0
+- venus-sector-manager
+  - 插件支持自定义数据库。 [#561](https://github.com/ipfs-force-community/venus-cluster/issues/561)
+  - 插件支持自定义注册 jsonrpc 接口。 [#595](https://github.com/ipfs-force-community/venus-cluster/issues/595)
+  - daemon 移除 `--net` flag, 自动获取网络参数 [#574](https://github.com/ipfs-force-community/venus-cluster/pull/574)
+  - 禁用 `util sealer sectors abort` abort 扇区命令 [#660](https://github.com/ipfs-force-community/venus-cluster/pull/660)
+  - cli `util miner info` 支持打印受益人地址 [#418](https://github.com/ipfs-force-community/venus-cluster/issues/418)
+  - cli `util sealer actor withdraw` 新增 `--beneficiary` flag 用于支持受益人体现。 [#546](https://github.com/ipfs-force-community/venus-cluster/pull/546)
+  - cli 新增 `util sealer actor propose-change-beneficiary` 和 `util sealer actor confirm-change-beneficiary` 命令用于支持增加收益人。 [#546](https://github.com/ipfs-force-community/venus-cluster/pull/546)
+  - 支持手动发送 recover 消息。 [#382](https://github.com/ipfs-force-community/venus-cluster/issues/382)
+  - 支持手动设置扇区状态为 finalize。 [#657](https://github.com/ipfs-force-community/venus-cluster/pull/657)
+  - cli 新增移除过期 worker 的命令。 [#493](https://github.com/ipfs-force-community/venus-cluster/issues/493)
+  - 支持 lotus-miner 与 vsm 相互切换。[参考文档](https://github.com/ipfs-force-community/venus-cluster/blob/main/docs/zh/17.%20venus-cluster%E4%B8%8Elotus-miner%E5%88%87%E6%8D%A2%E6%B5%81%E7%A8%8B.md)。 [#625](https://github.com/ipfs-force-community/venus-cluster/issues/625)
+  - cli `util sealer proving` 输出信息调整优化。 [#568](https://github.com/ipfs-force-community/venus-cluster/issues/568)
+  - wdpost 扇区检查并发与超时设置。[参考文档](https://github.com/ipfs-force-community/venus-cluster/blob/main/docs/zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#commonproving)。 [#532](https://github.com/ipfs-force-community/venus-cluster/issues/532)
+  - 修改 submitpost 的逻辑，变成做完即发送的模式。方便监控和处理 windowpost过程中的意外情况。[#590](https://github.com/ipfs-force-community/venus-cluster/issues/590)
+  - cli 合并 `util sealer sectors renew` 和 `util sealer sectors renew` 命令为 `util sealer sectors extend`，新增 `--max-sectors` flag 用于控制每条 extend 消息中包含的扇区数量上限，新增 `--only-cc` flag 用于控制是否只扩展 cc 扇区。 [#582](https://github.com/ipfs-force-community/venus-cluster/pull/582)
+
+- venus-worker
+  - 外部执行器子进程意外退出支持自动重启，[参考配置文档](https://github.com/ipfs-force-community/venus-cluster/blob/main/docs/zh/03.venus-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#processorsstage_name) (processors.{stage_name}.auto_restart) [#605](https://github.com/ipfs-force-community/venus-cluster/pull/605)
+  - vsm 的 rpc 地址支持配置域名。 [#661](https://github.com/ipfs-force-community/venus-cluster/pull/661)
+  - 升级算法库 rust-fil-proofs 到 v12.0。 [#490](https://github.com/ipfs-force-community/venus-cluster/issues/490)
+  - 升级 rust-toolchain 1.60.0 -> 1.67.1。[#380](https://github.com/ipfs-force-community/venus-cluster/issues/380)
+
+- 其他
+  - 新增 Dockerfile。[#659](https://github.com/ipfs-force-community/venus-cluster/pull/659)
+  - 已合并到 v0.4 和 v0.5 的 bug 修复
+    - 消息聚合 bug 修复 [#639](https://github.com/ipfs-force-community/venus-cluster/issues/639)
+    - 修复订单释放 bug [#602](https://github.com/ipfs-force-community/venus-cluster/issues/602)
+    - 修改 cli list sector 中对于不存在 laststate 的结构的扇区不输出其他信息的 bug [#551](https://github.com/ipfs-force-community/venus-cluster/pull/551)
+    - 修改 snapup 对于消息处理和可重试错误的逻辑，在遇到 outofgas 或者钱不足等问题时自己进行重试 [#545](https://github.com/ipfs-force-community/venus-cluster/pull/545)
+    - 修复 mongodb 删除数据的 bug [#548](https://github.com/ipfs-force-community/venus-cluster/pull/548)
+    - 修复 WindowPoS 无法识别部分错误扇区的 bug [#535](https://github.com/ipfs-force-community/venus-cluster/issues/535)
+    - 修复 Terminate Sector 消息 failed 不能正确退出监听的问题 [#507](https://github.com/ipfs-force-community/venus-cluster/issues/507)
+    - 修复在开启消息聚合消息，同时关闭从ctrl地址发送质押，生成消息时，没有包含扇区的问题 [#510](https://github.com/ipfs-force-community/venus-cluster/issues/510)
+    - 修复 SnapUp 没有正确处理 errormsg 的问题 [#524](https://github.com/ipfs-force-community/venus-cluster/issues/524)
+    - 修复 venus-worker 配置 enable_deals=false 时触发的 bug [#501](https://github.com/ipfs-force-community/venus-cluster/issues/501)
+
 ## v0.5.0
 - venus-sector-manager
   - MongoDB 数据库支持。[文档](./docs/zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#commonmongokvstore) [#323](https://github.com/ipfs-force-community/venus-cluster/issues/323)
