@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
-	v1 "github.com/filecoin-project/venus/venus-shared/api/gateway/v1"
+	v2 "github.com/filecoin-project/venus/venus-shared/api/gateway/v2"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
@@ -19,12 +19,12 @@ var log = logging.New("proof_event")
 
 type ProofEvent struct {
 	prover  core.Prover
-	client  v1.IGateway
+	client  v2.IGateway
 	actor   core.ActorIdent
 	tracker core.SectorTracker
 }
 
-func NewProofEvent(prover core.Prover, client v1.IGateway, actor core.ActorIdent, tracker core.SectorTracker) *ProofEvent {
+func NewProofEvent(prover core.Prover, client v2.IGateway, actor core.ActorIdent, tracker core.SectorTracker) *ProofEvent {
 	pe := &ProofEvent{
 		prover:  prover,
 		client:  client,

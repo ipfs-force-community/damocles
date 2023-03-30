@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/fx"
 
-	gateway "github.com/filecoin-project/venus/venus-shared/api/gateway/v1"
+	gateway "github.com/filecoin-project/venus/venus-shared/api/gateway/v2"
 )
 
 func NewProofEventClient(lc fx.Lifecycle, url, token string) (gateway.IGateway, error) {
