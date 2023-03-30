@@ -679,3 +679,22 @@ func BuildProxiedSectorIndex(client core.SealerCliClient, storeMgr PersistedObje
 	log.Debug("build proxied sector indexer")
 	return sectors.NewProxiedIndexer(client, storeMgr)
 }
+
+func BuildUnsealManager(
+	gctx GlobalContext,
+	db UnderlyingDB,
+	scfg *modules.SafeConfig,
+	minerInfoAPI core.MinerInfoAPI,
+	mEvent IMarketEvent,
+) (core.UnsealSectorManager, error) {
+	store, err := db.OpenCollection(gctx, "unseal")
+	if err != nil {
+		return nil, err
+	}
+
+	mgr, err := sectors.NewUnsealManager(gctx, scfg, minerInfoAPI, store, mEvent)
+	if err != nil {
+		return nil, fmt.Errorf("construct unseal manager: %w", err)
+	}
+	return mgr, nil
+}

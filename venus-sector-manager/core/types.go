@@ -7,6 +7,9 @@ import (
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	vtypes "github.com/filecoin-project/venus/venus-shared/types"
+	mtypes "github.com/filecoin-project/venus/venus-shared/types/market"
+	"github.com/google/uuid"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs/go-cid"
 )
@@ -349,4 +352,13 @@ type SectorRebuildInfo struct {
 	Pieces        Deals
 	IsSnapUp      bool
 	UpgradePublic *SectorUpgradePublic
+}
+
+type SectorUnsealInfo struct {
+	Id       uuid.UUID
+	PieceCid cid.Cid
+	SectorID abi.SectorID
+	Offset   vtypes.PaddedByteIndex
+	Size     abi.PaddedPieceSize
+	Transfer mtypes.Transfer
 }
