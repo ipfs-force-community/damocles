@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"sync"
 
 	"github.com/filecoin-project/go-address"
@@ -15,6 +16,8 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/market"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
+	"github.com/multiformats/go-multiaddr"
+	manet "github.com/multiformats/go-multiaddr/net"
 )
 
 var unsealInfoKey = kvstore.Key("unseal-infos")
@@ -26,17 +29,26 @@ type UnsealInfos struct {
 
 // UnsealManager manage unseal task
 type UnsealManager struct {
-	msel *minerSelector
-	kvMu sync.Mutex
-	kv   kvstore.KVStore
+	msel        *minerSelector
+	kvMu        sync.Mutex
+	kv          kvstore.KVStore
+	defaultDest *url.URL
 }
 
 var _ core.UnsealSectorManager = (*UnsealManager)(nil)
 
-func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerInfoAPI, kv kvstore.KVStore, mEvent market.IMarketEvent) (*UnsealManager, error) {
-	ret := &UnsealManager{
+func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerInfoAPI, kv kvstore.KVStore, mEvent market.IMarketEvent) (ret *UnsealManager, err error) {
+	ret = &UnsealManager{
 		kv:   kv,
 		msel: newMinerSelector(scfg, minfoAPI),
+	}
+
+	scfg.Lock()
+	mApi := scfg.Config.Common.API.Market
+	scfg.Unlock()
+	ret.defaultDest, err = getDefaultMarketPiecesStore(mApi)
+	if err != nil {
+		return
 	}
 
 	// register to market event
@@ -54,6 +66,7 @@ func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI co
 			PieceCid: req.PieceCid,
 			Offset:   req.Offset,
 			Size:     req.Size,
+			Dest:     req.Dest,
 		})
 		if err != nil {
 			log.Errorf("set unseal info: %s", err)
@@ -67,6 +80,9 @@ func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI co
 func (u *UnsealManager) Set(ctx context.Context, req *core.SectorUnsealInfo) error {
 	// check piece store
 	// todo: if exist in piece store , respond directly
+
+	// check dest url
+	u.checkDestUrl(req.Dest)
 
 	// set into db
 	err := u.loadAndUpdate(ctx, func(infos *UnsealInfos) bool {
@@ -127,10 +143,10 @@ func (u *UnsealManager) Allocate(ctx context.Context, spec core.AllocateSectorSp
 }
 
 // archive a unseal task
-func (u *UnsealManager) Archive(ctx context.Context, evenId uuid.UUID) error {
+func (umgr *UnsealManager) Archive(ctx context.Context, evenId uuid.UUID) error {
 	// respond to market
 	var info *core.SectorUnsealInfo
-	err := u.loadAndUpdate(ctx, func(infos *UnsealInfos) bool {
+	err := umgr.loadAndUpdate(ctx, func(infos *UnsealInfos) bool {
 		ok := false
 		info, ok = infos.Allocated[evenId]
 		if !ok {
@@ -192,4 +208,60 @@ func (u *UnsealManager) loadAndUpdate(ctx context.Context, modify func(infos *Un
 	}
 
 	return nil
+}
+
+// checkDestUrl check dest url conform to the out expect
+// we accept two kinds of url by now
+// 1. http://xxx or https://xxx , it means we will put data to a http server
+// 2. /xxx , it means we will put data to the target path of pieces store from market
+func (umgr *UnsealManager) checkDestUrl(dest string) (string, error) {
+	u, err := url.Parse(dest)
+	if err != nil {
+		return "", err
+	}
+
+	if u.Scheme != "http" && u.Scheme != "https" && !u.IsAbs() {
+		return "", fmt.Errorf("invalid dest url: %s(unsupported scheme %s)", dest, u.Scheme)
+	}
+
+	// try to supply scheme and host
+	if !u.IsAbs() {
+		u.Scheme = umgr.defaultDest.Scheme
+		u.Host = umgr.defaultDest.Host
+	}
+
+	return u.String(), nil
+}
+
+type Multiaddr = string
+
+// getDefaultMarketPiecesStore get the default pieces store url from market api
+func getDefaultMarketPiecesStore(marketApi Multiaddr) (*url.URL, error) {
+	ret := &url.URL{
+		Scheme: "http",
+	}
+
+	ma, err := multiaddr.NewMultiaddr(marketApi)
+	if err != nil {
+		return nil, fmt.Errorf("parse market api fail %w", err)
+	}
+
+	_, addr, err := manet.DialArgs(ma)
+	if err != nil {
+		return nil, fmt.Errorf("parse market api fail %w", err)
+	}
+	ret.Host = addr
+
+	_, err = ma.ValueForProtocol(multiaddr.P_WSS)
+	if err == nil {
+		ret.Scheme = "https"
+	}
+
+	_, err = ma.ValueForProtocol(multiaddr.P_HTTPS)
+	if err == nil {
+		ret.Scheme = "https"
+	}
+
+	ret.Path = "/resource"
+	return ret, nil
 }
