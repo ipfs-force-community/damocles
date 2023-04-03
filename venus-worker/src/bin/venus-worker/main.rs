@@ -2,8 +2,6 @@ use anyhow::{anyhow, Context, Result};
 use clap::{value_t, App, AppSettings, Arg, SubCommand};
 use tokio::runtime::Builder;
 
-use venus_worker::{logging, set_panic_hook, start_daemon};
-
 mod generator;
 mod processor;
 mod store;
@@ -16,9 +14,6 @@ pub fn main() -> Result<()> {
         .context("construct tokio runtime")?;
 
     let _rt_guard = rt.enter();
-
-    logging::init()?;
-    set_panic_hook(true);
 
     let daemon_cmd = SubCommand::with_name("daemon")
         .arg(Arg::with_name("api").long("api").takes_value(true).help("sealer api addr"))
@@ -51,8 +46,8 @@ pub fn main() -> Result<()> {
     match matches.subcommand() {
         ("daemon", Some(m)) => {
             let cfg_path = value_t!(m, "config", String)?;
-
-            start_daemon(cfg_path)
+            venus_worker::tracing::logging::init("venus-worker")?;
+            venus_worker::start_daemon(cfg_path)
         }
 
         (generator::SUB_CMD_NAME, Some(args)) => generator::submatch(args),

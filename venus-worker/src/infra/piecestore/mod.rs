@@ -2,7 +2,7 @@ pub mod local;
 pub mod remote;
 
 use forest_cid::Cid;
-use vc_processors::builtin::tasks::PieceFile;
+use vc_fil_consumers::tasks::PieceFile;
 
 pub trait PieceStore: Send + Sync {
     fn get(&self, c: &Cid) -> Option<PieceFile>;

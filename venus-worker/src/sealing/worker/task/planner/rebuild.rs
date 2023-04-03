@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Context, Result};
+use tracing::warn;
 
 use super::{
     super::{call_rpc, field_required, Event, State, Task},
-    common, plan, ExecResult, Planner,
+    plan, ExecResult, Planner,
 };
-use crate::logging::warn;
 use crate::rpc::sealer::{AllocateSectorSpec, Seed};
 use crate::sealing::failure::*;
 
@@ -71,7 +71,7 @@ impl Planner for RebuildPlanner {
 
     fn exec(&self, task: &mut Task<'_>) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
-        let inner = Rebuild { task };
+        let mut inner = Rebuild { task };
 
         match state {
             State::Empty => inner.empty(),
@@ -148,27 +148,27 @@ impl<'c, 't> Rebuild<'c, 't> {
         Ok(Event::AllocatedRebuildSector(allocated))
     }
 
-    fn add_pieces_for_sealing(&self) -> ExecResult {
+    fn add_pieces_for_sealing(&mut self) -> ExecResult {
         // if this is a snapup sector, then the deals should be used later
-        let maybe_deals = if self.is_snapup() { None } else { self.task.sector.deals.as_ref() };
+        let maybe_deals = if self.is_snapup() { None } else { self.task.sector.deals.clone() };
 
-        let pieces = common::add_pieces(self.task, maybe_deals.unwrap_or(&Vec::new()))?;
+        let pieces = self.task.add_pieces(maybe_deals.unwrap_or(Vec::new()))?;
 
         Ok(Event::AddPiece(pieces))
     }
 
-    fn build_tree_d_for_sealing(&self) -> ExecResult {
-        common::build_tree_d(self.task, true)?;
+    fn build_tree_d_for_sealing(&mut self) -> ExecResult {
+        self.task.build_tree_d(true)?;
         Ok(Event::BuildTreeD)
     }
 
-    fn pc1(&self) -> ExecResult {
-        let (ticket, out) = common::pre_commit1(self.task)?;
+    fn pc1(&mut self) -> ExecResult {
+        let (ticket, out) = self.task.pre_commit1()?;
         Ok(Event::PC1(ticket, out))
     }
 
-    fn pc2(&self) -> ExecResult {
-        common::pre_commit2(self.task).map(Event::PC2)
+    fn pc2(&mut self) -> ExecResult {
+        self.task.pre_commit2().map(Event::PC2)
     }
 
     fn check_sealed(&self) -> ExecResult {
@@ -182,35 +182,35 @@ impl<'c, 't> Rebuild<'c, 't> {
             epoch: ticket.epoch,
         };
 
-        common::commit1_with_seed(self.task, seed).map(|_| Event::CheckSealed)
+        self.task.commit1_with_seed(seed).map(|_| Event::CheckSealed)
     }
 
-    fn prepare_for_snapup(&self) -> ExecResult {
+    fn prepare_for_snapup(&mut self) -> ExecResult {
         if !self.is_snapup() {
             return Ok(Event::SkipSnap);
         }
 
-        field_required!(deals, self.task.sector.deals.as_ref());
+        field_required!(deals, self.task.sector.deals.clone());
 
-        common::add_pieces(self.task, deals).map(Event::AddPiece)
+        self.task.add_pieces(deals).map(Event::AddPiece)
     }
 
-    fn build_tree_d_for_snapup(&self) -> ExecResult {
-        common::build_tree_d(self.task, false).map(|_| Event::BuildTreeD)
+    fn build_tree_d_for_snapup(&mut self) -> ExecResult {
+        self.task.build_tree_d(false).map(|_| Event::BuildTreeD)
     }
 
-    fn snap_encode(&self) -> ExecResult {
-        let sector_id = self.task.sector_id()?;
-        let proof_type = self.task.sector_proof_type()?;
+    fn snap_encode(&mut self) -> ExecResult {
+        let sector_id = self.task.sector_id()?.clone();
+        let proof_type = *self.task.sector_proof_type()?;
 
-        common::snap_encode(self.task, sector_id, proof_type).map(Event::SnapEncode)
+        self.task.snap_encode(sector_id, proof_type).map(Event::SnapEncode)
     }
 
-    fn snap_prove(&self) -> ExecResult {
-        common::snap_prove(self.task).map(Event::SnapProve)
+    fn snap_prove(&mut self) -> ExecResult {
+        self.task.snap_prove().map(Event::SnapProve)
     }
 
-    fn persist(&self) -> ExecResult {
+    fn persist(&mut self) -> ExecResult {
         let sector_id = self.task.sector_id()?;
 
         let (cache_dir, sealed_file) = if self.is_snapup() {
@@ -219,10 +219,10 @@ impl<'c, 't> Rebuild<'c, 't> {
             (self.task.cache_dir(sector_id), self.task.sealed_file(sector_id))
         };
 
-        common::persist_sector_files(self.task, cache_dir, sealed_file).map(Event::Persist)
+        self.task.persist_sector_files(cache_dir, sealed_file).map(Event::Persist)
     }
 
     fn submit_persist(&self) -> ExecResult {
-        common::submit_persisted(self.task, self.is_snapup()).map(|_| Event::SubmitPersistance)
+        self.task.submit_persisted(self.is_snapup()).map(|_| Event::SubmitPersistance)
     }
 }

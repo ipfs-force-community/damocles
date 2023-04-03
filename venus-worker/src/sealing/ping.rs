@@ -3,11 +3,11 @@ use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::select;
+use tracing::{debug, warn};
 
 use super::worker::Ctrl;
 
 use crate::block_on;
-use crate::logging::{debug, warn};
 use crate::rpc::sealer::{WorkerInfo, WorkerInfoSummary};
 use crate::watchdog::{Ctx, Module};
 

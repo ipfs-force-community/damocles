@@ -213,12 +213,59 @@ impl Processors {
             (_, Some(_)) => &self.limitation.concurrent,
         }
     }
+
+    pub fn add_pieces(&self) -> &[Ext] {
+        self.add_pieces.as_deref().unwrap_or(&[])
+    }
+
+    pub fn tree_d(&self) -> &[Ext] {
+        self.tree_d.as_deref().unwrap_or(&[])
+    }
+
+    pub fn pc1(&self) -> &[Ext] {
+        self.pc1.as_deref().unwrap_or(&[])
+    }
+
+    pub fn pc2(&self) -> &[Ext] {
+        self.pc2.as_deref().unwrap_or(&[])
+    }
+
+    pub fn c2(&self) -> &[Ext] {
+        self.c2.as_deref().unwrap_or(&[])
+    }
+
+    pub fn snap_encode(&self) -> &[Ext] {
+        self.snap_encode.as_deref().unwrap_or(&[])
+    }
+
+    pub fn snap_prove(&self) -> &[Ext] {
+        self.snap_prove.as_deref().unwrap_or(&[])
+    }
+
+    pub fn transfer(&self) -> &[Ext] {
+        self.transfer.as_deref().unwrap_or(&[])
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Limit {
     pub concurrent: Option<HashMap<String, usize>>,
+    // For compatibility, it is equivalent to `Limit.delay`
     pub staggered: Option<HashMap<String, SerdeDuration>>,
+    pub delay: Option<HashMap<String, SerdeDuration>>,
+}
+
+impl Limit {
+    pub fn delay(&self, name: &str) -> Option<Duration> {
+        self.delay
+            .as_ref()
+            .or(self.staggered.as_ref())
+            .and_then(|x| x.get(name).map(|d| d.0))
+    }
+
+    pub fn concurrent(&self, name: &str) -> Option<usize> {
+        self.concurrent.as_ref().and_then(|m| m.get(name)).cloned()
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

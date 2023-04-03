@@ -1,16 +1,12 @@
 use anyhow::{anyhow, Context, Result};
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-use vc_processors::{
-    builtin::{
-        processors::BuiltinProcessor,
-        tasks::{
-            AddPieces, SnapEncode, SnapProve, Transfer, TreeD, WindowPoSt, WinningPoSt, C2, PC1, PC2, STAGE_NAME_ADD_PIECES, STAGE_NAME_C2,
-            STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE, STAGE_NAME_TRANSFER, STAGE_NAME_TREED,
-            STAGE_NAME_WINDOW_POST, STAGE_NAME_WINNING_POST,
-        },
-    },
-    core::ext::run_consumer,
+use vc_fil_consumers::tasks::{
+    AddPieces, SnapEncode, SnapProve, Transfer, TreeD, WindowPoSt, WinningPoSt, C2, PC1, PC2, STAGE_NAME_ADD_PIECES, STAGE_NAME_C2,
+    STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE, STAGE_NAME_TRANSFER, STAGE_NAME_TREED,
+    STAGE_NAME_WINDOW_POST, STAGE_NAME_WINNING_POST,
 };
+use vc_fil_consumers::{run_consumer, BuiltinExecutor};
+use venus_worker::block_on;
 
 pub const SUB_CMD_NAME: &str = "processor";
 
@@ -75,7 +71,10 @@ the argument `hugepage_files_path` will be ignored.",
 
 pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
     match subargs.subcommand() {
-        (STAGE_NAME_ADD_PIECES, _) => run_consumer::<AddPieces, BuiltinProcessor>(),
+        (STAGE_NAME_ADD_PIECES, _) => {
+            venus_worker::tracing::logging::init(STAGE_NAME_ADD_PIECES)?;
+            block_on(run_consumer::<AddPieces, BuiltinExecutor>())
+        }
 
         (STAGE_NAME_PC1, Some(m)) => {
             use storage_proofs_porep::stacked::init_numa_mem_pool;
@@ -91,25 +90,49 @@ pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
                 }
                 (None, None) => {}
             }
-
-            run_consumer::<PC1, BuiltinProcessor>()
+            venus_worker::tracing::logging::init(STAGE_NAME_PC1)?;
+            block_on(run_consumer::<PC1, BuiltinExecutor>())
         }
 
-        (STAGE_NAME_PC2, _) => run_consumer::<PC2, BuiltinProcessor>(),
+        (STAGE_NAME_PC2, _) => {
+            venus_worker::tracing::logging::init(STAGE_NAME_PC2)?;
+            block_on(run_consumer::<PC2, BuiltinExecutor>())
+        }
 
-        (STAGE_NAME_C2, _) => run_consumer::<C2, BuiltinProcessor>(),
+        (STAGE_NAME_C2, _) => {
+            venus_worker::tracing::logging::init(STAGE_NAME_C2)?;
+            block_on(run_consumer::<C2, BuiltinExecutor>())
+        }
 
-        (STAGE_NAME_TREED, _) => run_consumer::<TreeD, BuiltinProcessor>(),
+        (STAGE_NAME_TREED, _) => {
+            venus_worker::tracing::logging::init(STAGE_NAME_TREED)?;
+            block_on(run_consumer::<TreeD, BuiltinExecutor>())
+        }
 
-        (STAGE_NAME_SNAP_ENCODE, _) => run_consumer::<SnapEncode, BuiltinProcessor>(),
+        (STAGE_NAME_SNAP_ENCODE, _) => {
+            venus_worker::tracing::logging::init(STAGE_NAME_SNAP_ENCODE)?;
+            block_on(run_consumer::<SnapEncode, BuiltinExecutor>())
+        }
 
-        (STAGE_NAME_SNAP_PROVE, _) => run_consumer::<SnapProve, BuiltinProcessor>(),
+        (STAGE_NAME_SNAP_PROVE, _) => {
+            venus_worker::tracing::logging::init(STAGE_NAME_SNAP_PROVE)?;
+            block_on(run_consumer::<SnapProve, BuiltinExecutor>())
+        }
 
-        (STAGE_NAME_TRANSFER, _) => run_consumer::<Transfer, BuiltinProcessor>(),
+        (STAGE_NAME_TRANSFER, _) => {
+            venus_worker::tracing::logging::init(STAGE_NAME_TRANSFER)?;
+            block_on(run_consumer::<Transfer, BuiltinExecutor>())
+        }
 
-        (STAGE_NAME_WINDOW_POST, _) => run_consumer::<WindowPoSt, BuiltinProcessor>(),
+        (STAGE_NAME_WINDOW_POST, _) => {
+            venus_worker::tracing::logging::init(STAGE_NAME_WINDOW_POST)?;
+            block_on(run_consumer::<WindowPoSt, BuiltinExecutor>())
+        }
 
-        (STAGE_NAME_WINNING_POST, _) => run_consumer::<WinningPoSt, BuiltinProcessor>(),
+        (STAGE_NAME_WINNING_POST, _) => {
+            venus_worker::tracing::logging::init(STAGE_NAME_WINNING_POST)?;
+            block_on(run_consumer::<WinningPoSt, BuiltinExecutor>())
+        }
 
         (other, _) => Err(anyhow!("unexpected subcommand `{}` of processor", other)),
     }

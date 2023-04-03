@@ -2,10 +2,13 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use crossbeam_channel::{select, TryRecvError};
+use tracing::{error, info, warn};
 
-use crate::logging::{error, info, warn};
 use crate::watchdog::{Ctx, Module};
 
+use super::processor::{
+    AddPiecesProcessor, C2Processor, PC1Processor, PC2Processor, SnapEncodeProcessor, SnapProveProcessor, TransferProcessor, TreeDProcessor,
+};
 use super::{failure::*, store::Store};
 
 mod task;
@@ -15,20 +18,42 @@ mod ctrl;
 pub use ctrl::Ctrl;
 use ctrl::*;
 
+#[derive(Clone)]
+pub struct GlobalProcessors {
+    pub add_pieces: AddPiecesProcessor,
+    pub tree_d: TreeDProcessor,
+    pub pc1: PC1Processor,
+    pub pc2: PC2Processor,
+    pub c2: C2Processor,
+    pub snap_encode: SnapEncodeProcessor,
+    pub snap_prove: SnapProveProcessor,
+    pub transfer: TransferProcessor,
+}
+
+/// Sealing worker, an sealing worker represents a sealing_thread
 pub struct Worker {
     idx: usize,
     store: Store,
     ctrl_ctx: CtrlCtx,
+    processors: GlobalProcessors,
 }
 
 impl Worker {
-    pub fn new(idx: usize, s: Store) -> (Self, Ctrl) {
+    pub fn new(idx: usize, s: Store, processors: GlobalProcessors) -> (Self, Ctrl) {
         let (ctrl, ctrl_ctx) = new_ctrl(s.location.clone());
-        (Worker { idx, store: s, ctrl_ctx }, ctrl)
+        (
+            Worker {
+                idx,
+                store: s,
+                ctrl_ctx,
+                processors,
+            },
+            ctrl,
+        )
     }
 
     fn seal_one(&mut self, ctx: &Ctx, state: Option<State>) -> Result<(), Failure> {
-        let task = Task::build(ctx, &self.ctrl_ctx, &mut self.store)?;
+        let task = Task::build(ctx, &self.ctrl_ctx, &mut self.store, &mut self.processors)?;
         task.exec(state)
     }
 }

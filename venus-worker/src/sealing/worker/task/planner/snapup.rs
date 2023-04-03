@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 
 use anyhow::{anyhow, Context, Result};
+use tracing::{debug, warn};
+use vc_fil_consumers::tasks::Transfer;
 
 use super::{
     super::{call_rpc, cloned_required, field_required, Finalized},
-    common, plan, Event, ExecResult, Planner, State, Task,
+    plan, Event, ExecResult, Planner, State, Task,
 };
-use crate::logging::{debug, warn};
 use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
-use crate::sealing::processor::{
-    cached_filenames_for_sector, TransferInput, TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
-};
+use crate::sealing::processor::Client;
+use crate::sealing::processor::{cached_filenames_for_sector, TransferItem, TransferOption, TransferRoute, TransferStoreInfo};
 
 pub struct SnapUpPlanner;
 
@@ -56,7 +56,7 @@ impl Planner for SnapUpPlanner {
 
     fn exec(&self, task: &mut Task<'_>) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
-        let inner = SnapUp { task };
+        let mut inner = SnapUp { task };
         match state {
             State::Empty => inner.empty(),
 
@@ -136,22 +136,22 @@ impl<'c, 't> SnapUp<'c, 't> {
         ))
     }
 
-    fn add_piece(&self) -> ExecResult {
-        field_required!(deals, self.task.sector.deals.as_ref());
+    fn add_piece(&mut self) -> ExecResult {
+        field_required!(deals, self.task.sector.deals.clone());
 
-        let pieces = common::add_pieces(self.task, deals)?;
+        let pieces = self.task.add_pieces(deals)?;
 
         Ok(Event::AddPiece(pieces))
     }
 
-    fn build_tree_d(&self) -> ExecResult {
-        common::build_tree_d(self.task, false)?;
+    fn build_tree_d(&mut self) -> ExecResult {
+        self.task.build_tree_d(false)?;
         Ok(Event::BuildTreeD)
     }
 
-    fn snap_encode(&self) -> ExecResult {
-        let sector_id = self.task.sector_id()?;
-        let proof_type = self.task.sector_proof_type()?;
+    fn snap_encode(&mut self) -> ExecResult {
+        let sector_id = self.task.sector_id()?.clone();
+        let proof_type = *self.task.sector_proof_type()?;
         field_required!(
             access_instance,
             self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
@@ -177,11 +177,11 @@ impl<'c, 't> SnapUp<'c, 't> {
         .perm()?;
 
         // sealed file & persisted cache files should be accessed inside persist store
-        let sealed_file = self.task.sealed_file(sector_id);
+        let sealed_file = self.task.sealed_file(&sector_id);
         sealed_file.prepare().perm()?;
         let sealed_rel = sealed_file.rel();
 
-        let cache_dir = self.task.cache_dir(sector_id);
+        let cache_dir = self.task.cache_dir(&sector_id);
 
         let cached_file_routes = cached_filenames_for_sector(proof_type.into())
             .into_iter()
@@ -229,7 +229,7 @@ impl<'c, 't> SnapUp<'c, 't> {
 
         transfer_routes.extend(cached_file_routes.into_iter());
 
-        let transfer = TransferInput {
+        let transfer = Transfer {
             stores: HashMap::from_iter([(
                 access_instance.clone(),
                 TransferStoreInfo {
@@ -241,27 +241,25 @@ impl<'c, 't> SnapUp<'c, 't> {
         };
 
         self.task
-            .ctx
-            .global
             .processors
             .transfer
             .process(transfer)
             .context("link snapup sector files")
             .perm()?;
 
-        common::snap_encode(self.task, sector_id, proof_type).map(Event::SnapEncode)
+        self.task.snap_encode(sector_id, proof_type).map(Event::SnapEncode)
     }
 
-    fn snap_prove(&self) -> ExecResult {
-        common::snap_prove(self.task).map(Event::SnapProve)
+    fn snap_prove(&mut self) -> ExecResult {
+        self.task.snap_prove().map(Event::SnapProve)
     }
 
-    fn persist(&self) -> ExecResult {
+    fn persist(&mut self) -> ExecResult {
         let sector_id = self.task.sector_id()?;
         let update_cache_dir = self.task.update_cache_dir(sector_id);
         let update_file = self.task.update_file(sector_id);
 
-        let ins_name = common::persist_sector_files(self.task, update_cache_dir, update_file)?;
+        let ins_name = self.task.persist_sector_files(update_cache_dir, update_file)?;
 
         Ok(Event::Persist(ins_name))
     }

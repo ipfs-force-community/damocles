@@ -1,17 +1,18 @@
 use std::fmt::{self, Debug};
 
 use anyhow::{anyhow, Result};
+use tracing::trace;
 
 use super::{
     sector::{Base, Finalized, Sector, State},
     Planner,
 };
+use crate::metadb::MaybeDirty;
 use crate::rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, Seed, Ticket};
 use crate::sealing::processor::{
     to_prover_id, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output,
     SectorId, SnapEncodeOutput,
 };
-use crate::{logging::trace, metadb::MaybeDirty};
 
 pub enum Event {
     SetState(State),

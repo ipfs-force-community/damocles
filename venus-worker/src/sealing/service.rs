@@ -4,10 +4,10 @@ use std::sync::Arc;
 use crossbeam_channel::select;
 use jsonrpc_core::{Error, IoHandler, Result};
 use jsonrpc_http_server::ServerBuilder;
+use tracing::{error, info};
 
 use super::worker::Ctrl;
 
-use crate::logging::{error, info};
 use crate::rpc::worker::{Worker, WorkerInfo};
 use crate::watchdog::{Ctx, Module};
 

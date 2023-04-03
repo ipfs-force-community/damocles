@@ -10,8 +10,8 @@ use byte_unit::Byte;
 use jsonrpc_core_client::transports::http;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use reqwest::Url;
-use tokio::runtime::Builder;
-use vc_processors::builtin::processors::BuiltinProcessor;
+use tokio::{runtime::Builder, sync::Semaphore};
+use tracing::{info, warn};
 
 use crate::{
     config,
@@ -19,18 +19,12 @@ use crate::{
         objstore::{attached::AttachedManager, filestore::FileStore, ObjectStore},
         piecestore::{local::LocalPieceStore, remote::RemotePieceStore, ComposePieceStore, EmptyPieceStore, PieceStore},
     },
-    logging::{info, warn},
     rpc::sealer::SealerClient,
-    sealing::{
-        ping, processor,
-        resource::{self, LimitItem},
-        service,
-        store::StoreManager,
-    },
+    sealing::{ping, processor, service, store::StoreManager, GlobalProcessors},
     signal::Signal,
     types::SealProof,
     util::net::{local_interface_ip, rpc_addr, socket_addr_from_url},
-    watchdog::{GlobalModules, GlobalProcessors, WatchDog},
+    watchdog::{GlobalModules, WatchDog},
 };
 
 /// start a normal venus-worker daemon
@@ -165,11 +159,17 @@ pub fn start_daemon(cfg_path: String) -> Result<()> {
         Arc::new(EmptyPieceStore)
     };
 
-    let ext_locks = Arc::new(create_resource_pool(&cfg.processors.ext_locks, &None));
+    let ext_locks: HashMap<String, Arc<Semaphore>> = cfg
+        .processors
+        .ext_locks
+        .clone().unwrap_or_default()
+        .into_iter()
+        .map(|(name, permits)| (name, Arc::new(Semaphore::new(permits))))
+        .collect();
 
-    let processors = start_processors(&cfg, &ext_locks).context("start processors")?;
+    let processors = start_processors(&cfg, &cfg.processors.limitation, &ext_locks).context("start processors")?;
 
-    let workers = store_mgr.into_workers();
+    let workers = store_mgr.into_workers(processors);
 
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
@@ -177,12 +177,6 @@ pub fn start_daemon(cfg_path: String) -> Result<()> {
     let global = GlobalModules {
         rpc: Arc::new(rpc_client),
         attached: Arc::new(attached_mgr),
-        processors,
-        limit: Arc::new(create_resource_pool(
-            cfg.processors.limitation_concurrent(),
-            &cfg.processors.limitation.staggered,
-        )),
-        ext_locks,
         static_tree_d,
         rt: rt.clone(),
         piece_store,
@@ -218,50 +212,6 @@ pub fn start_daemon(cfg_path: String) -> Result<()> {
     Ok(())
 }
 
-fn create_resource_pool(
-    concurrent_limit_opt: &Option<HashMap<String, usize>>,
-    staggered_limit_opt: &Option<HashMap<String, config::SerdeDuration>>,
-) -> resource::Pool {
-    resource::Pool::new(merge_limit_config(concurrent_limit_opt, staggered_limit_opt))
-}
-
-#[inline]
-fn merge_limit_config<'a>(
-    concurrent_limit_opt: &'a Option<HashMap<String, usize>>,
-    staggered_limit_opt: &'a Option<HashMap<String, config::SerdeDuration>>,
-) -> impl Iterator<Item = LimitItem<'a>> {
-    let concurrent_map_len = concurrent_limit_opt.as_ref().map(|x| x.len()).unwrap_or(0);
-    let staggered_map_len = staggered_limit_opt.as_ref().map(|x| x.len()).unwrap_or(0);
-    let mut limits: HashMap<&str, LimitItem<'_>> = HashMap::with_capacity(concurrent_map_len.max(staggered_map_len));
-
-    if let Some(concurrent_limit) = concurrent_limit_opt {
-        for (name, concurrent) in concurrent_limit {
-            limits.insert(
-                name,
-                LimitItem {
-                    name,
-                    concurrent: Some(concurrent),
-                    staggered_interval: None,
-                },
-            );
-        }
-    }
-
-    if let Some(staggered_limit) = staggered_limit_opt {
-        for (name, interval) in staggered_limit {
-            limits
-                .entry(name)
-                .and_modify(|limit_item| limit_item.staggered_interval = Some(&interval.0))
-                .or_insert_with(|| LimitItem {
-                    name,
-                    concurrent: None,
-                    staggered_interval: Some(&interval.0),
-                });
-        }
-    }
-    limits.into_values()
-}
-
 fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>> {
     let mut trees = HashMap::new();
     if let Some(c) = cfg.processors.static_tree_d.as_ref() {
@@ -280,33 +230,57 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
     Ok(trees)
 }
 
-macro_rules! construct_sub_processor {
-    ($field:ident, $cfg:ident, $locks:ident) => {
-        if let Some(ext) = $cfg.processors.$field.as_ref() {
-            let proc = processor::external::ExtProcessor::build(ext, $locks.clone())?;
-            Arc::new(proc)
-        } else {
-            Arc::new(BuiltinProcessor::default())
-        }
-    };
-}
+fn start_processors(cfg: &config::Config, limit: &config::Limit, ext_locks: &HashMap<String, Arc<Semaphore>>) -> Result<GlobalProcessors> {
+    use processor::*;
 
-fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<GlobalProcessors> {
-    let add_pieces: processor::ArcAddPiecesProcessor = construct_sub_processor!(add_pieces, cfg, locks);
-
-    let tree_d: processor::ArcTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks);
-
-    let pc1: processor::ArcPC1Processor = construct_sub_processor!(pc1, cfg, locks);
-
-    let pc2: processor::ArcPC2Processor = construct_sub_processor!(pc2, cfg, locks);
-
-    let c2: processor::ArcC2Processor = construct_sub_processor!(c2, cfg, locks);
-
-    let snap_encode: processor::ArcSnapEncodeProcessor = construct_sub_processor!(snap_encode, cfg, locks);
-
-    let snap_prove: processor::ArcSnapProveProcessor = construct_sub_processor!(snap_prove, cfg, locks);
-
-    let transfer: processor::ArcTransferProcessor = construct_sub_processor!(transfer, cfg, locks);
+    let add_pieces = create_add_pieces_processor(
+        cfg.processors.add_pieces(),
+        limit.delay(STAGE_NAME_ADD_PIECES),
+        limit.concurrent(STAGE_NAME_ADD_PIECES),
+        ext_locks,
+    )?;
+    let tree_d = create_tree_d_processor(
+        cfg.processors.tree_d(),
+        limit.delay(STAGE_NAME_TREED),
+        limit.concurrent(STAGE_NAME_TREED),
+        ext_locks,
+    )?;
+    let pc1 = create_p_c1_processor(
+        cfg.processors.pc1(),
+        limit.delay(STAGE_NAME_PC1),
+        limit.concurrent(STAGE_NAME_PC1),
+        ext_locks,
+    )?;
+    let pc2 = create_p_c2_processor(
+        cfg.processors.pc2(),
+        limit.delay(STAGE_NAME_PC2),
+        limit.concurrent(STAGE_NAME_PC2),
+        ext_locks,
+    )?;
+    let c2 = create_c2_processor(
+        cfg.processors.c2(),
+        limit.delay(STAGE_NAME_C2),
+        limit.concurrent(STAGE_NAME_C2),
+        ext_locks,
+    )?;
+    let snap_encode = create_snap_encode_processor(
+        cfg.processors.snap_encode(),
+        limit.delay(STAGE_NAME_SNAP_ENCODE),
+        limit.concurrent(STAGE_NAME_SNAP_ENCODE),
+        ext_locks,
+    )?;
+    let snap_prove = create_snap_prove_processor(
+        cfg.processors.snap_prove(),
+        limit.delay(STAGE_NAME_SNAP_PROVE),
+        limit.concurrent(STAGE_NAME_SNAP_PROVE),
+        ext_locks,
+    )?;
+    let transfer = create_transfer_processor(
+        cfg.processors.transfer(),
+        limit.delay(STAGE_NAME_TRANSFER),
+        limit.concurrent(STAGE_NAME_TRANSFER),
+        ext_locks,
+    )?;
 
     Ok(GlobalProcessors {
         add_pieces,
@@ -321,7 +295,7 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
 }
 
 fn compatible_for_piece_token(cfg: &mut config::Config) {
-    use vc_processors::builtin::processors::piece::fetcher::http::PieceHttpFetcher;
+    use vc_fil_consumers::builtin::executors::piece::fetcher::http::PieceHttpFetcher;
 
     if let Some(token) = &cfg.sector_manager.piece_token {
         match &mut cfg.processors.add_pieces {
@@ -331,86 +305,6 @@ fn compatible_for_piece_token(cfg: &mut config::Config) {
                     .insert(PieceHttpFetcher::ENV_KEY_PIECE_FETCHER_TOKEN.to_string(), token.clone());
             }),
             None => env::set_var(PieceHttpFetcher::ENV_KEY_PIECE_FETCHER_TOKEN, token),
-        }
-    }
-}
-#[cfg(test)]
-mod tests {
-    use crate::{config::SerdeDuration, sealing::resource::LimitItem};
-
-    use super::merge_limit_config;
-    use humantime::parse_duration;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn test_merge_limit_config() {
-        let cases = vec![
-            (
-                Some(vec![("pc1", 10), ("pc2", 20)]),
-                Some(vec![("pc1", "1s"), ("pc2", "2s")]),
-                vec![
-                    ("pc1", Some(10), Some(parse_duration("1s").unwrap())),
-                    ("pc2", Some(20), Some(parse_duration("2s").unwrap())),
-                ],
-            ),
-            (
-                Some(vec![("pc2", 20)]),
-                Some(vec![("pc1", "1s"), ("pc2", "2s")]),
-                vec![
-                    ("pc1", None, Some(parse_duration("1s").unwrap())),
-                    ("pc2", Some(20), Some(parse_duration("2s").unwrap())),
-                ],
-            ),
-            (
-                Some(vec![("pc2", 20)]),
-                Some(vec![("pc1", "1s")]),
-                vec![("pc1", None, Some(parse_duration("1s").unwrap())), ("pc2", Some(20), None)],
-            ),
-            (
-                None,
-                Some(vec![("pc1", "1s"), ("pc2", "2s")]),
-                vec![
-                    ("pc1", None, Some(parse_duration("1s").unwrap())),
-                    ("pc2", None, Some(parse_duration("2s").unwrap())),
-                ],
-            ),
-            (
-                Some(vec![("pc1", 10), ("pc2", 20)]),
-                None,
-                vec![("pc1", Some(10), None), ("pc2", Some(20), None)],
-            ),
-            (None, None, vec![]),
-        ];
-
-        for (concurrent_limit, staggered_limit, result) in cases {
-            let concurrent_limit_map_opt = concurrent_limit.map(|x| x.into_iter().map(|(name, x)| (name.to_string(), x)).collect());
-            let staggered_limit_map_opt = staggered_limit.map(|x| {
-                x.into_iter()
-                    .map(|(name, dur)| (name.to_string(), SerdeDuration(parse_duration(dur).unwrap())))
-                    .collect()
-            });
-            let merged = merge_limit_config(&concurrent_limit_map_opt, &staggered_limit_map_opt);
-
-            let mut expect = result
-                .iter()
-                .map(|x| LimitItem {
-                    name: x.0,
-                    concurrent: x.1.as_ref(),
-                    staggered_interval: x.2.as_ref(),
-                })
-                .collect::<Vec<_>>();
-            let mut actual = merged.collect::<Vec<_>>();
-
-            expect.sort_by(|x, y| x.name.cmp(y.name));
-            actual.sort_by(|x, y| x.name.cmp(y.name));
-
-            assert_eq!(
-                format!("{:?}", actual),
-                format!("{:?}", expect),
-                "testing concurrent_limit: {:?}, staggered_limit: {:?}",
-                concurrent_limit_map_opt,
-                staggered_limit_map_opt
-            );
         }
     }
 }

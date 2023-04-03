@@ -1,19 +1,27 @@
 //! This module provides cgroup helpers
 //!
 
+use std::ffi::OsString;
+
 pub use imp::*;
+use tokio_transports::rw::pipe;
 
 /// ENV name of cgroup name that we want to load
 pub const ENV_CGROUP_NAME: &str = "VC_CG_NAME";
 /// ENV name of cpuset that we want to load
 pub const ENV_CGROUP_CPUSET: &str = "VC_CG_CPUSET";
 
+/// set cpuset
+pub fn pipe_set_cpuset(cmd: pipe::Command, cgname: impl Into<OsString>, cpuset: impl Into<OsString>) -> pipe::Command {
+    cmd.envs([(ENV_CGROUP_NAME, cgname.into()), (ENV_CGROUP_CPUSET, cpuset.into())])
+}
+
 #[cfg(not(target_os = "linux"))]
 mod imp {
     use anyhow::Result;
 
-    /// try load cgroup from env
-    pub fn try_load_from_env() -> CtrlGroup {
+    /// try set cgroup from env
+    pub fn try_set_from_env() -> CtrlGroup {
         CtrlGroup::new("", "").expect("never fail")
     }
 
@@ -57,8 +65,8 @@ mod imp {
 
     use super::{ENV_CGROUP_CPUSET, ENV_CGROUP_NAME};
 
-    /// try load cgroup from env
-    pub fn try_load_from_env() -> CtrlGroup {
+    /// try set cgroup from env
+    pub fn try_set_from_env() -> CtrlGroup {
         use std::env::var;
 
         match (var(ENV_CGROUP_NAME), var(ENV_CGROUP_CPUSET)) {

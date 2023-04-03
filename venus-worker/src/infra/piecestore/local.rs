@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::PieceStore;
 use forest_cid::Cid;
-use vc_processors::builtin::tasks::PieceFile;
+use vc_fil_consumers::tasks::PieceFile;
 
 pub struct LocalPieceStore {
     base: PathBuf,

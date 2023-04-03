@@ -3,8 +3,8 @@ use signal_hook::{
     consts::{SIGINT, SIGQUIT, SIGTERM, TERM_SIGNALS},
     iterator::Signals,
 };
+use tracing::warn;
 
-use crate::logging::warn;
 use crate::watchdog::{Ctx, Module};
 
 pub struct Signal;
