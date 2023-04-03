@@ -7,11 +7,10 @@ exclude = [
     ".github",
 ]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [workspace]
 members = [
     "vc-processors",
+    "vc-processors-v2",
 ]
 
 [dependencies]
