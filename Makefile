@@ -72,7 +72,7 @@ docker-worker:
 docker: docker-smgr docker-worker
 
 TAG:=test
-docker-push:docker
+docker-push: docker
 	docker tag venus-sector-manager $(PRIVATE_REGISTRY)/filvenus/venus-sector-manager:$(TAG)
 	docker push $(PRIVATE_REGISTRY)/filvenus/venus-sector-manager:$(TAG)
 	docker tag venus-worker $(PRIVATE_REGISTRY)/filvenus/venus-worker:$(TAG)
