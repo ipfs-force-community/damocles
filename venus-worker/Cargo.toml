@@ -1,6 +1,6 @@
 [package]
 name = "venus-worker"
-version = "0.5.0-beta1"
+version = "0.6.0-rc1"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2021"
 exclude = [
@@ -69,9 +69,6 @@ features = ["tls", "http"]
 [dependencies.byte-unit]
 version = "4"
 features = ["serde"]
-
-[target.'cfg(target_os = "linux")'.dependencies]
-cgroups-rs = "0.3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 vc-processors = { path = "./vc-processors" }

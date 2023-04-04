@@ -568,9 +568,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "cgroups-rs"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d5761f3a351b92e0e02a31ca418190bb323edb0d4fce0109b6dba673dc3fdc1"
+checksum = "5b098e7c3a70d03c288fa0a96ccf13e770eb3d78c4cc0e1549b3c13215d5f965"
 dependencies = [
  "libc",
  "log",
@@ -3199,9 +3199,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.11.14"
+version = "0.11.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21eed90ec8570952d53b772ecf8f206aa1ec9a3d76b2521c56c42973f2d91ee9"
+checksum = "27b71749df584b7f4cac2c426c127a7c785a5106cc98f7a8feb044115f0fa254"
 dependencies = [
  "base64 0.21.0",
  "bytes",
@@ -4219,11 +4219,12 @@ dependencies = [
 
 [[package]]
 name = "vc-processors"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "base64 0.21.0",
  "base64-serde 0.7.0",
+ "cgroups-rs",
  "crossbeam-channel",
  "filecoin-proofs",
  "filecoin-proofs-api",
@@ -4260,14 +4261,13 @@ checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
 name = "venus-worker"
-version = "0.5.0-beta1"
+version = "0.6.0-rc1"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
  "base64-serde 0.6.1",
  "byte-unit",
  "bytesize",
- "cgroups-rs",
  "clap",
  "crossbeam-channel",
  "crossbeam-utils",

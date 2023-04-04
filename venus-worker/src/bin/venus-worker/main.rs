@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{value_t, App, AppSettings, Arg, SubCommand};
 use tokio::runtime::Builder;
 
-use venus_worker::{logging, start_daemon};
+use venus_worker::{logging, set_panic_hook, start_daemon};
 
 mod generator;
 mod processor;
@@ -18,6 +18,7 @@ pub fn main() -> Result<()> {
     let _rt_guard = rt.enter();
 
     logging::init()?;
+    set_panic_hook(true);
 
     let daemon_cmd = SubCommand::with_name("daemon")
         .arg(Arg::with_name("api").long("api").takes_value(true).help("sealer api addr"))

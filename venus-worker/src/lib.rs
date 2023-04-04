@@ -22,7 +22,7 @@ pub use sealing::processor::{create_tree_d, RegisteredSealProof, SnapEncodeInput
 pub use sealing::store;
 pub use sealing::util as seal_util;
 pub use types::SealProof;
-pub use util::task::block_on;
+pub use util::{panic_hook::set_panic_hook, task::block_on};
 pub use watchdog::dones;
 
 pub mod client;

@@ -195,10 +195,16 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
         self
     }
 
-    /// Set auto restart child process
+    /// Set auto restart for child process
     pub fn auto_restart(mut self, auto_restart: bool) -> Self {
         self.auto_restart = auto_restart;
         self
+    }
+
+    /// Set cpuset for child process
+    pub fn cpuset<S: Into<String>>(mut self, cgname: S, cpuset: S) -> Self {
+        self = self.env(crate::sys::cgroup::ENV_CGROUP_NAME.to_string(), cgname.into());
+        self.env(crate::sys::cgroup::ENV_CGROUP_CPUSET.to_string(), cpuset.into())
     }
 
     /// Build a Producer with the given options.

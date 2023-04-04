@@ -14,6 +14,7 @@ use crate::core::{Processor, Task};
 pub fn run_with_processor<T: Task, P: Processor<T> + Send + Sync + Clone + 'static>(proc: P) -> Result<()> {
     #[cfg(feature = "numa")]
     crate::sys::numa::try_set_preferred();
+    let _cg = crate::sys::cgroup::try_load_from_env();
 
     let _span = warn_span!("sub", name = %T::STAGE, pid = std::process::id()).entered();
 
