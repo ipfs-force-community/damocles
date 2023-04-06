@@ -4438,6 +4438,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "vc-fil-consumers"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.21.0",
+ "base64-serde 0.7.0",
+ "filecoin-proofs",
+ "filecoin-proofs-api",
+ "forest_address",
+ "futures-util",
+ "hex",
+ "lazy_static",
+ "memmap",
+ "pretty_assertions",
+ "rand 0.8.5",
+ "reqwest",
+ "serde",
+ "storage-proofs-core",
+ "storage-proofs-porep",
+ "tokio",
+ "tokio-transports",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+ "vc-processors-v2",
+]
+
+[[package]]
 name = "vc-processors"
 version = "0.2.1"
 dependencies = [

@@ -24,7 +24,7 @@ pub enum RequestBody<Tsk, TskId> {
     CancelRequest,
     /// StartTask means start the specified task.
     StartTask { task: Tsk },
-    /// WaitTask means start the specified task.
+    /// WaitTask means wait the specified task.
     WaitTask { task_id: TskId },
 }
 
@@ -46,6 +46,7 @@ impl<Tsk, TskId> Request<Tsk, TskId> {
             body: RequestBody::CancelRequest,
         }
     }
+
     /// Returns true if the request is a cancel request
     pub fn is_cancel_request(&self) -> bool {
         match self.body {
