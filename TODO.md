@@ -15,7 +15,7 @@
 - [ ] cleanups & checks within steps of snap up planner
 - [ ] support more acquire policy in venus-market
 - [ ] batch submit for upgraded sectors
-- [ ] venus-sector-manager: move module definitions into `/modules`
+- [ ] damocles-manager: move module definitions into `/modules`
 - [ ] use repeated zeroes for AddPiece no matter what its deal_id is
 - [ ] config option for sending funds
 - [ ] configurable retry interval & max attempts for temp error in snap committer

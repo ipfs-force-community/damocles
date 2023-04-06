@@ -27,4 +27,4 @@ jobs:
       - name: cargo-publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_CRATES_IO_API_TOKEN }}
-        run: make -C ./venus-worker/ publish-vc-processors
+        run: make -C ./damocles-worker/ publish-vc-processors

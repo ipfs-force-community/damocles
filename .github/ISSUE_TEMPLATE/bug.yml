@@ -9,9 +9,9 @@ body:
       选择 bug 所在的模块。
       Please select the components you are filing a bug for
     options:
-      - label: venus-sector-manager
+      - label: damocles-manager
         required: false
-      - label: venus-worker
+      - label: damocles-worker
         required: false
       - label: 工具链 / toolchains
         required: false
@@ -23,12 +23,12 @@ body:
     label: 版本 / Version
     render: text
     description: |
-      填写 `./dist/bin/venus-sector-manager --version` 和/或 `./dist/bin/venus-worker --version` 的输出内容。
-      Enter the output of `./dist/bin/venus-sector-manager --version` and/or `./dist/bin/venus-worker --version` if applicable.
+      填写 `./dist/damocles-manager --version` 和/或 `./dist/damocles-worker --version` 的输出内容。
+      Enter the output of `./dist/damocles-manager --version` and/or `./dist/damocles-worker --version` if applicable.
     placeholder: |
       e.g.
-      venus-sector-manager version v0.3.0-rc1-prod-git.f97994a
-      vc-worker v0.3.0-rc1-git.f97994a
+      damocles-manager version v0.3.0-rc1-prod-git.f97994a
+      damocles-worker v0.3.0-rc1-git.f97994a
   validations:
     required: true
 - type: textarea

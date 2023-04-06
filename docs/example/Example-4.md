@@ -21,7 +21,7 @@ RAM:5*64+64+192=576 G
 
 
 
-### **venus-worker.toml**
+### **damocles-worker.toml**
 
 ```toml
 [worker]

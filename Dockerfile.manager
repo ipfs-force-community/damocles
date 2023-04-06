@@ -1,0 +1,20 @@
+ARG RUNTIME_TAG=latest
+
+FROM filvenus/venus-buildenv AS buildenv
+
+WORKDIR /build/
+COPY . /build/
+
+RUN make build-smgr
+
+
+FROM filvenus/venus-runtime:${RUNTIME_TAG}
+
+ARG BUILD_TARGET=${BUILD_TARGET}
+ENV VENUS_COMPONENT=${BUILD_TARGET}
+
+# copy the app from buildenv
+COPY --from=buildenv  /build/dist/${BUILD_TARGET} /${BUILD_TARGET}
+
+EXPOSE 1789
+ENTRYPOINT ["/damocles-manager"]

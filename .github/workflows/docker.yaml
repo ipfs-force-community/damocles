@@ -23,15 +23,15 @@ jobs:
       - name: build and push smgr docker image
         run: |
           make docker-smgr
-          docker tag venus-sector-manager filvenus/venus-sector-manager:${{ env.TAG }}
-          docker push filvenus/venus-sector-manager:${{ env.TAG }}
-          docker tag venus-sector-manager filvenus/venus-sector-manager:${{ github.ref_name }}
-          docker push filvenus/venus-sector-manager:${{ github.ref_name }}
+          docker tag damocles-manager filvenus/damocles-manager:${{ env.TAG }}
+          docker push filvenus/damocles-manager:${{ env.TAG }}
+          docker tag damocles-manager filvenus/damocles-manager:${{ github.ref_name }}
+          docker push filvenus/damocles-manager:${{ github.ref_name }}
 
       - name: build and push worker docker image
         run: |
           make docker-worker
-          docker tag venus-worker filvenus/venus-worker:${{ env.TAG }}
-          docker push filvenus/venus-worker:${{ env.TAG }}
-          docker tag venus-worker filvenus/venus-worker:${{ github.ref_name }}
-          docker push filvenus/venus-worker:${{ github.ref_name }}
+          docker tag damocles-worker filvenus/damocles-worker:${{ env.TAG }}
+          docker push filvenus/damocles-worker:${{ env.TAG }}
+          docker tag damocles-worker filvenus/damocles-worker:${{ github.ref_name }}
+          docker push filvenus/damocles-worker:${{ github.ref_name }}

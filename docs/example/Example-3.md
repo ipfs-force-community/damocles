@@ -21,7 +21,7 @@ RAM:24*64+64+384=1.93 T
 
 
 
-### **venus-worker.toml**
+### **damocles-worker.toml**
 
 ```toml
 [worker]

@@ -21,7 +21,7 @@ RAM:12*64+192=968G
 
 
 
-**venus-worker.toml**
+**damocles-worker.toml**
 
 ```toml
 [worker]
@@ -149,7 +149,7 @@ location="/data/nvme-cache/venus-cluster-worker-cache/cache-store24"
 sealing.allowed_miners=[35201]
 sealing.allowed_sizes=["32GiB"]
 
-# store path <The name should be the same as that configured in venus-sector-manager>
+# store path <The name should be the same as that configured in damocles-manager>
 [[attached]]
 name="calib-t035201-sectors"
 location="/data/calib-t035201-sectors"
@@ -171,7 +171,7 @@ gpu1=1
 #fieldsforpc1processors
 
 [[processors.pc1]]
-#bin="./dist/bin/venus-worker-plugin-pc1"
+#bin="./dist/damocles-worker-plugin-pc1"
 #args=["--args-1","1",--"args-2","2"]
 numa_preferred=0
 cgroup.cpuset="0-2"

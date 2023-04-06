@@ -1,0 +1,105 @@
+[worker]
+# name = "worker-#1"
+# rpc_server.host = "192.168.1.100"
+# rpc_server.port = 17891
+
+[metrics]
+enable = true
+#http_listen = "0.0.0.0:9000"
+
+[sector_manager]
+rpc_client.addr = "/ip4/127.0.0.1/tcp/1789"
+# rpc_client.headers = { User-Agent = "jsonrpc-core-client" }
+# piece_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiMS0xMjUiLCJwZXJtIjoic2lnbiIsImV4dCI6IiJ9.JenwgK0JZcxFDin3cyhBUN41VXNvYw-_0UUT2ZOohM0"
+
+[sealing]
+# allowed_miners = [10123, 10124, 10125]
+# allowed_sizes = ["32GiB", "64GiB"]
+enable_deals = true
+# disable_cc = true
+max_retries = 3
+# max_deals = 4
+# min_deal_space = "1KiB"
+# seal_interval = "30s"
+# recover_interval = "60s"
+# rpc_polling_interval = "15s"
+# ignore_proof_check = false
+
+[[sealing_thread]]
+location = "./mock-tmp/store1"
+# sealing.allowed_miners = [10123, 10124, 10125]
+# sealing.allowed_sizes = ["32GiB", "64GiB"]
+# sealing.enable_deals = true
+# sealing.max_retries = 3
+# sealing.seal_interval = "30s"
+# sealing.recover_interval = "60s"
+# sealing.rpc_polling_interval = "180s"
+# sealing.ignore_proof_check = false
+
+[[sealing_thread]]
+location = "./mock-tmp/store2"
+
+[[sealing_thread]]
+location = "./mock-tmp/store3"
+
+# deprecated
+# [remote_store]
+# name = "persist-store1"
+# location = "./mock-tmp/remote"
+
+[[attached]]
+# name = "persist-store1"
+location = "./mock-tmp/remote"
+
+[attached_selection]
+# enable_space_weighted = true
+
+[processors.limitation.concurrent]
+add_pieces = 5
+pc1 = 3
+pc2 = 2
+c2 = 1
+
+[processors.limitation.staggered]
+pc1 = "1min"
+
+[processors.static_tree_d]
+# 2KiB = "./tmp/2k/sc-02-data-tree-d.dat"
+
+# fields for add_pieces processor
+#[[processors.add_pieces]]
+
+# fields for tree_d processor
+[[processors.tree_d]]
+
+# fields for pc1 processors
+[[processors.pc1]]
+# bin = "./dist/damocles-worker-plugin-pc1"
+# args = ["--args-1", "1", --"args-2", "2"]
+numa_preferred = 0
+cgroup.cpuset = "0-11"
+envs = { FIL_PROOFS_USE_MULTICORE_SDR = "1" }
+
+# [[processors.pc1]]
+# numa_preferred = 0
+# cgroup.cpuset = "6-7"
+# envs = { FIL_PROOFS_USE_MULTICORE_SDR = "1" }
+
+[[processors.pc1]]
+numa_preferred = 1
+cgroup.cpuset = "12-23"
+envs = { FIL_PROOFS_USE_MULTICORE_SDR = "1" }
+
+# fields for pc2 processors
+[[processors.pc2]]
+# cgroup.cpuset = "24-27"
+
+[[processors.pc2]]
+cgroup.cpuset = "28-31"
+
+
+# fields for c2 processor
+[[processors.c2]]
+cgroup.cpuset = "32-47"
+
+[[processors.transfer]]

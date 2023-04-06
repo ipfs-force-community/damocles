@@ -1,3 +1,3 @@
-[submodule "venus-sector-manager/extern/filecoin-ffi"]
-	path = venus-sector-manager/extern/filecoin-ffi
+[submodule "damocles-manager/extern/filecoin-ffi"]
+	path = damocles-manager/extern/filecoin-ffi
 	url = https://github.com/filecoin-project/filecoin-ffi.git

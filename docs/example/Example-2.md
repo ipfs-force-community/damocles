@@ -21,7 +21,7 @@ RAM:12*64+192+4200=1.25 T
 
 
 
-### **venus-worker.toml**
+### **damocles-worker.toml**
 
 ```toml
 [sealing]
