@@ -6,9 +6,7 @@ import (
 	"sync"
 
 	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/hashicorp/go-multierror"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
@@ -108,19 +106,15 @@ func (dm *DealManager) Release(ctx context.Context, sid abi.SectorID, deals core
 		return fmt.Errorf("invalid miner id %d: %w", sid.Miner, err)
 	}
 
-	var wg multierror.Group
+	dealIDs := make([]abi.DealID, 0, len(deals))
 	for i := range deals {
 		dealID := deals[i].ID
 		if dealID == 0 {
 			continue
 		}
-
-		wg.Go(func() error {
-			return dm.market.UpdateDealStatus(ctx, maddr, dealID, market.DealStatusUndefine, storagemarket.StorageDealAwaitingPreCommit)
-		})
+		dealIDs = append(dealIDs, dealID)
 	}
-
-	err = wg.Wait().ErrorOrNil()
+	err = dm.market.ReleaseDeals(ctx, maddr, dealIDs)
 	if err != nil {
 		return fmt.Errorf("get errors in some or all of the requests: %w", err)
 	}
