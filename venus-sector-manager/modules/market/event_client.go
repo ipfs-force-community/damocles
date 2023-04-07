@@ -12,14 +12,14 @@ import (
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 )
 
-// MarketEventClient is a client connect to gateway to listen market event
+// EventClient is a client connect to gateway to listen market event
 // a client can listen for many miner, and corresponds to the gateway one by one
-type MarketEventClient struct {
+type EventClient struct {
 	gateway.IMarketServiceProvider
 	url string
 }
 
-func (m *MarketEventClient) ListenOnMiner(ctx context.Context, miner address.Address, reqCh chan<- *gtypes.RequestEvent) {
+func (m *EventClient) ListenOnMiner(ctx context.Context, miner address.Address, reqCh chan<- *GatewayEvent) {
 	var eventCh <-chan *gtypes.RequestEvent
 	var err error
 	for {
@@ -42,9 +42,6 @@ func (m *MarketEventClient) ListenOnMiner(ctx context.Context, miner address.Add
 	case <-ctx.Done():
 		return
 	case event := <-eventCh:
-		if event == nil {
-			log.Error("odd error in connect: nil event")
-		}
 		switch event.Method {
 		case "InitConnect":
 			req := gtypes.ConnectedCompleted{}
@@ -65,7 +62,10 @@ func (m *MarketEventClient) ListenOnMiner(ctx context.Context, miner address.Add
 			case e := <-eventCh:
 				switch e.Method {
 				case "IsUnsealed", "SectorsUnsealPiece":
-					reqCh <- e
+					reqCh <- &GatewayEvent{
+						URL:          m.url,
+						RequestEvent: *e,
+					}
 				default:
 					log.Errorf("%s receive unexpected market event type %s", miner, e.Method)
 				}

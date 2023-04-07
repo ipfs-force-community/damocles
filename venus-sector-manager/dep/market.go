@@ -1,6 +1,8 @@
 package dep
 
 import (
+	"context"
+
 	"github.com/filecoin-project/go-address"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/market"
@@ -9,7 +11,7 @@ import (
 
 type IMarketEvent = market.IMarketEvent
 
-func buildMarketEvent(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConfig) (IMarketEvent, error) {
+func buildMarketEvent(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConfig, db UnderlyingDB) (IMarketEvent, error) {
 	cfg.Lock()
 	urls, commonToken, minerCfgs := cfg.Common.API.Gateway, cfg.Common.API.Token, cfg.Miners
 	cfg.Unlock()
@@ -23,5 +25,20 @@ func buildMarketEvent(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConf
 		miners = append(miners, mAddr)
 	}
 
-	return market.NewMarketEvent(gctx, lc, urls, commonToken, miners)
+	store, err := db.OpenCollection(gctx, "unseal")
+	if err != nil {
+		return nil, err
+	}
+
+	client, closer, err := market.NewMarketEvent(gctx, urls, commonToken, miners, store)
+	if err != nil {
+		return nil, err
+	}
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			closer()
+			return nil
+		},
+	})
+	return client, nil
 }

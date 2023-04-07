@@ -5,7 +5,6 @@ import (
 
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/google/uuid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 
@@ -91,5 +90,5 @@ type RebuildSectorManager interface {
 type UnsealSectorManager interface {
 	Set(ctx context.Context, req *SectorUnsealInfo) error
 	Allocate(ctx context.Context, spec AllocateSectorSpec) (*SectorUnsealInfo, error)
-	Archive(ctx context.Context, evenId uuid.UUID) error
+	Archive(context.Context, *UnsealTaskIdentifier, error) error
 }

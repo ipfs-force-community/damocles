@@ -47,3 +47,17 @@ func (mr *MockIMarketEventMockRecorder) OnUnseal(arg0 interface{}) *gomock.Call 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnUnseal", reflect.TypeOf((*MockIMarketEvent)(nil).OnUnseal), arg0)
 }
+
+// RespondUnseal mocks base method.
+func (m *MockIMarketEvent) RespondUnseal(arg0 context.Context, arg1 types.UUID, arg2 error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RespondUnseal", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RespondUnseal indicates an expected call of RespondUnseal.
+func (mr *MockIMarketEventMockRecorder) RespondUnseal(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RespondUnseal", reflect.TypeOf((*MockIMarketEvent)(nil).RespondUnseal), arg0, arg1, arg2)
+}
