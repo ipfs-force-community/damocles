@@ -10,7 +10,6 @@ exclude = [
 [workspace]
 members = [
     "vc-processors",
-    "vc-processors-v2",
     "vc-fil-consumers",
 ]
 

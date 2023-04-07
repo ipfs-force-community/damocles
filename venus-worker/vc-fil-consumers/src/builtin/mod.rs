@@ -7,8 +7,8 @@ pub mod local_thread_processor {
 
     macro_rules! gen_local_thread_processor {
         ($name:ident, $task:ty) => {
-            pub fn $name() -> vc_processors_v2::ThreadProcessor<$task, crate::builtin::executors::BuiltinExecutor> {
-                vc_processors_v2::ThreadProcessor::new(crate::builtin::executors::BuiltinExecutor {})
+            pub fn $name() -> vc_processors::ThreadProcessor<$task, crate::builtin::executors::BuiltinExecutor> {
+                vc_processors::ThreadProcessor::new(crate::builtin::executors::BuiltinExecutor {})
             }
         };
     }

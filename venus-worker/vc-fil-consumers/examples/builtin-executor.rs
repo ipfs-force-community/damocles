@@ -38,11 +38,11 @@ use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, EnvFilter};
 use vc_fil_consumers::builtin::executors::BuiltinExecutor;
 use vc_fil_consumers::run_consumer;
 use vc_fil_consumers::tasks::TreeD;
-use vc_processors_v2::middleware::limit::delay::DelayLayer;
-use vc_processors_v2::producer::Producer;
-use vc_processors_v2::transport::default::{connect, pipe};
-use vc_processors_v2::util::ProcessorExt;
-use vc_processors_v2::{ready_msg, ProcessorClient};
+use vc_processors::middleware::limit::delay::DelayLayer;
+use vc_processors::producer::Producer;
+use vc_processors::transport::default::{connect, pipe};
+use vc_processors::util::ProcessorExt;
+use vc_processors::{ready_msg, ProcessorClient};
 
 #[tokio::main]
 async fn main() -> Result<()> {

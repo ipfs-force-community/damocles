@@ -12,7 +12,7 @@ pub mod tasks;
 use anyhow::Context;
 
 pub use builtin::executors::BuiltinExecutor;
-use vc_processors_v2::{
+use vc_processors::{
     consumer::{serve, DefaultConsumer, Executor},
     ready_msg,
     transport::default::listen_ready_message,
@@ -26,7 +26,7 @@ pub type TaskId = u64;
 pub async fn run_consumer<Tsk, Exe>() -> anyhow::Result<()>
 where
     Tsk: Task + Unpin,
-    <Tsk as Task>::Output: Unpin,
+    Tsk::Output: Unpin,
     Exe: Executor<Tsk> + Default + Send + 'static,
     Exe::Error: Into<ConsumerError> + Send,
 {

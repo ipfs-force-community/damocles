@@ -34,12 +34,12 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tower::ServiceBuilder;
 use tracing::warn_span;
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, EnvFilter};
-use vc_processors_v2::consumer::{DefaultConsumer, Executor};
-use vc_processors_v2::middleware::limit::delay::DelayLayer;
-use vc_processors_v2::producer::Producer;
-use vc_processors_v2::transport::default::{connect, listen_ready_message, pipe};
-use vc_processors_v2::util::ProcessorExt;
-use vc_processors_v2::{ready_msg, ProcessorClient, Task};
+use vc_processors::consumer::{DefaultConsumer, Executor};
+use vc_processors::middleware::limit::delay::DelayLayer;
+use vc_processors::producer::Producer;
+use vc_processors::transport::default::{connect, listen_ready_message, pipe};
+use vc_processors::util::ProcessorExt;
+use vc_processors::{ready_msg, ProcessorClient, Task};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(transparent)]
@@ -56,7 +56,7 @@ struct PowExecutor;
 impl Executor<Num> for PowExecutor {
     type Error = io::Error;
 
-    fn execute(&self, task: Num) -> Result<<Num as vc_processors_v2::Task>::Output, Self::Error> {
+    fn execute(&self, task: Num) -> Result<<Num as vc_processors::Task>::Output, Self::Error> {
         if task.0 > 10086 {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "too large!!"));
         }
@@ -124,7 +124,7 @@ async fn run_producer() -> anyhow::Result<()> {
 }
 
 async fn run_consumer() -> anyhow::Result<()> {
-    vc_processors_v2::consumer::serve(
+    vc_processors::consumer::serve(
         listen_ready_message(ready_msg::<Num>()).await.context("write ready message")?,
         DefaultConsumer::new_xxhash(PowExecutor),
     )

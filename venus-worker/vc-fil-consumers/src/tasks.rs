@@ -68,7 +68,7 @@ pub struct AddPieces {
 }
 
 #[cfg(feature = "builtin-add-pieces")]
-impl vc_processors_v2::Task for AddPieces {
+impl vc_processors::Task for AddPieces {
     const STAGE: &'static str = STAGE_NAME_ADD_PIECES;
 
     type Output = Vec<PieceInfo>;
@@ -84,7 +84,7 @@ pub struct TreeD {
 }
 
 #[cfg(feature = "builtin-tree-d")]
-impl vc_processors_v2::Task for TreeD {
+impl vc_processors::Task for TreeD {
     const STAGE: &'static str = STAGE_NAME_TREED;
     type Output = bool;
 }
@@ -104,7 +104,7 @@ pub struct PC1 {
 }
 
 #[cfg(feature = "builtin-pc1")]
-impl vc_processors_v2::Task for PC1 {
+impl vc_processors::Task for PC1 {
     const STAGE: &'static str = STAGE_NAME_PC1;
     type Output = SealPreCommitPhase1Output;
 }
@@ -119,7 +119,7 @@ pub struct PC2 {
 }
 
 #[cfg(feature = "builtin-pc2")]
-impl vc_processors_v2::Task for PC2 {
+impl vc_processors::Task for PC2 {
     const STAGE: &'static str = STAGE_NAME_PC2;
     type Output = SealPreCommitPhase2Output;
 }
@@ -135,7 +135,7 @@ pub struct C2 {
 }
 
 #[cfg(feature = "builtin-c2")]
-impl vc_processors_v2::Task for C2 {
+impl vc_processors::Task for C2 {
     const STAGE: &'static str = STAGE_NAME_C2;
     type Output = SealCommitPhase2Output;
 }
@@ -154,7 +154,7 @@ pub struct SnapEncode {
 }
 
 #[cfg(feature = "builtin-snap-encode")]
-impl vc_processors_v2::Task for SnapEncode {
+impl vc_processors::Task for SnapEncode {
     const STAGE: &'static str = STAGE_NAME_SNAP_ENCODE;
     type Output = SnapEncodeOutput;
 }
@@ -171,7 +171,7 @@ pub struct SnapProve {
 }
 
 #[cfg(feature = "builtin-snap-prove")]
-impl vc_processors_v2::Task for SnapProve {
+impl vc_processors::Task for SnapProve {
     const STAGE: &'static str = STAGE_NAME_SNAP_PROVE;
     type Output = SnapProveOutput;
 }
@@ -216,7 +216,7 @@ pub struct Transfer {
 }
 
 #[cfg(feature = "builtin-transfer")]
-impl vc_processors_v2::Task for Transfer {
+impl vc_processors::Task for Transfer {
     const STAGE: &'static str = STAGE_NAME_TRANSFER;
 
     type Output = bool;
@@ -248,7 +248,7 @@ pub struct WindowPoSt {
 }
 
 #[cfg(feature = "builtin-window-post")]
-impl vc_processors_v2::Task for WindowPoSt {
+impl vc_processors::Task for WindowPoSt {
     const STAGE: &'static str = STAGE_NAME_WINDOW_POST;
 
     type Output = WindowPoStOutput;
@@ -270,7 +270,7 @@ pub struct WinningPoSt {
 }
 
 #[cfg(feature = "builtin-winning-post")]
-impl vc_processors_v2::Task for WinningPoSt {
+impl vc_processors::Task for WinningPoSt {
     const STAGE: &'static str = STAGE_NAME_WINNING_POST;
 
     type Output = WinningPoStOutput;

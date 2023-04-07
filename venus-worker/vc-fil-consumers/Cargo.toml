@@ -43,7 +43,7 @@ builtin-winning-post = ["fil-proofs"]
 anyhow = "1"
 serde = "1"
 tracing = "0.1"
-vc-processors-v2 = { path = "../vc-processors-v2" }
+vc-processors = { path = "../vc-processors" }
 memmap = { version = "0.7", optional = true }
 forest_address = { version = "0.3", optional = true }
 base64-serde = { version = "0.7", optional = true }

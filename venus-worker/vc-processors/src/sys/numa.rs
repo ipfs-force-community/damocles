@@ -4,13 +4,55 @@ use std::env::var;
 use std::os::raw::{c_int, c_uint, c_ulong};
 
 use lazy_static::lazy_static;
+use tokio_transports::rw::pipe;
 use tracing::{info, warn};
 
-/// env key for preferred numa node
-pub const ENV_NUMA_PREFERRED: &str = "VENUS_WORKER_NUMA_PREFERRED";
+/// env name for preferred numa node
+pub const ENV_NUMA_PREFERRED: &str = "VC_NUMA_PREFERRED";
 
 lazy_static! {
     static ref NUMA_AVAILABLE: bool = unsafe { numa_available() >= 0 };
+}
+
+pub fn pipe_set_preferred(cmd: pipe::Command, node: std::os::raw::c_int) -> pipe::Command {
+    cmd.envs([(ENV_NUMA_PREFERRED, &node.to_string())])
+}
+
+/// set numa policy to preferred for current process
+pub fn set_preferred(node: c_int) {
+    unsafe {
+        if !*NUMA_AVAILABLE {
+            warn!("numa is not available");
+            return;
+        }
+
+        let max = numa_max_node();
+        if node > max {
+            warn!(max, "node number {} is invalid", node);
+            return;
+        }
+
+        numa_set_preferred(node);
+        info!("set numa policy to preferred({})", node);
+    }
+}
+
+/// try to extract and set preferred node from env
+pub fn try_set_preferred_from_env() {
+    let s = match var(ENV_NUMA_PREFERRED) {
+        Ok(v) => v,
+        _ => return,
+    };
+
+    let node = match s.parse() {
+        Ok(n) => n,
+        _ => {
+            warn!("invalid numa node string {}", s);
+            return;
+        }
+    };
+
+    set_preferred(node);
 }
 
 #[link(name = "numa", kind = "dylib")]
@@ -144,41 +186,4 @@ fn bind_with_nodemask(nodemask: &mut Bitmask) {
     unsafe {
         numa_bind(nodemask.inner);
     }
-}
-
-/// set numa policy to preferred for current process
-pub fn set_preferred(node: c_int) {
-    unsafe {
-        if !*NUMA_AVAILABLE {
-            warn!("numa is not available");
-            return;
-        }
-
-        let max = numa_max_node();
-        if node > max {
-            warn!(max, "node number {} is invalid", node);
-            return;
-        }
-
-        numa_set_preferred(node);
-        info!("set numa policy to preferred({})", node);
-    }
-}
-
-/// try to extract and set preferred node  from env
-pub fn try_set_preferred() {
-    let s = match var(ENV_NUMA_PREFERRED) {
-        Ok(v) => v,
-        _ => return,
-    };
-
-    let node = match s.parse() {
-        Ok(n) => n,
-        _ => {
-            warn!("invalid numa node string {}", s);
-            return;
-        }
-    };
-
-    set_preferred(node);
 }

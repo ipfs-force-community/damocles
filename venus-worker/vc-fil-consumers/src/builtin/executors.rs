@@ -2,7 +2,7 @@
 //!
 
 use anyhow::Context;
-use vc_processors_v2::{consumer::Executor, Task};
+use vc_processors::{consumer::Executor, Task};
 
 #[cfg(feature = "builtin-add-pieces")]
 pub mod piece;

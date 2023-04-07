@@ -2,8 +2,8 @@
 // //!
 // //! $ cargo run --example customize-consumer
 // //! ```
-// //! 2022-06-02T05:34:31.705303Z  INFO sub{name=tree_d pid=2824}: vc_processors_v2::core::ext::consumer: processor ready
-// //! 2022-06-02T05:34:31.705457Z  INFO parent{pid=509}: vc_processors_v2::core::ext::producer: producer ready
+// //! 2022-06-02T05:34:31.705303Z  INFO sub{name=tree_d pid=2824}: vc_processors::core::ext::consumer: processor ready
+// //! 2022-06-02T05:34:31.705457Z  INFO parent{pid=509}: vc_processors::core::ext::producer: producer ready
 // //! 2022-06-02T05:34:31.705714Z  INFO parent{pid=509}: customize_proc: producer start child=2824
 // //! 2022-06-02T05:34:31.705858Z  INFO parent{pid=509}: customize_proc: please enter a dir:
 // //! a
@@ -28,11 +28,11 @@ use tracing::{info, warn, warn_span};
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, EnvFilter};
 use vc_fil_consumers::tasks::TreeD;
 use vc_fil_consumers::{run_consumer, BuiltinExecutor};
-use vc_processors_v2::middleware::limit::delay::DelayLayer;
-use vc_processors_v2::producer::Producer;
-use vc_processors_v2::transport::default::{connect, pipe};
-use vc_processors_v2::util::ProcessorExt;
-use vc_processors_v2::{ready_msg, Consumer, ProcessorClient};
+use vc_processors::middleware::limit::delay::DelayLayer;
+use vc_processors::producer::Producer;
+use vc_processors::transport::default::{connect, pipe};
+use vc_processors::util::ProcessorExt;
+use vc_processors::{ready_msg, Consumer, ProcessorClient};
 
 #[derive(Clone, Copy, Default)]
 struct TreeDConsumer;
