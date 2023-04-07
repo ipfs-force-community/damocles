@@ -6,10 +6,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/go-fil-markets/storagemarket"
 	"github.com/filecoin-project/go-state-types/abi"
-
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/market"
 )
 
 var utilMarketCmd = &cli.Command{
@@ -30,7 +27,8 @@ var utilMarketReleaseDealsCmd = &cli.Command{
 			Required: true,
 		},
 		&cli.Int64SliceFlag{
-			Name: "deal",
+			Name:    "deals",
+			Aliases: []string{"deal"},
 		},
 	},
 	Action: func(cctx *cli.Context) error {
@@ -46,19 +44,14 @@ var utilMarketReleaseDealsCmd = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("invalid miner actor id %d: %w", mid, err)
 		}
-
-		mlog := Log.With("miner", maddr)
-
-		for _, dealID := range cctx.Int64Slice("deal") {
-			err = api.Market.UpdateDealStatus(gctx, maddr, abi.DealID(dealID), market.DealStatusUndefine, storagemarket.StorageDealAwaitingPreCommit)
-			if err == nil {
-				mlog.Infow("deal released", "deal-id", dealID)
-			} else {
-				mlog.Errorf("failed to release deal %d: %w", dealID, err)
-			}
+		dealsI64 := cctx.Int64Slice("deals")
+		deals := make([]abi.DealID, len(dealsI64))
+		for i, dealI64 := range dealsI64 {
+			deals[i] = abi.DealID(dealI64)
 		}
-
-		mlog.Info("all done")
+		if err := api.Market.ReleaseDeals(gctx, maddr, deals); err != nil {
+			return fmt.Errorf("failed to release deals: %w", err)
+		}
 		return nil
 	},
 }

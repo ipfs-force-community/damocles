@@ -15,7 +15,6 @@ require (
 	github.com/filecoin-project/go-cbor-util v0.0.1
 	github.com/filecoin-project/go-commp-utils v0.1.3
 	github.com/filecoin-project/go-fil-commcid v0.1.0
-	github.com/filecoin-project/go-fil-markets v1.25.2
 	github.com/filecoin-project/go-jsonrpc v0.2.1
 	github.com/filecoin-project/go-paramfetch v0.0.4
 	github.com/filecoin-project/go-state-types v0.11.1
@@ -86,6 +85,7 @@ require (
 	github.com/filecoin-project/go-amt-ipld/v4 v4.0.0 // indirect
 	github.com/filecoin-project/go-crypto v0.0.1 // indirect
 	github.com/filecoin-project/go-data-transfer v1.15.2 // indirect
+	github.com/filecoin-project/go-fil-markets v1.25.2 // indirect
 	github.com/filecoin-project/go-hamt-ipld v0.1.5 // indirect
 	github.com/filecoin-project/go-hamt-ipld/v2 v2.0.0 // indirect
 	github.com/filecoin-project/go-hamt-ipld/v3 v3.1.0 // indirect
