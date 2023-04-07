@@ -145,10 +145,14 @@ func (m *MarketEvent) ResponseMarketEvent(ctx context.Context, resp *gtypes.Resp
 	return client.ResponseMarketEvent(ctx, resp)
 }
 
-func (m *MarketEvent) RespondUnseal(ctx context.Context, eventID types.UUID, err error) error {
+func (m *MarketEvent) RespondUnseal(ctx context.Context, eventID types.UUID, unsealErr error) error {
+	errStr := ""
+	if unsealErr != nil {
+		errStr = unsealErr.Error()
+	}
 	return m.ResponseMarketEvent(ctx, &gtypes.ResponseEvent{
 		ID:      eventID,
 		Payload: nil,
-		Error:   err.Error(),
+		Error:   errStr,
 	})
 }
