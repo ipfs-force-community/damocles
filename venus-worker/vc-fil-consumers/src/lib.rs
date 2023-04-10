@@ -25,8 +25,7 @@ pub type TaskId = u64;
 // Run consumer
 pub async fn run_consumer<Tsk, Exe>() -> anyhow::Result<()>
 where
-    Tsk: Task + Unpin,
-    Tsk::Output: Unpin,
+    Tsk: Task,
     Exe: Executor<Tsk> + Default + Send + 'static,
     Exe::Error: Into<ConsumerError> + Send,
 {

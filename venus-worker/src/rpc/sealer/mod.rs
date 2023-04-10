@@ -8,7 +8,7 @@ use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use vc_processors::b64serde::{BytesArray32, BytesVec};
+use vc_fil_consumers::b64serde::{BytesArray32, BytesVec};
 
 use super::super::types::SealProof;
 

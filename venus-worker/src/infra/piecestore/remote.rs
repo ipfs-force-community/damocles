@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use forest_cid::Cid;
 use reqwest::Url;
-use vc_processors::builtin::tasks::PieceFile;
+use vc_fil_consumers::tasks::PieceFile;
 
 use super::PieceStore;
 

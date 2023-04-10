@@ -1,6 +1,6 @@
 [package]
 name = "vc-processors"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 keywords = ["filecoin", "venus", "venus-cluster", "venus-worker"]
@@ -32,13 +32,7 @@ pin-project = "1"
 lru = "0.10"
 indexmap = "1.9.2"
 rand = "0.8"
-tower = { version = "0.4", features = [
-    "util",
-    "balance",
-    "ready-cache",
-    "discover",
-    "limit",
-] }
+tower = { version = "0.4", features = ["util", "limit", "load"] }
 bincode = "1.3"
 hex = "0.4"
 twox-hash = "1.6.3"

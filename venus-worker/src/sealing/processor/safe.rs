@@ -1,1 +1,1 @@
-pub use vc_processors::fil_proofs::*;
+pub use vc_fil_consumers::fil_proofs::*;

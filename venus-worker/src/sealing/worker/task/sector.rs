@@ -5,7 +5,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub use fil_clock::ChainEpoch;
 pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness};
 
-use crate::rpc::sealer::{AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket};
+use crate::rpc::sealer::{AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket, SectorID};
 use crate::sealing::processor::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
     SnapEncodeOutput,
@@ -191,5 +191,10 @@ impl Sector {
     pub fn update_state(&mut self, next: State) {
         let prev = std::mem::replace(&mut self.state, next);
         self.prev_state.replace(prev);
+    }
+
+    /// Returns the sector id
+    pub fn id(&self) -> Option<&SectorID> {
+        self.base.as_ref().map(|base| &base.allocated.id)
     }
 }

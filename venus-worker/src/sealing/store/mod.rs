@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
 use fil_types::ActorID;
+use tracing::{info, warn};
 
 use crate::infra::util::PlaceHolder;
-use crate::logging::{info, warn};
 use crate::metadb::rocks::RocksMeta;
 use crate::sealing::{
     hot_config::HotConfig,
@@ -20,6 +20,8 @@ use crate::sealing::{
 use crate::types::SealProof;
 
 use crate::config::{Sealing, SealingOptional, SealingThread, SealingThreadInner};
+
+use super::worker::GlobalProcessors;
 
 pub mod util;
 
@@ -320,10 +322,10 @@ impl StoreManager {
     }
 
     /// build workers
-    pub fn into_workers(self) -> Vec<(Worker, (usize, Ctrl))> {
+    pub fn into_workers(self, processors: GlobalProcessors) -> Vec<(Worker, (usize, Ctrl))> {
         let mut workers = Vec::with_capacity(self.stores.len());
         for (idx, (_, store)) in self.stores.into_iter().enumerate() {
-            let (w, c) = Worker::new(idx, store);
+            let (w, c) = Worker::new(idx, store, processors.clone());
             workers.push((w, (idx, c)));
         }
 

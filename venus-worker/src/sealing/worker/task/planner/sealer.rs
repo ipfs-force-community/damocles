@@ -1,16 +1,17 @@
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
-use vc_processors::builtin::tasks::STAGE_NAME_C2;
+use tracing::{debug, warn};
+use vc_fil_consumers::tasks::C2;
 
 use super::{
     super::{call_rpc, cloned_required, field_required, Event, State, Task},
-    common, plan, ExecResult, Planner,
+    plan, ExecResult, Planner,
 };
-use crate::logging::{debug, warn};
 use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SubmitResult};
 use crate::sealing::failure::*;
-use crate::sealing::processor::{clear_cache, C2Input};
+use crate::sealing::processor::clear_cache;
+use crate::sealing::processor::Client;
 
 pub struct SealerPlanner;
 
@@ -92,7 +93,7 @@ impl Planner for SealerPlanner {
 
     fn exec(&self, task: &mut Task<'_>) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
-        let inner = Sealer { task };
+        let mut inner = Sealer { task };
         match state {
             State::Empty => inner.handle_empty(),
 
@@ -208,14 +209,14 @@ impl<'c, 't> Sealer<'c, 't> {
         })
     }
 
-    fn handle_deals_acquired(&self) -> ExecResult {
-        let pieces = common::add_pieces(self.task, self.task.sector.deals.as_ref().unwrap_or(&Vec::new()))?;
+    fn handle_deals_acquired(&mut self) -> ExecResult {
+        let pieces = self.task.add_pieces(self.task.sector.deals.clone().unwrap_or(Vec::new()))?;
 
         Ok(Event::AddPiece(pieces))
     }
 
-    fn handle_piece_added(&self) -> ExecResult {
-        common::build_tree_d(self.task, true)?;
+    fn handle_piece_added(&mut self) -> ExecResult {
+        self.task.build_tree_d(true)?;
         Ok(Event::BuildTreeD)
     }
 
@@ -223,13 +224,13 @@ impl<'c, 't> Sealer<'c, 't> {
         Ok(Event::AssignTicket(None))
     }
 
-    fn handle_ticket_assigned(&self) -> ExecResult {
-        let (ticket, out) = common::pre_commit1(self.task)?;
+    fn handle_ticket_assigned(&mut self) -> ExecResult {
+        let (ticket, out) = self.task.pre_commit1()?;
         Ok(Event::PC1(ticket, out))
     }
 
-    fn handle_pc1_done(&self) -> ExecResult {
-        common::pre_commit2(self.task).map(Event::PC2)
+    fn handle_pc1_done(&mut self) -> ExecResult {
+        self.task.pre_commit2().map(Event::PC2)
     }
 
     fn handle_pc2_done(&self) -> ExecResult {
@@ -330,18 +331,18 @@ impl<'c, 't> Sealer<'c, 't> {
         Ok(Event::CheckPC)
     }
 
-    fn handle_pc_landed(&self) -> ExecResult {
+    fn handle_pc_landed(&mut self) -> ExecResult {
         let sector_id = self.task.sector_id()?;
         let cache_dir = self.task.cache_dir(sector_id);
         let sealed_file = self.task.sealed_file(sector_id);
 
-        let ins_name = common::persist_sector_files(self.task, cache_dir, sealed_file)?;
+        let ins_name = self.task.persist_sector_files(cache_dir, sealed_file)?;
 
         Ok(Event::Persist(ins_name))
     }
 
     fn handle_persisted(&self) -> ExecResult {
-        common::submit_persisted(self.task, false).map(|_| Event::SubmitPersistance)
+        self.task.submit_persisted(false).map(|_| Event::SubmitPersistance)
     }
 
     fn handle_persistance_submitted(&self) -> ExecResult {
@@ -378,12 +379,10 @@ impl<'c, 't> Sealer<'c, 't> {
             self.task.sector.phases.seed
         }
 
-        common::commit1_with_seed(self.task, seed).map(Event::C1)
+        self.task.commit1_with_seed(seed).map(Event::C1)
     }
 
-    fn handle_c1_done(&self) -> ExecResult {
-        let token = self.task.ctx.global.limit.acquire(STAGE_NAME_C2).crit()?;
-
+    fn handle_c1_done(&mut self) -> ExecResult {
         let miner_id = self.task.sector_id()?.miner;
 
         cloned_required! {
@@ -400,11 +399,9 @@ impl<'c, 't> Sealer<'c, 't> {
 
         let out = self
             .task
-            .ctx
-            .global
             .processors
             .c2
-            .process(C2Input {
+            .process(C2 {
                 c1out,
                 prover_id,
                 sector_id,
@@ -412,7 +409,6 @@ impl<'c, 't> Sealer<'c, 't> {
             })
             .perm()?;
 
-        drop(token);
         Ok(Event::C2(out))
     }
 

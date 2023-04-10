@@ -3,11 +3,11 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use crossbeam_channel::select;
+use tracing::{debug, error, info, warn, warn_span};
 
 use self::planner::default_plan;
-
+use super::GlobalProcessors;
 use super::{super::failure::*, CtrlCtx};
-use crate::logging::{debug, error, info, warn, warn_span};
 use crate::metadb::{rocks::RocksMeta, MaybeDirty, MetaDocumentDB, PrefixedMetaDB, Saved};
 use crate::rpc::sealer::{ReportStateReq, SectorFailure, SectorID, SectorStateChange, WorkerIdentifier};
 use crate::store::Store;
@@ -42,6 +42,7 @@ pub struct Task<'c> {
     ctrl_ctx: &'c CtrlCtx,
     store: &'c Store,
     ident: WorkerIdentifier,
+    processors: &'c mut GlobalProcessors,
 
     _trace_meta: MetaDocumentDB<PrefixedMetaDB<&'c RocksMeta>>,
 }
@@ -69,7 +70,7 @@ impl<'c> Task<'c> {
 
 // public methods
 impl<'c> Task<'c> {
-    pub fn build(ctx: &'c Ctx, ctrl_ctx: &'c CtrlCtx, s: &'c mut Store) -> Result<Self, Failure> {
+    pub fn build(ctx: &'c Ctx, ctrl_ctx: &'c CtrlCtx, s: &'c mut Store, processors: &'c mut GlobalProcessors) -> Result<Self, Failure> {
         let Store {
             meta: ref store_meta,
             config: store_config,
@@ -110,13 +111,14 @@ impl<'c> Task<'c> {
                 instance: ctx.instance.clone(),
                 location: s.location.to_pathbuf(),
             },
+            processors,
 
             _trace_meta: trace_meta,
         })
     }
 
     fn report_state(&self, state_change: SectorStateChange, fail: Option<SectorFailure>) -> Result<(), Failure> {
-        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
+        let sector_id = match self.sector.id().cloned() {
             Some(sid) => sid,
             None => return Ok(()),
         };
@@ -136,7 +138,7 @@ impl<'c> Task<'c> {
     }
 
     fn report_finalized(&self) -> Result<(), Failure> {
-        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
+        let sector_id = match self.sector.id().cloned() {
             Some(sid) => sid,
             None => return Ok(()),
         };
@@ -151,7 +153,7 @@ impl<'c> Task<'c> {
     }
 
     fn report_aborted(&self, reason: String) -> Result<(), Failure> {
-        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
+        let sector_id = match self.sector.id().cloned() {
             Some(sid) => sid,
             None => return Ok(()),
         };
@@ -206,8 +208,7 @@ impl<'c> Task<'c> {
         loop {
             let span = warn_span!(
                 "seal",
-                miner = ?self.sector.base.as_ref().map(|b| b.allocated.id.miner),
-                sector = ?self.sector.base.as_ref().map(|b| b.allocated.id.number),
+                sector = ?self.sector.id(),
                 ?event,
             );
 

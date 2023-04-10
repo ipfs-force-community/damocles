@@ -6,19 +6,12 @@ use std::thread;
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver, Select, Sender};
 use tokio::runtime::Runtime;
+use tracing::{error, error_span, info, warn};
 
 use crate::{
     config::Config,
     infra::{objstore::attached::AttachedManager, piecestore::PieceStore},
-    logging::{error, error_span, info, warn},
     rpc::sealer::SealerClient,
-    sealing::{
-        processor::{
-            ArcAddPiecesProcessor, ArcC2Processor, ArcPC1Processor, ArcPC2Processor, ArcSnapEncodeProcessor, ArcSnapProveProcessor,
-            ArcTransferProcessor, ArcTreeDProcessor,
-        },
-        resource::Pool,
-    },
 };
 
 /// return done tx & rx
@@ -41,24 +34,9 @@ pub struct Ctx {
 pub struct GlobalModules {
     pub rpc: Arc<SealerClient>,
     pub attached: Arc<AttachedManager>,
-    pub processors: GlobalProcessors,
     pub static_tree_d: HashMap<u64, PathBuf>,
-    pub limit: Arc<Pool>,
-    pub ext_locks: Arc<Pool>,
     pub rt: Arc<Runtime>,
     pub piece_store: Arc<dyn PieceStore>,
-}
-
-#[derive(Clone)]
-pub struct GlobalProcessors {
-    pub add_pieces: ArcAddPiecesProcessor,
-    pub tree_d: ArcTreeDProcessor,
-    pub pc1: ArcPC1Processor,
-    pub pc2: ArcPC2Processor,
-    pub c2: ArcC2Processor,
-    pub snap_encode: ArcSnapEncodeProcessor,
-    pub snap_prove: ArcSnapProveProcessor,
-    pub transfer: ArcTransferProcessor,
 }
 
 impl Module for Box<dyn Module> {

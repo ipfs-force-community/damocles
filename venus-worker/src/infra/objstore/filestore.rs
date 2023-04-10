@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use anyhow::{anyhow, Context, Result};
 
 use super::{ObjResult, ObjectStore};
-use crate::logging::trace;
+use tracing::trace;
 
 const LOG_TARGET: &str = "filestore";
 

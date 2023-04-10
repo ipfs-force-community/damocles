@@ -46,8 +46,8 @@ pub mod util;
 /// Task of a specific stage, with Output & Error defined
 pub trait Task
 where
-    Self: Serialize + DeserializeOwned + Clone + Debug + Send + Sync + 'static,
-    Self::Output: Serialize + DeserializeOwned + Debug + Send + Sync + 'static,
+    Self: Serialize + DeserializeOwned + Clone + Debug + Send + Sync + Unpin + 'static,
+    Self::Output: Serialize + DeserializeOwned + Debug + Send + Sync + Unpin + 'static,
 {
     /// The stage name.
     const STAGE: &'static str;
