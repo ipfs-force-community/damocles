@@ -163,11 +163,6 @@ var utilMinerCreateCmd = &cli.Command{
 			return fmt.Errorf("invalid sector size %d: %w", ssize, err)
 		}
 
-		postProof, err := sealProof.RegisteredWindowPoStProof()
-		if err != nil {
-			return fmt.Errorf("invalid seal proof type %d: %w", sealProof, err)
-		}
-
 		ts, err := api.Chain.ChainHead(gctx)
 		if err != nil {
 			return fmt.Errorf("get chain head: %w", err)
@@ -237,6 +232,15 @@ var utilMinerCreateCmd = &cli.Command{
 			}
 
 			multiaddrs = append(multiaddrs, maddrNop2p.Bytes())
+		}
+
+		nv, err := api.Chain.StateNetworkVersion(gctx, tsk)
+		if err != nil {
+			return fmt.Errorf("get network version: %w", err)
+		}
+		postProof, err := sealProof.RegisteredWindowPoStProofByNetworkVersion(nv)
+		if err != nil {
+			return fmt.Errorf("invalid seal proof type %d: %w", sealProof, err)
 		}
 
 		params, err := actors.SerializeParams(&core.CreateMinerParams{
