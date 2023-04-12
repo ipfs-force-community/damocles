@@ -151,11 +151,11 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 	return core.Empty, nil
 }
 
-func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict, sateCheck bool) (map[abi.SectorNumber]string, error) {
+func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, sateCheck bool) (map[abi.SectorNumber]string, error) {
 	return nil, nil
 }
 
-func (s *Sealer) SimulateWdPoSt(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
+func (s *Sealer) SimulateWdPoSt(context.Context, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
 	return nil
 }
 

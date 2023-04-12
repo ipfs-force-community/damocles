@@ -587,6 +587,12 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 
 		slow := cctx.Bool("slow")
 		stateCheck := cctx.Bool("state-check")
+
+		nv, err := api.Chain.StateNetworkVersion(ctx, types.EmptyTSK)
+		if err != nil {
+			return fmt.Errorf("failed to load network version: %w", err)
+		}
+
 		for parIdx, par := range partitions {
 			sectors := make(map[abi.SectorNumber]struct{})
 
@@ -611,7 +617,16 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 				tocheck = append(tocheck, util.SectorOnChainInfoToExtended(info))
 			}
 
-			bad, err := api.Sealer.CheckProvable(ctx, abi.ActorID(mid), tocheck, slow, stateCheck)
+			if len(tocheck) == 0 {
+				continue
+			}
+
+			postProofType, err := tocheck[0].SealProof.RegisteredWindowPoStProofByNetworkVersion(nv)
+			if err != nil {
+				return fmt.Errorf("invalid seal proof type %d: %w", tocheck[0].SealProof, err)
+			}
+
+			bad, err := api.Sealer.CheckProvable(ctx, abi.ActorID(mid), postProofType, tocheck, slow, stateCheck)
 			if err != nil {
 				return err
 			}
@@ -723,7 +738,20 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			rand = append(rand, 0)
 		}
 
-		err = api.Sealer.SimulateWdPoSt(ctx, maddr, proofSectors, rand)
+		if len(proofSectors) == 0 {
+			return fmt.Errorf("no lived sector in that partition")
+		}
+
+		nv, err := api.Chain.StateNetworkVersion(ctx, ts.Key())
+		if err != nil {
+			return fmt.Errorf("getting network version: %w", err)
+		}
+		ppt, err := proofSectors[0].SealProof.RegisteredWindowPoStProofByNetworkVersion(nv)
+		if err != nil {
+			return fmt.Errorf("convert to winning post proof: %w", err)
+		}
+
+		err = api.Sealer.SimulateWdPoSt(ctx, maddr, ppt, proofSectors, rand)
 		if err != nil {
 			return err
 		}

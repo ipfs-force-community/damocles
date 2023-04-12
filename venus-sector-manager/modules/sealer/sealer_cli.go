@@ -52,17 +52,17 @@ func (s *Sealer) RestoreSector(ctx context.Context, sid abi.SectorID, forced boo
 	return core.Empty, nil
 }
 
-func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
-	return s.sectorTracker.Provable(ctx, mid, sectors, strict, stateCheck)
+func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
+	return s.sectorTracker.Provable(ctx, mid, postProofType, sectors, strict, stateCheck)
 }
 
-func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
+func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
 	mid, err := address.IDFromAddress(maddr)
 	if err != nil {
 		return err
 	}
 
-	privSectors, err := s.sectorTracker.PubToPrivate(ctx, abi.ActorID(mid), sis, core.SectorWindowPoSt)
+	privSectors, err := s.sectorTracker.PubToPrivate(ctx, abi.ActorID(mid), postProofType, sis)
 	if err != nil {
 		return fmt.Errorf("turn public sector infos into private: %w", err)
 	}
