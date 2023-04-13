@@ -24,7 +24,6 @@ func NewMinerInfoAPI(capi API) *MinerInfoAPI {
 }
 
 type MinerInfoAPI struct {
-	// TODO: miner info cache
 	chain   API
 	cacheMu sync.RWMutex
 	cache   map[abi.ActorID]*core.MinerInfo
