@@ -79,7 +79,7 @@ vc-processors = { path = "./vc-processors", features = ["numa"] }
 [dependencies.storage-proofs-porep]
 git = "https://github.com/ipfs-force-community/rust-fil-proofs"
 package = "storage-proofs-porep"
-branch = "force/master_v12.0.0"
+branch = "force/master_v14.0.0"
 default-features = false
 
 [dev-dependencies]
@@ -93,11 +93,11 @@ default = ["vc-processors/builtin", "vc-processors/ext-producer"]
 cuda = ["vc-processors/fil-proofs-cuda"]
 
 [patch.crates-io]
-filecoin-hashers = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-hashers", branch = "force/master_v12.0.0"}
-filecoin-proofs = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-proofs", branch = "force/master_v12.0.0" }
-fr32 = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "fr32", branch = "force/master_v12.0.0" }
-sha2raw = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "sha2raw", branch = "force/master_v12.0.0" }
-storage-proofs-core = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-core", branch = "force/master_v12.0.0" }
-storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v12.0.0" }
-storage-proofs-post = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-post", branch = "force/master_v12.0.0" }
-storage-proofs-update = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-update", branch = "force/master_v12.0.0" }
+filecoin-hashers = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-hashers", branch = "force/master_v14.0.0" }
+filecoin-proofs = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-proofs", branch = "force/master_v14.0.0" }
+fr32 = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "fr32", branch = "force/master_v14.0.0" }
+sha2raw = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "sha2raw", branch = "force/master_v14.0.0" }
+storage-proofs-core = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-core", branch = "force/master_v14.0.0" }
+storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v14.0.0" }
+storage-proofs-post = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-post", branch = "force/master_v14.0.0" }
+storage-proofs-update = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-update", branch = "force/master_v14.0.0" }
