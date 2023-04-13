@@ -31,6 +31,16 @@ func ProofType2String(proofType abi.RegisteredPoStProof) string {
 		return "StackedDrgWindow32GiBV1"
 	case abi.RegisteredPoStProof_StackedDrgWindow64GiBV1:
 		return "StackedDrgWindow64GiBV1"
+	case abi.RegisteredPoStProof_StackedDrgWindow2KiBV1_1:
+		return "StackedDrgWindow2KiBV1_1"
+	case abi.RegisteredPoStProof_StackedDrgWindow8MiBV1_1:
+		return "StackedDrgWindow8MiBV1_1"
+	case abi.RegisteredPoStProof_StackedDrgWindow512MiBV1_1:
+		return "StackedDrgWindow512MiBV1_1"
+	case abi.RegisteredPoStProof_StackedDrgWindow32GiBV1_1:
+		return "StackedDrgWindow32GiBV1_1"
+	case abi.RegisteredPoStProof_StackedDrgWindow64GiBV1_1:
+		return "StackedDrgWindow64GiBV1_1"
 
 	default:
 		return fmt.Sprintf("Unknown RegisteredPoStProof %d", proofType)

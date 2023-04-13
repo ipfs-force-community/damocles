@@ -13,16 +13,6 @@ type SectorStateChangeHook func(st *SectorState) (bool, error)
 // returns the persist instance name, existence
 type SectorLocator func(ctx context.Context, sid abi.SectorID) (SectorAccessStores, bool, error)
 
-type SectorPoStTyper func(proofType abi.RegisteredSealProof) (abi.RegisteredPoStProof, error)
-
-func SectorWindowPoSt(proofType abi.RegisteredSealProof) (abi.RegisteredPoStProof, error) {
-	return proofType.RegisteredWindowPoStProof()
-}
-
-func SectorWinningPoSt(proofType abi.RegisteredSealProof) (abi.RegisteredPoStProof, error) {
-	return proofType.RegisteredWinningPoStProof()
-}
-
 type SectorFinalized bool
 type SectorUpgraded bool
 type SectorRemoved bool
