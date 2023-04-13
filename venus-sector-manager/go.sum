@@ -338,8 +338,8 @@ github.com/filecoin-project/specs-actors/v8 v8.0.1/go.mod h1:UYIPg65iPWoFw5NEftR
 github.com/filecoin-project/specs-storage v0.4.1 h1:yvLEaLZj8f+uByhNC4mFOtCUyL2wQku+NGBp6hjTe9M=
 github.com/filecoin-project/specs-storage v0.4.1/go.mod h1:Z2eK6uMwAOSLjek6+sy0jNV2DSsMEENziMUz0GHRFBw=
 github.com/filecoin-project/storetheindex v0.4.30-0.20221114113647-683091f8e893 h1:6GCuzxLVHBzlz7y+FkbHh6n0UyoEGWqDwJKQPJoz7bE=
-github.com/filecoin-project/venus v1.10.2-0.20230404065359-88ccb6d62ab5 h1:aiOtog+S8Lj8DhZCGoA0Cpfbz8q6X9ByLeKJ6H89pDk=
-github.com/filecoin-project/venus v1.10.2-0.20230404065359-88ccb6d62ab5/go.mod h1:eCV4+qsHdDg7FXB8xLn5w/ay+Uu5pG3oAlPsB1nb6qU=
+github.com/filecoin-project/venus v1.10.2-0.20230412160734-84aa06800210 h1:SPWnYt1ygcUu4ilLoutlWxpOEHnq39wEJMKaEnY3reA=
+github.com/filecoin-project/venus v1.10.2-0.20230412160734-84aa06800210/go.mod h1:MoRYoK+jQT2mRghN/br+RMf78hy+f8VYPtjFcHZg66k=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
 github.com/flynn/noise v1.0.0/go.mod h1:xbMo+0i6+IGbYdJhF31t2eR1BIU0CYc12+BNAKwUTag=
 github.com/francoispqt/gojay v1.2.13 h1:d2m3sFjloqoIUQU3TsHBgj6qg/BVGlTBeHDUmyJnXKk=
