@@ -35,11 +35,11 @@ var UnavailableSealerCliClient = SealerCliClient{
 
 	ReportAborted: func(context.Context, abi.SectorID, string) (Meta, error) { panic("sealer client unavailable") },
 
-	CheckProvable: func(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
+	CheckProvable: func(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
 		panic("sealer client unavailable")
 	},
 
-	SimulateWdPoSt: func(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
+	SimulateWdPoSt: func(context.Context, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
 		panic("sealer client unavailable")
 	},
 
@@ -120,9 +120,9 @@ type SealerCliClient struct {
 
 	ReportAborted func(context.Context, abi.SectorID, string) (Meta, error)
 
-	CheckProvable func(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error)
+	CheckProvable func(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error)
 
-	SimulateWdPoSt func(context.Context, address.Address, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
+	SimulateWdPoSt func(context.Context, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
 
 	SnapUpPreFetch func(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error)
 

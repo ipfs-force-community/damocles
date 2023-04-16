@@ -588,8 +588,15 @@ func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proo
 			CacheDir:   instance,
 		}, true, nil
 	})
-
-	err := s.sectorTracker.SingleProvable(ctx, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false)
+	nv, err := s.capi.StateNetworkVersion(ctx, types.EmptyTSK)
+	if err != nil {
+		return false, fmt.Errorf("get network version: %w", err)
+	}
+	ppt, err := proofType.RegisteredWindowPoStProofByNetworkVersion(nv)
+	if err != nil {
+		return false, fmt.Errorf("convert to v1_1 post proof: %w", err)
+	}
+	err = s.sectorTracker.SingleProvable(ctx, ppt, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false)
 	if err != nil {
 		if errors.Is(err, objstore.ErrObjectNotFound) {
 			return false, nil

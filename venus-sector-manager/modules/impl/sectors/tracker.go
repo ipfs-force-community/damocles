@@ -83,7 +83,7 @@ func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref core.SectorRef, up
 	return privateInfo, nil
 }
 
-func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator, strict bool) error {
+func (t *Tracker) SingleProvable(ctx context.Context, postProofType abi.RegisteredPoStProof, sref core.SectorRef, upgrade bool, locator core.SectorLocator, strict bool) error {
 	ssize, err := sref.ProofType.SectorSize()
 	if err != nil {
 		return fmt.Errorf("get sector size: %w", err)
@@ -135,11 +135,6 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgra
 		return nil
 	}
 
-	proofType, err := sref.ProofType.RegisteredWindowPoStProof()
-	if err != nil {
-		return err
-	}
-
 	addr, err := address.NewIDAddress(uint64(sref.ID.Miner))
 	if err != nil {
 		return err
@@ -152,7 +147,7 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgra
 		SealProof:    sref.ProofType,
 		SectorNumber: sref.ID.Number,
 		SealedCID:    sinfo.SealedCID,
-	}, proofType)
+	}, postProofType)
 
 	// use randUint64 % nodeNums as challenge, notice nodeNums = ssize / 32B
 	_, err = t.prover.GenerateSingleVanillaProof(ctx, replica, []uint64{rand.Uint64() % (uint64(ssize) / 32)})
@@ -164,7 +159,7 @@ func (t *Tracker) SingleProvable(ctx context.Context, sref core.SectorRef, upgra
 	return nil
 }
 
-func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
+func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict bool) (map[abi.SectorNumber]string, error) {
 	results := make([]string, len(sectors))
 	var wg sync.WaitGroup
 	wg.Add(len(sectors))
@@ -179,7 +174,7 @@ func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, sectors []built
 				ID:        abi.SectorID{Miner: mid, Number: sector.SectorNumber},
 				ProofType: sector.SealProof,
 			}
-			err := t.SingleProvable(ctx, sref, sector.SectorKey != nil, nil, strict)
+			err := t.SingleProvable(ctx, postProofType, sref, sector.SectorKey != nil, nil, strict)
 			if err == nil {
 				return
 			}
@@ -201,23 +196,18 @@ func (t *Tracker) Provable(ctx context.Context, mid abi.ActorID, sectors []built
 	return bad, nil
 }
 
-func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, sectorInfo []builtin.ExtendedSectorInfo, typer core.SectorPoStTyper) ([]core.FFIPrivateSectorInfo, error) {
+func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, postProofType abi.RegisteredPoStProof, sectorInfo []builtin.ExtendedSectorInfo) ([]core.FFIPrivateSectorInfo, error) {
 	if len(sectorInfo) == 0 {
 		return []core.FFIPrivateSectorInfo{}, nil
 	}
 
 	out := make([]core.FFIPrivateSectorInfo, 0, len(sectorInfo))
-	proofType, err := typer(sectorInfo[0].SealProof)
-	if err != nil {
-		return nil, fmt.Errorf("get PoSt proof type: %w", err)
-	}
-
 	for _, sector := range sectorInfo {
 		priv, err := t.SinglePubToPrivateInfo(ctx, aid, sector, nil)
 		if err != nil {
 			return nil, fmt.Errorf("construct private info for %d: %w", sector.SectorNumber, err)
 		}
-		out = append(out, priv.ToFFI(util.SectorExtendedToNormal(sector), proofType))
+		out = append(out, priv.ToFFI(util.SectorExtendedToNormal(sector), postProofType))
 	}
 
 	return out, nil

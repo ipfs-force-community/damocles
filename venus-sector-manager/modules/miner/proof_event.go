@@ -139,7 +139,14 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqID vtypes.UUID
 }
 
 func (pe *ProofEvent) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.ExtendedSectorInfo) (core.SortedPrivateSectorInfo, error) {
-	out, err := pe.tracker.PubToPrivate(ctx, pe.actor.ID, sectorInfo, core.SectorWinningPoSt)
+	if len(sectorInfo) == 0 {
+		return core.SortedPrivateSectorInfo{}, fmt.Errorf("must provide sectors for winning post")
+	}
+	ppt, err := sectorInfo[0].SealProof.RegisteredWinningPoStProof()
+	if err != nil {
+		return core.SortedPrivateSectorInfo{}, fmt.Errorf("failed to convert to winning post proof: %w", err)
+	}
+	out, err := pe.tracker.PubToPrivate(ctx, pe.actor.ID, ppt, sectorInfo)
 	if err != nil {
 		return core.SortedPrivateSectorInfo{}, fmt.Errorf("convert to private infos: %w", err)
 	}
