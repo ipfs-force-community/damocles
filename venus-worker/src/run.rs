@@ -353,8 +353,8 @@ mod tests {
                 Some(vec![("pc2", 20)]),
                 Some(vec![("pc1", "1s"), ("pc2", "2s")]),
                 vec![
-                    ("pc1", Some(10), Some(parse_duration("1s").unwrap())),
-                    ("pc2", None, Some(parse_duration("2s").unwrap())),
+                    ("pc1", None, Some(parse_duration("1s").unwrap())),
+                    ("pc2", Some(20), Some(parse_duration("2s").unwrap())),
                 ],
             ),
             (
@@ -378,29 +378,35 @@ mod tests {
             (None, None, vec![]),
         ];
 
-        for testcase in cases {
-            let concurrent_limit_map_opt = testcase.0.map(|x| x.into_iter().map(|(name, x)| (name.to_string(), x)).collect());
-            let staggered_limit_map_opt = testcase.1.map(|x| {
+        for (concurrent_limit, staggered_limit, result) in cases {
+            let concurrent_limit_map_opt = concurrent_limit.map(|x| x.into_iter().map(|(name, x)| (name.to_string(), x)).collect());
+            let staggered_limit_map_opt = staggered_limit.map(|x| {
                 x.into_iter()
                     .map(|(name, dur)| (name.to_string(), SerdeDuration(parse_duration(dur).unwrap())))
                     .collect()
             });
             let merged = merge_limit_config(&concurrent_limit_map_opt, &staggered_limit_map_opt);
 
-            let expect = testcase
-                .2
+            let mut expect = result
                 .iter()
                 .map(|x| LimitItem {
                     name: x.0,
                     concurrent: x.1.as_ref(),
                     staggered_interval: x.2.as_ref(),
                 })
-                .collect::<Vec<_>>()
-                .sort_by(|x, y| x.name.cmp(y.name));
+                .collect::<Vec<_>>();
+            let mut actual = merged.collect::<Vec<_>>();
 
-            let actual = merged.collect::<Vec<_>>().sort_by(|x, y| x.name.cmp(y.name));
+            expect.sort_by(|x, y| x.name.cmp(y.name));
+            actual.sort_by(|x, y| x.name.cmp(y.name));
 
-            assert_eq!(format!("{:?}", actual), format!("{:?}", expect));
+            assert_eq!(
+                format!("{:?}", actual),
+                format!("{:?}", expect),
+                "testing concurrent_limit: {:?}, staggered_limit: {:?}",
+                concurrent_limit_map_opt,
+                staggered_limit_map_opt
+            );
         }
     }
 }

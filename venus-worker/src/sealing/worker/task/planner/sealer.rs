@@ -90,7 +90,7 @@ impl Planner for SealerPlanner {
         Ok(next)
     }
 
-    fn exec<'t>(&self, task: &'t mut Task<'_>) -> Result<Option<Event>, Failure> {
+    fn exec(&self, task: &mut Task<'_>) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
         let inner = Sealer { task };
         match state {

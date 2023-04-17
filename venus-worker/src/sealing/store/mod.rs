@@ -89,12 +89,12 @@ impl Store {
         create_dir_all(&location)?;
 
         let data_path = location.data_path();
-        create_dir_all(&data_path)?;
+        create_dir_all(data_path)?;
 
         let _holder = PlaceHolder::init(loc)?;
 
         let meta_path = location.meta_path();
-        let _ = RocksMeta::open(&meta_path)?;
+        let _ = RocksMeta::open(meta_path)?;
 
         Ok(location)
     }
