@@ -20,10 +20,11 @@ import (
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 	miner8 "github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	"github.com/hako/durafmt"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/urfave/cli/v2"
 
-	"github.com/filecoin-project/venus/pkg/chain"
 	"github.com/filecoin-project/venus/venus-shared/actors"
+	"github.com/filecoin-project/venus/venus-shared/actors/adt"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -32,7 +33,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/impl/prover"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
-	chain2 "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
+	chainAPI "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 )
 
@@ -103,7 +104,7 @@ var utilSealerProvingInfoCmd = &cli.Command{
 			return err
 		}
 
-		stor := chain.ActorStore(actx, chain2.NewAPIBlockstore(api.Chain))
+		stor := adt.WrapStore(actx, cbor.NewCborStore(chainAPI.NewAPIBlockstore(api.Chain)))
 
 		mas, err := miner.Load(stor, mact)
 		if err != nil {
@@ -197,7 +198,7 @@ var utilSealerProvingFaultsCmd = &cli.Command{
 		}
 		defer stop()
 
-		stor := chain.ActorStore(ctx, chain2.NewAPIBlockstore(api.Chain))
+		stor := adt.WrapStore(ctx, cbor.NewCborStore(chainAPI.NewAPIBlockstore(api.Chain)))
 
 		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {
