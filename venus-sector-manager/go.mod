@@ -56,8 +56,6 @@ require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/acobaugh/osrelease v0.0.0-20181218015638-a93a0a55a249 // indirect
 	github.com/akavel/rsrc v0.8.0 // indirect
-	github.com/awnumar/memcall v0.0.0-20191004114545-73db50fd9f80 // indirect
-	github.com/awnumar/memguard v0.22.2 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833 // indirect
@@ -74,9 +72,6 @@ require (
 	github.com/detailyang/go-fallocate v0.0.0-20180908115635-432fa640bd2e // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 // indirect
-	github.com/drand/drand v1.3.0 // indirect
-	github.com/drand/kyber v1.1.7 // indirect
-	github.com/drand/kyber-bls12381 v0.2.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/elastic/go-sysinfo v1.7.0 // indirect
 	github.com/elastic/go-windows v1.0.0 // indirect
@@ -85,7 +80,6 @@ require (
 	github.com/filecoin-project/go-amt-ipld/v3 v3.1.0 // indirect
 	github.com/filecoin-project/go-amt-ipld/v4 v4.0.0 // indirect
 	github.com/filecoin-project/go-cbor-util v0.0.1 // indirect
-	github.com/filecoin-project/go-commp-utils/nonffi v0.0.0-20220905160352-62059082a837 // indirect
 	github.com/filecoin-project/go-crypto v0.0.1 // indirect
 	github.com/filecoin-project/go-data-transfer v1.15.2 // indirect
 	github.com/filecoin-project/go-hamt-ipld v0.1.5 // indirect
@@ -104,7 +98,6 @@ require (
 	github.com/filecoin-project/specs-actors/v7 v7.0.1 // indirect
 	github.com/filecoin-project/specs-actors/v8 v8.0.1 // indirect
 	github.com/gbrlsnchs/jwt/v3 v3.0.1 // indirect
-	github.com/go-kit/kit v0.12.0 // indirect
 	github.com/go-kit/log v0.2.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
@@ -116,7 +109,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
@@ -124,13 +116,11 @@ require (
 	github.com/hannahhoward/go-pubsub v0.0.0-20200423002714-8d62886cc36e // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.2 // indirect
 	github.com/icza/backscanner v0.0.0-20210726202459-ac2ffc679f94 // indirect
 	github.com/ipfs/bbloom v0.0.4 // indirect
 	github.com/ipfs/go-block-format v0.1.1 // indirect
 	github.com/ipfs/go-blockservice v0.4.0 // indirect
 	github.com/ipfs/go-datastore v0.6.0 // indirect
-	github.com/ipfs/go-ds-badger2 v0.1.2 // indirect
 	github.com/ipfs/go-fs-lock v0.0.7 // indirect
 	github.com/ipfs/go-graphsync v0.13.2 // indirect
 	github.com/ipfs/go-ipfs-cmds v0.8.1 // indirect
@@ -141,7 +131,6 @@ require (
 	github.com/ipfs/go-ipfs-util v0.0.2 // indirect
 	github.com/ipfs/go-ipld-format v0.4.0 // indirect
 	github.com/ipfs/go-ipld-legacy v0.1.1 // indirect
-	github.com/ipfs/go-ipns v0.3.0 // indirect
 	github.com/ipfs/go-log v1.0.5 // indirect
 	github.com/ipfs/go-merkledag v0.8.1 // indirect
 	github.com/ipfs/go-metrics-interface v0.0.1 // indirect
@@ -159,20 +148,13 @@ require (
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
-	github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
-	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
-	github.com/libp2p/go-libp2p-asn-util v0.2.0 // indirect
 	github.com/libp2p/go-libp2p-core v0.20.1 // indirect
-	github.com/libp2p/go-libp2p-kad-dht v0.18.0 // indirect
-	github.com/libp2p/go-libp2p-kbucket v0.5.0 // indirect
 	github.com/libp2p/go-libp2p-pubsub v0.8.2 // indirect
-	github.com/libp2p/go-libp2p-record v0.2.0 // indirect
 	github.com/libp2p/go-msgio v0.2.0 // indirect
-	github.com/libp2p/go-netroute v0.2.0 // indirect
 	github.com/libp2p/go-openssl v0.1.0 // indirect
 	github.com/magefile/mage v1.11.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -191,12 +173,10 @@ require (
 	github.com/multiformats/go-multibase v0.1.1 // indirect
 	github.com/multiformats/go-multicodec v0.8.0 // indirect
 	github.com/multiformats/go-varint v0.0.6 // indirect
-	github.com/nikkolasg/hexjson v0.0.0-20181101101858-78e39397e00c // indirect
 	github.com/nkovacs/streamquote v1.0.0 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
-	github.com/pborman/uuid v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/polydawn/refmt v0.0.0-20201211092308-30ac6d18308e // indirect
@@ -218,7 +198,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.1.0 // indirect
 	github.com/whyrusleeping/bencher v0.0.0-20190829221104-bb6607aa8bba // indirect
-	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/whyrusleeping/timecache v0.0.0-20160911033111-cfcb2f1abfee // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.1 // indirect
@@ -242,8 +221,6 @@ require (
 	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/tools v0.6.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
-	google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd // indirect
-	google.golang.org/grpc v1.46.2 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
