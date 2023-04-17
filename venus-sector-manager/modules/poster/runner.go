@@ -311,7 +311,17 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 
 		tsStart := pr.deps.clock.Now()
 
-		privSectors, err := pr.deps.sectorTracker.PubToPrivate(pr.ctx, pr.mid, xsinfos, core.SectorWindowPoSt)
+		// TODO: Drop after nv19 comes and goes
+		nv, err := pr.deps.chain.StateNetworkVersion(pr.ctx, types.EmptyTSK)
+		if err != nil {
+			return true, fmt.Errorf("get network version: %w", err)
+		}
+
+		pp, err := xsinfos[0].SealProof.RegisteredWindowPoStProofByNetworkVersion(nv)
+		if err != nil {
+			return false, fmt.Errorf("convert to v1_1 post proof: %w", err)
+		}
+		privSectors, err := pr.deps.sectorTracker.PubToPrivate(pr.ctx, pr.mid, pp, xsinfos)
 		if err != nil {
 			return true, fmt.Errorf("turn public sector infos into private: %w", err)
 		}
@@ -753,7 +763,21 @@ func (pr *postRunner) checkSectors(clog *logging.ZapLogger, check bitfield.BitFi
 		tocheck = append(tocheck, util.SectorOnChainInfoToExtended(info))
 	}
 
-	bad, err := pr.deps.sectorTracker.Provable(pr.ctx, pr.mid, tocheck, pr.startCtx.pcfg.StrictCheck, false)
+	// TODO: Drop after nv19 comes and goes
+	nv, err := pr.deps.chain.StateNetworkVersion(pr.ctx, types.EmptyTSK)
+	if err != nil {
+		return bitfield.BitField{}, fmt.Errorf("failed to get network version: %w", err)
+	}
+
+	pp := pr.proofType
+	if nv >= network.Version19 {
+		pp, err = pp.ToV1_1PostProof()
+		if err != nil {
+			return bitfield.BitField{}, fmt.Errorf("failed to convert to v1_1 post proof: %w", err)
+		}
+	}
+
+	bad, err := pr.deps.sectorTracker.Provable(pr.ctx, pr.mid, pp, tocheck, pr.startCtx.pcfg.StrictCheck, false)
 	if err != nil {
 		return bitfield.BitField{}, fmt.Errorf("checking provable sectors: %w", err)
 	}
