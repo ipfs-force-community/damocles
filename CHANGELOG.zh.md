@@ -7,6 +7,7 @@
 - venus-worker：
   - 升级 rust-fil-proofs 到 v14.0.0 [#687](https://github.com/ipfs-force-community/venus-cluster/pull/687)
   - 升级 rust-toolchain 到 1.67.1
+  - 修复 rpc 地址配置域名时的 bug。 [#691](https://github.com/ipfs-force-community/venus-cluster/pull/691)
 
   venus-worker 升级说明: 在 venus-sector-manager 中使用了 [ext-prover 执行器](https://github.com/ipfs-force-community/venus-cluster/blob/release/v0.6/docs/zh/09.%E7%8B%AC%E7%AB%8B%E8%BF%90%E8%A1%8C%E7%9A%84poster%E8%8A%82%E7%82%B9.md#ext-prover-%E6%89%A7%E8%A1%8C%E5%99%A8) 做 WindowPoSt 的用户需要升级 venus-worker 到此版本。否则可以选择不升级 venus-worker
 
