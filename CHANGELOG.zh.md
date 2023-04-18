@@ -2,7 +2,7 @@
 
 ## v0.5.3-rc1
 - venus-sector-manager
-  - 增加 WindowPoSt 证明类型 [#685](https://github.com/ipfs-force-community/venus-cluster/pull/685); [FIP 0061](https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0061.md)
+  - 适配支持 nv19 (增加 WindowPoSt 证明类型 [#685](https://github.com/ipfs-force-community/venus-cluster/pull/685); [FIP 0061](https://github.com/filecoin-project/FIPs/blob/master/FIPS/fip-0061.md))
 
 - venus-worker：
   - 升级 rust-fil-proofs 到 v14.0.0 [#687](https://github.com/ipfs-force-community/venus-cluster/pull/687)
