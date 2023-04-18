@@ -10,7 +10,6 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
@@ -209,7 +208,7 @@ func defaultMinerSectorConfig(example bool) MinerSectorConfig {
 	cfg := MinerSectorConfig{
 		InitNumber:   0,
 		Enabled:      true,
-		LifetimeDays: uint64(policy.GetDefaultSectorExpirationExtension()) / policy.EpochsInDay,
+		LifetimeDays: 540,
 		Verbose:      false,
 	}
 

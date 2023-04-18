@@ -12,7 +12,6 @@ const MinSectorExpiration = miner.MinSectorExpiration
 
 var GetMinSectorExpiration = policy.GetMinSectorExpiration
 var GetMaxSectorExpirationExtension = policy.GetMaxSectorExpirationExtension
-var GetDefaultSectorExpirationExtension = policy.GetDefaultSectorExpirationExtension
 var GetMaxProveCommitDuration = policy.GetMaxProveCommitDuration
 
 func GetPreCommitChallengeDelay() abi.ChainEpoch {

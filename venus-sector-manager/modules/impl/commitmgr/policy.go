@@ -106,7 +106,7 @@ func (pp PreCommitProcessor) sectorEnd(ctx context.Context, tok core.TipSetToken
 
 func (pp PreCommitProcessor) ccSectorLifetime(ccLifetimeEpochs abi.ChainEpoch, provingPeriod abi.ChainEpoch) abi.ChainEpoch {
 	if ccLifetimeEpochs == 0 {
-		ccLifetimeEpochs = policy.GetDefaultSectorExpirationExtension()
+		ccLifetimeEpochs = policy.GetMaxSectorExpirationExtension()
 	}
 
 	if minExpiration := abi.ChainEpoch(policy.MinSectorExpiration); ccLifetimeEpochs < minExpiration {
