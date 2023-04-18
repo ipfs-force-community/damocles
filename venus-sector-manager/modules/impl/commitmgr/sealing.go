@@ -11,12 +11,13 @@ import (
 	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/network"
+	"github.com/filecoin-project/venus/venus-shared/actors/adt"
 	"github.com/ipfs/go-cid"
+	cbor "github.com/ipfs/go-ipld-cbor"
 	cbg "github.com/whyrusleeping/cbor-gen"
 
 	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
 
-	"github.com/filecoin-project/venus/pkg/chain"
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/market"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
@@ -116,7 +117,7 @@ func (s SealingAPIImpl) StateSectorPreCommitInfo(ctx context.Context, maddr addr
 	if err != nil {
 		return nil, fmt.Errorf("handleSealFailed(%d): temp error: %w", sectorNumber, err)
 	}
-	stor := chain.ActorStore(ctx, chainAPI.NewAPIBlockstore(s.api))
+	stor := adt.WrapStore(ctx, cbor.NewCborStore(chainAPI.NewAPIBlockstore(s.api)))
 
 	state, err := miner.Load(stor, act)
 	if err != nil {

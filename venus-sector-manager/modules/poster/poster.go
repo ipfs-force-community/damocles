@@ -365,7 +365,7 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 
 		minfo, err := p.deps.minfo.Get(ctx, mid)
 		if err != nil {
-			mdLog.Warnf("get miner info: %v", err)
+			mdLog.Errorf("get miner info: %w", err)
 			continue
 		}
 

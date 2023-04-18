@@ -31,23 +31,23 @@ lazy_static = "1.4"
 reqwest = { version = "0.11", features = ["blocking"], optional = true}
 
 [dependencies.filecoin-proofs]
-version = "11.1"
+version = "14.0"
 default-features = false
 features = ["opencl", "multicore-sdr"]
 optional = true
 
 [dependencies.filecoin-proofs-api]
-version = "11.1"
+version = "14.0"
 default-features = false
 features = ["opencl", "multicore-sdr"]
 optional = true
 
 [dependencies.storage-proofs-core]
-version = "11.1"
+version = "14.0"
 optional = true
 
 [dependencies.storage-proofs-porep]
-version = "11.1"
+version = "14.0"
 optional = true
 
 

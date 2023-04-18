@@ -14,6 +14,7 @@ import (
 	"github.com/filecoin-project/go-state-types/builtin"
 	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	"github.com/filecoin-project/go-state-types/exitcode"
+	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -420,7 +421,13 @@ func (h *snapupCommitHandler) calcCollateral(tsk types.TipSetKey, proofType abi.
 	if err != nil {
 		return big.Int{}, fmt.Errorf("StateNetworkVersion: %w", err)
 	}
-
+	// TODO: Drop after nv19 comes and goes
+	if nv >= network.Version19 {
+		proofType, err = proofType.ToV1_1PostProof()
+		if err != nil {
+			return big.Int{}, fmt.Errorf("convert to v1_1 post proof: %w", err)
+		}
+	}
 	sealType, err := miner.PreferredSealProofTypeFromWindowPoStType(nv, proofType)
 	if err != nil {
 		return big.Int{}, fmt.Errorf("get seal proof type: %w", err)

@@ -13,7 +13,7 @@ pub fn display(
     sealing_threads: usize,
 ) -> Result<()> {
     let mut writer = csv::Writer::from_writer(io::stdout());
-    writer.write_record(&[
+    writer.write_record([
         "time (mins)",
         "sealing threads (running/total)",
         "tree_d (running/total)",
