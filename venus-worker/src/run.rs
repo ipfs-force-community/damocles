@@ -29,7 +29,7 @@ use crate::{
     },
     signal::Signal,
     types::SealProof,
-    util::net::{local_interface_ip, rpc_addr, socket_addr_from_url},
+    util::net::{local_interface_ip, rpc_addr},
     watchdog::{GlobalModules, GlobalProcessors, WatchDog},
 };
 
@@ -120,10 +120,11 @@ pub fn start_daemon(cfg_path: String) -> Result<()> {
 
     let store_mgr = StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
 
-    let local_ip = socket_addr_from_url(&dial_addr)
-        .with_context(|| format!("attempt to connect to sealer rpc service {}", &dial_addr))
-        .and_then(local_interface_ip)
-        .context("get local ip")?;
+    let socket_addrs = Url::parse(&dial_addr)
+        .with_context(|| format!("invalid url: {}", dial_addr))?
+        .socket_addrs(|| None)
+        .with_context(|| format!("attempt to resolve a url's host and port: {}", dial_addr))?;
+    let local_ip = local_interface_ip(socket_addrs.as_slice()).context("get local ip")?;
 
     let instance = if let Some(name) = cfg.worker.as_ref().and_then(|s| s.name.as_ref()).cloned() {
         name
