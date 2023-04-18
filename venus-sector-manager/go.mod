@@ -21,7 +21,7 @@ require (
 	github.com/filecoin-project/lotus v1.20.0
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.10.2-0.20230418041432-6aff3103b503
+	github.com/filecoin-project/venus v1.11.0-rc1
 	github.com/golang/mock v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
