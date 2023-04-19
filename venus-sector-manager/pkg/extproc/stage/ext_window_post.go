@@ -31,16 +31,21 @@ func ProofType2String(proofType abi.RegisteredPoStProof) string {
 		return "StackedDrgWindow32GiBV1"
 	case abi.RegisteredPoStProof_StackedDrgWindow64GiBV1:
 		return "StackedDrgWindow64GiBV1"
+
+	// rust-filecoin-proofs-api WindowPoSt uses api_version
+	// V1_2 to fix the grindability issue, which we map here
+	// as V1_1 for Venus/Lotus/actors compat reasons.
+	// See: https://github.com/filecoin-project/filecoin-ffi/blob/cec06a79dc858f221f6542cff264b92b4f99c25d/rust/src/proofs/types.rs#L164-L173
 	case abi.RegisteredPoStProof_StackedDrgWindow2KiBV1_1:
-		return "StackedDrgWindow2KiBV1_1"
+		return "StackedDrgWindow2KiBV1_2"
 	case abi.RegisteredPoStProof_StackedDrgWindow8MiBV1_1:
-		return "StackedDrgWindow8MiBV1_1"
+		return "StackedDrgWindow8MiBV1_2"
 	case abi.RegisteredPoStProof_StackedDrgWindow512MiBV1_1:
-		return "StackedDrgWindow512MiBV1_1"
+		return "StackedDrgWindow512MiBV1_2"
 	case abi.RegisteredPoStProof_StackedDrgWindow32GiBV1_1:
-		return "StackedDrgWindow32GiBV1_1"
+		return "StackedDrgWindow32GiBV1_2"
 	case abi.RegisteredPoStProof_StackedDrgWindow64GiBV1_1:
-		return "StackedDrgWindow64GiBV1_1"
+		return "StackedDrgWindow64GiBV1_2"
 
 	default:
 		return fmt.Sprintf("Unknown RegisteredPoStProof %d", proofType)
