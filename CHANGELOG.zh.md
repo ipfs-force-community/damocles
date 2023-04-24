@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3
+- venus-sector-manager
+  - 升级依赖 [#710](https://github.com/ipfs-force-community/venus-cluster/pull/710)
+
 ## 0.5.3-rc2
 - venus-sector-manager
   - ext-prover 模式的 wdpost 兼容 rust-filecoin-proofs-api 版本类型 [#702](https://github.com/ipfs-force-community/venus-cluster/pull/702)
