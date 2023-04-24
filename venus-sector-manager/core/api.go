@@ -9,6 +9,7 @@ import (
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/types"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 )
 
 const (
@@ -119,6 +120,7 @@ type RandomnessAPI interface {
 	GetWindowPoStCommitRand(context.Context, types.TipSetKey, abi.ChainEpoch) (WindowPoStRandomness, error)
 }
 
-type MinerInfoAPI interface {
-	Get(context.Context, abi.ActorID) (*MinerInfo, error)
+type MinerAPI interface {
+	GetInfo(context.Context, abi.ActorID) (*MinerInfo, error)
+	GetMinerConfig(context.Context, abi.ActorID) (*modules.MinerConfig, error)
 }

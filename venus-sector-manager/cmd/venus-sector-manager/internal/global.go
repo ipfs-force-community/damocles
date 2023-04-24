@@ -96,6 +96,7 @@ type API struct {
 	Messager messager.API
 	Market   market.API
 	Sealer   core.SealerCliClient
+	Miner    core.MinerAPI
 }
 
 func extractAPI(cctx *cli.Context, target ...interface{}) (*API, context.Context, stopper, error) {

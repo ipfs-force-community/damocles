@@ -211,7 +211,7 @@ func TestHandleHeadChange(t *testing.T) {
 			return dl, nil
 		}
 
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerInfoAPI(&mockChain), nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain), nil, nil, nil, mockRunnerConstructor(runner))
 		require.NoError(t, err, "new poster")
 
 		cases := []struct {
@@ -314,7 +314,7 @@ func TestHandleHeadChange(t *testing.T) {
 		}
 
 		runner := &mockRunner{}
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerInfoAPI(&mockChain), nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain), nil, nil, nil, mockRunnerConstructor(runner))
 		require.NoError(t, err, "new poster")
 
 		for di := range dls {
@@ -344,7 +344,7 @@ func TestHandleHeadChange(t *testing.T) {
 			return dl, nil
 		}
 
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerInfoAPI(&mockChain), nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain), nil, nil, nil, mockRunnerConstructor(runner))
 		require.NoError(t, err, "new poster")
 
 		ts := mockTipSet(t, dl.Open)

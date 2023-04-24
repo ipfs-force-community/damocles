@@ -12,24 +12,26 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 )
 
-var _ core.MinerInfoAPI = (*MinerInfoAPI)(nil)
+var _ core.MinerAPI = (*MinerAPI)(nil)
 
-func NewMinerInfoAPI(capi API) *MinerInfoAPI {
-	return &MinerInfoAPI{
+func NewMinerAPI(capi API) *MinerAPI {
+	return &MinerAPI{
 		chain: capi,
 		cache: map[abi.ActorID]*core.MinerInfo{},
 	}
 }
 
-type MinerInfoAPI struct {
-	chain   API
-	cacheMu sync.RWMutex
-	cache   map[abi.ActorID]*core.MinerInfo
+type MinerAPI struct {
+	chain      API
+	cacheMu    sync.RWMutex
+	cache      map[abi.ActorID]*core.MinerInfo
+	safeConfig modules.SafeConfig
 }
 
-func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
+func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
 	m.cacheMu.RLock()
 	mi, ok := m.cache[mid]
 	m.cacheMu.RUnlock()
@@ -65,4 +67,12 @@ func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*core.MinerInf
 	m.cacheMu.Unlock()
 
 	return mi, nil
+}
+
+func (m *MinerAPI) GetMinerConfig(ctx context.Context, mid abi.ActorID) (*modules.MinerConfig, error) {
+	config, err := m.safeConfig.MinerConfig(mid)
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
 }

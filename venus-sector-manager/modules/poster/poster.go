@@ -31,7 +31,7 @@ func newPostDeps(
 	chain chain.API,
 	msg messager.API,
 	rand core.RandomnessAPI,
-	minfo core.MinerInfoAPI,
+	minerAPI core.MinerAPI,
 	prover core.Prover,
 	verifier core.Verifier,
 	sectorTracker core.SectorTracker,
@@ -40,7 +40,7 @@ func newPostDeps(
 		chain:         chain,
 		msg:           msg,
 		rand:          rand,
-		minfo:         minfo,
+		minerAPI:      minerAPI,
 		clock:         clock.NewSystemClock(),
 		prover:        prover,
 		verifier:      verifier,
@@ -52,7 +52,7 @@ type postDeps struct {
 	chain         chain.API
 	msg           messager.API
 	rand          core.RandomnessAPI
-	minfo         core.MinerInfoAPI
+	minerAPI      core.MinerAPI
 	clock         clock.Clock
 	prover        core.Prover
 	verifier      core.Verifier
@@ -64,7 +64,7 @@ func NewPoSter(
 	chain chain.API,
 	msg messager.API,
 	rand core.RandomnessAPI,
-	minfo core.MinerInfoAPI,
+	minerAPI core.MinerAPI,
 	prover core.Prover,
 	verifier core.Verifier,
 	sectorTracker core.SectorTracker,
@@ -74,7 +74,7 @@ func NewPoSter(
 		chain,
 		msg,
 		rand,
-		minfo,
+		minerAPI,
 		prover,
 		verifier,
 		sectorTracker,
@@ -87,7 +87,7 @@ func newPoSterWithRunnerConstructor(
 	chain chain.API,
 	msg messager.API,
 	rand core.RandomnessAPI,
-	minfo core.MinerInfoAPI,
+	minerAPI core.MinerAPI,
 	prover core.Prover,
 	verifier core.Verifier,
 	sectorTracker core.SectorTracker,
@@ -95,7 +95,7 @@ func newPoSterWithRunnerConstructor(
 ) (*PoSter, error) {
 	return &PoSter{
 		cfg:               scfg,
-		deps:              newPostDeps(chain, msg, rand, minfo, prover, verifier, sectorTracker),
+		deps:              newPostDeps(chain, msg, rand, minerAPI, prover, verifier, sectorTracker),
 		schedulers:        make(map[abi.ActorID]map[abi.ChainEpoch]*scheduler),
 		runnerConstructor: runnerCtor,
 	}, nil
@@ -365,7 +365,7 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 			pcfg = &mcfg.PoSt
 		}
 
-		minfo, err := p.deps.minfo.Get(ctx, mid)
+		minfo, err := p.deps.minerAPI.GetInfo(ctx, mid)
 		if err != nil {
 			mdLog.Errorf("get miner info: %w", err)
 			continue

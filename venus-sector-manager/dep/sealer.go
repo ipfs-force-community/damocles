@@ -56,7 +56,7 @@ func Product() dix.Option {
 		dix.Override(new(core.SectorTracker), BuildSectorTracker),
 		dix.Override(new(core.Prover), prover.Prover),
 		dix.Override(new(core.Verifier), prover.Verifier),
-		dix.Override(new(core.MinerInfoAPI), BuildMinerInfoAPI),
+		dix.Override(new(core.MinerAPI), BuildMinerAPI),
 
 		dix.Override(new(core.CommitmentManager), BuildCommitmentManager),
 		dix.Override(new(messager.API), BuildMessagerClient),
@@ -112,7 +112,7 @@ func API(target ...interface{}) dix.Option {
 		dix.Override(new(*modules.Config), ProvideConfig),
 		dix.Override(new(*modules.SafeConfig), ProvideSafeConfig),
 		dix.Override(new(chain.API), BuildChainClient),
-		dix.Override(new(core.MinerInfoAPI), BuildMinerInfoAPI),
+		dix.Override(new(core.MinerAPI), BuildMinerAPI),
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.Override(new(market.API), BuildMarketAPI),
 		dix.Override(new(core.SealerCliClient), MaybeSealerCliClient),

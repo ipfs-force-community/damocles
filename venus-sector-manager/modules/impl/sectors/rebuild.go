@@ -26,9 +26,9 @@ type RebuildInfosForActor struct {
 	Infos map[abi.SectorNumber]core.SectorRebuildInfo
 }
 
-func NewRebuildManager(scfg *modules.SafeConfig, minfoAPI core.MinerInfoAPI, infoKVStore kvstore.KVStore) (*RebuildManager, error) {
+func NewRebuildManager(scfg *modules.SafeConfig, minerAPI core.MinerAPI, infoKVStore kvstore.KVStore) (*RebuildManager, error) {
 	return &RebuildManager{
-		msel: newMinerSelector(scfg, minfoAPI),
+		msel: newMinerSelector(scfg, minerAPI),
 		kv:   infoKVStore,
 	}, nil
 }

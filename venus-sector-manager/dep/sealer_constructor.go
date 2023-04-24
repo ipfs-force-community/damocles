@@ -49,7 +49,7 @@ type (
 	CommonMetaStore             kvstore.KVStore
 )
 
-func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerInfoAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
+func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
 	return sectors.NewManager(scfg, mapi, numAlloc)
 }
 
@@ -373,8 +373,8 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config,
 	return ccli, nil
 }
 
-func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.Config, locker confmgr.RLocker) (core.MinerInfoAPI, error) {
-	mapi := chain.NewMinerInfoAPI(capi)
+func BuildMinerAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.Config, locker confmgr.RLocker) (core.MinerAPI, error) {
+	mapi := chain.NewMinerAPI(capi)
 
 	locker.Lock()
 	miners := scfg.Miners
@@ -392,7 +392,7 @@ func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg
 						mid := miners[mi].Actor
 
 						mlog := log.With("miner", mid)
-						info, err := mapi.Get(gctx, mid)
+						info, err := mapi.GetInfo(gctx, mid)
 						if err == nil {
 							mlog.Infof("miner info pre-fetched: %#v", info)
 						} else {
@@ -418,7 +418,7 @@ func BuildCommitmentManager(
 	mapi messager.API,
 	rapi core.RandomnessAPI,
 	stmgr core.SectorStateManager,
-	minfoAPI core.MinerInfoAPI,
+	minerAPI core.MinerAPI,
 	scfg *modules.SafeConfig,
 	verif core.Verifier,
 	prover core.Prover,
@@ -427,7 +427,7 @@ func BuildCommitmentManager(
 		gctx,
 		mapi,
 		commitmgr.NewSealingAPIImpl(capi, rapi),
-		minfoAPI,
+		minerAPI,
 		stmgr,
 		scfg,
 		verif,
@@ -529,7 +529,7 @@ type MarketAPIRelatedComponents struct {
 	MarketAPI   market.API
 }
 
-func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI) (market.API, error) {
+func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, minerAPI core.MinerAPI) (market.API, error) {
 	scfg.Lock()
 	api, token := extractAPIInfo(scfg.Common.API.Market, scfg.Common.API.Token)
 	defer scfg.Unlock()
@@ -553,8 +553,8 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 	return mapi, nil
 }
 
-func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI, loadedPlugins *vsmplugin.LoadedPlugins) (MarketAPIRelatedComponents, error) {
-	mapi, err := BuildMarketAPI(gctx, lc, scfg, infoAPI)
+func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, minerAPI core.MinerAPI, loadedPlugins *vsmplugin.LoadedPlugins) (MarketAPIRelatedComponents, error) {
+	mapi, err := BuildMarketAPI(gctx, lc, scfg, minerAPI)
 	if err != nil {
 		return MarketAPIRelatedComponents{}, fmt.Errorf("build market api: %w", err)
 	}
@@ -597,7 +597,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	log.Info("piecestore proxy has been registered into default mux")
 
 	return MarketAPIRelatedComponents{
-		DealManager: dealmgr.New(mapi, infoAPI, scfg),
+		DealManager: dealmgr.New(mapi, minerAPI, scfg),
 		MarketAPI:   mapi,
 	}, nil
 }
@@ -641,11 +641,11 @@ func BuildSnapUpManager(
 	chainAPI chain.API,
 	eventbus *chain.EventBus,
 	messagerAPI messager.API,
-	minerInfoAPI core.MinerInfoAPI,
+	minerAPI core.MinerAPI,
 	stateMgr core.SectorStateManager,
 	store SnapUpMetaStore,
 ) (core.SnapUpSectorManager, error) {
-	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerInfoAPI, stateMgr, scfg, store)
+	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerAPI, stateMgr, scfg, store)
 	if err != nil {
 		return nil, fmt.Errorf("construct snapup manager: %w", err)
 	}
@@ -668,14 +668,14 @@ func BuildRebuildManager(
 	gctx GlobalContext,
 	db UnderlyingDB,
 	scfg *modules.SafeConfig,
-	minerInfoAPI core.MinerInfoAPI,
+	minerAPI core.MinerAPI,
 ) (core.RebuildSectorManager, error) {
 	store, err := db.OpenCollection(gctx, "rebuild")
 	if err != nil {
 		return nil, err
 	}
 
-	mgr, err := sectors.NewRebuildManager(scfg, minerInfoAPI, store)
+	mgr, err := sectors.NewRebuildManager(scfg, minerAPI, store)
 	if err != nil {
 		return nil, fmt.Errorf("construct rebuild manager: %w", err)
 	}

@@ -30,7 +30,7 @@ func kvKeyForMinerActorID(mid abi.ActorID) kvstore.Key {
 	return kvstore.Key(strconv.FormatUint(uint64(mid), 10))
 }
 
-func NewSnapUpAllocator(chainAPI chain.API, minerAPI core.MinerInfoAPI, allocStore kvstore.KVStore, indexer core.SectorIndexer, scfg *modules.SafeConfig) (*SnapUpAllocator, error) {
+func NewSnapUpAllocator(chainAPI chain.API, minerAPI core.MinerAPI, allocStore kvstore.KVStore, indexer core.SectorIndexer, scfg *modules.SafeConfig) (*SnapUpAllocator, error) {
 	allocator := &SnapUpAllocator{
 		chain: chainAPI,
 

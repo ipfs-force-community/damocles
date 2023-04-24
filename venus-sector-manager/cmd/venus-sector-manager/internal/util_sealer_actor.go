@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
+	"text/tabwriter"
+
+	"github.com/fatih/color"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	rlepluslazy "github.com/filecoin-project/go-bitfield/rle"
@@ -15,6 +19,7 @@ import (
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/adt"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	cbor "github.com/ipfs/go-ipld-cbor"
@@ -379,20 +384,85 @@ var utilSealerActorControlList = &cli.Command{
 			return err
 		}
 
-		mi, err := api.Chain.StateMinerInfo(ctx, maddr, types.EmptyTSK)
+		minerInfo, err := api.Chain.StateMinerInfo(ctx, maddr, types.EmptyTSK)
 		if err != nil {
 			return err
 		}
 
-		fmt.Fprintln(os.Stdout, "Owner:")
-		fmt.Fprintf(os.Stdout, "\t%s\n", mi.Owner.String())
+		mid, err := address.IDFromAddress(maddr)
+		if err != nil {
+			return fmt.Errorf("invalid miner addr '%s': %w", maddr, err)
+		}
+		minerConfig, err := api.Miner.GetMinerConfig(ctx, abi.ActorID(mid))
+		if err != nil {
+			return fmt.Errorf("get miner config: %w", err)
+		}
 
-		fmt.Fprintln(os.Stdout, "Worker:")
-		fmt.Fprintf(os.Stdout, "\t%s\n", mi.Worker.String())
+		tw := tabwriter.NewWriter(
+			os.Stdout, 2, 4, 2, ' ', 0,
+		)
+		_, _ = fmt.Fprintln(tw, "name\tID\tkey\tuse\tbalance")
 
-		fmt.Fprintln(os.Stdout, "Control:")
-		for _, ca := range mi.ControlAddresses {
-			fmt.Fprintf(os.Stdout, "\t%s\n", ca.String())
+		printKey := func(name string, addr address.Address) {
+			var actor *types.Actor
+			if actor, err = api.Chain.StateGetActor(ctx, addr, types.EmptyTSK); err != nil {
+				fmt.Printf("%s\t%s: error getting actor: %s\n", name, addr, err)
+				return
+			}
+
+			var k = addr
+			// `a` maybe a `robust`, in that case, `StateAccountKey` returns an error.
+			if builtin.IsAccountActor(actor.Code) {
+				if k, err = api.Chain.StateAccountKey(ctx, addr, types.EmptyTSK); err != nil {
+					fmt.Printf("%s\t%s: error getting account key: %s\n", name, addr, err)
+					return
+				}
+			}
+			kstr := k.String()
+			if !cctx.Bool("verbose") {
+				if len(kstr) > 9 {
+					kstr = kstr[:6] + "..."
+				}
+			}
+
+			balance := types.FIL(actor.Balance).String()
+			switch {
+			case actor.Balance.LessThan(types.FromFil(10)):
+				balance = color.RedString(balance)
+			case actor.Balance.LessThan(types.FromFil(50)):
+				balance = color.YellowString(balance)
+			default:
+				balance = color.GreenString(balance)
+			}
+
+			var uses []string
+			if addr == minerInfo.Worker {
+				uses = append(uses, color.YellowString("other"))
+			}
+			if addr == minerConfig.Commitment.Pre.Sender.Std() {
+				uses = append(uses, color.CyanString("precommit"))
+			}
+			if addr == minerConfig.Commitment.Prove.Sender.Std() {
+				uses = append(uses, color.BlueString("provecommit"))
+			}
+			if addr == minerConfig.Commitment.Terminate.Sender.Std() {
+				uses = append(uses, color.YellowString("terminate"))
+			}
+			if addr == minerConfig.PoSt.Sender.Std() {
+				uses = append(uses, color.GreenString("post"))
+			}
+			if addr == minerConfig.SnapUp.Sender.Std() {
+				uses = append(uses, color.MagentaString("snapup"))
+			}
+
+			_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", name, addr, kstr, strings.Join(uses, " "), balance)
+		}
+
+		printKey("owner", minerInfo.Owner)
+		printKey("worker", minerInfo.Worker)
+		printKey("beneficiary", minerInfo.Beneficiary)
+		for i, ca := range minerInfo.ControlAddresses {
+			printKey(fmt.Sprintf("control-%d", i), ca)
 		}
 
 		return nil

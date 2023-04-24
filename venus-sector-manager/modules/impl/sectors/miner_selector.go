@@ -14,16 +14,16 @@ type minerCandidate struct {
 	cfg  *modules.MinerSectorConfig
 }
 
-func newMinerSelector(scfg *modules.SafeConfig, minfo core.MinerInfoAPI) *minerSelector {
+func newMinerSelector(scfg *modules.SafeConfig, minerAPI core.MinerAPI) *minerSelector {
 	return &minerSelector{
-		scfg:  scfg,
-		minfo: minfo,
+		scfg:     scfg,
+		minerAPI: minerAPI,
 	}
 }
 
 type minerSelector struct {
-	scfg  *modules.SafeConfig
-	minfo core.MinerInfoAPI
+	scfg     *modules.SafeConfig
+	minerAPI core.MinerAPI
 }
 
 func (m *minerSelector) candidates(ctx context.Context, allowedMiners []abi.ActorID, allowedProofs []abi.RegisteredSealProof, check func(mcfg modules.MinerConfig) bool, usage string) []*minerCandidate {
@@ -55,7 +55,7 @@ func (m *minerSelector) candidates(ctx context.Context, allowedMiners []abi.Acto
 
 			mid := miners[mi].Actor
 
-			minfo, err := m.minfo.Get(ctx, mid)
+			minfo, err := m.minerAPI.GetInfo(ctx, mid)
 			if err == nil {
 				infos[mi] = &minerCandidate{
 					info: minfo,

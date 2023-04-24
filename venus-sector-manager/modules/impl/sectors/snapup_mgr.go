@@ -23,12 +23,12 @@ func NewSnapUpMgr(
 	chainAPI chain.API,
 	eventbus *chain.EventBus,
 	messagerAPI messager.API,
-	minerInfoAPI core.MinerInfoAPI,
+	minerAPI core.MinerAPI,
 	stateMgr core.SectorStateManager,
 	scfg *modules.SafeConfig,
 	allocKVStore kvstore.KVStore,
 ) (*SnapUpMgr, error) {
-	allocator, err := NewSnapUpAllocator(chainAPI, minerInfoAPI, allocKVStore, indexer, scfg)
+	allocator, err := NewSnapUpAllocator(chainAPI, minerAPI, allocKVStore, indexer, scfg)
 	if err != nil {
 		return nil, fmt.Errorf("construct snapup allocator: %w", err)
 	}
