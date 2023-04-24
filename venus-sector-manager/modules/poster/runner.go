@@ -562,13 +562,13 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 
 		hlog := cklog.With("partitions", strings.Join(partitionIndexs, ", "))
 
-		mid, resCh, err := pr.publishMessage(stbuiltin.MethodsMiner.DeclareFaultsRecovered, params, true)
+		messageID, resCh, err := pr.publishMessage(stbuiltin.MethodsMiner.DeclareFaultsRecovered, params, true)
 		if err != nil {
 			hlog.Errorf("publish message: %s", err)
 			return
 		}
 
-		hlog = hlog.With("mid", mid)
+		hlog = hlog.With("message-id", messageID)
 
 		hlog.Warn("declare faults recovered message published")
 
@@ -740,7 +740,7 @@ func (pr *postRunner) checkFaults(l *logging.ZapLogger, declIndex uint64, partit
 		return fmt.Errorf("publish message: %w", err)
 	}
 
-	cklog.Warnw("declare faults message published", "mid", uid)
+	cklog.Warnw("declare faults message published", "message-id", uid)
 
 	err = <-waitCh
 	if err != nil {
