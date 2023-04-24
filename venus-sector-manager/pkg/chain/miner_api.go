@@ -17,10 +17,11 @@ import (
 
 var _ core.MinerAPI = (*MinerAPI)(nil)
 
-func NewMinerAPI(capi API) *MinerAPI {
+func NewMinerAPI(capi API, safeConfig *modules.SafeConfig) *MinerAPI {
 	return &MinerAPI{
-		chain: capi,
-		cache: map[abi.ActorID]*core.MinerInfo{},
+		chain:      capi,
+		cache:      map[abi.ActorID]*core.MinerInfo{},
+		safeConfig: safeConfig,
 	}
 }
 
@@ -28,7 +29,7 @@ type MinerAPI struct {
 	chain      API
 	cacheMu    sync.RWMutex
 	cache      map[abi.ActorID]*core.MinerInfo
-	safeConfig modules.SafeConfig
+	safeConfig *modules.SafeConfig
 }
 
 func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
