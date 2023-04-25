@@ -268,7 +268,7 @@ var utilWorkerResumeCmd = &cli.Command{
 	},
 }
 
-func resolveWorkerDest(ctx context.Context, a *API, name string) (string, error) {
+func resolveWorkerDest(ctx context.Context, a *APIClient, name string) (string, error) {
 	var info *core.WorkerPingInfo
 	var err error
 	if a != nil {

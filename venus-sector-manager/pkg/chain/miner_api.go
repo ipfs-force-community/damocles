@@ -13,7 +13,10 @@ import (
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
+
+var minerAPILog = logging.New("miner-api")
 
 var _ core.MinerAPI = (*MinerAPI)(nil)
 
@@ -30,6 +33,36 @@ type MinerAPI struct {
 	cacheMu    sync.RWMutex
 	cache      map[abi.ActorID]*core.MinerInfo
 	safeConfig *modules.SafeConfig
+}
+
+func (m *MinerAPI) PrefetchCache(ctx context.Context) {
+	m.safeConfig.Lock()
+	miners := m.safeConfig.Miners
+	m.safeConfig.Unlock()
+
+	if len(miners) == 0 {
+		return
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(miners))
+
+	for i := range miners {
+		go func(mi int) {
+			defer wg.Done()
+			mid := miners[mi].Actor
+
+			mlog := minerAPILog.With("miner", mid)
+			info, err := m.GetInfo(ctx, mid)
+			if err == nil {
+				mlog.Infof("miner info pre-fetched: %#v", info)
+			} else {
+				mlog.Warnf("miner info pre-fetch failed: %v", err)
+			}
+		}(i)
+	}
+
+	wg.Wait()
 }
 
 func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {

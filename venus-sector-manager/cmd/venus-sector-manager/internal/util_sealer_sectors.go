@@ -2089,7 +2089,7 @@ func openDestDatastore(repoPath string) (datastore.Batching, error) {
 	})
 }
 
-func sectorState2SectorInfo(ctx context.Context, api *API, state *core.SectorState) (*lotusminer.SectorSealingInfo, error) {
+func sectorState2SectorInfo(ctx context.Context, api *APIClient, state *core.SectorState) (*lotusminer.SectorSealingInfo, error) {
 	var toChainCid = func(mid string) *cid.Cid {
 		undefCid := cid.NewCidV0(u.Hash([]byte("undef")))
 		c := &undefCid

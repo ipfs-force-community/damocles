@@ -13,8 +13,11 @@ import (
 )
 
 const (
-	APINamespace = "Venus"
-	MajorVersion = 0
+	// TODO: The sealerAPI namespace is Venus due to historical reasons,
+	// and we should consider changing it to a more appropriate name in future versions
+	SealerAPINamespace = "Venus"
+	MinerAPINamespace  = "Damocles.miner"
+	MajorVersion       = 0
 )
 
 var Empty Meta

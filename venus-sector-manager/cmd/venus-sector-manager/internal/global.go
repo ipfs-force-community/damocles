@@ -90,24 +90,24 @@ func HomeFromCLICtx(cctx *cli.Context) (*homedir.Home, error) {
 	return home, nil
 }
 
-type API struct {
+type APIClient struct {
 	fx.In
 	Chain    chain.API
 	Messager messager.API
 	Market   market.API
 	Sealer   core.SealerCliClient
-	Miner    core.MinerAPI
+	Miner    core.MinerAPIClient
 }
 
-func extractAPI(cctx *cli.Context, target ...interface{}) (*API, context.Context, stopper, error) {
+func extractAPI(cctx *cli.Context, target ...interface{}) (*APIClient, context.Context, stopper, error) {
 	gctx, gcancel := NewSigContext(cctx.Context)
 
-	var a API
+	var a APIClient
 	wants := append([]interface{}{&a}, target...)
 
 	stopper, err := dix.New(
 		gctx,
-		dep.API(wants...),
+		dep.APIClient(wants...),
 		DepsFromCLICtx(cctx),
 		dix.Override(new(dep.GlobalContext), gctx),
 		dix.Override(new(dep.ListenAddress), dep.ListenAddress(cctx.String(SealerListenFlag.Name))),
@@ -115,7 +115,7 @@ func extractAPI(cctx *cli.Context, target ...interface{}) (*API, context.Context
 
 	if err != nil {
 		gcancel()
-		return nil, nil, nil, fmt.Errorf("construct sealer api: %w", err)
+		return nil, nil, nil, fmt.Errorf("construct api: %w", err)
 	}
 
 	return &a, gctx, func() {
@@ -168,7 +168,7 @@ func ShouldSectorNumber(s string) (abi.SectorNumber, error) {
 	return abi.SectorNumber(num), nil
 }
 
-func waitMessage(ctx context.Context, api *API, rawMsg *messager.UnsignedMessage, exid string, mlog *logging.ZapLogger, ret cbor.Unmarshaler) error {
+func waitMessage(ctx context.Context, api *APIClient, rawMsg *messager.UnsignedMessage, exid string, mlog *logging.ZapLogger, ret cbor.Unmarshaler) error {
 	if mlog == nil {
 		mlog = Log.With("action", "wait-message")
 	}

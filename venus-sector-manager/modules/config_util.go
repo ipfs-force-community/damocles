@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"bytes"
 	"encoding"
 	"fmt"
 	"math"
@@ -53,9 +54,9 @@ func (ma *MustAddress) UnmarshalText(text []byte) error {
 		return err
 	}
 
-	if addr == address.Undef {
-		return fmt.Errorf("address.Undef is not allowed")
-	}
+	// if addr == address.Undef {
+	// 	return fmt.Errorf("address.Undef is not allowed")
+	// }
 
 	*ma = MustAddress(addr)
 	return nil
@@ -166,7 +167,7 @@ func ParseFIL(raw string) (FIL, error) {
 
 	r, ok := new(mbig.Rat).SetString(s)
 	if !ok {
-		return FIL{}, fmt.Errorf("failed to parse %q as a decimal number", s)
+		return FIL{}, fmt.Errorf("failed to parse %q as a decimal number", raw)
 	}
 
 	norm := strings.ToLower(strings.TrimSpace(suffix))
@@ -210,4 +211,11 @@ func (f *FIL) UnmarshalText(text []byte) error {
 
 	*f = fil
 	return nil
+}
+
+func (f *FIL) UnmarshalJSON(text []byte) error {
+	if bytes.Equal(text, []byte("null")) {
+		return f.UnmarshalText([]byte{})
+	}
+	return f.UnmarshalText(text)
 }

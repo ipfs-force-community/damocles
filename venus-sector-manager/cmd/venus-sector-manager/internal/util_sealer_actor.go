@@ -398,9 +398,8 @@ var utilSealerActorControlList = &cli.Command{
 			return fmt.Errorf("get miner config: %w", err)
 		}
 
-		tw := tabwriter.NewWriter(
-			os.Stdout, 2, 4, 2, ' ', 0,
-		)
+		tw := tabwriter.NewWriter(os.Stdout, 2, 10, 2, ' ', 0)
+		defer tw.Flush()
 		_, _ = fmt.Fprintln(tw, "name\tID\tkey\tuse\tbalance")
 
 		printKey := func(name string, addr address.Address) {

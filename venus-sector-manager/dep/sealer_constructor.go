@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
 
 	"github.com/BurntSushi/toml"
 	"go.uber.org/fx"
@@ -295,26 +294,38 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Conf
 
 // used for cli commands
 func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) core.SealerCliClient {
-	cli, err := buildSealerCliClient(gctx, lc, string(listen), false)
+	var cli core.SealerCliClient
+	err := buildDamoclesAPIClient(gctx, lc, core.SealerAPINamespace, &cli, string(listen), false)
 	if err != nil {
-		log.Warnf("failed to build sealer cli client. err: %s", err)
+		log.Errorf("failed to build sealer cli client. err: %s", err)
 		cli = core.UnavailableSealerCliClient
 	}
 
 	return cli
 }
 
-// used for proxy
-func BuildSealerProxyClient(gctx GlobalContext, lc fx.Lifecycle, proxy ProxyAddress) (core.SealerCliClient, error) {
-	return buildSealerCliClient(gctx, lc, string(proxy), true)
+// used for cli commands
+func MaybeMinerAPIClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) core.MinerAPIClient {
+	var c core.MinerAPIClient
+	err := buildDamoclesAPIClient(gctx, lc, core.MinerAPINamespace, &c, string(listen), false)
+	if err != nil {
+		log.Errorf("failed to build miner api client. err: %s", err)
+		c = core.UnavailableMinerAPIClient
+	}
+	return c
 }
 
-func buildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, serverAddr string, useHTTP bool) (core.SealerCliClient, error) {
-	var scli core.SealerCliClient
+// used for proxy
+func BuildSealerProxyClient(gctx GlobalContext, lc fx.Lifecycle, proxy ProxyAddress) (core.SealerCliClient, error) {
+	var cli core.SealerCliClient
+	err := buildDamoclesAPIClient(gctx, lc, core.SealerAPINamespace, &cli, string(proxy), true)
+	return cli, err
+}
 
+func buildDamoclesAPIClient(gctx GlobalContext, lc fx.Lifecycle, namespace string, out interface{}, serverAddr string, useHTTP bool) error {
 	addr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
-		return scli, err
+		return err
 	}
 
 	ip := addr.IP
@@ -330,12 +341,12 @@ func buildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, serverAddr string
 	ainfo := vapi.NewAPIInfo(maddr, "")
 	apiAddr, err := ainfo.DialArgs(vapi.VerString(core.MajorVersion))
 	if err != nil {
-		return scli, err
+		return err
 	}
 
-	closer, err := jsonrpc.NewMergeClient(gctx, apiAddr, "Venus", []interface{}{&scli}, ainfo.AuthHeader(), jsonrpc.WithRetry(true))
+	closer, err := jsonrpc.NewMergeClient(gctx, apiAddr, namespace, []interface{}{out}, ainfo.AuthHeader(), jsonrpc.WithRetry(true))
 	if err != nil {
-		return scli, err
+		return err
 	}
 
 	lc.Append(fx.Hook{
@@ -345,7 +356,7 @@ func buildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, serverAddr string
 		},
 	})
 
-	return scli, nil
+	return nil
 }
 
 func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (chain.API, error) {
@@ -373,41 +384,15 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config,
 	return ccli, nil
 }
 
-func BuildMinerAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.SafeConfig, locker confmgr.RLocker) (core.MinerAPI, error) {
+func BuildMinerAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.SafeConfig) (core.MinerAPI, error) {
 	mapi := chain.NewMinerAPI(capi, scfg)
 
-	locker.Lock()
-	miners := scfg.Miners
-	locker.Unlock()
-
-	if len(miners) > 0 {
-		lc.Append(fx.Hook{
-			OnStart: func(ctx context.Context) error {
-				var wg sync.WaitGroup
-				wg.Add(len(miners))
-
-				for i := range miners {
-					go func(mi int) {
-						defer wg.Done()
-						mid := miners[mi].Actor
-
-						mlog := log.With("miner", mid)
-						info, err := mapi.GetInfo(gctx, mid)
-						if err == nil {
-							mlog.Infof("miner info pre-fetched: %#v", info)
-						} else {
-							mlog.Warnf("miner info pre-fetch failed: %v", err)
-						}
-					}(i)
-				}
-
-				wg.Wait()
-
-				return nil
-			},
-		})
-	}
-
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			mapi.PrefetchCache(ctx)
+			return nil
+		},
+	})
 	return mapi, nil
 }
 
@@ -529,7 +514,7 @@ type MarketAPIRelatedComponents struct {
 	MarketAPI   market.API
 }
 
-func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, minerAPI core.MinerAPI) (market.API, error) {
+func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig) (market.API, error) {
 	scfg.Lock()
 	api, token := extractAPIInfo(scfg.Common.API.Market, scfg.Common.API.Token)
 	defer scfg.Unlock()
@@ -554,7 +539,7 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 }
 
 func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, minerAPI core.MinerAPI, loadedPlugins *vsmplugin.LoadedPlugins) (MarketAPIRelatedComponents, error) {
-	mapi, err := BuildMarketAPI(gctx, lc, scfg, minerAPI)
+	mapi, err := BuildMarketAPI(gctx, lc, scfg)
 	if err != nil {
 		return MarketAPIRelatedComponents{}, fmt.Errorf("build market api: %w", err)
 	}
