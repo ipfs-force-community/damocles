@@ -5,23 +5,24 @@ use forest_cid::Cid;
 use vc_processors::builtin::tasks::PieceFile;
 
 pub struct LocalPieceStore {
-    base: PathBuf,
+    dirs: Vec<PathBuf>,
 }
 
 impl LocalPieceStore {
-    pub fn new(base: impl Into<PathBuf>) -> Self {
-        Self { base: base.into() }
+    pub fn new(dirs: Vec<PathBuf>) -> Self {
+        Self { dirs }
     }
 }
 
 impl PieceStore for LocalPieceStore {
     fn get(&self, c: &Cid) -> Option<PieceFile> {
-        let path = self.base.join(c.to_string());
-        tracing::debug!("load local piece: {}", path.display());
-        if path.exists() {
-            Some(PieceFile::Local(path))
-        } else {
-            None
+        for dir in &self.dirs {
+            let path = dir.join(c.to_string());
+            tracing::debug!("load local piece: {}", path.display());
+            if path.exists() {
+                return Some(PieceFile::Local(path));
+            }
         }
+        None
     }
 }

@@ -154,9 +154,10 @@ pub fn start_daemon(cfg_path: String) -> Result<()> {
 
     let piece_store: Arc<dyn PieceStore> = if cfg.sealing.enable_deals.unwrap_or(false) {
         let create_remote_piece_store = || RemotePieceStore::new(&rpc_origin).context("build proxy piece store");
-        if let Some(local_pieces_dir) = cfg.worker_local_pieces_dir() {
+        let local_pieces_dirs = cfg.worker_local_pieces_dirs();
+        if !local_pieces_dirs.is_empty() {
             Arc::new(ComposePieceStore::new(
-                LocalPieceStore::new(local_pieces_dir),
+                LocalPieceStore::new(local_pieces_dirs),
                 create_remote_piece_store()?,
             ))
         } else {
