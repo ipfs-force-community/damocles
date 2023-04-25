@@ -235,7 +235,8 @@ pub struct WorkerInstanceConfig {
 
     /// local pieces file directory, if set, worker will load the piece file from the local file
     /// otherwise it will load the remote piece file from VSM
-    pub local_pieces_dir: Option<PathBuf>,
+    pub local_pieces_dir: Option<PathBuf>, // For compatibility
+    pub local_pieces_dirs: Option<Vec<PathBuf>>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -348,9 +349,18 @@ impl Config {
             .unwrap_or(DEFAULT_WORKER_PING_INTERVAL)
     }
 
-    /// get worker local pieces dir
-    pub fn worker_local_pieces_dir(&self) -> Option<&PathBuf> {
-        self.worker.as_ref().and_then(|w| w.local_pieces_dir.as_ref())
+    /// get worker local pieces dirs
+    pub fn worker_local_pieces_dirs(&self) -> Vec<PathBuf> {
+        self.worker
+            .as_ref()
+            .map(|worker| match (&worker.local_pieces_dir, &worker.local_pieces_dirs) {
+                (_, Some(dirs)) => dirs.clone(),
+                (Some(dir), None) => {
+                    vec![dir.clone()]
+                }
+                (None, None) => Vec::new(),
+            })
+            .unwrap_or_default()
     }
 
     /// render the config content
