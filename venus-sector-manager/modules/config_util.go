@@ -39,12 +39,6 @@ type MustAddress address.Address
 
 func (ma MustAddress) MarshalText() ([]byte, error) {
 	addr := address.Address(ma)
-	if addr == address.Undef {
-		// MarshalText returns nil will cause panic in the latest version of BurntSushi/toml
-		// See: https://github.com/BurntSushi/toml/blob/fcbab7400715a3a2a7b2810317b7a17e7195e8fe/encode.go#L243-L245
-		return []byte{}, nil
-	}
-
 	return []byte(addr.String()), nil
 }
 
@@ -53,11 +47,6 @@ func (ma *MustAddress) UnmarshalText(text []byte) error {
 	if err != nil {
 		return err
 	}
-
-	// if addr == address.Undef {
-	// 	return fmt.Errorf("address.Undef is not allowed")
-	// }
-
 	*ma = MustAddress(addr)
 	return nil
 }

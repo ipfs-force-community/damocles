@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -20,4 +21,11 @@ func TestKVStore(t *testing.T, collection string) kvstore.KVStore {
 		db.Close(ctx)
 	})
 	return kv
+}
+
+func Must[T any](v T, err error) T {
+	if err != nil {
+		panic(fmt.Errorf("must no error: %w", err))
+	}
+	return v
 }
