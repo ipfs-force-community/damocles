@@ -36,7 +36,7 @@
   - cli `util sealer proving` 输出信息调整优化。 [#568](https://github.com/ipfs-force-community/venus-cluster/issues/568)
   - wdpost 扇区检查并发与超时设置。[参考文档](https://github.com/ipfs-force-community/venus-cluster/blob/main/docs/zh/04.venus-sector-manager%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#commonproving)。 [#532](https://github.com/ipfs-force-community/venus-cluster/issues/532)
   - 修改 submitpost 的逻辑，变成做完即发送的模式。方便监控和处理 windowpost过程中的意外情况。[#590](https://github.com/ipfs-force-community/venus-cluster/issues/590)
-  - cli 合并 `util sealer sectors renew` 和 `util sealer sectors renew` 命令为 `util sealer sectors extend`，新增 `--max-sectors` flag 用于控制每条 extend 消息中包含的扇区数量上限，新增 `--only-cc` flag 用于控制是否只扩展 cc 扇区。 [#582](https://github.com/ipfs-force-community/venus-cluster/pull/582)
+  - cli 合并 `util sealer sectors extend` 和 `util sealer sectors renew` 命令为 `util sealer sectors extend`，新增 `--max-sectors` flag 用于控制每条 extend 消息中包含的扇区数量上限，新增 `--only-cc` flag 用于控制是否只扩展 cc 扇区。 [#582](https://github.com/ipfs-force-community/venus-cluster/pull/582)
 
 - venus-worker
   - 外部执行器子进程意外退出支持自动重启，[参考配置文档](https://github.com/ipfs-force-community/venus-cluster/blob/main/docs/zh/03.venus-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#processorsstage_name) (processors.{stage_name}.auto_restart) [#605](https://github.com/ipfs-force-community/venus-cluster/pull/605)
