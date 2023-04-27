@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-jsonrpc"
@@ -42,7 +41,7 @@ type MarketEvent struct {
 	clients map[string]*EventClient
 	eventCh chan *GatewayEvent
 
-	recorder *EventRecorder
+	recorder EventRecorder
 
 	onUnseal []func(ctx context.Context, eventId types.UUID, req *UnsealRequest)
 }
@@ -71,10 +70,7 @@ func NewMarketEvent(ctx context.Context, urls []string, token string, miners []a
 		clients[url] = client
 	}
 
-	recorder := &EventRecorder{
-		kv:    kv,
-		kvMux: sync.Mutex{},
-	}
+	recorder := NewMemoryEventRecorder()
 
 	marketEvent := &MarketEvent{
 		clients:  clients,
