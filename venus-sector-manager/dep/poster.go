@@ -29,8 +29,9 @@ func RunPoSter(
 	capi chain.API,
 	rapi core.RandomnessAPI,
 	mapi messager.API,
+	minerAPI core.MinerAPI,
 ) error {
-	p, err := poster.NewPoSter(scfg, capi, mapi, rapi, chain.NewMinerInfoAPI(capi), prover, verifier, sectorTracker)
+	p, err := poster.NewPoSter(scfg, capi, mapi, rapi, minerAPI, prover, verifier, sectorTracker)
 	if err != nil {
 		return err
 	}

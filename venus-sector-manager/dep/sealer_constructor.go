@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
 
 	"github.com/BurntSushi/toml"
 	"go.uber.org/fx"
@@ -49,7 +48,7 @@ type (
 	CommonMetaStore             kvstore.KVStore
 )
 
-func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerInfoAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
+func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
 	return sectors.NewManager(scfg, mapi, numAlloc)
 }
 
@@ -295,26 +294,38 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Conf
 
 // used for cli commands
 func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) core.SealerCliClient {
-	cli, err := buildSealerCliClient(gctx, lc, string(listen), false)
+	var cli core.SealerCliClient
+	err := buildDamoclesAPIClient(gctx, lc, core.SealerAPINamespace, &cli, string(listen), false)
 	if err != nil {
-		log.Warnf("failed to build sealer cli client. err: %s", err)
+		log.Errorf("failed to build sealer cli client. err: %s", err)
 		cli = core.UnavailableSealerCliClient
 	}
 
 	return cli
 }
 
-// used for proxy
-func BuildSealerProxyClient(gctx GlobalContext, lc fx.Lifecycle, proxy ProxyAddress) (core.SealerCliClient, error) {
-	return buildSealerCliClient(gctx, lc, string(proxy), true)
+// used for cli commands
+func MaybeMinerAPIClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) core.MinerAPIClient {
+	var c core.MinerAPIClient
+	err := buildDamoclesAPIClient(gctx, lc, core.MinerAPINamespace, &c, string(listen), false)
+	if err != nil {
+		log.Errorf("failed to build miner api client. err: %s", err)
+		c = core.UnavailableMinerAPIClient
+	}
+	return c
 }
 
-func buildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, serverAddr string, useHTTP bool) (core.SealerCliClient, error) {
-	var scli core.SealerCliClient
+// used for proxy
+func BuildSealerProxyClient(gctx GlobalContext, lc fx.Lifecycle, proxy ProxyAddress) (core.SealerCliClient, error) {
+	var cli core.SealerCliClient
+	err := buildDamoclesAPIClient(gctx, lc, core.SealerAPINamespace, &cli, string(proxy), true)
+	return cli, err
+}
 
+func buildDamoclesAPIClient(gctx GlobalContext, lc fx.Lifecycle, namespace string, out interface{}, serverAddr string, useHTTP bool) error {
 	addr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
-		return scli, err
+		return err
 	}
 
 	ip := addr.IP
@@ -330,12 +341,12 @@ func buildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, serverAddr string
 	ainfo := vapi.NewAPIInfo(maddr, "")
 	apiAddr, err := ainfo.DialArgs(vapi.VerString(core.MajorVersion))
 	if err != nil {
-		return scli, err
+		return err
 	}
 
-	closer, err := jsonrpc.NewMergeClient(gctx, apiAddr, "Venus", []interface{}{&scli}, ainfo.AuthHeader(), jsonrpc.WithRetry(true))
+	closer, err := jsonrpc.NewMergeClient(gctx, apiAddr, namespace, []interface{}{out}, ainfo.AuthHeader(), jsonrpc.WithRetry(true))
 	if err != nil {
-		return scli, err
+		return err
 	}
 
 	lc.Append(fx.Hook{
@@ -345,7 +356,7 @@ func buildSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, serverAddr string
 		},
 	})
 
-	return scli, nil
+	return nil
 }
 
 func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (chain.API, error) {
@@ -373,41 +384,15 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config,
 	return ccli, nil
 }
 
-func BuildMinerInfoAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.Config, locker confmgr.RLocker) (core.MinerInfoAPI, error) {
-	mapi := chain.NewMinerInfoAPI(capi)
+func BuildMinerAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.SafeConfig) (core.MinerAPI, error) {
+	mapi := chain.NewMinerAPI(capi, scfg)
 
-	locker.Lock()
-	miners := scfg.Miners
-	locker.Unlock()
-
-	if len(miners) > 0 {
-		lc.Append(fx.Hook{
-			OnStart: func(ctx context.Context) error {
-				var wg sync.WaitGroup
-				wg.Add(len(miners))
-
-				for i := range miners {
-					go func(mi int) {
-						defer wg.Done()
-						mid := miners[mi].Actor
-
-						mlog := log.With("miner", mid)
-						info, err := mapi.Get(gctx, mid)
-						if err == nil {
-							mlog.Infof("miner info pre-fetched: %#v", info)
-						} else {
-							mlog.Warnf("miner info pre-fetch failed: %v", err)
-						}
-					}(i)
-				}
-
-				wg.Wait()
-
-				return nil
-			},
-		})
-	}
-
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			mapi.PrefetchCache(ctx)
+			return nil
+		},
+	})
 	return mapi, nil
 }
 
@@ -418,7 +403,7 @@ func BuildCommitmentManager(
 	mapi messager.API,
 	rapi core.RandomnessAPI,
 	stmgr core.SectorStateManager,
-	minfoAPI core.MinerInfoAPI,
+	minerAPI core.MinerAPI,
 	scfg *modules.SafeConfig,
 	verif core.Verifier,
 	prover core.Prover,
@@ -427,7 +412,7 @@ func BuildCommitmentManager(
 		gctx,
 		mapi,
 		commitmgr.NewSealingAPIImpl(capi, rapi),
-		minfoAPI,
+		minerAPI,
 		stmgr,
 		scfg,
 		verif,
@@ -529,7 +514,7 @@ type MarketAPIRelatedComponents struct {
 	MarketAPI   market.API
 }
 
-func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI) (market.API, error) {
+func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig) (market.API, error) {
 	scfg.Lock()
 	api, token := extractAPIInfo(scfg.Common.API.Market, scfg.Common.API.Token)
 	defer scfg.Unlock()
@@ -553,8 +538,8 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 	return mapi, nil
 }
 
-func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, infoAPI core.MinerInfoAPI, loadedPlugins *vsmplugin.LoadedPlugins) (MarketAPIRelatedComponents, error) {
-	mapi, err := BuildMarketAPI(gctx, lc, scfg, infoAPI)
+func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, minerAPI core.MinerAPI, loadedPlugins *vsmplugin.LoadedPlugins) (MarketAPIRelatedComponents, error) {
+	mapi, err := BuildMarketAPI(gctx, lc, scfg)
 	if err != nil {
 		return MarketAPIRelatedComponents{}, fmt.Errorf("build market api: %w", err)
 	}
@@ -597,7 +582,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	log.Info("piecestore proxy has been registered into default mux")
 
 	return MarketAPIRelatedComponents{
-		DealManager: dealmgr.New(mapi, infoAPI, scfg),
+		DealManager: dealmgr.New(mapi, minerAPI, scfg),
 		MarketAPI:   mapi,
 	}, nil
 }
@@ -641,11 +626,11 @@ func BuildSnapUpManager(
 	chainAPI chain.API,
 	eventbus *chain.EventBus,
 	messagerAPI messager.API,
-	minerInfoAPI core.MinerInfoAPI,
+	minerAPI core.MinerAPI,
 	stateMgr core.SectorStateManager,
 	store SnapUpMetaStore,
 ) (core.SnapUpSectorManager, error) {
-	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerInfoAPI, stateMgr, scfg, store)
+	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerAPI, stateMgr, scfg, store)
 	if err != nil {
 		return nil, fmt.Errorf("construct snapup manager: %w", err)
 	}
@@ -668,14 +653,14 @@ func BuildRebuildManager(
 	gctx GlobalContext,
 	db UnderlyingDB,
 	scfg *modules.SafeConfig,
-	minerInfoAPI core.MinerInfoAPI,
+	minerAPI core.MinerAPI,
 ) (core.RebuildSectorManager, error) {
 	store, err := db.OpenCollection(gctx, "rebuild")
 	if err != nil {
 		return nil, err
 	}
 
-	mgr, err := sectors.NewRebuildManager(scfg, minerInfoAPI, store)
+	mgr, err := sectors.NewRebuildManager(scfg, minerAPI, store)
 	if err != nil {
 		return nil, fmt.Errorf("construct rebuild manager: %w", err)
 	}

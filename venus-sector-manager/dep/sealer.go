@@ -27,14 +27,15 @@ func Mock() dix.Option {
 		dix.Override(new(core.SectorManager), mock.NewSectorManager),
 		dix.Override(new(core.DealManager), mock.NewDealManager),
 		dix.Override(new(core.CommitmentManager), mock.NewCommitManager),
+		dix.Override(new(core.MinerAPI), mock.NewMinerAPI),
 	)
 }
 
-func MockSealer(s *core.SealerAPI) dix.Option {
+func MockSealer(s ...interface{}) dix.Option {
 	return dix.Options(
 		dix.Override(new(*mock.Sealer), mock.NewSealer),
 		dix.Override(new(core.SealerAPI), dix.From(new(*mock.Sealer))),
-		dix.Populate(InvokePopulate, s),
+		dix.Populate(InvokePopulate, s...),
 	)
 }
 
@@ -56,7 +57,7 @@ func Product() dix.Option {
 		dix.Override(new(core.SectorTracker), BuildSectorTracker),
 		dix.Override(new(core.Prover), prover.Prover),
 		dix.Override(new(core.Verifier), prover.Verifier),
-		dix.Override(new(core.MinerInfoAPI), BuildMinerInfoAPI),
+		dix.Override(new(core.MinerAPI), BuildMinerAPI),
 
 		dix.Override(new(core.CommitmentManager), BuildCommitmentManager),
 		dix.Override(new(messager.API), BuildMessagerClient),
@@ -102,7 +103,7 @@ func Sealer(target ...interface{}) dix.Option {
 	)
 }
 
-func API(target ...interface{}) dix.Option {
+func APIClient(target ...interface{}) dix.Option {
 	cfgmu := &sync.RWMutex{}
 	return dix.Options(
 		dix.Override(new(confmgr.WLocker), cfgmu),
@@ -112,7 +113,7 @@ func API(target ...interface{}) dix.Option {
 		dix.Override(new(*modules.Config), ProvideConfig),
 		dix.Override(new(*modules.SafeConfig), ProvideSafeConfig),
 		dix.Override(new(chain.API), BuildChainClient),
-		dix.Override(new(core.MinerInfoAPI), BuildMinerInfoAPI),
+		dix.Override(new(core.MinerAPIClient), MaybeMinerAPIClient),
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.Override(new(market.API), BuildMarketAPI),
 		dix.Override(new(core.SealerCliClient), MaybeSealerCliClient),

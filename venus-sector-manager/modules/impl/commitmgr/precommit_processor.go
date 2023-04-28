@@ -22,7 +22,7 @@ import (
 
 type PreCommitProcessor struct {
 	api  SealingAPI
-	mapi core.MinerInfoAPI
+	mapi core.MinerAPI
 
 	msgClient messager.API
 

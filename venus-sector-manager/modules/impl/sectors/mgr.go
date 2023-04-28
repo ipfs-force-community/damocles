@@ -20,7 +20,7 @@ var errMinerDisabled = fmt.Errorf("miner disblaed")
 
 func NewManager(
 	scfg *modules.SafeConfig,
-	mapi core.MinerInfoAPI,
+	mapi core.MinerAPI,
 	numAlloc core.SectorNumberAllocator,
 ) (*Manager, error) {
 	mgr := &Manager{

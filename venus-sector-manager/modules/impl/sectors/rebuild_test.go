@@ -10,21 +10,26 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/testutil"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/testutil/testmodules"
 )
 
-type mockMinerInfoAPI struct {
+type mockMinerAPI struct {
 	infos map[abi.ActorID]*core.MinerInfo
 }
 
-func (m *mockMinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
+func (m *mockMinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
 	minfo, ok := m.infos[mid]
 	if !ok {
 		return nil, fmt.Errorf("not found")
 	}
 
 	return minfo, nil
+}
+
+func (m *mockMinerAPI) GetMinerConfig(ctx context.Context, mid abi.ActorID) (*modules.MinerConfig, error) {
+	return nil, fmt.Errorf("not impl")
 }
 
 func TestRebuildManager(t *testing.T) {
@@ -44,7 +49,7 @@ func TestRebuildManager(t *testing.T) {
 		minfos[minfo.ID] = minfo
 	}
 
-	rbmgr, err := NewRebuildManager(scfg, &mockMinerInfoAPI{
+	rbmgr, err := NewRebuildManager(scfg, &mockMinerAPI{
 		infos: minfos,
 	}, kvstore)
 

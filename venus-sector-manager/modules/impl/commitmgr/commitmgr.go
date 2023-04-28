@@ -39,7 +39,7 @@ type CommitmentMgrImpl struct {
 	msgClient messager.API
 
 	stateMgr SealingAPI
-	minfoAPI core.MinerInfoAPI
+	minerAPI core.MinerAPI
 
 	smgr core.SectorStateManager
 
@@ -60,7 +60,7 @@ type CommitmentMgrImpl struct {
 	stop     chan struct{}
 }
 
-func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr SealingAPI, minfoAPI core.MinerInfoAPI, smgr core.SectorStateManager,
+func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr SealingAPI, minerAPI core.MinerAPI, smgr core.SectorStateManager,
 	cfg *modules.SafeConfig, verif core.Verifier, prover core.Prover,
 ) (*CommitmentMgrImpl, error) {
 	prePendingChan := make(chan core.SectorState, 1024)
@@ -71,7 +71,7 @@ func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr Seal
 		ctx:       ctx,
 		msgClient: commitAPI,
 		stateMgr:  stateMgr,
-		minfoAPI:  minfoAPI,
+		minerAPI:  minerAPI,
 		smgr:      smgr,
 		cfg:       cfg,
 
@@ -272,7 +272,7 @@ func (c *CommitmentMgrImpl) startPreLoop() {
 
 			c.preCommitBatcher[miner] = NewBatcher(c.ctx, miner, sender, PreCommitProcessor{
 				api:       c.stateMgr,
-				mapi:      c.minfoAPI,
+				mapi:      c.minerAPI,
 				msgClient: c.msgClient,
 				smgr:      c.smgr,
 				config:    c.cfg,

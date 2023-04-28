@@ -8,7 +8,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/metrics"
 )
 
-func MetricedSealerAPI(namespace string, hdl interface{}) interface{} {
+func MetricedAPI(namespace string, hdl interface{}) interface{} {
 	return proxy(namespace, hdl)
 }
 

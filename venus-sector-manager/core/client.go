@@ -6,6 +6,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 )
@@ -166,4 +167,18 @@ type SealerCliClient struct {
 	SubmitPreCommit func(context.Context, AllocatedSector, PreCommitOnChainInfo, bool) (SubmitPreCommitResp, error)
 
 	SubmitProof func(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error)
+}
+
+var UnavailableMinerAPIClient = MinerAPIClient{
+	GetInfo: func(context.Context, abi.ActorID) (*MinerInfo, error) {
+		panic("damocles miner client unavailable")
+	},
+	GetMinerConfig: func(context.Context, abi.ActorID) (*modules.MinerConfig, error) {
+		panic("damocles miner client unavailable")
+	},
+}
+
+type MinerAPIClient struct {
+	GetInfo        func(context.Context, abi.ActorID) (*MinerInfo, error)
+	GetMinerConfig func(context.Context, abi.ActorID) (*modules.MinerConfig, error)
 }

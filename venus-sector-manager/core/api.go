@@ -9,11 +9,15 @@ import (
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/types"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 )
 
 const (
-	APINamespace = "Venus"
-	MajorVersion = 0
+	// TODO: The sealerAPI namespace is Venus due to historical reasons,
+	// and we should consider changing it to a more appropriate name in future versions
+	SealerAPINamespace = "Venus"
+	MinerAPINamespace  = "Damocles.miner"
+	MajorVersion       = 0
 )
 
 var Empty Meta
@@ -119,6 +123,7 @@ type RandomnessAPI interface {
 	GetWindowPoStCommitRand(context.Context, types.TipSetKey, abi.ChainEpoch) (WindowPoStRandomness, error)
 }
 
-type MinerInfoAPI interface {
-	Get(context.Context, abi.ActorID) (*MinerInfo, error)
+type MinerAPI interface {
+	GetInfo(context.Context, abi.ActorID) (*MinerInfo, error)
+	GetMinerConfig(context.Context, abi.ActorID) (*modules.MinerConfig, error)
 }

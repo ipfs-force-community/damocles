@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"bytes"
 	"encoding"
 	"fmt"
 	"math"
@@ -38,12 +39,6 @@ type MustAddress address.Address
 
 func (ma MustAddress) MarshalText() ([]byte, error) {
 	addr := address.Address(ma)
-	if addr == address.Undef {
-		// MarshalText returns nil will cause panic in the latest version of BurntSushi/toml
-		// See: https://github.com/BurntSushi/toml/blob/fcbab7400715a3a2a7b2810317b7a17e7195e8fe/encode.go#L243-L245
-		return []byte{}, nil
-	}
-
 	return []byte(addr.String()), nil
 }
 
@@ -52,11 +47,6 @@ func (ma *MustAddress) UnmarshalText(text []byte) error {
 	if err != nil {
 		return err
 	}
-
-	if addr == address.Undef {
-		return fmt.Errorf("address.Undef is not allowed")
-	}
-
 	*ma = MustAddress(addr)
 	return nil
 }
@@ -166,7 +156,7 @@ func ParseFIL(raw string) (FIL, error) {
 
 	r, ok := new(mbig.Rat).SetString(s)
 	if !ok {
-		return FIL{}, fmt.Errorf("failed to parse %q as a decimal number", s)
+		return FIL{}, fmt.Errorf("failed to parse %q as a decimal number", raw)
 	}
 
 	norm := strings.ToLower(strings.TrimSpace(suffix))
@@ -210,4 +200,11 @@ func (f *FIL) UnmarshalText(text []byte) error {
 
 	*f = fil
 	return nil
+}
+
+func (f *FIL) UnmarshalJSON(text []byte) error {
+	if bytes.Equal(text, []byte("null")) {
+		return f.UnmarshalText([]byte{})
+	}
+	return f.UnmarshalText(text)
 }

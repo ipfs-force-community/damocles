@@ -9,7 +9,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 )
@@ -45,20 +44,20 @@ var mockCmd = &cli.Command{
 		gctx, gcancel := internal.NewSigContext(cctx.Context)
 		defer gcancel()
 
-		var node core.SealerAPI
+		var apiService *APIService
 		stopper, err := dix.New(
 			gctx,
 			dix.Override(new(dep.GlobalContext), gctx),
 			dix.Override(new(abi.ActorID), abi.ActorID(cctx.Uint64("miner"))),
 			dix.Override(new(abi.RegisteredSealProof), proofType),
 			dep.Mock(),
-			dep.MockSealer(&node),
+			dep.MockSealer(&apiService),
 		)
 
 		if err != nil {
 			return fmt.Errorf("construct mock api: %w", err)
 		}
 
-		return serveSealerAPI(gctx, stopper, node, cctx.String("listen"), nil)
+		return serveAPI(gctx, stopper, apiService, cctx.String("listen"))
 	},
 }

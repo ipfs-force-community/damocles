@@ -15,18 +15,18 @@ import (
 
 var _ core.DealManager = (*DealManager)(nil)
 
-func New(marketAPI market.API, infoAPI core.MinerInfoAPI, scfg *modules.SafeConfig) *DealManager {
+func New(marketAPI market.API, minerAPI core.MinerAPI, scfg *modules.SafeConfig) *DealManager {
 	return &DealManager{
-		market: marketAPI,
-		info:   infoAPI,
-		scfg:   scfg,
+		market:   marketAPI,
+		minerAPI: minerAPI,
+		scfg:     scfg,
 	}
 }
 
 type DealManager struct {
-	market market.API
-	info   core.MinerInfoAPI
-	scfg   *modules.SafeConfig
+	market   market.API
+	minerAPI core.MinerAPI
+	scfg     *modules.SafeConfig
 
 	acquireMu sync.Mutex
 }
@@ -51,7 +51,7 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.
 		return nil, nil
 	}
 
-	minfo, err := dm.info.Get(ctx, sid.Miner)
+	minfo, err := dm.minerAPI.GetInfo(ctx, sid.Miner)
 	if err != nil {
 		return nil, fmt.Errorf("get miner info: %w", err)
 	}

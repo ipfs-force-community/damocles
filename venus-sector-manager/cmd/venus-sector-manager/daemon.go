@@ -8,11 +8,9 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/venus-sector-manager/internal"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/dep"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/confmgr"
-	vsmplugin "github.com/ipfs-force-community/venus-cluster/vsm-plugin"
 )
 
 var daemonCmd = &cli.Command{
@@ -104,8 +102,7 @@ var daemonRunCmd = &cli.Command{
 			EnableSectorIndexer: !cctx.Bool(daemonRunProxySectorIndexerOffFlag.Name),
 		}
 
-		var node core.SealerAPI
-		var loadedPlugins *vsmplugin.LoadedPlugins
+		var apiService *APIService
 		stopper, err := dix.New(
 			gctx,
 			dep.Product(),
@@ -122,12 +119,14 @@ var daemonRunCmd = &cli.Command{
 				dep.Miner(),
 			),
 			dix.If(cctx.Bool("ext-prover"), dep.ExtProver()),
-			dep.Sealer(&node, &loadedPlugins),
+			dep.Sealer(),
+			dix.Override(new(*APIService), NewAPIService),
+			dix.Populate(dep.InvokePopulate, &apiService),
 		)
 		if err != nil {
-			return fmt.Errorf("construct sealer api: %w", err)
+			return fmt.Errorf("construct api: %w", err)
 		}
 
-		return serveSealerAPI(gctx, stopper, node, cctx.String("listen"), loadedPlugins)
+		return serveAPI(gctx, stopper, apiService, cctx.String("listen"))
 	},
 }

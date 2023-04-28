@@ -12,24 +12,60 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 )
 
-var _ core.MinerInfoAPI = (*MinerInfoAPI)(nil)
+var minerAPILog = logging.New("miner-api")
 
-func NewMinerInfoAPI(capi API) *MinerInfoAPI {
-	return &MinerInfoAPI{
-		chain: capi,
-		cache: map[abi.ActorID]*core.MinerInfo{},
+var _ core.MinerAPI = (*MinerAPI)(nil)
+
+func NewMinerAPI(capi API, safeConfig *modules.SafeConfig) *MinerAPI {
+	return &MinerAPI{
+		chain:      capi,
+		cache:      map[abi.ActorID]*core.MinerInfo{},
+		safeConfig: safeConfig,
 	}
 }
 
-type MinerInfoAPI struct {
-	chain   API
-	cacheMu sync.RWMutex
-	cache   map[abi.ActorID]*core.MinerInfo
+type MinerAPI struct {
+	chain      API
+	cacheMu    sync.RWMutex
+	cache      map[abi.ActorID]*core.MinerInfo
+	safeConfig *modules.SafeConfig
 }
 
-func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
+func (m *MinerAPI) PrefetchCache(ctx context.Context) {
+	m.safeConfig.Lock()
+	miners := m.safeConfig.Miners
+	m.safeConfig.Unlock()
+
+	if len(miners) == 0 {
+		return
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(miners))
+
+	for i := range miners {
+		go func(mi int) {
+			defer wg.Done()
+			mid := miners[mi].Actor
+
+			mlog := minerAPILog.With("miner", mid)
+			info, err := m.GetInfo(ctx, mid)
+			if err == nil {
+				mlog.Infof("miner info pre-fetched: %#v", info)
+			} else {
+				mlog.Warnf("miner info pre-fetch failed: %v", err)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}
+
+func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
 	m.cacheMu.RLock()
 	mi, ok := m.cache[mid]
 	m.cacheMu.RUnlock()
@@ -65,4 +101,12 @@ func (m *MinerInfoAPI) Get(ctx context.Context, mid abi.ActorID) (*core.MinerInf
 	m.cacheMu.Unlock()
 
 	return mi, nil
+}
+
+func (m *MinerAPI) GetMinerConfig(ctx context.Context, mid abi.ActorID) (*modules.MinerConfig, error) {
+	config, err := m.safeConfig.MinerConfig(mid)
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
 }

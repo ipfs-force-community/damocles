@@ -15,8 +15,52 @@ import (
 	vsmplugin "github.com/ipfs-force-community/venus-cluster/vsm-plugin"
 )
 
-func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node core.SealerAPI, addr string, plugins *vsmplugin.LoadedPlugins) error {
-	mux, err := buildRPCServer(node, plugins)
+func NewAPIService(sealerAPI core.SealerAPI, minerAPI core.MinerAPI, plugins *vsmplugin.LoadedPlugins) *APIService {
+	return &APIService{
+		sealerAPI: sealerAPI,
+		minerAPI:  minerAPI,
+		plugins:   plugins,
+	}
+}
+
+type handler struct {
+	namespace string
+	hdl       interface{}
+}
+
+type APIService struct {
+	sealerAPI core.SealerAPI
+	minerAPI  core.MinerAPI
+	plugins   *vsmplugin.LoadedPlugins
+}
+
+func (api *APIService) handlers() []handler {
+	handlers := make([]handler, 0, 2)
+	handlers = append(handlers, handler{
+		namespace: core.SealerAPINamespace,
+		hdl:       api.sealerAPI,
+	})
+	handlers = append(handlers, handler{
+		namespace: core.MinerAPINamespace,
+		hdl:       api.minerAPI,
+	})
+	if api.plugins != nil {
+		_ = api.plugins.Foreach(vsmplugin.RegisterJsonRpc, func(plugin *vsmplugin.Plugin) error {
+			m := vsmplugin.DeclareRegisterJsonRpcManifest(plugin.Manifest)
+			namespace, hdl := m.Handler()
+			log.Infof("register json rpc handler by plugin(%s). namespace: '%s'", plugin.Name, namespace)
+			handlers = append(handlers, handler{
+				namespace: namespace,
+				hdl:       hdl,
+			})
+			return nil
+		})
+	}
+	return handlers
+}
+
+func serveAPI(ctx context.Context, stopper dix.StopFunc, apiService *APIService, addr string) error {
+	mux, err := buildRPCServer(apiService)
 	if err != nil {
 		return fmt.Errorf("construct rpc server: %w", err)
 	}
@@ -61,23 +105,13 @@ func serveSealerAPI(ctx context.Context, stopper dix.StopFunc, node core.SealerA
 	return nil
 }
 
-func buildRPCServer(hdl interface{}, plugins *vsmplugin.LoadedPlugins, opts ...jsonrpc.ServerOption) (*http.ServeMux, error) {
+func buildRPCServer(apiService *APIService, opts ...jsonrpc.ServerOption) (*http.ServeMux, error) {
 	// use field
 	opts = append(opts, jsonrpc.WithProxyBind(jsonrpc.PBField))
-	hdl = proxy.MetricedSealerAPI(core.APINamespace, hdl)
-
 	server := jsonrpc.NewServer(opts...)
 
-	server.Register(core.APINamespace, hdl)
-
-	if plugins != nil {
-		_ = plugins.Foreach(vsmplugin.RegisterJsonRpc, func(plugin *vsmplugin.Plugin) error {
-			m := vsmplugin.DeclareRegisterJsonRpcManifest(plugin.Manifest)
-			namespace, hdl := m.Handler()
-			log.Infof("register json rpc handler by plugin(%s). namespace: '%s'", plugin.Name, namespace)
-			server.Register(namespace, proxy.MetricedSealerAPI(namespace, hdl))
-			return nil
-		})
+	for _, hdl := range apiService.handlers() {
+		server.Register(hdl.namespace, proxy.MetricedAPI(hdl.namespace, hdl.hdl))
 	}
 
 	http.Handle(fmt.Sprintf("/rpc/v%d", core.MajorVersion), server)
