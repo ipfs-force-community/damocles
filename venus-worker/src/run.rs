@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use std::{collections::HashMap, path::Path};
 
 use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
@@ -34,10 +34,10 @@ use crate::{
 };
 
 /// start a normal venus-worker daemon
-pub fn start_daemon(cfg_path: String) -> Result<()> {
+pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
     let runtime = Builder::new_multi_thread().enable_all().build().context("construct runtime")?;
 
-    let mut cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path))?;
+    let mut cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path.as_ref().display()))?;
     match cfg.render() {
         Ok(s) => info!("config loaded\n {}", s),
         Err(e) => warn!(err=?e, "unable to render config"),

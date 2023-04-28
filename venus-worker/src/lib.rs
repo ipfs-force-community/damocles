@@ -14,6 +14,7 @@ pub(crate) mod watchdog;
 
 mod run;
 mod util;
+mod version;
 
 pub use config::Config;
 pub use infra::objstore;
@@ -23,6 +24,7 @@ pub use sealing::store;
 pub use sealing::util as seal_util;
 pub use types::SealProof;
 pub use util::{panic_hook::set_panic_hook, task::block_on};
+pub use version::VERSION;
 pub use watchdog::dones;
 
 pub mod client;

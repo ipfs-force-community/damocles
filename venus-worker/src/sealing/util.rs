@@ -75,7 +75,10 @@ impl MemoryFileDirPattern {
     pub const DEFAULT_PATTERN_STR: &'static str = "numa_$NUMA_NODE_INDEX";
 
     /// Creates a new MemoryFileDirPattern with given pattern and prefix
-    pub fn new(pattern: &str, prefix: &str) -> Self {
+    pub fn new(pattern: impl AsRef<str>, prefix: impl AsRef<str>) -> Self {
+        let pattern = pattern.as_ref();
+        let prefix = prefix.as_ref();
+
         if prefix.is_empty() {
             Self(glob::Pattern::escape(pattern.trim_end_matches('/')))
         } else {
@@ -88,12 +91,12 @@ impl MemoryFileDirPattern {
     }
 
     /// Creates a new MemoryFileDirPattern with given prefix and the `Self::DEFAULT_PATTERN_STR`
-    pub fn new_default(prefix: &str) -> Self {
-        Self(format!("{}/{}", prefix.trim_end_matches('/'), Self::DEFAULT_PATTERN_STR))
+    pub fn new_default(prefix: impl AsRef<str>) -> Self {
+        Self(format!("{}/{}", prefix.as_ref().trim_end_matches('/'), Self::DEFAULT_PATTERN_STR))
     }
 
     /// Creates a new MemoryFileDirPattern with given pattern
-    pub fn without_prefix(pattern: &str) -> Self {
+    pub fn without_prefix(pattern: impl AsRef<str>) -> Self {
         Self::new(pattern, "")
     }
 

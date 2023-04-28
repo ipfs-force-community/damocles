@@ -1,6 +1,6 @@
-use anyhow::{anyhow, Result};
-use byte_unit::Byte;
-use clap::{value_t, App, AppSettings, Arg, ArgMatches, SubCommand};
+use anyhow::Result;
+use bytesize::ByteSize;
+use clap::Parser;
 use std::convert::TryFrom;
 use std::path::PathBuf;
 use tracing::{error, info};
@@ -9,38 +9,22 @@ use venus_worker::create_tree_d;
 
 use venus_worker::{RegisteredSealProof, SealProof};
 
-pub const SUB_CMD_NAME: &str = "generator";
-
-pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
-    let tree_d_cmd = SubCommand::with_name("tree-d")
-        .arg(
-            Arg::with_name("sector-size")
-                .long("sector-size")
-                .short("s")
-                .takes_value(true)
-                .help("sector size"),
-        )
-        .arg(
-            Arg::with_name("path")
-                .long("path")
-                .short("p")
-                .takes_value(true)
-                .help("path for the staic-tree-d"),
-        );
-
-    SubCommand::with_name(SUB_CMD_NAME)
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .subcommand(tree_d_cmd)
+#[derive(Parser)]
+pub(crate) enum GeneratorCommand {
+    TreeD {
+        /// The sector size
+        #[arg(short = 's', long)]
+        sector_size: ByteSize,
+        /// Path to the static tree-d"
+        #[arg(short = 'p', long)]
+        path: PathBuf,
+    },
 }
 
-pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
-    match subargs.subcommand() {
-        ("tree-d", Some(m)) => {
-            let size_str = value_t!(m, "sector-size", String)?;
-            let size = Byte::from_str(size_str)?;
-            let path = value_t!(m, "path", String)?;
-
-            let proof_type = SealProof::try_from(size.get_bytes() as u64)?;
+pub(crate) fn run(cmd: &GeneratorCommand) -> Result<()> {
+    match cmd {
+        GeneratorCommand::TreeD { sector_size, path } => {
+            let proof_type = SealProof::try_from(sector_size.as_u64())?;
             let registered_proof = RegisteredSealProof::from(proof_type);
             let cache_dir = PathBuf::from(&path);
 
@@ -51,7 +35,5 @@ pub(crate) fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
 
             Ok(())
         }
-
-        (other, _) => Err(anyhow!("unexpected subcommand `{}` of generator", other)),
     }
 }
