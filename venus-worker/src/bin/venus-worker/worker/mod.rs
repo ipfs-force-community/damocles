@@ -1,9 +1,10 @@
 use std::fs;
+use std::path::Path;
 use std::time::Duration;
 use std::{io::Write, path::PathBuf};
 
-use anyhow::{anyhow, Context, Result};
-use clap::{value_t, App, AppSettings, Arg, ArgMatches, SubCommand};
+use anyhow::{anyhow, Result};
+use clap::{Parser, Subcommand};
 
 use jsonrpc_core::ErrorCode;
 use jsonrpc_core_client::RpcError;
@@ -14,82 +15,57 @@ use venus_worker::{
     Config,
 };
 
-pub const SUB_CMD_NAME: &str = "worker";
+#[derive(Parser)]
+pub(crate) struct WorkerCommand {
+    /// Path to the config file
+    #[arg(short = 'c', long, value_name = "FILE")]
+    config: PathBuf,
 
-pub fn subcommand<'a, 'b>() -> App<'a, 'b> {
-    let list_cmd = SubCommand::with_name("list");
-    let pause_cmd = SubCommand::with_name("pause").arg(
-        Arg::with_name("index")
-            .long("index")
-            .short("i")
-            .takes_value(true)
-            .required(true)
-            .help("index of the worker"),
-    );
-
-    let resume_cmd = SubCommand::with_name("resume")
-        .arg(
-            Arg::with_name("index")
-                .long("index")
-                .short("i")
-                .takes_value(true)
-                .required(true)
-                .help("index of the worker"),
-        )
-        .arg(
-            Arg::with_name("state")
-                .long("state")
-                .short("s")
-                .takes_value(true)
-                .required(false)
-                .help("next state"),
-        );
-
-    let enable_dump_cmd = SubCommand::with_name("enable_dump")
-        .args(&[
-            Arg::with_name("child_pid")
-                .long("child_pid")
-                .takes_value(true)
-                .required(true)
-                .help("Specify external processor pid"),
-            Arg::with_name("dump_dir")
-                .long("dump_dir")
-                .takes_value(true)
-                .required(true)
-                .help("Specify the dump directory"),
-        ])
-        .help("Enable external processor error format response dump for debugging");
-
-    let disable_dump_cmd = SubCommand::with_name("disable_dump")
-        .arg(
-            Arg::with_name("child_pid")
-                .long("child_pid")
-                .takes_value(true)
-                .required(true)
-                .help("Specify external processor pid"),
-        )
-        .help("Disable external processor error format response dump");
-
-    SubCommand::with_name(SUB_CMD_NAME)
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .arg(
-            Arg::with_name("config")
-                .long("config")
-                .short("c")
-                .takes_value(true)
-                .required(true)
-                .help("path to the config file"),
-        )
-        .subcommand(list_cmd)
-        .subcommand(pause_cmd)
-        .subcommand(resume_cmd)
-        .subcommand(enable_dump_cmd)
-        .subcommand(disable_dump_cmd)
+    #[command(subcommand)]
+    subcommand: WorkerSubCommand,
 }
 
-pub fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
-    match subargs.subcommand() {
-        ("list", _) => get_client(subargs).and_then(|wcli| {
+/// Group of commands for control worker
+#[derive(Subcommand)]
+enum WorkerSubCommand {
+    /// List all sealing_thread
+    List,
+    Pause {
+        /// index of the worker
+        #[arg(short, long)]
+        index: usize,
+    },
+    Resume {
+        /// index of the worker
+        #[arg(short, long)]
+        index: usize,
+        /// next state
+        #[arg(short, long)]
+        state: Option<String>,
+    },
+    /// Enable external processor dump error response for debugging
+    #[command(alias = "enable_dump")]
+    EnableDump {
+        /// Specify external processor pid
+        #[arg(long, alias = "child_pid")]
+        child_pid: u32,
+        /// Specify the dump directory
+        #[arg(long, alias = "dump_dir")]
+        dump_dir: PathBuf,
+    },
+    /// Disable external processor dump error response
+    #[command(alias = "disable_dump")]
+    DisableDump {
+        /// Specify external processor pid
+        #[arg(long, alias = "child_pid")]
+        child_pid: u32,
+    },
+}
+
+pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
+    let wcli = get_client(&cmd.config)?;
+    match &cmd.subcommand {
+        WorkerSubCommand::List => {
             let infos = block_on(wcli.worker_list()).map_err(|e| anyhow!("rpc error: {:?}", e))?;
             let out = std::io::stdout();
             let mut hdl = out.lock();
@@ -109,64 +85,41 @@ pub fn submatch(subargs: &ArgMatches<'_>) -> Result<()> {
             }
 
             Ok(())
-        }),
-
-        ("pause", Some(m)) => {
-            let index = value_t!(m, "index", usize)?;
-            get_client(subargs).and_then(|wcli| {
-                let done = block_on(wcli.worker_pause(index)).map_err(|e| anyhow!("rpc error: {:?}", e))?;
-
-                info!(done, "#{} worker pause", index);
-                Ok(())
-            })
         }
-
-        ("resume", Some(m)) => {
-            let index = value_t!(m, "index", usize)?;
-            let state = m.value_of("state").map(|s| s.to_owned());
-            get_client(subargs).and_then(|wcli| {
-                let done = block_on(wcli.worker_resume(index, state.clone())).map_err(|e| anyhow!("rpc error: {:?}", e))?;
-
-                info!(done, ?state, "#{} worker resume", index);
-                Ok(())
-            })
+        WorkerSubCommand::Pause { index } => {
+            let done = block_on(wcli.worker_pause(*index)).map_err(|e| anyhow!("rpc error: {:?}", e))?;
+            info!(done, "#{} worker pause", index);
+            Ok(())
         }
-
-        ("enable_dump", Some(m)) => {
-            let child_pid = value_t!(m, "child_pid", u32)?;
-            let dump_dir = value_t!(m, "dump_dir", PathBuf)?;
+        WorkerSubCommand::Resume { index, state } => {
+            let done = block_on(wcli.worker_resume(*index, state.clone())).map_err(|e| anyhow!("rpc error: {:?}", e))?;
+            info!(done, ?state, "#{} worker resume", index);
+            Ok(())
+        }
+        WorkerSubCommand::EnableDump { child_pid, dump_dir } => {
             if !dump_dir.is_dir() {
                 return Err(anyhow!("'{}' is not a directory", dump_dir.display()));
             }
             let dump_dir = fs::canonicalize(dump_dir)?;
-            let env_name = vc_processors::core::ext::dump_error_resp_env(child_pid);
+            let env_name = vc_processors::core::ext::dump_error_resp_env(*child_pid);
 
-            get_client(subargs).and_then(|wcli| {
-                block_on(wcli.worker_set_env(env_name, dump_dir.to_string_lossy().to_string())).map_err(|rpc_err| match rpc_err {
-                    RpcError::JsonRpcError(e) if e.code == ErrorCode::InvalidParams => anyhow!(e.message),
-                    _ => anyhow!("rpc error: {:?}", rpc_err),
-                })
+            block_on(wcli.worker_set_env(env_name, dump_dir.to_string_lossy().to_string())).map_err(|rpc_err| match rpc_err {
+                RpcError::JsonRpcError(e) if e.code == ErrorCode::InvalidParams => anyhow!(e.message),
+                _ => anyhow!("rpc error: {:?}", rpc_err),
             })
         }
+        WorkerSubCommand::DisableDump { child_pid } => {
+            let env_name = vc_processors::core::ext::dump_error_resp_env(*child_pid);
 
-        ("disable_dump", Some(m)) => {
-            let child_pid = value_t!(m, "child_pid", u32)?;
-            let env_name = vc_processors::core::ext::dump_error_resp_env(child_pid);
-
-            get_client(subargs).and_then(|wcli| {
-                block_on(wcli.worker_remove_env(env_name)).map_err(|rpc_err| match rpc_err {
-                    RpcError::JsonRpcError(e) if e.code == ErrorCode::InvalidParams => anyhow!(e.message),
-                    _ => anyhow!("rpc error: {:?}", rpc_err),
-                })
+            block_on(wcli.worker_remove_env(env_name)).map_err(|rpc_err| match rpc_err {
+                RpcError::JsonRpcError(e) if e.code == ErrorCode::InvalidParams => anyhow!(e.message),
+                _ => anyhow!("rpc error: {:?}", rpc_err),
             })
         }
-
-        (other, _) => Err(anyhow!("unexpected subcommand `{}` of worker", other)),
     }
 }
 
-fn get_client(m: &ArgMatches<'_>) -> Result<WorkerClient> {
-    let cfg_path = value_t!(m, "config", String).context("get config path")?;
-    let cfg = Config::load(cfg_path)?;
+fn get_client(config_path: impl AsRef<Path>) -> Result<WorkerClient> {
+    let cfg = Config::load(config_path)?;
     connect(&cfg)
 }

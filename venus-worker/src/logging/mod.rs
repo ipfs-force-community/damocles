@@ -2,9 +2,10 @@
 
 use anyhow::{Context, Result};
 use crossterm::tty::IsTty;
+use time::{format_description::well_known, UtcOffset};
 use tracing_subscriber::{
     filter::{self, FilterExt},
-    fmt::{layer, time::LocalTime},
+    fmt::{layer, time::OffsetTime},
     prelude::*,
     registry,
 };
@@ -29,13 +30,12 @@ pub fn init() -> Result<()> {
         .with_env_var("VENUS_WORKER_LOG")
         .from_env()
         .context("invalid venus worker log filter")?;
-
     let fmt_layer = layer()
         .with_writer(std::io::stderr)
         .with_ansi(std::io::stderr().is_tty())
         .with_target(true)
         .with_thread_ids(true)
-        .with_timer(LocalTime::rfc_3339())
+        .with_timer(OffsetTime::local_rfc_3339().unwrap_or_else(|_| OffsetTime::new(UtcOffset::UTC, well_known::Rfc3339)))
         .with_filter(env_filter.or(worker_env_filter));
 
     registry().with(fmt_layer).init();
