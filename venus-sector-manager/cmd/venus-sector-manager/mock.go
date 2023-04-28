@@ -44,20 +44,20 @@ var mockCmd = &cli.Command{
 		gctx, gcancel := internal.NewSigContext(cctx.Context)
 		defer gcancel()
 
-		var apiServer *APIServer
+		var apiService *APIService
 		stopper, err := dix.New(
 			gctx,
 			dix.Override(new(dep.GlobalContext), gctx),
 			dix.Override(new(abi.ActorID), abi.ActorID(cctx.Uint64("miner"))),
 			dix.Override(new(abi.RegisteredSealProof), proofType),
 			dep.Mock(),
-			dep.MockSealer(&apiServer),
+			dep.MockSealer(&apiService),
 		)
 
 		if err != nil {
 			return fmt.Errorf("construct mock api: %w", err)
 		}
 
-		return serveAPI(gctx, stopper, apiServer, cctx.String("listen"))
+		return serveAPI(gctx, stopper, apiService, cctx.String("listen"))
 	},
 }

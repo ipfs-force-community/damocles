@@ -102,7 +102,7 @@ var daemonRunCmd = &cli.Command{
 			EnableSectorIndexer: !cctx.Bool(daemonRunProxySectorIndexerOffFlag.Name),
 		}
 
-		var apiServer *APIServer
+		var apiService *APIService
 		stopper, err := dix.New(
 			gctx,
 			dep.Product(),
@@ -120,13 +120,13 @@ var daemonRunCmd = &cli.Command{
 			),
 			dix.If(cctx.Bool("ext-prover"), dep.ExtProver()),
 			dep.Sealer(),
-			dix.Override(new(*APIServer), NewAPIServer),
-			dix.Populate(dep.InvokePopulate, &apiServer),
+			dix.Override(new(*APIService), NewAPIService),
+			dix.Populate(dep.InvokePopulate, &apiService),
 		)
 		if err != nil {
 			return fmt.Errorf("construct api: %w", err)
 		}
 
-		return serveAPI(gctx, stopper, apiServer, cctx.String("listen"))
+		return serveAPI(gctx, stopper, apiService, cctx.String("listen"))
 	},
 }

@@ -15,8 +15,8 @@ import (
 	vsmplugin "github.com/ipfs-force-community/venus-cluster/vsm-plugin"
 )
 
-func NewAPIServer(sealerAPI core.SealerAPI, minerAPI core.MinerAPI, plugins *vsmplugin.LoadedPlugins) *APIServer {
-	return &APIServer{
+func NewAPIService(sealerAPI core.SealerAPI, minerAPI core.MinerAPI, plugins *vsmplugin.LoadedPlugins) *APIService {
+	return &APIService{
 		sealerAPI: sealerAPI,
 		minerAPI:  minerAPI,
 		plugins:   plugins,
@@ -28,13 +28,13 @@ type handler struct {
 	hdl       interface{}
 }
 
-type APIServer struct {
+type APIService struct {
 	sealerAPI core.SealerAPI
 	minerAPI  core.MinerAPI
 	plugins   *vsmplugin.LoadedPlugins
 }
 
-func (api *APIServer) handlers() []handler {
+func (api *APIService) handlers() []handler {
 	handlers := make([]handler, 0, 2)
 	handlers = append(handlers, handler{
 		namespace: core.SealerAPINamespace,
@@ -59,8 +59,8 @@ func (api *APIServer) handlers() []handler {
 	return handlers
 }
 
-func serveAPI(ctx context.Context, stopper dix.StopFunc, apiServer *APIServer, addr string) error {
-	mux, err := buildRPCServer(apiServer)
+func serveAPI(ctx context.Context, stopper dix.StopFunc, apiService *APIService, addr string) error {
+	mux, err := buildRPCServer(apiService)
 	if err != nil {
 		return fmt.Errorf("construct rpc server: %w", err)
 	}
@@ -105,12 +105,12 @@ func serveAPI(ctx context.Context, stopper dix.StopFunc, apiServer *APIServer, a
 	return nil
 }
 
-func buildRPCServer(apiServer *APIServer, opts ...jsonrpc.ServerOption) (*http.ServeMux, error) {
+func buildRPCServer(apiService *APIService, opts ...jsonrpc.ServerOption) (*http.ServeMux, error) {
 	// use field
 	opts = append(opts, jsonrpc.WithProxyBind(jsonrpc.PBField))
 	server := jsonrpc.NewServer(opts...)
 
-	for _, hdl := range apiServer.handlers() {
+	for _, hdl := range apiService.handlers() {
 		server.Register(hdl.namespace, proxy.MetricedAPI(hdl.namespace, hdl.hdl))
 	}
 
