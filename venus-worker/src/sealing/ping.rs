@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::select;
 
-use super::worker::Ctrl;
+use super::sealing_thread::Ctrl;
 
 use crate::block_on;
 use crate::logging::{debug, warn};

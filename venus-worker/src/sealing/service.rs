@@ -5,7 +5,7 @@ use crossbeam_channel::select;
 use jsonrpc_core::{Error, IoHandler, Result};
 use jsonrpc_http_server::ServerBuilder;
 
-use super::worker::Ctrl;
+use super::sealing_thread::Ctrl;
 
 use crate::logging::{error, info};
 use crate::rpc::worker::{Worker, WorkerInfo};
