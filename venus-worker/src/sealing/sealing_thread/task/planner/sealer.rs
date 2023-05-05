@@ -148,8 +148,8 @@ impl<'c, 't> Sealer<'c, 't> {
             self.task.ctx.global.rpc,
             allocate_sector,
             AllocateSectorSpec {
-                allowed_miners: Some(self.task.store.config.allowed_miners.clone()),
-                allowed_proof_types: Some(self.task.store.config.allowed_proof_types.clone()),
+                allowed_miners: Some(self.task.sealing_config.allowed_miners.clone()),
+                allowed_proof_types: Some(self.task.sealing_config.allowed_proof_types.clone()),
             },
         };
 
@@ -177,8 +177,8 @@ impl<'c, 't> Sealer<'c, 't> {
     }
 
     fn handle_allocated(&self) -> ExecResult {
-        if !self.task.store.config.enable_deals {
-            return Ok(if self.task.store.config.disable_cc {
+        if !self.task.sealing_config.enable_deals {
+            return Ok(if self.task.sealing_config.disable_cc {
                 Event::Idle
             } else {
                 Event::AcquireDeals(None)
@@ -192,8 +192,8 @@ impl<'c, 't> Sealer<'c, 't> {
             acquire_deals,
             sector_id,
             AcquireDealsSpec {
-                max_deals: self.task.store.config.max_deals,
-                min_used_space: self.task.store.config.min_deal_space.map(|b| b.get_bytes() as usize),
+                max_deals: self.task.sealing_config.max_deals,
+                min_used_space: self.task.sealing_config.min_deal_space.map(|b| b.get_bytes() as usize),
             },
         }?;
 
@@ -201,7 +201,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
         debug!(count = deals_count, "pieces acquired");
 
-        Ok(if !self.task.store.config.disable_cc || deals_count > 0 {
+        Ok(if !self.task.sealing_config.disable_cc || deals_count > 0 {
             Event::AcquireDeals(deals)
         } else {
             Event::Idle
@@ -318,11 +318,11 @@ impl<'c, 't> Sealer<'c, 't> {
 
             debug!(
                 state = ?state.state,
-                interval = ?self.task.store.config.rpc_polling_interval,
+                interval = ?self.task.sealing_config.rpc_polling_interval,
                 "waiting for next round of polling pre commit state",
             );
 
-            self.task.wait_or_interrupted(self.task.store.config.rpc_polling_interval)?;
+            self.task.wait_or_interrupted(self.task.sealing_config.rpc_polling_interval)?;
         }
 
         debug!("pre commit landed");
@@ -454,7 +454,7 @@ impl<'c, 't> Sealer<'c, 't> {
 
         let sector_id = &allocated.id;
 
-        if !self.task.store.config.ignore_proof_check {
+        if !self.task.sealing_config.ignore_proof_check {
             'POLL: loop {
                 let state = call_rpc! {
                     self.task.ctx.global.rpc,
@@ -482,11 +482,11 @@ impl<'c, 't> Sealer<'c, 't> {
 
                 debug!(
                     state = ?state.state,
-                    interval = ?self.task.store.config.rpc_polling_interval,
+                    interval = ?self.task.sealing_config.rpc_polling_interval,
                     "waiting for next round of polling proof state",
                 );
 
-                self.task.wait_or_interrupted(self.task.store.config.rpc_polling_interval)?;
+                self.task.wait_or_interrupted(self.task.sealing_config.rpc_polling_interval)?;
             }
         }
 

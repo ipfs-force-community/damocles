@@ -10,6 +10,7 @@ use super::{super::failure::*, CtrlCtx};
 use crate::logging::{debug, error, info, warn, warn_span};
 use crate::metadb::{rocks::RocksMeta, MaybeDirty, MetaDocumentDB, PrefixedMetaDB, Saved};
 use crate::rpc::sealer::{ReportStateReq, SectorFailure, SectorID, SectorStateChange, WorkerIdentifier};
+use crate::sealing::config::Config;
 use crate::store::Store;
 use crate::types::SealProof;
 use crate::watchdog::Ctx;
@@ -40,6 +41,7 @@ pub struct Task<'c> {
 
     ctx: &'c Ctx,
     ctrl_ctx: &'c CtrlCtx,
+    sealing_config: &'c Config,
     store: &'c Store,
     ident: WorkerIdentifier,
 
@@ -69,24 +71,18 @@ impl<'c> Task<'c> {
 
 // public methods
 impl<'c> Task<'c> {
-    pub fn build(ctx: &'c Ctx, ctrl_ctx: &'c CtrlCtx, s: &'c mut Store) -> Result<Self, Failure> {
-        let Store {
-            meta: ref store_meta,
-            config: store_config,
-            ..
-        } = s;
-
-        let sector_meta = PrefixedMetaDB::wrap(SECTOR_META_PREFIX, store_meta);
+    pub fn build(ctx: &'c Ctx, ctrl_ctx: &'c CtrlCtx, sealing_config: &'c mut Config, s: &'c mut Store) -> Result<Self, Failure> {
+        let sector_meta = PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta);
         let mut sector: Saved<Sector, _, _> = Saved::load(SECTOR_INFO_KEY, sector_meta).context("load sector").crit()?;
 
-        store_config
+        sealing_config
             .reload_if_needed(|_, _| Ok(true))
             .context("reload sealing thread hot config")
             .crit()?;
 
-        if &sector.plan != store_config.plan() {
+        if &sector.plan != sealing_config.plan() {
             // init setup sector plan or modify by hot config
-            sector.plan = store_config.plan().clone();
+            sector.plan = sealing_config.plan().clone();
         }
 
         // create sector or sync sector plan
@@ -97,7 +93,7 @@ impl<'c> Task<'c> {
             .context("update ctrl state")
             .perm()?;
 
-        let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, store_meta));
+        let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, &s.meta));
 
         Ok(Task {
             sector,
@@ -105,7 +101,8 @@ impl<'c> Task<'c> {
 
             ctx,
             ctrl_ctx,
-            store: &*s,
+            sealing_config,
+            store: s,
             ident: WorkerIdentifier {
                 instance: ctx.instance.clone(),
                 location: s.location.to_pathbuf(),
@@ -267,10 +264,10 @@ impl<'c> Task<'c> {
                 Ok(Some(evt)) => {
                     if let Event::Idle = evt {
                         task_idle_count += 1;
-                        if task_idle_count > self.store.config.request_task_max_retries {
+                        if task_idle_count > self.sealing_config.request_task_max_retries {
                             info!(
                                 "The task has returned `Event::Idle` for more than {} times. break the task",
-                                self.store.config.request_task_max_retries
+                                self.sealing_config.request_task_max_retries
                             );
 
                             // when the planner tries to request a task but fails(including no task) for more than
@@ -278,7 +275,7 @@ impl<'c> Task<'c> {
                             // break this task loop. that we have a chance to reload `sealing_thread` hot config file,
                             // or do something else.
 
-                            if self.store.config.check_modified() {
+                            if self.sealing_config.check_modified() {
                                 // cleanup sector if the hot config modified
                                 self.finalize()?;
                             }
@@ -314,7 +311,7 @@ impl<'c> Task<'c> {
     }
 
     fn retry(&mut self, temp_err: anyhow::Error) -> Result<(), Failure> {
-        if self.sector.retry >= self.store.config.max_retries {
+        if self.sector.retry >= self.sealing_config.max_retries {
             // reset retry times;
             self.sync(|s| {
                 s.retry = 0;
@@ -333,11 +330,11 @@ impl<'c> Task<'c> {
         })?;
 
         info!(
-            interval = ?self.store.config.recover_interval,
+            interval = ?self.sealing_config.recover_interval,
             "wait before recovering"
         );
 
-        self.wait_or_interrupted(self.store.config.recover_interval)?;
+        self.wait_or_interrupted(self.sealing_config.recover_interval)?;
         Ok(())
     }
 
@@ -393,11 +390,11 @@ impl<'c> Task<'c> {
                 Event::Idle | Event::Retry => {
                     debug!(
                         prev = ?self.sector.state,
-                        sleep = ?self.store.config.recover_interval,
+                        sleep = ?self.sealing_config.recover_interval,
                         "Event::{:?} captured", evt
                     );
 
-                    self.wait_or_interrupted(self.store.config.recover_interval)?;
+                    self.wait_or_interrupted(self.sealing_config.recover_interval)?;
                 }
 
                 other => {

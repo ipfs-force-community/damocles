@@ -8,5 +8,6 @@ pub mod service;
 pub mod store;
 pub mod util;
 
-mod hot_config;
-mod worker;
+mod config;
+mod sealing_thread;
+pub(crate) use sealing_thread::build_sealing_threads;

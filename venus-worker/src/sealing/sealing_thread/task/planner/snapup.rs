@@ -95,12 +95,12 @@ impl<'c, 't> SnapUp<'c, 't> {
             allocate_snapup_sector,
             AllocateSnapUpSpec {
                 sector: AllocateSectorSpec {
-                    allowed_miners: Some(self.task.store.config.allowed_miners.clone()),
-                    allowed_proof_types: Some(self.task.store.config.allowed_proof_types.clone()),
+                    allowed_miners: Some(self.task.sealing_config.allowed_miners.clone()),
+                    allowed_proof_types: Some(self.task.sealing_config.allowed_proof_types.clone()),
                 },
                 deals: AcquireDealsSpec {
-                    max_deals: self.task.store.config.max_deals,
-                    min_used_space: self.task.store.config.min_deal_space.map(|b| b.get_bytes() as usize),
+                    max_deals: self.task.sealing_config.max_deals,
+                    min_used_space: self.task.sealing_config.min_deal_space.map(|b| b.get_bytes() as usize),
                 },
             },
         };

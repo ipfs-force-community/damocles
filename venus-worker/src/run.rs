@@ -13,6 +13,7 @@ use reqwest::Url;
 use tokio::runtime::Builder;
 use vc_processors::builtin::processors::BuiltinProcessor;
 
+use crate::sealing::build_sealing_threads;
 use crate::{
     config,
     infra::{
@@ -25,7 +26,6 @@ use crate::{
         ping, processor,
         resource::{self, LimitItem},
         service,
-        store::StoreManager,
     },
     signal::Signal,
     types::SealProof,
@@ -118,7 +118,7 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
 
     let attached_mgr = AttachedManager::init(attached).context("init attached manager")?;
 
-    let store_mgr = StoreManager::load(&cfg.sealing_thread, &cfg.sealing).context("load store manager")?;
+    let sealing_threads = build_sealing_threads(&cfg.sealing_thread, &cfg.sealing).context("build sealing thread")?;
 
     let socket_addrs = Url::parse(&dial_addr)
         .with_context(|| format!("invalid url: {}", dial_addr))?
@@ -171,8 +171,6 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
 
     let processors = start_processors(&cfg, &ext_locks).context("start processors")?;
 
-    let workers = store_mgr.into_workers();
-
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
     let rt = Arc::new(runtime);
@@ -195,17 +193,17 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
     let mut dog = WatchDog::build(cfg, instance, dest, global);
 
     let mut ctrls = Vec::new();
-    for (worker, ctrl) in workers {
+    for (sealing_thread, ctrl) in sealing_threads {
         ctrls.push(ctrl);
-        dog.start_module(worker);
+        dog.start_module(sealing_thread);
     }
 
-    let worker_ctrls = Arc::new(ctrls);
+    let sealing_thread_ctrls = Arc::new(ctrls);
 
-    let worker_server = service::Service::new(worker_ctrls.clone());
+    let worker_server = service::Service::new(sealing_thread_ctrls.clone());
     dog.start_module(worker_server);
 
-    let worker_ping = ping::Ping::new(worker_ping_interval, worker_ctrls);
+    let worker_ping = ping::Ping::new(worker_ping_interval, sealing_thread_ctrls);
     dog.start_module(worker_ping);
 
     dog.start_module(Signal);
