@@ -38,7 +38,7 @@ impl SealingThread {
 
         Ok((
             Self {
-                config: Config::new(sealing_config, plan, location.hot_config_path())?,
+                config: Config::new(sealing_config, plan, Some(location.hot_config_path()))?,
                 store,
                 ctrl_ctx,
                 idx,
