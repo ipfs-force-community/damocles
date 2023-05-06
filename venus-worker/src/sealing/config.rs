@@ -22,8 +22,20 @@ pub struct Config {
 }
 
 impl Config {
-    pub(crate) fn new(config: Sealing, plan: Option<String>, hot_config_path: impl Into<PathBuf>) -> Result<Self> {
+    pub(crate) fn new(config: Sealing, plan: Option<String>, hot_config_path: Option<impl Into<PathBuf>>) -> Result<Self> {
         let default_config = SealingWithPlan { plan, sealing: config };
+
+        let hot_config_path = match hot_config_path {
+            Some(hot_config_path) => hot_config_path.into(),
+            None => {
+                // If hot_config_path is Option::None (for example, wdpost planner does not require hot config file),
+                // it means there is no hot config file.
+                // We point the hot config file to a non-existent file or a meaningless file (such as "/tmp/xxx")
+                // to avoid loading the hot config file
+                PathBuf::from("/tmp/non-existent-file")
+            }
+        };
+
         let hot_config = HotConfig::new(default_config, merge_config, hot_config_path).context("new HotConfig")?;
         let config = hot_config.config();
         tracing::info!(config = ?config, "sealing thread config");
