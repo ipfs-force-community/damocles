@@ -797,7 +797,7 @@ func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, 
 		}
 
 		if msg.Receipt.ExitCode != exitcode.Ok {
-			if msg.Receipt.ExitCode == exitcode.SysErrOutOfGas {
+			if msg.Receipt.ExitCode == exitcode.SysErrOutOfGas || msg.Receipt.ExitCode == exitcode.ErrInsufficientFunds {
 				return core.OnChainStateFailed, maybeMsg
 			}
 
