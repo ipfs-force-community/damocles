@@ -126,10 +126,13 @@ func all(ctx context.Context, it kvstore.Iter) ([]entry, error) {
 
 	for it.Next() {
 		var val kvstore.Val
-		it.View(ctx, func(v kvstore.Val) error {
+		err := it.View(ctx, func(v kvstore.Val) error {
 			val = v
 			return nil
 		})
+		if err != nil {
+			return nil, err
+		}
 		vals = append(vals, entry{
 			k: it.Key(),
 			v: val,

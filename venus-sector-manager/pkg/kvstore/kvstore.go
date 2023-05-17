@@ -27,17 +27,17 @@ type (
 	Txn     = pluginkvstore.Txn
 )
 
-func NewKVStoreExtend(kvStore KVStore) *KVStoreExtend {
-	return &KVStoreExtend{
+func NewExtend(kvStore KVStore) *Extend {
+	return &Extend{
 		KVStore: kvStore,
 	}
 }
 
-type KVStoreExtend struct {
+type Extend struct {
 	KVStore
 }
 
-func (kv *KVStoreExtend) MustNoConflict(f func() error) error {
+func (kv *Extend) MustNoConflict(f func() error) error {
 	if kv.NeedRetryTransactions() {
 		for {
 			err := f()
