@@ -174,6 +174,36 @@ func TestMongoStore_Del(t *testing.T) {
 	require.Equal(t, kvstore.ErrKeyNotFound, err)
 }
 
+// func TestTxnCommit(t *testing.T) {
+// 	ctx := context.TODO()
+// 	kv := testMongoKV(ctx, t, "test")
+
+// 	err := kv.Update(ctx, func(txn kvstore.Txn) error {
+// 		require.NoError(t, txn.Put(testKey1, testValue1))
+// 		_, err := txn.Get(testKey1)
+// 		require.NoError(t, err)
+// 		return nil
+// 	})
+// 	require.NoError(t, err)
+// 	_, err = kv.Get(ctx, testKey1)
+// 	require.NoError(t, err)
+// }
+
+// func TestTxnRollback(t *testing.T) {
+// 	ctx := context.TODO()
+// 	kv := testMongoKV(ctx, t, "test")
+
+// 	err := kv.Update(ctx, func(txn kvstore.Txn) error {
+// 		require.NoError(t, txn.Put(testKey1, testValue1))
+// 		_, err := txn.Get(testKey1)
+// 		require.NoError(t, err)
+// 		return errors.New("some error")
+// 	})
+// 	require.NotNil(t, err)
+// 	_, err = kv.Get(ctx, testKey1)
+// 	require.ErrorIs(t, err, kvstore.ErrKeyNotFound)
+// }
+
 func testMongoKV(ctx context.Context, t *testing.T, collection string) kvstore.KVStore {
 	db, err := kvstore.OpenMongo(context.TODO(), mongoServer.URI(), "vcs")
 	require.NoError(t, err)
