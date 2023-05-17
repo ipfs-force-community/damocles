@@ -307,7 +307,7 @@ func (m *StoreManager) modifyReserved(ctx context.Context, modifier func(*StoreR
 	defer m.reserveMu.Unlock()
 
 	var summary StoreReserveSummary
-	err := m.metadb.View(ctx, storeReserveSummaryKey, func(data []byte) error {
+	err := m.metadb.Peek(ctx, storeReserveSummaryKey, func(data []byte) error {
 		return json.Unmarshal(data, &summary)
 	})
 

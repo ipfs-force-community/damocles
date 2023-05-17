@@ -67,7 +67,7 @@ func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.S
 		return fmt.Errorf("load: %w", err)
 	}
 
-	if err := kv.View(ctx, key, func(content []byte) error {
+	if err := kv.Peek(ctx, key, func(content []byte) error {
 		return json.Unmarshal(content, state)
 	}); err != nil {
 		return fmt.Errorf("load state from %s: %w", ws, err)
@@ -163,7 +163,7 @@ func (sm *StateManager) Import(ctx context.Context, ws core.SectorWorkerState, s
 			return false, fmt.Errorf("import: %w", err)
 		}
 
-		err = kv.View(ctx, key, func([]byte) error { return nil })
+		err = kv.Peek(ctx, key, func([]byte) error { return nil })
 		if err == nil {
 			return false, nil
 		}
@@ -211,7 +211,7 @@ func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofTyp
 	}
 
 	key := makeSectorKey(sid)
-	err = kv.View(ctx, key, func([]byte) error { return nil })
+	err = kv.Peek(ctx, key, func([]byte) error { return nil })
 	if err == nil {
 		return fmt.Errorf("sector %s already initialized", string(key))
 	}

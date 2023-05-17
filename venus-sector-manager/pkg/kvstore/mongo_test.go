@@ -76,24 +76,6 @@ func TestMongoStore_PutGet(t *testing.T) {
 	require.Equal(t, testValue2, val)
 }
 
-func TestMongoStore_Has(t *testing.T) {
-	ctx := context.TODO()
-	kv := testMongoKV(ctx, t, "test")
-
-	require.NoError(t, DeleteAll(ctx, kv))
-
-	err := kv.Put(ctx, testKey1, testValue1)
-	require.NoError(t, err)
-
-	exist, err := kv.Has(ctx, testKey1)
-	require.NoError(t, err)
-	require.Equal(t, true, exist)
-
-	exist, err = kv.Has(ctx, testKey2)
-	require.NoError(t, err)
-	require.Equal(t, false, exist)
-}
-
 // this case will also test the usage of iter
 func TestMongoStore_Scan(t *testing.T) {
 	ctx := context.TODO()
@@ -110,6 +92,7 @@ func TestMongoStore_Scan(t *testing.T) {
 
 	iter, err := kv.Scan(ctx, testPrefixKey)
 	require.NoError(t, err)
+	defer iter.Close()
 
 	cnt := 0
 	for iter.Next() {
@@ -152,6 +135,7 @@ func TestMongoStore_ScanNil(t *testing.T) {
 	// should scan all key
 	iter, err := kv.Scan(ctx, nil)
 	require.NoError(t, err)
+	defer iter.Close()
 
 	cnt := 0
 	for iter.Next() {
@@ -175,6 +159,7 @@ func TestMongoStore_Del(t *testing.T) {
 
 	iter, err := kv.Scan(ctx, nil)
 	require.NoError(t, err)
+	defer iter.Close()
 
 	cnt := 0
 	for iter.Next() {

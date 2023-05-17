@@ -2,6 +2,7 @@ package kvstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -26,12 +27,75 @@ type KvInMongo struct {
 	RawKey Key    `bson:"raw"`
 }
 
-var _ KVStore = (*MongoStore)(nil)
-var _ Iter = (*MongoIter)(nil)
-var _ DB = (*mongoDB)(nil)
+var (
+	_ KVStore = (*MongoStore)(nil)
+	_ Iter    = (*MongoIter)(nil)
+	_ DB      = (*mongoDB)(nil)
+)
 
 type MongoStore struct {
-	col *mongo.Collection
+	coll *mongo.Collection
+}
+
+func (ms MongoStore) View(_ context.Context, _ func(Txn) error) error {
+	return errors.New("the MongoStore does not support transaction")
+}
+
+func (ms MongoStore) Update(_ context.Context, _ func(Txn) error) error {
+	return errors.New("the MongoStore does not support transaction")
+}
+
+func (ms MongoStore) NeedRetryTransactions() bool {
+	return false
+}
+
+func (ms MongoStore) Get(ctx context.Context, key Key) (Val, error) {
+	v := KvInMongo{}
+	err := ms.coll.FindOne(ctx, bson.M{"_id": KeyToString(key)}).Decode(&v)
+	if err == mongo.ErrNoDocuments {
+		return nil, ErrKeyNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return v.Val, nil
+}
+
+func (ms MongoStore) Peek(ctx context.Context, key Key, f func(Val) error) error {
+	v, err := ms.Get(ctx, key)
+	if err != nil {
+		return err
+	}
+	return f(v)
+}
+
+func (ms MongoStore) Put(ctx context.Context, key Key, val Val) error {
+	_, err := ms.coll.UpdateOne(ctx, bson.M{"_id": KeyToString(key)}, bson.M{"$set": KvInMongo{
+		Key:    KeyToString(key),
+		RawKey: key,
+		Val:    val,
+	}}, &options.UpdateOptions{
+		Upsert: &Upsert,
+	})
+	return err
+}
+
+func (ms MongoStore) Del(ctx context.Context, key Key) error {
+	_, err := ms.coll.DeleteOne(ctx, bson.M{"_id": KeyToString(key)})
+	return err
+}
+
+func (ms MongoStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
+	s := KeyToString(prefix)
+	s = "^" + s
+	cur, err := ms.coll.Find(ctx, bson.M{"_id": primitive.Regex{
+		Pattern: s,
+		Options: "i",
+	}})
+	if err != nil {
+		return nil, err
+	}
+	return &MongoIter{cur: cur}, nil
 }
 
 type MongoIter struct {
@@ -62,71 +126,15 @@ func (m *MongoIter) Key() Key {
 	return m.data.RawKey
 }
 
-func (m *MongoIter) View(ctx context.Context, callback Callback) error {
+func (m *MongoIter) View(ctx context.Context, f func(Val) error) error {
 	if m.data == nil {
 		return fmt.Errorf("wrong usage of View, should call next first")
 	}
-	return callback(m.data.Val)
+	return f(m.data.Val)
 }
 
 func (m *MongoIter) Close() {
 	m.cur.Close(context.TODO())
-}
-
-func (m MongoStore) Get(ctx context.Context, key Key) (Val, error) {
-	v := Val{}
-	err := m.View(ctx, key, func(val Val) error {
-		v = val
-		return nil
-	})
-	return v, err
-}
-
-func (m MongoStore) Has(ctx context.Context, key Key) (bool, error) {
-	count, err := m.col.CountDocuments(ctx, bson.D{{Key: "_id", Value: KeyToString(key)}})
-	return count > 0, err
-}
-
-func (m MongoStore) View(ctx context.Context, key Key, callback Callback) error {
-	v := KvInMongo{}
-	err := m.col.FindOne(ctx, bson.M{"_id": KeyToString(key)}).Decode(&v)
-	if err == mongo.ErrNoDocuments {
-		return ErrKeyNotFound
-	}
-	if err != nil {
-		return err
-	}
-
-	return callback(v.Val)
-}
-
-func (m MongoStore) Put(ctx context.Context, key Key, val Val) error {
-	_, err := m.col.UpdateOne(ctx, bson.M{"_id": KeyToString(key)}, bson.M{"$set": KvInMongo{
-		Key:    KeyToString(key),
-		RawKey: key,
-		Val:    val,
-	}}, &options.UpdateOptions{
-		Upsert: &Upsert,
-	})
-	return err
-}
-
-func (m MongoStore) Del(ctx context.Context, key Key) error {
-	_, err := m.col.DeleteOne(ctx, bson.M{"_id": KeyToString(key)})
-	return err
-}
-
-func (m MongoStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
-	s := KeyToString(prefix)
-	s = "^" + s
-	cur, err := m.col.Find(ctx, bson.M{"_id": primitive.Regex{
-		Pattern: s,
-		Options: "i",
-	}})
-	if err != nil {
-		return nil, err
-	}
-	return &MongoIter{cur: cur}, nil
 }
 
 type mongoDB struct {
@@ -142,7 +150,7 @@ func (db mongoDB) Close(context.Context) error {
 }
 
 func (db mongoDB) OpenCollection(_ context.Context, name string) (KVStore, error) {
-	return MongoStore{col: db.inner.Collection(name)}, nil
+	return MongoStore{coll: db.inner.Collection(name)}, nil
 }
 
 func OpenMongo(ctx context.Context, dsn string, dbName string) (DB, error) {

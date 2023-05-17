@@ -36,7 +36,7 @@ func (na *NumberAllocator) Next(ctx context.Context, mid abi.ActorID, minNum uin
 
 	key := []byte(fmt.Sprintf("/m-%d", mid))
 	var current uint64
-	switch err := na.store.View(ctx, key, func(data []byte) error {
+	switch err := na.store.Peek(ctx, key, func(data []byte) error {
 		num, read := binary.Uvarint(data)
 		if read != len(data) {
 			return fmt.Errorf("raw data is not a valid uvarint: %v", data)

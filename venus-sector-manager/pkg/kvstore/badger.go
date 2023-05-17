@@ -2,6 +2,7 @@ package kvstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -35,79 +36,144 @@ type BadgerKVStore struct {
 	db *badger.DB
 }
 
-func (b *BadgerKVStore) Get(ctx context.Context, key Key) (Val, error) {
-	var val []byte
+func (b *BadgerKVStore) View(ctx context.Context, f func(Txn) error) error {
 	err := b.db.View(func(txn *badger.Txn) error {
-		switch item, err := txn.Get(key); err {
-		case nil:
-			val, err = item.ValueCopy(nil)
-			return err
-
-		case badger.ErrKeyNotFound:
-			return ErrKeyNotFound
-
-		default:
-			return fmt.Errorf("get value from badger: %w", err)
-		}
+		return f(&BadgerTxn{inner: txn})
 	})
+	if errors.Is(err, badger.ErrConflict) {
+		return ErrTransactionConflict
+	}
+	return err
+}
 
-	if err != nil {
-		return nil, err
+func (b *BadgerKVStore) Update(ctx context.Context, f func(Txn) error) error {
+	err := b.db.Update(func(txn *badger.Txn) error {
+		return f(&BadgerTxn{inner: txn})
+	})
+	if errors.Is(err, badger.ErrConflict) {
+		return ErrTransactionConflict
+	}
+	return err
+}
+
+func (b *BadgerKVStore) NeedRetryTransactions() bool {
+	return true
+}
+
+func (b *BadgerKVStore) Get(ctx context.Context, key Key) (val Val, err error) {
+	for {
+		err = b.View(ctx, func(txn Txn) error {
+			v, err := txn.Get(key)
+			if err != nil {
+				return err
+			}
+			val = v
+			return nil
+		})
+		if !errors.Is(err, ErrTransactionConflict) {
+			return
+		}
+	}
+}
+
+func (b *BadgerKVStore) Peek(ctx context.Context, key Key, f func(Val) error) error {
+	for {
+		err := b.View(ctx, func(txn Txn) error {
+			return txn.Peek(key, f)
+		})
+		if !errors.Is(err, ErrTransactionConflict) {
+			return err
+		}
+	}
+}
+
+func (b *BadgerKVStore) Put(ctx context.Context, key Key, val Val) error {
+	for {
+		err := b.Update(ctx, func(txn Txn) error {
+			return txn.Put(key, val)
+		})
+		if !errors.Is(err, ErrTransactionConflict) {
+			return err
+		}
+	}
+}
+
+func (b *BadgerKVStore) Del(ctx context.Context, key Key) error {
+	for {
+		err := b.Update(ctx, func(txn Txn) error {
+			return txn.Del(key)
+		})
+		if !errors.Is(err, ErrTransactionConflict) {
+			return err
+		}
+	}
+}
+
+func (b *BadgerKVStore) Scan(ctx context.Context, prefix Prefix) (it Iter, err error) {
+	txn := b.db.NewTransaction(false)
+	iter := txn.NewIterator(badger.DefaultIteratorOptions)
+
+	return &BadgerIter{
+		txn:    txn,
+		iter:   iter,
+		seeked: false,
+		valid:  false,
+		prefix: prefix,
+	}, nil
+}
+
+var _ Txn = (*BadgerTxn)(nil)
+
+type BadgerTxn struct {
+	inner *badger.Txn
+}
+
+func (txn *BadgerTxn) Get(key Key) (Val, error) {
+	var val []byte
+
+	switch item, err := txn.inner.Get(key); err {
+	case nil:
+		val, err = item.ValueCopy(nil)
+		if err != nil {
+			return val, err
+		}
+	case badger.ErrKeyNotFound:
+		return val, ErrKeyNotFound
+
+	default:
+		return val, fmt.Errorf("get value from badger: %w", err)
 	}
 
 	return val, nil
 }
 
-func (b *BadgerKVStore) Has(ctx context.Context, key Key) (bool, error) {
-	err := b.db.View(func(txn *badger.Txn) error {
-		_, err := txn.Get(key)
-		return err
-	})
-
-	switch err {
-	case badger.ErrKeyNotFound:
-		return false, nil
+func (txn *BadgerTxn) Peek(key Key, f func(Val) error) error {
+	switch item, err := txn.inner.Get(key); err {
 	case nil:
-		return true, nil
+		return item.Value(f)
+
+	case badger.ErrKeyNotFound:
+		return ErrKeyNotFound
+
 	default:
-		return false, fmt.Errorf("failed to check if block exists in badger blockstore: %w", err)
+		return fmt.Errorf("get value from badger: %w", err)
 	}
-}
-
-func (b *BadgerKVStore) View(ctx context.Context, key Key, cb Callback) error {
-	return b.db.View(func(txn *badger.Txn) error {
-		switch item, err := txn.Get(key); err {
-		case nil:
-			return item.Value(cb)
-
-		case badger.ErrKeyNotFound:
-			return ErrKeyNotFound
-
-		default:
-			return fmt.Errorf("get value from badger: %w", err)
-		}
-	})
 
 }
 
-func (b *BadgerKVStore) Put(ctx context.Context, key Key, val Val) error {
-	return b.db.Update(func(txn *badger.Txn) error {
-		return txn.Set(key, val)
-	})
+func (txn *BadgerTxn) Put(key Key, val Val) error {
+	return txn.inner.Set(key, val)
 }
 
-func (b *BadgerKVStore) Del(ctx context.Context, key Key) error {
-	return b.db.Update(func(txn *badger.Txn) error {
-		return txn.Delete(key)
-	})
+func (txn *BadgerTxn) Del(key Key) error {
+	return txn.inner.Delete(key)
 }
 
-func (b *BadgerKVStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
-	txn := b.db.NewTransaction(false)
-	it := txn.NewIterator(badger.DefaultIteratorOptions)
+func (txn *BadgerTxn) Scan(prefix Prefix) (Iter, error) {
+	it := txn.inner.NewIterator(badger.DefaultIteratorOptions)
 
 	return &BadgerIter{
-		txn:    txn,
+		txn:    txn.inner,
 		iter:   it,
 		seeked: false,
 		valid:  false,
@@ -160,12 +226,12 @@ func (bi *BadgerIter) Key() Key {
 	return bi.item.Key()
 }
 
-func (bi *BadgerIter) View(ctx context.Context, cb Callback) error {
+func (bi *BadgerIter) View(ctx context.Context, f func(Val) error) error {
 	if !bi.valid {
 		return ErrIterItemNotValid
 	}
 
-	return bi.item.Value(cb)
+	return bi.item.Value(f)
 }
 
 func (bi *BadgerIter) Close() {

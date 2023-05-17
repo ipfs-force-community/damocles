@@ -117,7 +117,7 @@ func (rm *RebuildManager) loadAndUpdate(ctx context.Context, modify func(infos *
 	defer rm.kvMu.Unlock()
 
 	var infos RebuildInfos
-	err := rm.kv.View(ctx, rebuildInfoKey, func(v kvstore.Val) error {
+	err := rm.kv.Peek(ctx, rebuildInfoKey, func(v kvstore.Val) error {
 		verr := json.Unmarshal(v, &infos)
 		if verr != nil {
 			return fmt.Errorf("unmashal rebuild infos: %w", verr)

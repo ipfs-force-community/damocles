@@ -30,64 +30,119 @@ func NewWrappedKVStore(prefix []byte, inner KVStore) (*WrappedKVStore, error) {
 	log.Debugw("kv wrapped", "prefix", string(prefix), "prefix-len", prefixLen)
 
 	return &WrappedKVStore{
-		prefix:    prefix,
-		prefixLen: prefixLen,
-		inner:     inner,
+		makeKey: makeKey{
+			prefix:    prefix,
+			prefixLen: prefixLen,
+		},
+		inner: inner,
 	}, nil
 }
 
-type WrappedKVStore struct {
+type makeKey struct {
 	prefix    []byte
 	prefixLen int
-	inner     KVStore
 }
 
-func (w *WrappedKVStore) makeKey(raw Key) Key {
-	key := make(Key, w.prefixLen+len(raw))
-	copy(key[:w.prefixLen], w.prefix)
-	copy(key[w.prefixLen:], raw)
+func (p makeKey) makeKey(raw Key) Key {
+	key := make(Key, p.prefixLen+len(raw))
+	copy(key[:p.prefixLen], p.prefix)
+	copy(key[p.prefixLen:], raw)
 	return key
 }
 
+type WrappedKVStore struct {
+	makeKey makeKey
+	inner   KVStore
+}
+
+func (w *WrappedKVStore) View(ctx context.Context, f func(Txn) error) error {
+	return w.inner.View(ctx, func(inner Txn) error {
+		txn := &WrappedTxn{
+			makeKey: w.makeKey,
+			inner:   inner,
+		}
+		return f(txn)
+	})
+}
+
+func (w *WrappedKVStore) Update(ctx context.Context, f func(Txn) error) error {
+	return w.inner.Update(ctx, func(inner Txn) error {
+		txn := &WrappedTxn{
+			makeKey: w.makeKey,
+			inner:   inner,
+		}
+		return f(txn)
+	})
+}
+
+func (w *WrappedKVStore) NeedRetryTransactions() bool {
+	return w.inner.NeedRetryTransactions()
+}
+
 func (w *WrappedKVStore) Get(ctx context.Context, key Key) (Val, error) {
-	return w.inner.Get(ctx, w.makeKey(key))
+	return w.inner.Get(ctx, w.makeKey.makeKey(key))
 }
 
-func (w *WrappedKVStore) Has(ctx context.Context, key Key) (bool, error) {
-	return w.inner.Has(ctx, w.makeKey(key))
-}
-
-func (w *WrappedKVStore) View(ctx context.Context, key Key, cb Callback) error {
-	return w.inner.View(ctx, w.makeKey(key), cb)
+func (w *WrappedKVStore) Peek(ctx context.Context, key Key, f func(Val) error) error {
+	return w.inner.Peek(ctx, w.makeKey.makeKey(key), f)
 }
 
 func (w *WrappedKVStore) Put(ctx context.Context, key Key, val Val) error {
-	return w.inner.Put(ctx, w.makeKey(key), val)
+	return w.inner.Put(ctx, w.makeKey.makeKey(key), val)
 }
 
 func (w *WrappedKVStore) Del(ctx context.Context, key Key) error {
-	return w.inner.Del(ctx, w.makeKey(key))
+	return w.inner.Del(ctx, w.makeKey.makeKey(key))
 }
 
 func (w *WrappedKVStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
-	iter, err := w.inner.Scan(ctx, w.makeKey(prefix))
+	iter, err := w.inner.Scan(ctx, w.makeKey.makeKey(prefix))
 	if err != nil {
 		return nil, err
 	}
 
 	return &WrappedIter{
-		prefixLen: w.prefixLen,
+		prefixLen: w.makeKey.prefixLen,
 		inner:     iter,
 	}, nil
 }
 
-func (w *WrappedKVStore) Run(ctx context.Context) error {
-	return nil
+var _ Txn = (*WrappedTxn)(nil)
+
+type WrappedTxn struct {
+	makeKey makeKey
+	inner   Txn
 }
 
-func (w *WrappedKVStore) Close(ctx context.Context) error {
-	return nil
+func (wt *WrappedTxn) Get(key Key) (Val, error) {
+	return wt.inner.Get(wt.makeKey.makeKey(key))
 }
+
+func (wt *WrappedTxn) Peek(key Key, f func(Val) error) error {
+	return wt.inner.Peek(wt.makeKey.makeKey(key), f)
+}
+
+func (wt *WrappedTxn) Put(key Key, val Val) error {
+	return wt.inner.Put(wt.makeKey.makeKey(key), val)
+}
+
+func (wt *WrappedTxn) Del(key Key) error {
+	return wt.inner.Del(wt.makeKey.makeKey(key))
+}
+
+func (wt *WrappedTxn) Scan(prefix Prefix) (Iter, error) {
+	iter, err := wt.inner.Scan(wt.makeKey.makeKey(prefix))
+	if err != nil {
+		return nil, err
+	}
+
+	return &WrappedIter{
+		prefixLen: wt.makeKey.prefixLen,
+		inner:     iter,
+	}, nil
+}
+
+var _ Iter = (*WrappedIter)(nil)
 
 type WrappedIter struct {
 	prefixLen int
@@ -96,8 +151,8 @@ type WrappedIter struct {
 
 func (wi *WrappedIter) Next() bool { return wi.inner.Next() }
 
-func (wi *WrappedIter) View(ctx context.Context, cb Callback) error {
-	return wi.inner.View(ctx, cb)
+func (wi *WrappedIter) View(ctx context.Context, f func(Val) error) error {
+	return wi.inner.View(ctx, f)
 }
 
 func (wi *WrappedIter) Close() { wi.inner.Close() }

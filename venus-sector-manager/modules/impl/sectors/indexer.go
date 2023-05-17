@@ -55,7 +55,7 @@ type innerIndexer struct {
 func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (core.SectorAccessStores, bool, error) {
 	var stores core.SectorAccessStores
 	// string(b) will copy the underlying bytes, so we use View here
-	err := i.kv.View(ctx, makeSectorKeySealedFile(sid), func(b []byte) error {
+	err := i.kv.Peek(ctx, makeSectorKeySealedFile(sid), func(b []byte) error {
 		stores.SealedFile = string(b)
 		return nil
 	})
@@ -68,7 +68,7 @@ func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (core.SectorA
 		return stores, false, fmt.Errorf("locate sealed file: %w", err)
 	}
 
-	err = i.kv.View(ctx, makeSectorKeyForCacheDir(sid), func(b []byte) error {
+	err = i.kv.Peek(ctx, makeSectorKeyForCacheDir(sid), func(b []byte) error {
 		stores.CacheDir = string(b)
 		return nil
 	})

@@ -343,7 +343,7 @@ func (s *SnapUpAllocator) Release(ctx context.Context, candidate *core.SnapUpCan
 
 func (s *SnapUpAllocator) loadExists(ctx context.Context, key kvstore.Key) ([]*bitfield.BitField, error) {
 	var exists []*bitfield.BitField
-	err := s.kv.View(ctx, key, func(v kvstore.Val) error {
+	err := s.kv.Peek(ctx, key, func(v kvstore.Val) error {
 		err := json.Unmarshal(v, &exists)
 		if err != nil {
 			return fmt.Errorf("bitfield from bytes: %w", err)
