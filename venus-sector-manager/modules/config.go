@@ -141,6 +141,7 @@ type PieceStoreConfig struct {
 	Name       string
 	Path       string
 	Meta       map[string]string
+	ReadOnly   bool
 	Plugin     string // For compatibility with v0.5
 	PluginName string
 }
