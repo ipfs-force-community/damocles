@@ -51,6 +51,10 @@ build-venus-sector-manager:
 	rm -rf ./venus-sector-manager
 	$(GO) build -tags="$(GOTAGS)" $(GOFLAGS) -o venus-sector-manager ./cmd/venus-sector-manager
 
+build_debug: GOFLAGS+=-gcflags="all=-N -l"
+build_debug: GOTAGS+=prod
+build_debug: build-venus-sector-manager
+
 .PHONY: venus-sector-manager
 BINS+=venus-sector-manager
 BUILDS+=build-venus-sector-manager
