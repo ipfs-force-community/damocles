@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 pub const PLANNER_NAME_SEALER: &str = "sealer";
 pub const PLANNER_NAME_SNAPUP: &str = "snapup";
 pub const PLANNER_NAME_REBUILD: &str = "rebuild";
+pub const PLANNER_NAME_UNSEAL: &str = "unseal";
 
 mod sealer;
 
@@ -13,6 +14,8 @@ mod snapup;
 mod rebuild;
 
 mod common;
+
+mod unseal;
 
 type ExecResult = Result<Event, Failure>;
 
@@ -42,6 +45,8 @@ pub fn get_planner(p: Option<&str>) -> Result<Box<dyn Planner>> {
         Some(PLANNER_NAME_SNAPUP) => Ok(Box::new(snapup::SnapUpPlanner)),
 
         Some(PLANNER_NAME_REBUILD) => Ok(Box::new(rebuild::RebuildPlanner)),
+
+        Some(PLANNER_NAME_UNSEAL) => Ok(Box::new(unseal::UnsealPlanner)),
 
         Some(other) => Err(anyhow!("unknown planner {}", other)),
     }

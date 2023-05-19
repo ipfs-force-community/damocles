@@ -278,7 +278,7 @@ pub struct AllocateSnapUpSpec {
     pub deals: AcquireDealsSpec,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorPublicInfo {
     pub comm_r: [u8; 32],
@@ -352,6 +352,21 @@ pub struct SectorRebuildInfo {
     #[serde(rename = "IsSnapUp")]
     pub is_snapup: bool,
     pub upgrade_public: Option<SectorPublicInfo>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SectorUnsealInfo {
+    pub sector: AllocatedSector,
+    pub piece_cid: CidJson,
+    pub comm_d: [u8; 32],
+    pub ticket: Ticket,
+
+    pub offset: u64,
+    pub size: u64,
+
+    pub private_info: SectorPrivateInfo,
+    pub dest: String,
 }
 
 /// defines the SealerRpc service
@@ -430,4 +445,11 @@ pub trait Sealer {
     // rebuild
     #[rpc(name = "Venus.AllocateRebuildSector")]
     fn allocate_rebuild_sector(&self, spec: AllocateSectorSpec) -> Result<Option<SectorRebuildInfo>>;
+
+    // unseal
+    #[rpc(name = "Venus.AllocateUnsealSector")]
+    fn allocate_unseal_sector(&self, spec: AllocateSectorSpec) -> Result<Option<SectorUnsealInfo>>;
+
+    #[rpc(name = "Venus.AchieveUnsealSector")]
+    fn achieve_unseal_sector(&self, id: SectorID, piece_cid: CidJson, error: String) -> Result<()>;
 }

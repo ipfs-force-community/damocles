@@ -204,6 +204,9 @@ pub struct Processors {
 
     /// section for transfer processor
     pub transfer: Option<Vec<Ext>>,
+
+    /// section for unseal processor
+    pub unseal: Option<Vec<Ext>>,
 }
 
 impl Processors {

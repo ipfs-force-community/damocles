@@ -4298,6 +4298,7 @@ dependencies = [
  "toml 0.7.3",
  "tracing",
  "tracing-subscriber",
+ "url 2.3.1",
  "vc-processors",
 ]
 

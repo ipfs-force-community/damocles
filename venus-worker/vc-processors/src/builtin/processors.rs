@@ -9,13 +9,14 @@ use filecoin_proofs_api::StorageProofsError;
 use tracing::debug;
 
 use super::tasks::{
-    AddPieces, SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, WindowPoSt, WindowPoStOutput, WinningPoSt, WinningPoStOutput, C2,
-    PC1, PC2,
+    AddPieces, SnapEncode, SnapProve, Transfer, TransferRoute, TreeD, Unseal, WindowPoSt, WindowPoStOutput, WinningPoSt, WinningPoStOutput,
+    C2, PC1, PC2,
 };
 use crate::core::{Processor, Task};
 use crate::fil_proofs::{
     create_tree_d, generate_window_post, generate_winning_post, seal_commit_phase2, seal_pre_commit_phase1, seal_pre_commit_phase2,
-    snap_encode_into, snap_generate_sector_update_proof, to_prover_id, write_and_preprocess, PartitionProofBytes, PrivateReplicaInfo,
+    snap_encode_into, snap_generate_sector_update_proof, to_prover_id, unseal_range, write_and_preprocess, PartitionProofBytes,
+    PrivateReplicaInfo,
 };
 
 pub mod piece;
@@ -161,5 +162,30 @@ impl Processor<WinningPoSt> for BuiltinProcessor {
         generate_winning_post(&task.seed, &replicas, to_prover_id(task.miner_id)).map(|proofs| WinningPoStOutput {
             proofs: proofs.into_iter().map(|r| r.1).collect(),
         })
+    }
+}
+
+impl Processor<Unseal> for BuiltinProcessor {
+    fn process(&self, task: Unseal) -> Result<<Unseal as Task>::Output> {
+        let unsealed_output = fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(true)
+            .open(&task.unsealed_output)
+            .with_context(|| format!("open unsealed file: {}", task.unsealed_output.display()))?;
+
+        unseal_range(
+            task.registered_proof,
+            &task.cache_dir,
+            &task.sealed_file,
+            unsealed_output,
+            task.prover_id,
+            task.sector_id,
+            task.comm_d,
+            task.ticket,
+            task.offset,
+            task.num_bytes,
+        )
     }
 }
