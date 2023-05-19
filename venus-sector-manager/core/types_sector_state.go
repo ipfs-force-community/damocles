@@ -125,4 +125,5 @@ const (
 	SectorWorkerJobSealing SectorWorkerJob = 1
 	SectorWorkerJobSnapUp  SectorWorkerJob = 2
 	SectorWorkerJobRebuild SectorWorkerJob = 3
+	SectorWorkerJobUnseal  SectorWorkerJob = 4
 )

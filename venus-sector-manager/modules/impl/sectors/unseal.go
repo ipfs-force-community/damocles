@@ -15,6 +15,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/market"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
+	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 )
@@ -33,11 +34,12 @@ type UnsealManager struct {
 	kv          kvstore.KVStore
 	defaultDest *url.URL
 	marketEvent market.IMarketEvent
+	onAchieve   map[string]func()
 }
 
 var _ core.UnsealSectorManager = (*UnsealManager)(nil)
 
-func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerInfoAPI, kv kvstore.KVStore, mEvent market.IMarketEvent) (ret *UnsealManager, err error) {
+func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerAPI, kv kvstore.KVStore, mEvent market.IMarketEvent) (ret *UnsealManager, err error) {
 	ret = &UnsealManager{
 		kv:          kv,
 		msel:        newMinerSelector(scfg, minfoAPI),
@@ -45,9 +47,16 @@ func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI co
 	}
 
 	scfg.Lock()
-	mAPI := scfg.Config.Common.API.Market
+	commonAPI := scfg.Config.Common.API
 	scfg.Unlock()
-	ret.defaultDest, err = getDefaultMarketPiecesStore(mAPI)
+	ret.defaultDest, err = getDefaultMarketPiecesStore(commonAPI.Market)
+	if err != nil {
+		return nil, fmt.Errorf("get default market pieces store: %w", err)
+	}
+	q := ret.defaultDest.Query()
+	q.Set("token", commonAPI.Token)
+	ret.defaultDest.RawQuery = q.Encode()
+
 	if err != nil {
 		return
 	}
@@ -60,13 +69,16 @@ func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI co
 			return
 		}
 		err = ret.Set(ctx, &core.SectorUnsealInfo{
-			UnsealTaskIdentifier: core.UnsealTaskIdentifier{
-				Actor:        abi.ActorID(actor),
-				SectorNumber: req.Sid,
-				PieceCid:     req.PieceCid,
+			Sector: core.AllocatedSector{
+				ID: abi.SectorID{
+					Miner:  abi.ActorID(actor),
+					Number: req.Sid,
+				},
+				// proofType should be set when allocate
 			},
-			Offset:   req.Offset,
-			Size:     req.Size,
+			PieceCid: req.PieceCid,
+			Offset:   uint64(req.Offset),
+			Size:     uint64(req.Size),
 			Dest:     req.Dest,
 			EventIds: []vtypes.UUID{eventId},
 		})
@@ -91,20 +103,22 @@ func (u *UnsealManager) Set(ctx context.Context, req *core.SectorUnsealInfo) (er
 
 	// set into db
 	err = u.loadAndUpdate(ctx, func(infos *UnsealInfos) bool {
-		id := req.UnsealTaskIdentifier.String()
-		info, ok := infos.Allocatable[req.Actor]
+		key := core.UnsealInfoKey(req.Sector.ID.Miner, req.Sector.ID.Number, req.PieceCid)
+		info, ok := infos.Allocatable[req.Sector.ID.Miner]
 		if !ok {
 			info = map[string]*core.SectorUnsealInfo{}
 		}
 
 		//  if task exit, merge event id
-		if before, ok := info[id]; ok {
+		if before, ok := info[key]; ok {
+			log.Infof("update unseal info (%s) with %d event id ", key, len(req.EventIds))
 			req.EventIds = append(req.EventIds, before.EventIds...)
-			infos.Allocated[id] = req
+			infos.Allocated[key] = req
 		}
 
-		info[id] = req
-		infos.Allocatable[req.Actor] = info
+		info[key] = req
+		infos.Allocatable[req.Sector.ID.Miner] = info
+		log.Infof("set unseal info: %s , ", key)
 		return true
 	})
 
@@ -112,6 +126,17 @@ func (u *UnsealManager) Set(ctx context.Context, req *core.SectorUnsealInfo) (er
 		return fmt.Errorf("add unseal info: %w", err)
 	}
 	return nil
+}
+
+// Set set unseal task
+func (u *UnsealManager) OnAchieve(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, hook func()) {
+	key := core.UnsealInfoKey(sid.Miner, sid.Number, pieceCid)
+	u.kvMu.Lock()
+	defer u.kvMu.Unlock()
+	if u.onAchieve == nil {
+		u.onAchieve = map[string]func(){}
+	}
+	u.onAchieve[key] = hook
 }
 
 // allocate a unseal task
@@ -139,8 +164,11 @@ func (u *UnsealManager) Allocate(ctx context.Context, spec core.AllocateSectorSp
 			}
 			for sectorNum, v := range info {
 				allocated = v
+				// todo: exclude online sector
+				key := core.UnsealInfoKey(allocated.Sector.ID.Miner, allocated.Sector.ID.Number, allocated.PieceCid)
 				delete(infos.Allocatable[candidate.info.ID], sectorNum)
-				infos.Allocated[allocated.UnsealTaskIdentifier.String()] = allocated
+				allocated.Sector.ProofType = candidate.info.SealProofType
+				infos.Allocated[key] = allocated
 				return true
 			}
 		}
@@ -155,25 +183,34 @@ func (u *UnsealManager) Allocate(ctx context.Context, spec core.AllocateSectorSp
 	return allocated, nil
 }
 
-// archive a unseal task
-func (u *UnsealManager) Archive(ctx context.Context, id *core.UnsealTaskIdentifier, unsealErr error) error {
+// achieve a unseal task
+func (u *UnsealManager) Achieve(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, unsealErr string) error {
+	key := core.UnsealInfoKey(sid.Miner, sid.Number, pieceCid)
 	// respond to market
 	var info *core.SectorUnsealInfo
 	err := u.loadAndUpdate(ctx, func(infos *UnsealInfos) bool {
 		ok := false
-		info, ok = infos.Allocated[id.String()]
+		info, ok = infos.Allocated[key]
 		if !ok {
 			return false
 		}
-		delete(infos.Allocated, id.String())
+		delete(infos.Allocated, key)
 		return true
 	})
 
 	if err != nil {
-		return fmt.Errorf("archive unseal info(actor=%s sector=%s event_id=%s ): %w", info.Actor, info.SectorNumber, info.EventIds, err)
+		return fmt.Errorf("achieve unseal info(%s): %w", key, err)
 	}
 
-	// todo: build transfer task and do it, or transfer task by worker
+	if info == nil {
+		return fmt.Errorf("achieve unseal info(%s): task not found", key)
+	}
+
+	// call hook
+	hook, ok := u.onAchieve[key]
+	if ok {
+		hook()
+	}
 
 	// respond to market
 	for _, eventID := range info.EventIds {
@@ -217,6 +254,7 @@ func (u *UnsealManager) loadAndUpdate(ctx context.Context, modify func(infos *Un
 	if !updated {
 		return nil
 	}
+	log.Debugf("update unseal task: Allocatable(%d) Allocated(%d)", len(infos.Allocatable), len(infos.Allocated))
 
 	val, err := json.Marshal(infos)
 	if err != nil {
@@ -232,32 +270,37 @@ func (u *UnsealManager) loadAndUpdate(ctx context.Context, modify func(infos *Un
 }
 
 // checkDestUrl check dest url conform to the out expect
-// we accept two kinds of url by now
+// we accept three kinds of url by now
 // 1. http://xxx or https://xxx , it means we will put data to a http server
-// 2. /xxx , it means we will put data to the target path of pieces store from market
+// 2. market://store_name/piece_cid, it means we will put data to the target path of pieces store from market
+// 3. file:///path , it means we will put data to a local file
+// 4. store://store_name/piece_cid , it means we will put data to store in venus-sector-manager
 func (u *UnsealManager) checkDestUrl(dest string) (string, error) {
 	urlStruct, err := url.Parse(dest)
 	if err != nil {
 		return "", err
 	}
 
-	if urlStruct.Scheme != "http" && urlStruct.Scheme != "https" && !urlStruct.IsAbs() {
+	switch urlStruct.Scheme {
+	case "http", "https", "file", "store":
+	case "market":
+		// add host , scheme and token
+		q := urlStruct.Query()
+		q.Set("token", u.defaultDest.Query().Get("token"))
+		q.Set("host", u.defaultDest.Host)
+		q.Set("scheme", u.defaultDest.Scheme)
+		urlStruct.RawQuery = q.Encode()
+	default:
 		return "", fmt.Errorf("invalid dest url: %s(unsupported scheme %s)", dest, urlStruct.Scheme)
-	}
-
-	// try to supply scheme and host
-	if !urlStruct.IsAbs() {
-		urlStruct.Scheme = u.defaultDest.Scheme
-		urlStruct.Host = u.defaultDest.Host
 	}
 
 	return urlStruct.String(), nil
 }
 
-type Multiaddr = string
+type MultiAddr = string
 
 // getDefaultMarketPiecesStore get the default pieces store url from market api
-func getDefaultMarketPiecesStore(marketAPI Multiaddr) (*url.URL, error) {
+func getDefaultMarketPiecesStore(marketAPI MultiAddr) (*url.URL, error) {
 	ret := &url.URL{
 		Scheme: "http",
 	}

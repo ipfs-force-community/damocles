@@ -22,7 +22,7 @@ var log = logging.New("market_event")
 type IMarketEvent interface {
 	// OnUnseal register a hook function which will be triggered when a unseal request is received
 	OnUnseal(f func(ctx context.Context, eventID types.UUID, req *UnsealRequest))
-	RespondUnseal(ctx context.Context, eventID types.UUID, err error) error
+	RespondUnseal(ctx context.Context, eventID types.UUID, errInfo string) error
 }
 
 //go:generate mockgen -destination=./market_event_mock.go -package=market github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/market IMarketEvent
@@ -37,7 +37,7 @@ type GatewayEvent struct {
 
 // MarketEvent handle event which come from gateway but originated from market
 // It will trigger up the hook function registered in when the event is received
-type MarketEvent struct {
+type MarketEvent struct { //nolint: revive
 	clients map[string]*EventClient
 	eventCh chan *GatewayEvent
 
@@ -145,14 +145,10 @@ func (m *MarketEvent) ResponseMarketEvent(ctx context.Context, resp *gtypes.Resp
 	return client.ResponseMarketEvent(ctx, resp)
 }
 
-func (m *MarketEvent) RespondUnseal(ctx context.Context, eventID types.UUID, unsealErr error) error {
-	errStr := ""
-	if unsealErr != nil {
-		errStr = unsealErr.Error()
-	}
+func (m *MarketEvent) RespondUnseal(ctx context.Context, eventID types.UUID, unsealErr string) error {
 	return m.ResponseMarketEvent(ctx, &gtypes.ResponseEvent{
 		ID:      eventID,
 		Payload: nil,
-		Error:   errStr,
+		Error:   unsealErr,
 	})
 }

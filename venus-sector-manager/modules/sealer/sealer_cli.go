@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/pkg/clock"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
@@ -389,6 +391,31 @@ func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorke
 	return sectors, nil
 }
 
+func (s *Sealer) FindSectorWithPiece(ctx context.Context, state core.SectorWorkerState, pieceCid cid.Cid) (*core.SectorState, error) {
+
+	var ret *core.SectorState
+	err := s.state.ForEach(ctx, state, core.SectorWorkerJobAll, func(ss core.SectorState) error {
+		deals := ss.Deals()
+		if len(deals) == 0 {
+			return nil
+		}
+
+		for _, deal := range deals {
+			if pieceCid.Equals(deal.Piece.Cid) {
+				ret = &ss
+				break
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("iterate sectors: %w", err)
+	}
+
+	return ret, nil
+}
+
 func (s *Sealer) ImportSector(ctx context.Context, ws core.SectorWorkerState, state *core.SectorState, override bool) (bool, error) {
 	if state == nil {
 		return false, nil
@@ -474,4 +501,68 @@ func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt 
 	}
 
 	return true, nil
+}
+
+func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset, size uint64, dest string) (<-chan []byte, error) {
+
+	var stream chan []byte
+	if dest == "" {
+		stream = make(chan []byte)
+		// export piece to cli, when no dest specify
+		// set dest
+		dest = fmt.Sprintf("store:///%s", pieceCid.String())
+		// set hook
+		hook := func() {
+			// read piece file and write data back to stream
+			r, err := s.pieceStore.Get(ctx, pieceCid)
+			if err != nil {
+				log.Errorf("get piece file: %v", err)
+				return
+			}
+			go func() {
+				defer r.Close()
+				defer close(stream)
+				buf := make([]byte, 2<<20)
+				for {
+					n, err := r.Read(buf)
+					if err != nil {
+						if err != io.EOF {
+							log.Errorf("read piece file error: %v", err)
+							return
+						}
+					}
+					select {
+					case stream <- buf[:n]:
+					case <-ctx.Done():
+						log.Errorf("write piece data back fail: %v", ctx.Err())
+					}
+
+					if err == io.EOF {
+						// send empty slice to indicate correct eof
+						select {
+						case stream <- []byte{}:
+						case <-ctx.Done():
+							log.Warnf("write piece data back fail: %s", ctx.Err())
+							return
+						}
+						return
+					}
+				}
+			}()
+
+		}
+		s.unseal.OnAchieve(ctx, sid, pieceCid, hook)
+	}
+
+	req := &core.SectorUnsealInfo{
+		Sector: core.AllocatedSector{
+			ID: sid,
+		},
+		PieceCid: pieceCid,
+		Offset:   offset,
+		Size:     size,
+		Dest:     dest,
+	}
+
+	return stream, s.unseal.Set(ctx, req)
 }

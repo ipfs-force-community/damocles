@@ -28,6 +28,8 @@ func (m *EventClient) ListenOnMiner(ctx context.Context, miner address.Address, 
 		})
 		if err == nil {
 			break
+		} else {
+			log.Errorf("listen market for miner(%s) event error %v", miner.String(), err)
 		}
 		// try to reconnect
 		select {

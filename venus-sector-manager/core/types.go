@@ -30,8 +30,9 @@ type AllocatedSector struct {
 }
 
 type PieceInfo struct {
-	Size abi.PaddedPieceSize
-	Cid  cid.Cid
+	Size   abi.PaddedPieceSize
+	Offset abi.PaddedPieceSize
+	Cid    cid.Cid
 }
 
 type DealInfo struct {
@@ -359,12 +360,21 @@ type UnsealTaskIdentifier struct {
 }
 
 type SectorUnsealInfo struct {
-	UnsealTaskIdentifier
-	Offset vtypes.PaddedByteIndex
-	Size   abi.PaddedPieceSize
-	Dest   string
+	Sector   AllocatedSector
+	PieceCid cid.Cid
+	Offset   uint64
+	Size     uint64
+	Dest     string
+
+	PrivateInfo SectorPrivateInfo
+	Ticket      Ticket
+	CommD       [32]byte
 	// there may be more than one unseal event result into on unseal task
 	EventIds []vtypes.UUID
+}
+
+func UnsealInfoKey(actor abi.ActorID, sectorNumber abi.SectorNumber, pieceCid cid.Cid) string {
+	return fmt.Sprintf("%d-%d-%s", actor, sectorNumber, pieceCid.String())
 }
 
 func (s UnsealTaskIdentifier) String() string {

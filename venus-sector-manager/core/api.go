@@ -6,6 +6,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -68,6 +69,10 @@ type SealerAPI interface {
 
 	StoreBasicInfo(ctx context.Context, instanceName string) (*StoreBasicInfo, error)
 
+	// Unseal Sector
+	AllocateUnsealSector(ctx context.Context, spec AllocateSectorSpec) (*SectorUnsealInfo, error)
+	AchieveUnsealSector(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (Meta, error)
+
 	// utils
 	SealerCliAPI
 }
@@ -78,6 +83,8 @@ type SealerCliAPI interface {
 	FindSector(ctx context.Context, state SectorWorkerState, sid abi.SectorID) (*SectorState, error)
 
 	FindSectorsWithDeal(ctx context.Context, state SectorWorkerState, dealID abi.DealID) ([]*SectorState, error)
+
+	FindSectorWithPiece(ctx context.Context, state SectorWorkerState, pieceCid cid.Cid) (*SectorState, error)
 
 	ImportSector(ctx context.Context, ws SectorWorkerState, state *SectorState, override bool) (bool, error)
 
@@ -114,6 +121,9 @@ type SealerCliAPI interface {
 	StoreList(ctx context.Context) ([]StoreDetailedInfo, error)
 
 	SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt RebuildOptions) (bool, error)
+
+	// Unseal Sector
+	UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset, size uint64, dest string) (<-chan []byte, error)
 }
 
 type RandomnessAPI interface {

@@ -68,6 +68,12 @@ var flagListEnableRebuild = &cli.BoolFlag{
 	Value: false,
 }
 
+var flagListEnableUnseal = &cli.BoolFlag{
+	Name:  "unseal",
+	Usage: "enable unseal jobs in listing",
+	Value: false,
+}
+
 var utilSealerSectorsCmd = &cli.Command{
 	Name:  "sectors",
 	Usage: "Commands for interacting with sectors",
@@ -88,6 +94,7 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsImportCmd,
 		utilSealerSectorsRebuildCmd,
 		utilSealerSectorsExportCmd,
+		utilSealerSectorsUnsealCmd,
 	},
 }
 
@@ -187,6 +194,10 @@ var utilSealerSectorsListCmd = &cli.Command{
 			{
 				name:    flagListEnableRebuild.Name,
 				jobType: core.SectorWorkerJobRebuild,
+			},
+			{
+				name:    flagListEnableUnseal.Name,
+				jobType: core.SectorWorkerJobUnseal,
 			},
 		}
 
@@ -2224,6 +2235,128 @@ var utilSealerSectorsRebuildCmd = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("set sector for rebuild failed: %w", err)
 		}
+
+		return nil
+	},
+}
+
+var utilSealerSectorsUnsealCmd = &cli.Command{
+	Name:      "unseal",
+	Usage:     "unseal specified sector",
+	ArgsUsage: "<piece_cid>",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "output",
+			Usage:   "output piece as a car file to the specific path",
+			Aliases: []string{"o"},
+		},
+		&cli.Uint64Flag{
+			Name:  "offset",
+			Usage: "specify offset of piece manually",
+			Value: 0,
+		},
+		&cli.Uint64Flag{
+			Name:  "size",
+			Usage: "specify size of piece manually",
+			Value: 0,
+		},
+		&cli.StringFlag{
+			Name:  "dest",
+			Usage: "specify destination to transfer piece manually, there are five protocols can be used:" + "\"file:///path\",\"http://\" \"https://\", \"market://store_name/piece_cid\", \"store://store_name/piece_cid\"",
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+
+		if count := cctx.Args().Len(); count < 1 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer stop()
+
+		pieceCid, err := cid.Decode(cctx.Args().First())
+		if err != nil {
+			return fmt.Errorf("invalid piece cid: %w", err)
+		}
+
+		// query sector for piece
+		sector, err := cli.Sealer.FindSectorWithPiece(gctx, core.WorkerOffline, pieceCid)
+		if err != nil {
+			return fmt.Errorf("find sector with piece: %w", err)
+		}
+
+		if sector == nil {
+			return fmt.Errorf("no sector found with piece %s", pieceCid)
+		}
+
+		var offset, size uint64
+		for _, p := range sector.Pieces {
+			if pieceCid.Equals(p.Piece.Cid) {
+				offset = uint64(p.Piece.Offset.Unpadded())
+				size = uint64(p.Piece.Size.Unpadded())
+				break
+			}
+		}
+
+		// allow cover offset and size by flag
+		if cctx.IsSet("offset") {
+			offset = cctx.Uint64("offset")
+		}
+		if cctx.IsSet("size") {
+			size = cctx.Uint64("size")
+		}
+
+		dest := cctx.String("dest")
+		output := cctx.String("output")
+
+		stream, err := cli.Sealer.UnsealPiece(gctx, sector.ID, pieceCid, offset, size, dest)
+		if err != nil {
+			return fmt.Errorf("set task for unseal failed: %w", err)
+		}
+
+		if stream != nil {
+			if output == "" {
+				pwd, err := os.Getwd()
+				if err != nil {
+					return fmt.Errorf("get pwd failed: %w", err)
+				}
+				output = fmt.Sprintf("%s/%s", pwd, pieceCid.String())
+			}
+
+			fi, err := os.OpenFile(output, os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				err := fi.Close()
+				if err != nil {
+					fmt.Printf("error closing output file: %+v", err)
+				}
+			}()
+
+			var finish bool
+			for b := range stream {
+				finish = len(b) == 0
+
+				_, err := fi.Write(b)
+				if err != nil {
+					return err
+				}
+			}
+
+			if !finish {
+				return fmt.Errorf("unseal piece failed")
+			}
+		}
+
+		fmt.Println("set task for unseal success:")
+		fmt.Printf("piece cid: %s\n", pieceCid)
+		fmt.Printf("offset: %d\n", offset)
+		fmt.Printf("size: %d\n", size)
+		fmt.Printf("dest: %s\n", dest)
 
 		return nil
 	},

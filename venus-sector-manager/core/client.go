@@ -7,6 +7,7 @@ import (
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 )
@@ -21,6 +22,10 @@ var UnavailableSealerCliClient = SealerCliClient{
 	},
 
 	FindSectorsWithDeal: func(ctx context.Context, state SectorWorkerState, dealID abi.DealID) ([]*SectorState, error) {
+		panic("sealer client unavailable")
+	},
+
+	FindSectorWithPiece: func(ctx context.Context, state SectorWorkerState, pieceCid cid.Cid) (*SectorState, error) {
 		panic("sealer client unavailable")
 	},
 
@@ -112,6 +117,10 @@ var UnavailableSealerCliClient = SealerCliClient{
 	SubmitProof: func(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error) {
 		panic("sealer client unavailable")
 	},
+
+	UnsealPiece: func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset, size uint64, dest string) (<-chan []byte, error) {
+		panic("sealer client unavailable")
+	},
 }
 
 type SealerCliClient struct {
@@ -120,6 +129,8 @@ type SealerCliClient struct {
 	FindSector func(ctx context.Context, state SectorWorkerState, sid abi.SectorID) (*SectorState, error)
 
 	FindSectorsWithDeal func(ctx context.Context, state SectorWorkerState, dealID abi.DealID) ([]*SectorState, error)
+
+	FindSectorWithPiece func(ctx context.Context, state SectorWorkerState, pieceCid cid.Cid) (*SectorState, error)
 
 	ImportSector func(ctx context.Context, ws SectorWorkerState, state *SectorState, override bool) (bool, error)
 
@@ -167,6 +178,8 @@ type SealerCliClient struct {
 	SubmitPreCommit func(context.Context, AllocatedSector, PreCommitOnChainInfo, bool) (SubmitPreCommitResp, error)
 
 	SubmitProof func(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error)
+
+	UnsealPiece func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset, size uint64, dest string) (<-chan []byte, error)
 }
 
 var UnavailableMinerAPIClient = MinerAPIClient{

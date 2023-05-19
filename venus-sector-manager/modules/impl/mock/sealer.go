@@ -10,6 +10,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -125,6 +126,10 @@ func (s *Sealer) FindSector(ctx context.Context, state core.SectorWorkerState, s
 }
 
 func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorkerState, dealID abi.DealID) ([]*core.SectorState, error) {
+	return nil, nil
+}
+
+func (s *Sealer) FindSectorWithPiece(ctx context.Context, state core.SectorWorkerState, pieceCid cid.Cid) (*core.SectorState, error) {
 	return nil, nil
 }
 
@@ -272,5 +277,17 @@ func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt 
 }
 
 func (s *Sealer) AllocateRebuildSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorRebuildInfo, error) {
+	return nil, nil
+}
+
+func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset, size uint64, dest string) (<-chan []byte, error) {
+	return nil, nil
+}
+
+func (s *Sealer) AllocateUnsealSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorUnsealInfo, error) {
+	return nil, nil
+}
+
+func (s *Sealer) AchieveUnsealSector(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (core.Meta, error) {
 	return nil, nil
 }
