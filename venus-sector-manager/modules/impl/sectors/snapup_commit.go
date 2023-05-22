@@ -337,6 +337,21 @@ func (h *snapupCommitHandler) submitMessage() error {
 		return fmt.Errorf("get registered update proof type: %w", err)
 	}
 
+	currDeadline, err := h.committer.chain.StateMinerProvingDeadline(h.committer.ctx, h.maddr, tsk)
+	if err != nil {
+		return newTempErr(fmt.Errorf("get proving deadline: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
+	}
+
+	// If the deadline is the current or next deadline to prove, don't allow updating sectors.
+	// We assume that deadlines are immutable when being proven.
+	//
+	// `abi.ChainEpoch(10)` indicates that we assume that the message will be real executed within 10 heights
+	//
+	// See: https://github.com/filecoin-project/builtin-actors/blob/10f547c950a99a07231c08a3c6f4f76ff0080a7c/actors/miner/src/lib.rs#L1113-L1124
+	if !deadlineIsMutable(currDeadline.PeriodStart, sl.Deadline, ts.Height(), abi.ChainEpoch(10)) {
+		return newTempErr(fmt.Errorf("cannot upgrade sectors in immutable deadline: %d. sector: %s", sl.Deadline, util.FormatSectorID(h.state.ID)), mcfg.SnapUp.Retry.LocalFailureWait.Std())
+	}
+
 	enc := new(bytes.Buffer)
 	params := &stminer.ProveReplicaUpdatesParams{
 		Updates: []stminer.ReplicaUpdate{
@@ -622,4 +637,15 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 	}
 
 	return nil
+}
+
+// Returns true if the deadline at the given index is currently mutable.
+func deadlineIsMutable(provingPeriodStart abi.ChainEpoch, deadlineIdx uint64, currentEpoch, msgExecInterval abi.ChainEpoch) bool {
+	// Get the next non-elapsed deadline (i.e., the next time we care about
+	// mutations to the deadline).
+	deadlineInfo := stminer.NewDeadlineInfo(provingPeriodStart, deadlineIdx, currentEpoch).NextNotElapsed()
+
+	// Ensure that the current epoch is at least one challenge window before
+	// that deadline opens.
+	return currentEpoch < deadlineInfo.Open-stminer.WPoStChallengeWindow-msgExecInterval
 }
