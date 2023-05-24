@@ -41,8 +41,8 @@ type KVStore interface {
 	// In general, when using optimistic transaction model databases, transactions are prone to conflict in heavy contention scenarios.
 	// If a conflict is detected, an ErrTransactionConflict error will be returned immediately, resulting in a failed submission.
 	// At this time, depending on the state of your application, you have the option to retry the operation if you receive this error.
-	// However, some database client drivers already include retry logic in their implementation. Therefore, manual retry in the application is not necessary.
-	// For example, use the `WithTransaction` method of mongo-go-driver
+	// However, some database client drivers already include retry logic in their implementation (For example, use the `WithTransaction` method of mongo-go-driver).
+	// Therefore, manual retry in the application is not necessary.
 	NeedRetryTransactions() bool
 
 	Get(context.Context, Key) (Val, error)
