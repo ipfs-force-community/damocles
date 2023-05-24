@@ -1,17 +1,18 @@
-package main_test
+package kvstore_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	memdb "github.com/ipfs-force-community/venus-cluster/vsm-plugin/examples/memdb"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/testutil"
 	"github.com/ipfs-force-community/venus-cluster/vsm-plugin/kvstore"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMemDB_PutAndGet(t *testing.T) {
+func TestBadger_PutAndGet(t *testing.T) {
 	ctx := context.TODO()
-	kv := testKV(ctx, t, "test")
+	kv := testutil.BadgerKVStore(t, "test")
 
 	require.NoError(t, kv.Put(ctx, b("hello"), b("world")))
 	v, err := kv.Get(ctx, b("hello"))
@@ -32,9 +33,9 @@ func TestMemDB_PutAndGet(t *testing.T) {
 	require.Equal(t, kvstore.ErrKeyNotFound, err)
 }
 
-func TestMemDB_Del(t *testing.T) {
+func TestBadger_Del(t *testing.T) {
 	ctx := context.TODO()
-	kv := testKV(ctx, t, "test")
+	kv := testutil.BadgerKVStore(t, "test")
 
 	require.NoError(t, kv.Del(ctx, b("a")))
 	require.NoError(t, kv.Put(ctx, b("aa"), b("aa")))
@@ -46,9 +47,9 @@ func TestMemDB_Del(t *testing.T) {
 	require.ErrorIs(t, err, kvstore.ErrKeyNotFound)
 }
 
-func TestMemDB_Scan(t *testing.T) {
+func TestBadger_Scan(t *testing.T) {
 	ctx := context.TODO()
-	kv := testKV(ctx, t, "test")
+	kv := testutil.BadgerKVStore(t, "test")
 
 	for _, k := range []string{"a1", "a2", "a3", "b1", "b2", "b3"} {
 		require.NoError(t, kv.Put(ctx, b(k), b(k+"_v")))
@@ -100,16 +101,34 @@ func TestMemDB_Scan(t *testing.T) {
 	}
 }
 
-func testKV(ctx context.Context, t *testing.T, collection string) kvstore.KVStore {
-	db, err := memdb.Open(nil)
-	require.NoError(t, err)
-	require.NoError(t, db.Run(ctx))
-	kv, err := db.OpenCollection(ctx, collection)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		db.Close(ctx)
+func TestBadgerTxn_Commit(t *testing.T) {
+	ctx := context.TODO()
+	kv := testutil.BadgerKVStore(t, "test")
+
+	err := kv.Update(ctx, func(txn kvstore.Txn) error {
+		require.NoError(t, txn.Put(testKey1, testValue1))
+		_, err := txn.Get(testKey1)
+		require.NoError(t, err)
+		return nil
 	})
-	return kv
+	require.NoError(t, err)
+	_, err = kv.Get(ctx, testKey1)
+	require.NoError(t, err)
+}
+
+func TestBadgerTxn_Rollback(t *testing.T) {
+	ctx := context.TODO()
+	kv := testutil.BadgerKVStore(t, "test")
+
+	err := kv.Update(ctx, func(txn kvstore.Txn) error {
+		require.NoError(t, txn.Put(testKey1, testValue1))
+		_, err := txn.Get(testKey1)
+		require.NoError(t, err)
+		return errors.New("some error")
+	})
+	require.NotNil(t, err)
+	_, err = kv.Get(ctx, testKey1)
+	require.ErrorIs(t, err, kvstore.ErrKeyNotFound)
 }
 
 func b(x string) []byte {
@@ -133,6 +152,7 @@ func all(ctx context.Context, it kvstore.Iter) ([]entry, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		vals = append(vals, entry{
 			k: it.Key(),
 			v: val,

@@ -34,7 +34,7 @@ func (m *mockMinerAPI) GetMinerConfig(ctx context.Context, mid abi.ActorID) (*mo
 
 func TestRebuildManager(t *testing.T) {
 	scfg, _ := testmodules.MockSafeConfig(10, nil)
-	kvstore := testutil.TestKVStore(t, "test")
+	kvstore := testutil.BadgerKVStore(t, "test")
 
 	minfos := map[abi.ActorID]*core.MinerInfo{}
 	for mi := range scfg.Miners {
