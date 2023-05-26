@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.1
+- venus-sector-manager
+  - 日志默认级别从 `DEBUG` 修改为 `INFO` [#719](https://github.com/ipfs-force-community/venus-cluster/pull/719)
+  - 修复 `ProveReplicaUpdates` 消息可能在 windowPoST 窗口锁定期提交的 bug [#494](https://github.com/ipfs-force-community/venus-cluster/pull/494)
+  - cli: `util sealer sectors extend` 使用新版续期方法 `ExpirationExtension2` [#636](https://github.com/ipfs-force-community/venus-cluster/pull/636)
+  - 支持从环境变量设置数据和配置目录 [#733](https://github.com/ipfs-force-community/venus-cluster/pull/733)
+
 ## v0.6.0
 - venus-sector-manager
   - 升级依赖 [#710](https://github.com/ipfs-force-community/venus-cluster/pull/710)
