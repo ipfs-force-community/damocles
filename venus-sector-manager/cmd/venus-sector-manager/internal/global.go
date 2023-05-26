@@ -33,8 +33,9 @@ const logSubSystem = "cmd"
 var Log = logging.New(logSubSystem)
 
 var HomeFlag = &cli.StringFlag{
-	Name:  "home",
-	Value: "~/.venus-sector-manager",
+	Name:    "home",
+	Value:   "~/.venus-sector-manager",
+	EnvVars: []string{"DAMOCLES_PATH", "VENUS_SECTOR_MANAGER_PATH", "VSM_PATH"},
 }
 
 // Note: NetFlag is deprecated and will be removed in a future version.
@@ -49,8 +50,9 @@ var SealerListenFlag = &cli.StringFlag{
 }
 
 var ConfDirFlag = &cli.StringFlag{
-	Name:  "conf-dir",
-	Usage: "the dir path in which the sector-manager.cfg file exists, set this only if you don't want to use the config file inside home dir",
+	Name:    "conf-dir",
+	Usage:   "the dir path in which the sector-manager.cfg file exists, set this only if you don't want to use the config file inside home dir",
+	EnvVars: []string{"DAMOCLES_CONF_DIR", "VENUS_SECTOR_MANAGER_CONF_DIR", "VSM_CONF_DIR"},
 }
 
 type stopper = func()
