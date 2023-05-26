@@ -20,8 +20,10 @@ import (
 	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/go-state-types/builtin"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/verifreg"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	levelds "github.com/ipfs/go-ds-leveldb"
@@ -649,7 +651,7 @@ func ArrayToString(array []uint64) string {
 	return strings.Join(sarray, ",")
 }
 
-func NewPseudoExtendParams(p *core.ExtendSectorExpirationParams) (*PseudoExtendSectorExpirationParams, error) {
+func NewPseudoExtendParams(p *core.ExtendSectorExpiration2Params) (*PseudoExtendSectorExpirationParams, error) {
 	res := PseudoExtendSectorExpirationParams{}
 	for _, ext := range p.Extensions {
 		scount, err := ext.Sectors.Count()
@@ -709,6 +711,10 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 			Name:  "only-cc",
 			Usage: "only extend CC sectors (useful for making sector ready for snap upgrade)",
 		},
+		&cli.BoolFlag{
+			Name:  "drop-claims",
+			Usage: "drop claims for sectors that can be extended, but only by dropping some of their verified power claims",
+		},
 		&cli.Int64Flag{
 			Name:  "tolerance",
 			Usage: "don't try to extend sectors by fewer than this number of epochs, defaults to 7 days",
@@ -721,7 +727,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 		},
 		&cli.Int64Flag{
 			Name:  "max-sectors",
-			Usage: "the maximum number of sectors contained in each message message",
+			Usage: "the maximum number of sectors contained in each message",
 		},
 		&cli.BoolFlag{
 			Name:  "really-do-it",
@@ -926,44 +932,124 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 			}
 		}
 
-		var params []core.ExtendSectorExpirationParams
+		verifregAct, err := fapi.Chain.StateGetActor(ctx, builtin.VerifiedRegistryActorAddr, types.EmptyTSK)
+		if err != nil {
+			return fmt.Errorf("failed to lookup verifreg actor: %w", err)
+		}
+		verifregSt, err := verifreg.Load(store, verifregAct)
+		if err != nil {
+			return fmt.Errorf("failed to load verifreg state: %w", err)
+		}
 
-		p := core.ExtendSectorExpirationParams{}
+		claimsMap, err := verifregSt.GetClaims(maddr)
+		if err != nil {
+			return fmt.Errorf("failed to lookup claims for miner: %w", err)
+		}
+
+		claimIdsBySector, err := getClaimIdsBySector(verifregSt, maddr)
+		if err != nil {
+			return fmt.Errorf("failed to lookup claim IDs by sector: %w", err)
+		}
+
+		sectorsMax, err := specpolicy.GetAddressedSectorsMax(nv)
+		if err != nil {
+			return err
+		}
+
+		declMax, err := specpolicy.GetDeclarationsMax(nv)
+		if err != nil {
+			return err
+		}
+
+		addrSectors := sectorsMax
+		if cctx.Int("max-sectors") != 0 {
+			addrSectors = cctx.Int("max-sectors")
+			if addrSectors > sectorsMax {
+				return fmt.Errorf("the specified max-sectors exceeds the maximum limit")
+			}
+		}
+
+		var params []core.ExtendSectorExpiration2Params
+
+		p := core.ExtendSectorExpiration2Params{}
 		scount := 0
 
-		maxSectors := cctx.Int("max-sectors")
 		for l, exts := range extensions {
 			for newExp, numbers := range exts {
-				scount += len(numbers)
-				var addrSectors int
-				sectorsMax, err := specpolicy.GetAddressedSectorsMax(nv)
-				if err != nil {
-					return err
-				}
-				if maxSectors == 0 {
-					addrSectors = sectorsMax
-				} else {
-					addrSectors = maxSectors
-					if addrSectors > sectorsMax {
-						return fmt.Errorf("the specified max-sectors exceeds the maximum limit")
+
+				sectorsWithoutClaimsToExtend := bitfield.New()
+				var sectorsWithClaims []core.SectorClaim
+
+				for _, sectorNumber := range numbers {
+					claimIdsToMaintain := make([]verifreg.ClaimId, 0)
+					claimIdsToDrop := make([]verifreg.ClaimId, 0)
+					cannotExtendSector := false
+					claimIds, ok := claimIdsBySector[sectorNumber]
+					// Nothing to check, add to ccSectors
+					if !ok {
+						sectorsWithoutClaimsToExtend.Set(uint64(sectorNumber))
+					} else {
+						for _, claimID := range claimIds {
+							claim, ok := claimsMap[claimID]
+							if !ok {
+								return fmt.Errorf("failed to find claim for claimId %d", claimID)
+							}
+							claimExpiration := claim.TermStart + claim.TermMax
+							// can be maintained in the extended sector
+							if claimExpiration > newExp {
+								claimIdsToMaintain = append(claimIdsToMaintain, claimID)
+							} else {
+								sectorInfo, ok := activeSectorsInfo[sectorNumber]
+								if !ok {
+									return fmt.Errorf("failed to find sector in active sector set: %w", err)
+								}
+								if !cctx.Bool("drop-claims") ||
+									// FIP-0045 requires the claim minimum duration to have passed
+									currEpoch <= (claim.TermStart+claim.TermMin) ||
+									// FIP-0045 requires the sector to be in its last 30 days of life
+									(currEpoch <= sectorInfo.Expiration-builtin.EndOfLifeClaimDropPeriod) {
+									fmt.Printf("skipping sector %d because claim %d does not live long enough \n", sectorNumber, claimID)
+									cannotExtendSector = true
+									break
+								}
+
+								claimIdsToDrop = append(claimIdsToDrop, claimID)
+							}
+						}
+						if cannotExtendSector {
+							continue
+						}
+
+						if len(claimIdsToMaintain)+len(claimIdsToDrop) != 0 {
+							sectorsWithClaims = append(sectorsWithClaims, core.SectorClaim{
+								SectorNumber:   sectorNumber,
+								MaintainClaims: claimIdsToMaintain,
+								DropClaims:     claimIdsToDrop,
+							})
+						}
 					}
 				}
 
-				declMax, err := specpolicy.GetDeclarationsMax(nv)
+				sectorsWithoutClaimsCount, err := sectorsWithoutClaimsToExtend.Count()
 				if err != nil {
-					return err
-				}
-				if scount > addrSectors || len(p.Extensions) == declMax {
-					params = append(params, p)
-					p = core.ExtendSectorExpirationParams{}
-					scount = len(numbers)
+					return fmt.Errorf("failed to count cc sectors: %w", err)
 				}
 
-				p.Extensions = append(p.Extensions, core.ExpirationExtension{
-					Deadline:      l.Deadline,
-					Partition:     l.Partition,
-					Sectors:       SectorNumsToBitfield(numbers),
-					NewExpiration: newExp,
+				sectorsInDecl := int(sectorsWithoutClaimsCount) + len(sectorsWithClaims)
+				scount += sectorsInDecl
+
+				if scount > addrSectors || len(p.Extensions) >= declMax {
+					params = append(params, p)
+					p = core.ExtendSectorExpiration2Params{}
+					scount = sectorsInDecl
+				}
+
+				p.Extensions = append(p.Extensions, core.ExpirationExtension2{
+					Deadline:          l.Deadline,
+					Partition:         l.Partition,
+					Sectors:           SectorNumsToBitfield(numbers),
+					SectorsWithClaims: sectorsWithClaims,
+					NewExpiration:     newExp,
 				})
 			}
 		}
@@ -1021,7 +1107,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 				From: mi.Worker,
 
 				To:     maddr,
-				Method: stbuiltin.MethodsMiner.ExtendSectorExpiration,
+				Method: stbuiltin.MethodsMiner.ExtendSectorExpiration2,
 				Params: sp,
 
 				Value: big.Zero(),
@@ -1039,6 +1125,24 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 
 		return nil
 	},
+}
+
+// TODO: this function should remove after Venus has released the `venus_shared/actors/builtin/verifreg.State.GetClaimIdsBySector` method
+func getClaimIdsBySector(s verifreg.State, providerIDAddr address.Address) (map[abi.SectorNumber][]verifreg.ClaimId, error) {
+
+	claims, err := s.GetClaims(providerIDAddr)
+
+	retMap := make(map[abi.SectorNumber][]verifreg.ClaimId)
+	for k, v := range claims {
+		claims, ok := retMap[v.Sector]
+		if !ok {
+			retMap[v.Sector] = []verifreg.ClaimId{k}
+		} else {
+			retMap[v.Sector] = append(claims, k)
+		}
+	}
+
+	return retMap, err
 }
 
 var utilSealerSectorsTerminateCmd = &cli.Command{
