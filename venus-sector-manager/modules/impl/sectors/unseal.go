@@ -262,7 +262,7 @@ func (u *UnsealManager) loadAndUpdate(ctx context.Context, modify func(infos *Un
 	defer u.kvMu.Unlock()
 
 	var infos UnsealInfos
-	err := u.kv.View(ctx, unsealInfoKey, func(v kvstore.Val) error {
+	err := u.kv.Peek(ctx, unsealInfoKey, func(v kvstore.Val) error {
 		verr := json.Unmarshal(v, &infos)
 		if verr != nil {
 			return fmt.Errorf("unmashal unseal infos: %w", verr)

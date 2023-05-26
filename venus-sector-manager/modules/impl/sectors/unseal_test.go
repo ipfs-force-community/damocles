@@ -36,7 +36,7 @@ func TestUnsealManager(t *testing.T) {
 	}
 
 	t.Run("set, allocate, achieve unseal task", func(t *testing.T) {
-		kvstore := testutil.TestKVStore(t, "test_unseal_01")
+		kvstore := testutil.BadgerKVStore(t, "test_unseal_01")
 		umgr, err := NewUnsealManager(ctx, scfg, &mockMinerAPI{
 			infos: minfos,
 		}, kvstore)
@@ -120,7 +120,7 @@ func TestUnsealManager(t *testing.T) {
 	})
 
 	t.Run("set and allocate unseal task with multiple dest", func(t *testing.T) {
-		kvstore := testutil.TestKVStore(t, "test_unseal_02")
+		kvstore := testutil.BadgerKVStore(t, "test_unseal_02")
 		umgr, err := NewUnsealManager(ctx, scfg, &mockMinerAPI{
 			infos: minfos,
 		}, kvstore)
