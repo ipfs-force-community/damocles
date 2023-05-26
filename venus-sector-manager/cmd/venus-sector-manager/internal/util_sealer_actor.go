@@ -402,6 +402,37 @@ var utilSealerActorControlList = &cli.Command{
 		defer tw.Flush()
 		_, _ = fmt.Fprintln(tw, "name\tID\tkey\tuse\tbalance")
 
+		compareAddr := func(a1 []address.Address, a2 address.Address) (bool, error) {
+			if len(a1) == 0 {
+				return false, nil
+			}
+
+			a1t0 := address.Undef
+			for _, a1Item := range a1 {
+				if a1Item.Protocol() == a2.Protocol() {
+					return a1Item == a2, nil
+				}
+				if a1Item.Protocol() == address.ID {
+					a1t0 = a1Item
+				}
+			}
+
+			if a1t0.Empty() {
+				var err error
+				a1t0, err = api.Chain.StateLookupID(ctx, a1[0], types.EmptyTSK)
+				if err != nil {
+					return false, err
+				}
+			}
+
+			a2t0, err := api.Chain.StateLookupID(ctx, a2, types.EmptyTSK)
+			if err != nil {
+				return false, err
+			}
+
+			return a1t0 == a2t0, nil
+		}
+
 		printKey := func(name string, addr address.Address) {
 			var actor *types.Actor
 			if actor, err = api.Chain.StateGetActor(ctx, addr, types.EmptyTSK); err != nil {
@@ -435,23 +466,23 @@ var utilSealerActorControlList = &cli.Command{
 			}
 
 			var uses []string
-			if addr == minerInfo.Worker {
-				uses = append(uses, color.YellowString("other"))
+			if eq, err := compareAddr([]address.Address{addr, k}, minerInfo.Worker); err == nil && eq {
+				uses = append(uses, "other")
 			}
-			if addr == minerConfig.Commitment.Pre.Sender.Std() {
-				uses = append(uses, color.CyanString("precommit"))
+			if eq, err := compareAddr([]address.Address{addr, k}, minerConfig.Commitment.Pre.Sender.Std()); err == nil && eq {
+				uses = append(uses, "precommit")
 			}
-			if addr == minerConfig.Commitment.Prove.Sender.Std() {
-				uses = append(uses, color.BlueString("provecommit"))
+			if eq, err := compareAddr([]address.Address{addr, k}, minerConfig.Commitment.Prove.Sender.Std()); err == nil && eq {
+				uses = append(uses, "provecommit")
 			}
-			if addr == minerConfig.Commitment.Terminate.Sender.Std() {
-				uses = append(uses, color.YellowString("terminate"))
+			if eq, err := compareAddr([]address.Address{addr, k}, minerConfig.Commitment.Terminate.Sender.Std()); err == nil && eq {
+				uses = append(uses, "terminate")
 			}
-			if addr == minerConfig.PoSt.Sender.Std() {
-				uses = append(uses, color.GreenString("post"))
+			if eq, err := compareAddr([]address.Address{addr, k}, minerConfig.PoSt.Sender.Std()); err == nil && eq {
+				uses = append(uses, "post")
 			}
-			if addr == minerConfig.SnapUp.Sender.Std() {
-				uses = append(uses, color.MagentaString("snapup"))
+			if eq, err := compareAddr([]address.Address{addr, k}, minerConfig.SnapUp.Sender.Std()); err == nil && eq {
+				uses = append(uses, "snapup")
 			}
 
 			_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", name, addr, kstr, strings.Join(uses, " "), balance)
