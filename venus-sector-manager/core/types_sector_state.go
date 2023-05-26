@@ -101,10 +101,10 @@ func (s *SectorState) MatchWorkerJob(jtyp SectorWorkerJob) bool {
 		return true
 
 	case SectorWorkerJobSealing:
-		return !bool(s.Upgraded) && !bool(s.NeedRebuild)
+		return !bool(s.Upgraded) && !bool(s.NeedRebuild) && !bool(s.Unsealing)
 
 	case SectorWorkerJobSnapUp:
-		return bool(s.Upgraded) && !bool(s.NeedRebuild)
+		return bool(s.Upgraded) && !bool(s.NeedRebuild) && !bool(s.Unsealing)
 
 	case SectorWorkerJobRebuild:
 		return bool(s.NeedRebuild)
@@ -114,7 +114,6 @@ func (s *SectorState) MatchWorkerJob(jtyp SectorWorkerJob) bool {
 
 	default:
 		return false
-
 	}
 }
 
