@@ -12,14 +12,17 @@ type (
 	ComputeDataCommitmentReturn = market9.ComputeDataCommitmentReturn
 	SectorDataSpec              = market9.SectorDataSpec
 
-	ChangeWorkerAddressParams    = miner9.ChangeWorkerAddressParams
-	CompactSectorNumbersParams   = miner9.CompactSectorNumbersParams
-	ExpirationExtension          = miner9.ExpirationExtension
-	ExtendSectorExpirationParams = miner9.ExtendSectorExpirationParams
-	PreCommitSectorBatchParams   = miner9.PreCommitSectorBatchParams
-	TerminationDeclaration       = miner9.TerminationDeclaration
-	TerminateSectorsParams       = miner9.TerminateSectorsParams
-	WithdrawBalanceParams        = miner9.WithdrawBalanceParams
+	ChangeWorkerAddressParams     = miner9.ChangeWorkerAddressParams
+	CompactSectorNumbersParams    = miner9.CompactSectorNumbersParams
+	ExpirationExtension           = miner9.ExpirationExtension
+	ExpirationExtension2          = miner9.ExpirationExtension2
+	ExtendSectorExpirationParams  = miner9.ExtendSectorExpirationParams
+	ExtendSectorExpiration2Params = miner9.ExtendSectorExpiration2Params
+	PreCommitSectorBatchParams    = miner9.PreCommitSectorBatchParams
+	TerminationDeclaration        = miner9.TerminationDeclaration
+	TerminateSectorsParams        = miner9.TerminateSectorsParams
+	WithdrawBalanceParams         = miner9.WithdrawBalanceParams
+	SectorClaim                   = miner9.SectorClaim
 
 	CreateMinerParams = power8.CreateMinerParams
 	CreateMinerReturn = power8.CreateMinerReturn
