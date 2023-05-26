@@ -12,6 +12,7 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
+	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/pkg/clock"
@@ -503,14 +504,24 @@ func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt 
 	return true, nil
 }
 
-func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset, size uint64, dest string) (<-chan []byte, error) {
+func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset types.UnpaddedByteIndex, size abi.UnpaddedPieceSize, dest string) (<-chan []byte, error) {
 
 	var stream chan []byte
+	req := &core.SectorUnsealInfo{
+		Sector: core.AllocatedSector{
+			ID: sid,
+		},
+		PieceCid: pieceCid,
+		Offset:   offset,
+		Size:     size,
+		Dest:     []string{dest},
+	}
+
 	if dest == "" {
 		stream = make(chan []byte)
 		// export piece to cli, when no dest specify
 		// set dest
-		dest = fmt.Sprintf("store:///%s", pieceCid.String())
+		req.Dest[0] = fmt.Sprintf("store:///%s", pieceCid.String())
 		// set hook
 		hook := func() {
 			// read piece file and write data back to stream
@@ -520,24 +531,43 @@ func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid
 				return
 			}
 			go func() {
-				defer r.Close()
-				defer close(stream)
-				buf := make([]byte, 2<<20)
+				defer func() {
+					r.Close()
+					close(stream)
+
+					state, err := s.unseal.Set(ctx, req)
+					log.With("state", state)
+					if err != nil {
+						log.Errorf("check unseal task: %v", err)
+					}
+
+					if state != gtypes.UnsealStateFinished {
+						log.Warn("unexpected unseal state")
+					}
+				}()
+
+				readEnd := false
 				for {
+					buf := make([]byte, 2<<20)
 					n, err := r.Read(buf)
 					if err != nil {
-						if err != io.EOF {
+						if err == io.EOF {
+							readEnd = true
+						} else {
 							log.Errorf("read piece file error: %v", err)
 							return
 						}
 					}
+					// log buf with hex format
+					log.Infof("read piece file: %x", buf[:n])
+
 					select {
 					case stream <- buf[:n]:
 					case <-ctx.Done():
 						log.Errorf("write piece data back fail: %v", ctx.Err())
 					}
 
-					if err == io.EOF {
+					if readEnd {
 						// send empty slice to indicate correct eof
 						select {
 						case stream <- []byte{}:
@@ -554,15 +584,16 @@ func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid
 		s.unseal.OnAchieve(ctx, sid, pieceCid, hook)
 	}
 
-	req := &core.SectorUnsealInfo{
-		Sector: core.AllocatedSector{
-			ID: sid,
-		},
-		PieceCid: pieceCid,
-		Offset:   offset,
-		Size:     size,
-		Dest:     dest,
+	state, err := s.unseal.Set(ctx, req)
+	if err != nil {
+		log.With("state", state)
+		log.Errorf("set unseal task: %v", err)
 	}
 
-	return stream, s.unseal.Set(ctx, req)
+	if state == gtypes.UnsealStateFinished {
+		close(stream)
+		return nil, fmt.Errorf("unseal task has been done")
+	}
+
+	return stream, nil
 }

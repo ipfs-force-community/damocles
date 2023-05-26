@@ -8,12 +8,10 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
-	vtypes "github.com/filecoin-project/venus/venus-shared/types"
+	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
-	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/market"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/ipfs/go-cid"
 	"github.com/multiformats/go-multiaddr"
@@ -22,9 +20,10 @@ import (
 
 var unsealInfoKey = kvstore.Key("unseal-infos")
 
+type Key = string
 type UnsealInfos struct {
-	Allocatable map[abi.ActorID]map[string]*core.SectorUnsealInfo
-	Allocated   map[string]*core.SectorUnsealInfo
+	AllocIndex map[abi.ActorID]map[Key]struct{}
+	Data       map[Key]*core.SectorUnsealInfo
 }
 
 // UnsealManager manage unseal task
@@ -33,17 +32,15 @@ type UnsealManager struct {
 	kvMu        sync.Mutex
 	kv          kvstore.KVStore
 	defaultDest *url.URL
-	marketEvent market.IMarketEvent
-	onAchieve   map[string]func()
+	onAchieve   map[Key][]func()
 }
 
 var _ core.UnsealSectorManager = (*UnsealManager)(nil)
 
-func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerAPI, kv kvstore.KVStore, mEvent market.IMarketEvent) (ret *UnsealManager, err error) {
+func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerAPI, kv kvstore.KVStore) (ret *UnsealManager, err error) {
 	ret = &UnsealManager{
-		kv:          kv,
-		msel:        newMinerSelector(scfg, minfoAPI),
-		marketEvent: mEvent,
+		kv:   kv,
+		msel: newMinerSelector(scfg, minfoAPI),
 	}
 
 	scfg.Lock()
@@ -57,75 +54,92 @@ func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI co
 	q.Set("token", commonAPI.Token)
 	ret.defaultDest.RawQuery = q.Encode()
 
-	if err != nil {
-		return
-	}
-
-	// register to market event
-	mEvent.OnUnseal(func(ctx context.Context, eventId vtypes.UUID, req *market.UnsealRequest) {
-		actor, err := address.IDFromAddress(req.Miner)
-		if err != nil {
-			log.Errorf("get miner id from address: %s", err)
-			return
-		}
-		err = ret.Set(ctx, &core.SectorUnsealInfo{
-			Sector: core.AllocatedSector{
-				ID: abi.SectorID{
-					Miner:  abi.ActorID(actor),
-					Number: req.Sid,
-				},
-				// proofType should be set when allocate
-			},
-			PieceCid: req.PieceCid,
-			Offset:   uint64(req.Offset),
-			Size:     uint64(req.Size),
-			Dest:     req.Dest,
-			EventIds: []vtypes.UUID{eventId},
-		})
-		if err != nil {
-			log.Errorf("set unseal info: %s", err)
-		}
-	})
 	return ret, nil
 
 }
 
 // Set set unseal task
-func (u *UnsealManager) Set(ctx context.Context, req *core.SectorUnsealInfo) (err error) {
-	// check piece store
-	// todo: if exist in piece store , respond directly
+func (u *UnsealManager) Set(ctx context.Context, req *core.SectorUnsealInfo) (state gtypes.UnsealState, err error) {
 
 	// check dest url
-	req.Dest, err = u.checkDestUrl(req.Dest)
+	supplied, err := u.checkDestUrl(req.Dest[0])
 	if err != nil {
-		return err
+		return gtypes.UnsealStateFailed, err
 	}
+	req.Dest[0] = supplied
+
+	log := log.With("dest", supplied)
 
 	// set into db
-	err = u.loadAndUpdate(ctx, func(infos *UnsealInfos) bool {
-		key := core.UnsealInfoKey(req.Sector.ID.Miner, req.Sector.ID.Number, req.PieceCid)
-		info, ok := infos.Allocatable[req.Sector.ID.Miner]
+	key := core.UnsealInfoKey(req.Sector.ID.Miner, req.Sector.ID.Number, req.PieceCid)
+	log = log.With("key", key)
+
+	// error can be happen when set task into db (except the error from db)
+	var updateErr error
+	err = u.loadAndUpdate(ctx, func(db *UnsealInfos) bool {
+		info, ok := db.Data[key]
 		if !ok {
-			info = map[string]*core.SectorUnsealInfo{}
+			//not found, add new task
+			req.State = gtypes.UnsealStateSet
+			db.Data[key] = req
+
+			// build index
+			keySet, ok := db.AllocIndex[req.Sector.ID.Miner]
+			if !ok {
+				keySet = map[Key]struct{}{}
+			}
+			keySet[key] = struct{}{}
+			db.AllocIndex[req.Sector.ID.Miner] = keySet
+			log = log.With("state", req.State)
+			log.Info("add new unseal task")
+			return true
+		}
+		state = info.State
+		log = log.With("state", state)
+
+		//  if task exit, check dest
+		haveSet := false
+		for _, v := range info.Dest {
+			if v == supplied {
+				haveSet = true
+			}
+		}
+		if haveSet {
+			if state == gtypes.UnsealStateFinished {
+				// remove task once finished
+				delete(db.Data, key)
+				// clear hooks
+				delete(u.onAchieve, key)
+				log = log.With("state", state)
+				log.Info("finished unseal task has been observe, remove it")
+				return true
+			}
+			log.Info("dest already set")
+			return false
 		}
 
-		//  if task exit, merge event id
-		if before, ok := info[key]; ok {
-			log.Infof("update unseal info (%s) with %d event id ", key, len(req.EventIds))
-			req.EventIds = append(req.EventIds, before.EventIds...)
-			infos.Allocated[key] = req
+		// append new dest is not allow once task is uploading
+		if state == gtypes.UnsealStateUploading {
+			log.Warn("task is uploading, can't add new dest")
+			updateErr = fmt.Errorf("task is uploading, can't add new dest, please try it again later")
+			return false
 		}
 
-		info[key] = req
-		infos.Allocatable[req.Sector.ID.Miner] = info
-		log.Infof("set unseal info: %s , ", key)
+		info.Dest = append(info.Dest, supplied)
+		log = log.With("newDest", supplied)
+		db.Data[key] = info
+		log.Info("add new dest to unseal task")
 		return true
 	})
 
 	if err != nil {
-		return fmt.Errorf("add unseal info: %w", err)
+		return state, fmt.Errorf("check unseal state: %w", err)
 	}
-	return nil
+	if updateErr != nil {
+		return state, fmt.Errorf("update unseal state: %w", updateErr)
+	}
+
+	return state, nil
 }
 
 // Set set unseal task
@@ -134,9 +148,10 @@ func (u *UnsealManager) OnAchieve(ctx context.Context, sid abi.SectorID, pieceCi
 	u.kvMu.Lock()
 	defer u.kvMu.Unlock()
 	if u.onAchieve == nil {
-		u.onAchieve = map[string]func(){}
+		u.onAchieve = map[string][]func(){}
 	}
-	u.onAchieve[key] = hook
+	newHooks := append(u.onAchieve[key], hook)
+	u.onAchieve[key] = newHooks
 }
 
 // allocate a unseal task
@@ -148,31 +163,31 @@ func (u *UnsealManager) Allocate(ctx context.Context, spec core.AllocateSectorSp
 
 	// read db
 	var allocated *core.SectorUnsealInfo
-	err := u.loadAndUpdate(ctx, func(infos *UnsealInfos) bool {
+	err := u.loadAndUpdate(ctx, func(db *UnsealInfos) bool {
 
-		if len(infos.Allocatable) == 0 {
+		if len(db.AllocIndex) == 0 {
 			return false
 		}
 
 		for _, candidate := range cands {
-			info, ok := infos.Allocatable[candidate.info.ID]
+			keySet, ok := db.AllocIndex[candidate.info.ID]
 			if !ok {
 				continue
 			}
-			if len(info) == 0 {
+			if len(keySet) == 0 {
 				continue
 			}
-			for sectorNum, v := range info {
-				allocated = v
+			for k := range keySet {
+				allocated = db.Data[k]
 				// todo: exclude online sector
 				key := core.UnsealInfoKey(allocated.Sector.ID.Miner, allocated.Sector.ID.Number, allocated.PieceCid)
-				delete(infos.Allocatable[candidate.info.ID], sectorNum)
+				delete(db.AllocIndex[candidate.info.ID], k)
 				allocated.Sector.ProofType = candidate.info.SealProofType
-				infos.Allocated[key] = allocated
+				allocated.State = gtypes.UnsealStateUnsealing
+				db.Data[key] = allocated
 				return true
 			}
 		}
-
 		return false
 	})
 
@@ -186,15 +201,16 @@ func (u *UnsealManager) Allocate(ctx context.Context, spec core.AllocateSectorSp
 // achieve a unseal task
 func (u *UnsealManager) Achieve(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, unsealErr string) error {
 	key := core.UnsealInfoKey(sid.Miner, sid.Number, pieceCid)
-	// respond to market
+
 	var info *core.SectorUnsealInfo
-	err := u.loadAndUpdate(ctx, func(infos *UnsealInfos) bool {
+	err := u.loadAndUpdate(ctx, func(db *UnsealInfos) bool {
 		ok := false
-		info, ok = infos.Allocated[key]
+		info, ok = db.Data[key]
 		if !ok {
 			return false
 		}
-		delete(infos.Allocated, key)
+		info.State = gtypes.UnsealStateFinished
+		db.Data[key] = info
 		return true
 	})
 
@@ -207,20 +223,38 @@ func (u *UnsealManager) Achieve(ctx context.Context, sid abi.SectorID, pieceCid 
 	}
 
 	// call hook
-	hook, ok := u.onAchieve[key]
+	hooks, ok := u.onAchieve[key]
 	if ok {
-		hook()
-	}
-
-	// respond to market
-	for _, eventID := range info.EventIds {
-		err := u.marketEvent.RespondUnseal(ctx, eventID, unsealErr)
-		if err != nil {
-			log.Errorf("respond unseal event: %s", err)
+		for _, hook := range hooks {
+			hook()
 		}
+		delete(u.onAchieve, key)
 	}
 
 	return nil
+}
+
+func (u *UnsealManager) AcquireDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error) {
+	key := core.UnsealInfoKey(sid.Miner, sid.Number, pieceCid)
+
+	var dest []string
+	err := u.loadAndUpdate(ctx, func(db *UnsealInfos) bool {
+		info, ok := db.Data[key]
+		if !ok {
+			log.Errorf("acquire unseal info(%s):record not found", key)
+		}
+		dest = info.Dest
+		info.State = gtypes.UnsealStateUploading
+		db.Data[key] = info
+		return true
+
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("achieve unseal info(%s): %w", key, err)
+	}
+
+	return dest, nil
 }
 
 func (u *UnsealManager) loadAndUpdate(ctx context.Context, modify func(infos *UnsealInfos) bool) error {
@@ -243,18 +277,22 @@ func (u *UnsealManager) loadAndUpdate(ctx context.Context, modify func(infos *Un
 		}
 	}
 
-	if infos.Allocatable == nil {
-		infos.Allocatable = make(map[abi.ActorID]map[string]*core.SectorUnsealInfo)
+	if infos.AllocIndex == nil {
+		infos.AllocIndex = make(map[abi.ActorID]map[Key]struct{})
 	}
-	if infos.Allocated == nil {
-		infos.Allocated = make(map[string]*core.SectorUnsealInfo)
+	if infos.Data == nil {
+		infos.Data = make(map[string]*core.SectorUnsealInfo)
 	}
 
 	updated := modify(&infos)
 	if !updated {
 		return nil
 	}
-	log.Debugf("update unseal task: Allocatable(%d) Allocated(%d)", len(infos.Allocatable), len(infos.Allocated))
+	allocatable := 0
+	for _, v := range infos.AllocIndex {
+		allocatable += len(v)
+	}
+	log.Debugf("update unseal task: Allocatable(%d) Allocated(%d)", allocatable, len(infos.Data)-allocatable)
 
 	val, err := json.Marshal(infos)
 	if err != nil {
@@ -274,7 +312,7 @@ func (u *UnsealManager) loadAndUpdate(ctx context.Context, modify func(infos *Un
 // 1. http://xxx or https://xxx , it means we will put data to a http server
 // 2. market://store_name/piece_cid, it means we will put data to the target path of pieces store from market
 // 3. file:///path , it means we will put data to a local file
-// 4. store://store_name/piece_cid , it means we will put data to store in venus-sector-manager
+// 4. store://store_name/piece_cid , it means we will put data to  venus-sector-manager
 func (u *UnsealManager) checkDestUrl(dest string) (string, error) {
 	urlStruct, err := url.Parse(dest)
 	if err != nil {

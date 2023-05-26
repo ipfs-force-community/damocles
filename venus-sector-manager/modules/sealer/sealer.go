@@ -366,8 +366,21 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Me
 	if err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
 
 		// Upgrading sectors are not finalized via api calls
-		// Except in the case of sector rebuild, because the prerequisite for sector rebuild is that the sector has been finalized.
-		if !bool(st.NeedRebuild) && bool(st.Upgraded) {
+		// Except in the case of sector rebuild and unseal, because the prerequisite for sector rebuild is that the sector has been finalized.
+		if !bool(st.NeedRebuild) && !bool(st.Unsealing) && bool(st.Upgraded) {
+			return false, nil
+		}
+		if bool(st.NeedRebuild) {
+			err := s.state.Update(ctx, sid, core.WorkerOnline, core.SectorNeedRebuild(false))
+			if err != nil {
+				return false, err
+			}
+		} else if bool(st.Unsealing) {
+			err := s.state.Update(ctx, sid, core.WorkerOnline, core.SectorUnsealing(false))
+			if err != nil {
+				return false, err
+			}
+		} else if bool(st.Upgraded) {
 			return false, nil
 		}
 
@@ -766,7 +779,11 @@ func (s *Sealer) AllocateUnsealSector(ctx context.Context, spec core.AllocateSec
 	}
 	info.PrivateInfo.AccessInstance = access.SealedFile
 
-	err = s.state.Restore(ctx, info.Sector.ID, nil)
+	err = s.state.Restore(ctx, info.Sector.ID, func(st *core.SectorState) (bool, error) {
+		st.Unsealing = true
+		return true, nil
+	})
+
 	if err != nil && !errors.Is(err, kvstore.ErrKeyNotFound) {
 		return nil, fmt.Errorf("restore sector for unseal: %w", err)
 	}
@@ -776,4 +793,8 @@ func (s *Sealer) AllocateUnsealSector(ctx context.Context, spec core.AllocateSec
 
 func (s *Sealer) AchieveUnsealSector(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (core.Meta, error) {
 	return core.Empty, s.unseal.Achieve(ctx, sid, pieceCid, errInfo)
+}
+
+func (s *Sealer) AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error) {
+	return s.unseal.AcquireDest(ctx, sid, pieceCid)
 }

@@ -118,6 +118,7 @@ var daemonRunCmd = &cli.Command{
 				dix.Override(new(dep.WinningPoStWarmUp), dep.WinningPoStWarmUp(cctx.Bool("warmup"))),
 				dep.Miner(),
 			),
+			dep.Gateway(),
 			dix.If(cctx.Bool("ext-prover"), dep.ExtProver()),
 			dep.Sealer(),
 			dix.Override(new(*APIService), NewAPIService),

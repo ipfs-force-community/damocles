@@ -366,7 +366,6 @@ pub struct SectorUnsealInfo {
     pub size: u64,
 
     pub private_info: SectorPrivateInfo,
-    pub dest: String,
 }
 
 /// defines the SealerRpc service
@@ -452,4 +451,7 @@ pub trait Sealer {
 
     #[rpc(name = "Venus.AchieveUnsealSector")]
     fn achieve_unseal_sector(&self, id: SectorID, piece_cid: CidJson, error: String) -> Result<()>;
+
+    #[rpc(name = "Venus.AcquireUnsealDest")]
+    fn acquire_unseal_dest(&self, id: SectorID, piece_cid: CidJson) -> Result<Vec<String>>;
 }

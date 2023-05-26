@@ -280,7 +280,7 @@ func (s *Sealer) AllocateRebuildSector(ctx context.Context, spec core.AllocateSe
 	return nil, nil
 }
 
-func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset, size uint64, dest string) (<-chan []byte, error) {
+func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset types.UnpaddedByteIndex, size abi.UnpaddedPieceSize, dest string) (<-chan []byte, error) {
 	return nil, nil
 }
 
@@ -289,5 +289,9 @@ func (s *Sealer) AllocateUnsealSector(ctx context.Context, spec core.AllocateSec
 }
 
 func (s *Sealer) AchieveUnsealSector(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (core.Meta, error) {
+	return nil, nil
+}
+
+func (s *Sealer) AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error) {
 	return nil, nil
 }

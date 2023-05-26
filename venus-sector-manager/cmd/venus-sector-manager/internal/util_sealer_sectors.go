@@ -234,6 +234,10 @@ var utilSealerSectorsListCmd = &cli.Command{
 				marks = append(marks, "rebuild")
 			}
 
+			if state.Unsealing {
+				marks = append(marks, "unseal")
+			}
+
 			var sectorMark string
 			if len(marks) > 0 {
 				sectorMark = fmt.Sprintf("(%s)", strings.Join(marks, ", "))
@@ -2292,22 +2296,25 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			return fmt.Errorf("no sector found with piece %s", pieceCid)
 		}
 
-		var offset, size uint64
+		var _offset, _size uint64
 		for _, p := range sector.Pieces {
 			if pieceCid.Equals(p.Piece.Cid) {
-				offset = uint64(p.Piece.Offset.Unpadded())
-				size = uint64(p.Piece.Size.Unpadded())
+				_offset = uint64(p.Piece.Offset.Unpadded())
+				_size = uint64(p.Piece.Size.Unpadded())
 				break
 			}
 		}
 
 		// allow cover offset and size by flag
 		if cctx.IsSet("offset") {
-			offset = cctx.Uint64("offset")
+			_offset = cctx.Uint64("offset")
 		}
 		if cctx.IsSet("size") {
-			size = cctx.Uint64("size")
+			_size = cctx.Uint64("size")
 		}
+
+		offset := types.UnpaddedByteIndex(abi.PaddedPieceSize(_offset).Unpadded())
+		size := abi.PaddedPieceSize(_size).Unpadded()
 
 		dest := cctx.String("dest")
 		output := cctx.String("output")
@@ -2340,7 +2347,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			var finish bool
 			for b := range stream {
 				finish = len(b) == 0
-
+				fmt.Printf("unseal piece bytes: %x \n", b)
 				_, err := fi.Write(b)
 				if err != nil {
 					return err
@@ -2354,8 +2361,8 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 
 		fmt.Println("set task for unseal success:")
 		fmt.Printf("piece cid: %s\n", pieceCid)
-		fmt.Printf("offset: %d\n", offset)
-		fmt.Printf("size: %d\n", size)
+		fmt.Printf("offset: %d\n", _offset)
+		fmt.Printf("size: %d\n", _size)
 		fmt.Printf("dest: %s\n", dest)
 
 		return nil

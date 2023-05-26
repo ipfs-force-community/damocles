@@ -687,14 +687,13 @@ func BuildUnsealManager(
 	db UnderlyingDB,
 	scfg *modules.SafeConfig,
 	MinerAPI core.MinerAPI,
-	mEvent IMarketEvent,
 ) (core.UnsealSectorManager, error) {
 	store, err := db.OpenCollection(gctx, "unseal")
 	if err != nil {
 		return nil, err
 	}
 
-	mgr, err := sectors.NewUnsealManager(gctx, scfg, MinerAPI, store, mEvent)
+	mgr, err := sectors.NewUnsealManager(gctx, scfg, MinerAPI, store)
 	if err != nil {
 		return nil, fmt.Errorf("construct unseal manager: %w", err)
 	}

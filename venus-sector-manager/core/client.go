@@ -10,6 +10,7 @@ import (
 	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	"github.com/filecoin-project/venus/venus-shared/types"
 )
 
 var UnavailableSealerCliClient = SealerCliClient{
@@ -118,7 +119,7 @@ var UnavailableSealerCliClient = SealerCliClient{
 		panic("sealer client unavailable")
 	},
 
-	UnsealPiece: func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset, size uint64, dest string) (<-chan []byte, error) {
+	UnsealPiece: func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset types.UnpaddedByteIndex, size abi.UnpaddedPieceSize, dest string) (<-chan []byte, error) {
 		panic("sealer client unavailable")
 	},
 }
@@ -179,7 +180,7 @@ type SealerCliClient struct {
 
 	SubmitProof func(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error)
 
-	UnsealPiece func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset, size uint64, dest string) (<-chan []byte, error)
+	UnsealPiece func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset types.UnpaddedByteIndex, size abi.UnpaddedPieceSize, dest string) (<-chan []byte, error)
 }
 
 var UnavailableMinerAPIClient = MinerAPIClient{

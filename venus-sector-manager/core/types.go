@@ -8,6 +8,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
+	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs/go-cid"
 )
@@ -362,15 +363,16 @@ type UnsealTaskIdentifier struct {
 type SectorUnsealInfo struct {
 	Sector   AllocatedSector
 	PieceCid cid.Cid
-	Offset   uint64
-	Size     uint64
-	Dest     string
+	Offset   vtypes.UnpaddedByteIndex
+	Size     abi.UnpaddedPieceSize
 
 	PrivateInfo SectorPrivateInfo
 	Ticket      Ticket
 	CommD       [32]byte
+
 	// there may be more than one unseal event result into on unseal task
-	EventIds []vtypes.UUID
+	Dest  []string
+	State gtypes.UnsealState
 }
 
 func UnsealInfoKey(actor abi.ActorID, sectorNumber abi.SectorNumber, pieceCid cid.Cid) string {

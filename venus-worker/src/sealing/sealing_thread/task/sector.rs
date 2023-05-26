@@ -109,7 +109,6 @@ pub struct UnsealInput {
     pub comm_d: [u8; 32],
     pub offset: u64,
     pub size: u64,
-    pub dest: String,
 }
 
 #[derive(Default, Deserialize, Serialize)]

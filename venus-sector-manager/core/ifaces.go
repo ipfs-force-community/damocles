@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
@@ -89,8 +90,9 @@ type RebuildSectorManager interface {
 }
 
 type UnsealSectorManager interface {
-	Set(ctx context.Context, req *SectorUnsealInfo) error
+	Set(ctx context.Context, req *SectorUnsealInfo) (gtypes.UnsealState, error)
 	Allocate(ctx context.Context, spec AllocateSectorSpec) (*SectorUnsealInfo, error)
 	Achieve(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, unsealErr string) error
 	OnAchieve(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, hook func())
+	AcquireDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error)
 }

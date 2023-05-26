@@ -83,3 +83,33 @@ func TestStorePoxy(t *testing.T) {
 		}
 	})
 }
+
+func TestStoreRead(t *testing.T) {
+	storePath := os.TempDir()
+	st, err := filestore.Open(objstore.Config{
+		Name: "mock test",
+		Path: storePath,
+	}, false)
+	require.NoError(t, err, "open mock store")
+
+	ctx := context.Background()
+	resourceID := "bafy2bzacecc4iu4nsmm5vqkj427xtkqjedcclo77glct2j5rhrrohe3xj7zpw"
+	tmpFile, err := os.CreateTemp(os.TempDir(), "piece_proxy")
+	require.NoError(t, err)
+	require.NoError(t, random.WriteRandomBytes(100, tmpFile))
+	tmpFile.Seek(0, io.SeekStart) //nolint
+	expectBytes, err := io.ReadAll(tmpFile)
+	require.NoError(t, err)
+	tmpFile.Seek(0, io.SeekStart) //nolint
+	_, err = st.Put(ctx, resourceID, tmpFile)
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
+
+	t.Run("read from local store", func(t *testing.T) {
+		r, err := st.Get(ctx, resourceID)
+		require.NoError(t, err)
+		result, err := io.ReadAll(r)
+		assert.Nil(t, err)
+		assert.Equal(t, expectBytes, result)
+	})
+}

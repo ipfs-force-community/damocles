@@ -11,7 +11,8 @@ var log = logging.New("dep")
 const (
 	ignoredInvoke dix.Invoke = iota // nolint:deadcode,varcheck
 	StartPoSter
-	StartMiner
+	ProofEventInvoke
+	MarketEventInvoke
 
 	// InvokePopulate should always be the last Invoke
 	InvokePopulate

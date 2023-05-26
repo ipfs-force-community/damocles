@@ -65,7 +65,6 @@ func Product() dix.Option {
 		dix.Override(new(PersistedObjectStoreManager), BuildPersistedFileStoreMgr),
 		dix.Override(new(core.SectorIndexer), BuildSectorIndexer),
 		dix.Override(new(*chain.EventBus), BuildChainEventBus),
-		dix.Override(new(IMarketEvent), buildMarketEvent),
 
 		dix.Override(ConstructMarketAPIRelated, BuildMarketAPIRelated),
 		dix.Override(new(core.WorkerManager), BuildWorkerManager),

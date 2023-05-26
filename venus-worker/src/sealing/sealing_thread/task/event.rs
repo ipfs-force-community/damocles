@@ -307,7 +307,6 @@ impl Event {
                         comm_d: info.comm_d,
                         offset: info.offset,
                         size: info.size,
-                        dest: info.dest,
                     }
                 );
                 replace!(

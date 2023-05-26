@@ -9,14 +9,14 @@ use anyhow::{anyhow, Context, Result};
 use forest_cid::Cid;
 use std::{
     collections::HashMap,
-    fs::{remove_file, File},
-    io,
+    fs::{self, remove_file, File},
     path::{Path, PathBuf},
+    vec,
 };
-use tracing::debug;
+use tracing::{debug, info};
 use url::Url;
 use vc_processors::{
-    builtin::tasks::{PieceFile, Unseal as UnsealInput, STAGE_NAME_UNSEAL},
+    builtin::tasks::{PieceFile, Unseal as UnsealInput, STAGE_NAME_TRANSFER, STAGE_NAME_UNSEAL},
     fil_proofs::{UnpaddedByteIndex, UnpaddedBytesAmount},
 };
 
@@ -103,6 +103,8 @@ impl<'c, 't> Unseal<'c, 't> {
     }
 
     fn pre_unseal(&self) -> ExecResult {
+        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
+
         // persist store -> thread store
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
@@ -208,7 +210,8 @@ impl<'c, 't> Unseal<'c, 't> {
 
     fn unseal(&self) -> ExecResult {
         // query token
-        let token = self.task.ctx.global.limit.acquire(STAGE_NAME_UNSEAL).crit()?;
+        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_UNSEAL).crit()?;
+
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
 
@@ -259,180 +262,185 @@ impl<'c, 't> Unseal<'c, 't> {
             size =? unseal_info.size,
             "unseal bytes amount: {:?}", out);
 
-        drop(token);
         Ok(Event::UnsealDone(out.0))
     }
 
     fn upload_piece(&self) -> ExecResult {
+        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
+
+        let sector_id = self.task.sector_id()?;
+
         field_required!(unseal_info, self.task.sector.phases.unseal_in.as_ref());
         let piece_file = self.task.piece_file(&unseal_info.piece_cid);
         field_required!(unseal_info, self.task.sector.phases.unseal_in.as_ref());
 
         // parse dest
-        let raw_url = Url::parse(&unseal_info.dest)
-            .context(format!("parse url {}", &unseal_info.dest))
-            .perm()?;
+        let dests = call_rpc! {
+            self.task.ctx.global.rpc,
+            acquire_unseal_dest,
+            sector_id.clone(),
+            unseal_info.piece_cid.clone(),
+        }?;
 
-        // we accept four kinds of url by now
-        // 1. http://xxx or https://xxx , it means we will post data to a http server
-        // 2. market://store_name/piece_cid, it means we will transfer data to the target path of pieces store from market
-        // 3. file:///path , it means we will transfer data to a local file
-        // 4. store://store_name/piece_cid , it means we will transfer data to store in venus-sector-manager
-        match raw_url.scheme() {
-            "http" | "https" => {
-                // post req
-                let file_byte = std::fs::read(piece_file).temp()?;
-                let body = reqwest::blocking::Body::from(file_byte);
+        if !dests.is_empty() {
+            info!(sector =?sector_id, "get {} upload dest", dests.len());
+        }
 
-                let resp = reqwest::blocking::Client::new().put(raw_url).body(body).send().temp()?;
-                if !resp.status().is_success() {
-                    return Err(anyhow!("upload piece failed: {:?}", resp)).temp();
-                }
-            }
-            "market" => {
-                // parse url and post req
-                let host = match raw_url.query_pairs().find(|(k, _)| k == "host") {
-                    Some((_, v)) => v,
-                    None => return Err(anyhow!("host not found in {}", raw_url)).perm(),
-                };
-                let scheme = match raw_url.query_pairs().find(|(k, _)| k == "scheme") {
-                    Some((_, v)) => v,
-                    None => return Err(anyhow!("scheme not found in {}", raw_url)).perm(),
-                };
+        for d in dests.into_iter() {
+            let dest = &d;
+            let raw_url = Url::parse(dest).context(format!("parse url {}", dest)).perm()?;
 
-                let token = match raw_url.query_pairs().find(|(k, _)| k == "token") {
-                    Some((_, v)) => v,
-                    None => return Err(anyhow!("token not found in {}", raw_url)).perm(),
-                };
+            // we accept four kinds of url by now
+            // 1. http://xxx or https://xxx , it means we will post data to a http server
+            // 2. market://store_name/piece_cid, it means we will transfer data to the target path of pieces store from market
+            // 3. file:///path , it means we will transfer data to a local file
+            // 4. store://store_name/piece_cid , it means we will transfer data to store in venus-sector-manager
+            match raw_url.scheme() {
+                "http" | "https" => {
+                    // post req
+                    let fd = File::open(&piece_file).context("open piece file").temp()?;
+                    let body = reqwest::blocking::Body::from(fd);
 
-                let piece_cid = raw_url.path().trim_matches('/');
-                let store_name = match raw_url.host_str() {
-                    Some(v) => v,
-                    None => return Err(anyhow!("store name not found in {}", raw_url)).perm(),
-                };
-
-                let file_byte = std::fs::read(piece_file).temp()?;
-                let body = reqwest::blocking::Body::from(file_byte);
-
-                // url example: market://store_name/piece_cid => http://market_ip/resource?resource-id=piece_cid&store=store_name
-                let target_url = Url::parse(&format!(
-                    "{}://{}/resource?resource-id={}&store={}",
-                    scheme, host, piece_cid, store_name
-                ))
-                .context(format!("parse url {}", &unseal_info.dest))
-                .perm()?;
-
-                let resp = reqwest::blocking::Client::new()
-                    .put(target_url)
-                    .header("Authorization", format!("Bearer {}", token))
-                    .body(body)
-                    .send()
-                    .temp()?;
-
-                debug!("upload piece to market, resp: {:?}", resp);
-                if resp.status() != reqwest::StatusCode::OK {
-                    return Err(anyhow!("upload piece to market failed, resp: {:?}", resp)).perm();
-                }
-            }
-            "file" => {
-                // copy to dest file
-                let path_str = raw_url.path();
-                if path_str.is_empty() {
-                    return Err(anyhow!("path not found in {}", raw_url)).perm();
-                }
-                let des_path = Path::new(path_str);
-                let mut src = File::open(piece_file.full())
-                    .context(format!("open piece file {:?}", piece_file.full()))
-                    .perm()?;
-                let mut des = File::create(des_path).context(format!("create file {:?}", &des_path)).perm()?;
-                io::copy(&mut src, &mut des).perm()?;
-            }
-            "store" => {
-                let access_instance = raw_url.host_str();
-                let p = raw_url.path();
-                if p.is_empty() {
-                    return Err(anyhow!("path not found in {}", raw_url)).perm();
-                }
-                let des_path = PathBuf::from(p);
-
-                match access_instance {
-                    Some(ins_name) => {
-                        let ins_name = ins_name.to_string();
-                        let access_store = self
-                            .task
-                            .ctx
-                            .global
-                            .attached
-                            .get(&ins_name)
-                            .with_context(|| format!("get access store instance named {}", ins_name))
-                            .perm()?;
-
-                        debug!("get basic info for access store named {}", ins_name);
-                        let access_store_basic_info = call_rpc! {
-                            self.task.ctx.global.rpc,
-                            store_basic_info,
-                            ins_name.clone(),
-                        }?
-                        .with_context(|| format!("get basic info for store named {}", ins_name))
-                        .perm()?;
-
-                        let transfer_routes = vec![TransferRoute {
-                            src: TransferItem {
-                                store_name: None,
-                                uri: piece_file.full().clone(),
-                            },
-                            dest: TransferItem {
-                                store_name: Some(ins_name.clone()),
-                                uri: access_store.uri(&des_path).perm()?,
-                            },
-                            opt: None,
-                        }];
-
-                        let transfer = TransferInput {
-                            routes: transfer_routes,
-                            stores: HashMap::from_iter([(
-                                ins_name.clone(),
-                                TransferStoreInfo {
-                                    name: ins_name.clone(),
-                                    meta: access_store_basic_info.meta,
-                                },
-                            )]),
-                        };
-
-                        self.task
-                            .ctx
-                            .global
-                            .processors
-                            .transfer
-                            .process(transfer)
-                            .context("link unseal sector files")
-                            .perm()?;
+                    let resp = reqwest::blocking::Client::new().put(raw_url).body(body).send().temp()?;
+                    if !resp.status().is_success() {
+                        return Err(anyhow!("upload piece failed: {:?}", resp)).temp();
                     }
-                    None => {
-                        // use remote piece store by default
-                        let access_store = &self.task.ctx.global.remote_piece_store;
-                        let p = p.trim_matches('/');
-                        let piece_cid = Cid::try_from(p).context(format!("parse cid {}", p)).perm()?;
-                        let url = match access_store.get(&piece_cid).unwrap() {
-                            PieceFile::Url(u) => u,
-                            _ => return Err(anyhow!("unexpected piece_file  in remote piece store")).perm(),
-                        };
-                        let body = reqwest::blocking::Body::from(std::fs::read(piece_file).temp()?);
-                        let resp = reqwest::blocking::Client::new().put(url).body(body).send().temp()?;
-                        if !resp.status().is_success() {
-                            let resp_info = format!("{:?}", &resp);
-                            let error_info = resp.text().temp()?;
-                            return Err(anyhow!("upload piece failed: {}, body({})", resp_info, error_info)).temp();
+                }
+                "market" => {
+                    let query = raw_url.query_pairs().collect::<HashMap<_, _>>();
+
+                    let (host, scheme, token) = match (query.get("host"), query.get("scheme"), query.get("token")) {
+                        (Some(h), Some(s), Some(t)) => (h, s, t),
+                        _ => return Err(anyhow!("parse url fail {}", raw_url)).perm(),
+                    };
+
+                    let piece_cid = raw_url.path().trim_matches('/');
+                    let store_name = match raw_url.host_str() {
+                        Some(v) => v,
+                        None => return Err(anyhow!("store name not found in {}", raw_url)).perm(),
+                    };
+
+                    let fd = File::open(&piece_file).context("open piece file").temp()?;
+                    let body = reqwest::blocking::Body::from(fd);
+
+                    // url example: market://store_name/piece_cid => http://market_ip/resource?resource-id=piece_cid&store=store_name
+                    let target_url = Url::parse(&format!(
+                        "{}://{}/resource?resource-id={}&store={}",
+                        scheme, host, piece_cid, store_name
+                    ))
+                    .context(format!("parse url {}", dest))
+                    .perm()?;
+
+                    let resp = reqwest::blocking::Client::new()
+                        .put(target_url)
+                        .header("Authorization", format!("Bearer {}", token))
+                        .body(body)
+                        .send()
+                        .temp()?;
+
+                    debug!("upload piece to market, resp: {:?}", resp);
+                    if resp.status() != reqwest::StatusCode::OK {
+                        return Err(anyhow!("upload piece to market failed, resp: {:?}", resp)).perm();
+                    }
+                }
+                "file" => {
+                    // copy to dest file
+                    let path_str = raw_url.path();
+                    if path_str.is_empty() {
+                        return Err(anyhow!("path not found in {}", raw_url)).perm();
+                    }
+                    let des_path = Path::new(path_str);
+                    fs::copy(piece_file.full(), des_path).perm()?;
+                }
+                "store" => {
+                    let access_instance = raw_url.host_str();
+                    let p = raw_url.path();
+                    if p.is_empty() {
+                        return Err(anyhow!("path not found in {}", raw_url)).perm();
+                    }
+                    let des_path = PathBuf::from(p);
+
+                    match access_instance {
+                        Some(ins_name) => {
+                            let ins_name = ins_name.to_string();
+                            let access_store = self
+                                .task
+                                .ctx
+                                .global
+                                .attached
+                                .get(&ins_name)
+                                .with_context(|| format!("get access store instance named {}", ins_name))
+                                .perm()?;
+
+                            debug!("get basic info for access store named {}", ins_name);
+                            let access_store_basic_info = call_rpc! {
+                                self.task.ctx.global.rpc,
+                                store_basic_info,
+                                ins_name.clone(),
+                            }?
+                            .with_context(|| format!("get basic info for store named {}", ins_name))
+                            .perm()?;
+
+                            let transfer_routes = vec![TransferRoute {
+                                src: TransferItem {
+                                    store_name: None,
+                                    uri: piece_file.full().clone(),
+                                },
+                                dest: TransferItem {
+                                    store_name: Some(ins_name.clone()),
+                                    uri: access_store.uri(&des_path).perm()?,
+                                },
+                                opt: None,
+                            }];
+
+                            let transfer = TransferInput {
+                                routes: transfer_routes,
+                                stores: HashMap::from_iter([(
+                                    ins_name.clone(),
+                                    TransferStoreInfo {
+                                        name: ins_name.clone(),
+                                        meta: access_store_basic_info.meta,
+                                    },
+                                )]),
+                            };
+
+                            self.task
+                                .ctx
+                                .global
+                                .processors
+                                .transfer
+                                .process(transfer)
+                                .context("link unseal sector files")
+                                .perm()?;
+                        }
+                        None => {
+                            // use remote piece store by default
+                            let access_store = &self.task.ctx.global.remote_piece_store;
+                            let p = p.trim_matches('/');
+                            let piece_cid = Cid::try_from(p).context(format!("parse cid {}", p)).perm()?;
+                            let url = match access_store.get(&piece_cid).unwrap() {
+                                PieceFile::Url(u) => u,
+                                _ => return Err(anyhow!("unexpected piece_file  in remote piece store")).perm(),
+                            };
+
+                            let fd = File::open(&piece_file).context("open piece file").temp()?;
+                            let body = reqwest::blocking::Body::from(fd);
+                            let resp = reqwest::blocking::Client::new().put(url).body(body).send().temp()?;
+                            if !resp.status().is_success() {
+                                let resp_info = format!("{:?}", &resp);
+                                let error_info = resp.text().temp()?;
+                                return Err(anyhow!("upload piece failed: {}, body({})", resp_info, error_info)).temp();
+                            }
                         }
                     }
                 }
+                _ => {
+                    return Err(anyhow!("unsupported url scheme {}", raw_url.scheme())).perm();
+                }
             }
-            _ => {
-                return Err(anyhow!("unsupported url scheme {}", raw_url.scheme())).perm();
-            }
-        }
 
-        let sector_id = self.task.sector_id()?;
+            info!("upload piece done, piece_cid: {}, dest: {}", unseal_info.piece_cid.0, dest);
+        }
 
         call_rpc! {
             self.task.ctx.global.rpc,
