@@ -102,7 +102,7 @@ func (me *MarketEvent) listenMarketRequestOnce(ctx context.Context) error {
 				Size:     req.Size,
 				Dest:     []string{req.Dest},
 			}
-			state, err := me.unseal.Set(ctx, info)
+			state, err := me.unseal.SetAndCheck(ctx, info)
 			if err != nil {
 				log.Errorf("set unseal info: %s", err)
 				respondError(err)

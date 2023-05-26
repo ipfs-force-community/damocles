@@ -9,6 +9,7 @@ use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use vc_processors::b64serde::{BytesArray32, BytesVec};
+use vc_processors::fil_proofs::PaddedBytesAmount;
 
 use super::super::types::SealProof;
 
@@ -80,8 +81,15 @@ pub struct DealInfo {
 pub struct PieceInfo {
     /// Size in nodes. For BLS12-381 (capacity 254 bits), must be >= 16. (16 * 8 = 128).
     pub size: PaddedPieceSize,
+    /// Offset within the original file to the first byte of this piece.
+    #[serde(default = "default_padded_byte_amount")]
+    pub offset: PaddedBytesAmount,
     /// Content identifier for piece.
     pub cid: CidJson,
+}
+
+fn default_padded_byte_amount() -> PaddedBytesAmount {
+    PaddedBytesAmount(0)
 }
 
 /// types alias for deal piece info list

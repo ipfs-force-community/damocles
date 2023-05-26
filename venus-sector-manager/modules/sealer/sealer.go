@@ -367,19 +367,10 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Me
 
 		// Upgrading sectors are not finalized via api calls
 		// Except in the case of sector rebuild and unseal, because the prerequisite for sector rebuild is that the sector has been finalized.
-		if !bool(st.NeedRebuild) && !bool(st.Unsealing) && bool(st.Upgraded) {
-			return false, nil
-		}
 		if bool(st.NeedRebuild) {
-			err := s.state.Update(ctx, sid, core.WorkerOnline, core.SectorNeedRebuild(false))
-			if err != nil {
-				return false, err
-			}
+			st.NeedRebuild = false
 		} else if bool(st.Unsealing) {
-			err := s.state.Update(ctx, sid, core.WorkerOnline, core.SectorUnsealing(false))
-			if err != nil {
-				return false, err
-			}
+			st.Unsealing = false
 		} else if bool(st.Upgraded) {
 			return false, nil
 		}

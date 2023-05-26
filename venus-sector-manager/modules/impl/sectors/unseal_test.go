@@ -60,7 +60,7 @@ func TestUnsealManager(t *testing.T) {
 		}
 
 		for i, v := range sectorUnsealInfoCase {
-			_, err := umgr.Set(context.Background(), &sectorUnsealInfoCase[i])
+			_, err := umgr.SetAndCheck(context.Background(), &sectorUnsealInfoCase[i])
 			require.NoError(t, err, "set unseal task")
 
 			allocated, err := umgr.Allocate(context.Background(), core.AllocateSectorSpec{
@@ -106,7 +106,7 @@ func TestUnsealManager(t *testing.T) {
 		require.Equal(t, 9, achieveCount, "all task has been archived")
 
 		for _, v := range infos.Data {
-			state, err := umgr.Set(ctx, v)
+			state, err := umgr.SetAndCheck(ctx, v)
 			require.NoError(t, err, "set unseal task again")
 			require.Equal(t, gateway.UnsealStateFinished, state, "get state finished")
 		}
@@ -146,7 +146,7 @@ func TestUnsealManager(t *testing.T) {
 		}
 
 		for i := range sectorUnsealInfoCase {
-			_, err := umgr.Set(context.Background(), &sectorUnsealInfoCase[i])
+			_, err := umgr.SetAndCheck(context.Background(), &sectorUnsealInfoCase[i])
 			require.NoError(t, err, "set unseal task")
 		}
 

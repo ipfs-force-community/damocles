@@ -90,7 +90,7 @@ type RebuildSectorManager interface {
 }
 
 type UnsealSectorManager interface {
-	Set(ctx context.Context, req *SectorUnsealInfo) (gtypes.UnsealState, error)
+	SetAndCheck(ctx context.Context, req *SectorUnsealInfo) (gtypes.UnsealState, error)
 	Allocate(ctx context.Context, spec AllocateSectorSpec) (*SectorUnsealInfo, error)
 	Achieve(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, unsealErr string) error
 	OnAchieve(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, hook func())

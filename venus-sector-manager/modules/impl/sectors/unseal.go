@@ -58,8 +58,8 @@ func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI co
 
 }
 
-// Set set unseal task
-func (u *UnsealManager) Set(ctx context.Context, req *core.SectorUnsealInfo) (state gtypes.UnsealState, err error) {
+// SetAndCheck set unseal task
+func (u *UnsealManager) SetAndCheck(ctx context.Context, req *core.SectorUnsealInfo) (state gtypes.UnsealState, err error) {
 
 	// check dest url
 	supplied, err := u.checkDestUrl(req.Dest[0])

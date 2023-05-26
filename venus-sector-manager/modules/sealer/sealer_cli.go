@@ -535,7 +535,7 @@ func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid
 					r.Close()
 					close(stream)
 
-					state, err := s.unseal.Set(ctx, req)
+					state, err := s.unseal.SetAndCheck(ctx, req)
 					log.With("state", state)
 					if err != nil {
 						log.Errorf("check unseal task: %v", err)
@@ -584,7 +584,7 @@ func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid
 		s.unseal.OnAchieve(ctx, sid, pieceCid, hook)
 	}
 
-	state, err := s.unseal.Set(ctx, req)
+	state, err := s.unseal.SetAndCheck(ctx, req)
 	if err != nil {
 		log.With("state", state)
 		log.Errorf("set unseal task: %v", err)
