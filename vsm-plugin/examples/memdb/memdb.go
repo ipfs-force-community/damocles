@@ -3,11 +3,18 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"sync"
 
 	vsmplugin "github.com/ipfs-force-community/venus-cluster/vsm-plugin"
 	"github.com/ipfs-force-community/venus-cluster/vsm-plugin/kvstore"
 	"github.com/tidwall/btree"
+)
+
+var (
+	_ kvstore.KVStore = (*collection)(nil)
+	_ kvstore.Iter    = (*iter)(nil)
+	_ kvstore.DB      = (*memdb)(nil)
 )
 
 func OnInit(ctx context.Context, pluginsDir string, manifest *vsmplugin.Manifest) error { return nil }
@@ -52,6 +59,18 @@ type collection struct {
 	lock  sync.RWMutex
 }
 
+func (c *collection) View(ctx context.Context, f func(kvstore.Txn) error) error {
+	return errors.New("the memdb does not support transaction")
+}
+
+func (c *collection) Update(ctx context.Context, f func(kvstore.Txn) error) error {
+	return errors.New("the memdb does not support transaction")
+}
+
+func (c *collection) NeedRetryTransactions() bool {
+	return false
+}
+
 func (c *collection) Get(_ context.Context, k kvstore.Key) (kvstore.Val, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
@@ -63,23 +82,12 @@ func (c *collection) Get(_ context.Context, k kvstore.Key) (kvstore.Val, error) 
 	return v, nil
 }
 
-func (c *collection) Has(ctx context.Context, k kvstore.Key) (has bool, err error) {
-	_, err = c.Get(ctx, k)
-	if err == kvstore.ErrKeyNotFound {
-		has = false
-		err = nil
-	} else if err == nil {
-		has = true
-	}
-	return
-}
-
-func (c *collection) View(ctx context.Context, k kvstore.Key, fn kvstore.Callback) error {
+func (c *collection) Peek(ctx context.Context, k kvstore.Key, f func(kvstore.Val) error) error {
 	v, err := c.Get(ctx, k)
 	if err != nil {
 		return err
 	}
-	return fn(v)
+	return f(v)
 }
 
 func (c *collection) Put(_ context.Context, k kvstore.Key, v kvstore.Val) error {
@@ -87,7 +95,6 @@ func (c *collection) Put(_ context.Context, k kvstore.Key, v kvstore.Val) error 
 	defer c.lock.Unlock()
 
 	c.inner.Set(string(k), v)
-	c.inner.Iter()
 	return nil
 }
 
@@ -100,6 +107,9 @@ func (c *collection) Del(_ context.Context, k kvstore.Key) error {
 }
 
 func (c *collection) Scan(_ context.Context, prefix kvstore.Prefix) (kvstore.Iter, error) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
 	innerIt := c.inner.Iter()
 	return &iter{
 		inner:  innerIt,
@@ -135,8 +145,8 @@ func (it *iter) Key() kvstore.Key {
 	return kvstore.Key(it.inner.Key())
 }
 
-func (it *iter) View(_ context.Context, fn kvstore.Callback) error {
-	return fn(it.inner.Value())
+func (it *iter) View(_ context.Context, f func(kvstore.Val) error) error {
+	return f(it.inner.Value())
 }
 
 func (it *iter) Close() {}

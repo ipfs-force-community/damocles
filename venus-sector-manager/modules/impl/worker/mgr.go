@@ -29,7 +29,7 @@ func (m *Manager) Load(ctx context.Context, name string) (core.WorkerPingInfo, e
 	key := makeWorkerKey(name)
 
 	var winfo core.WorkerPingInfo
-	if err := m.kv.View(ctx, key, func(content []byte) error {
+	if err := m.kv.Peek(ctx, key, func(content []byte) error {
 		return json.Unmarshal(content, &winfo)
 	}); err != nil {
 		return winfo, fmt.Errorf("load worker info: %w", err)

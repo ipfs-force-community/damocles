@@ -8,6 +8,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readconcern"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
 var (
@@ -26,12 +28,157 @@ type KvInMongo struct {
 	RawKey Key    `bson:"raw"`
 }
 
-var _ KVStore = (*MongoStore)(nil)
-var _ Iter = (*MongoIter)(nil)
-var _ DB = (*mongoDB)(nil)
+var (
+	_ KVStore = (*MongoStore)(nil)
+	_ Iter    = (*MongoIter)(nil)
+	_ DB      = (*mongoDB)(nil)
+	_ Txn     = (*MongoTxn)(nil)
+)
 
 type MongoStore struct {
-	col *mongo.Collection
+	client *mongo.Client
+	coll   *mongo.Collection
+}
+
+func (ms MongoStore) View(ctx context.Context, f func(Txn) error) error {
+	opts := options.Session().SetDefaultReadConcern(readconcern.Majority())
+	sess, err := ms.client.StartSession(opts)
+	if err != nil {
+		return err
+	}
+	defer sess.EndSession(ctx)
+
+	_, err = sess.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (interface{}, error) {
+		txn := &MongoTxn{
+			sessCtx: sessCtx,
+			coll:    ms.coll,
+		}
+		return nil, f(txn)
+	})
+	return err
+}
+
+func (ms MongoStore) Update(ctx context.Context, f func(Txn) error) error {
+	opts := options.Session().SetDefaultWriteConcern(writeconcern.New(writeconcern.WMajority()))
+	sess, err := ms.client.StartSession(opts)
+	if err != nil {
+		return err
+	}
+	defer sess.EndSession(ctx)
+
+	_, err = sess.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (interface{}, error) {
+		txn := &MongoTxn{
+			sessCtx: sessCtx,
+			coll:    ms.coll,
+		}
+		return nil, f(txn)
+	})
+	return err
+}
+
+func (ms MongoStore) NeedRetryTransactions() bool {
+	return false
+}
+
+func (ms MongoStore) Get(ctx context.Context, key Key) (Val, error) {
+	return get(ctx, ms.coll, key)
+}
+
+func (ms MongoStore) Peek(ctx context.Context, key Key, f func(Val) error) error {
+	v := KvInMongo{}
+	err := ms.coll.FindOne(ctx, bson.M{"_id": KeyToString(key)}).Decode(&v)
+	if err == mongo.ErrNoDocuments {
+		return ErrKeyNotFound
+	}
+	if err != nil {
+		return err
+	}
+	return f(v.Val)
+}
+
+func (ms MongoStore) Put(ctx context.Context, key Key, val Val) error {
+	return put(ctx, ms.coll, key, val)
+}
+
+func (ms MongoStore) Del(ctx context.Context, key Key) error {
+	return del(ctx, ms.coll, key)
+}
+
+func (ms MongoStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
+	return scan(ctx, ms.coll, prefix)
+}
+
+type MongoTxn struct {
+	sessCtx mongo.SessionContext
+	coll    *mongo.Collection
+}
+
+func (mt *MongoTxn) Get(key Key) (Val, error) {
+	return get(mt.sessCtx, mt.coll, key)
+}
+func (mt *MongoTxn) Peek(key Key, f func(Val) error) error {
+	v := KvInMongo{}
+	err := mt.coll.FindOne(mt.sessCtx, bson.M{"_id": KeyToString(key)}).Decode(&v)
+	if err == mongo.ErrNoDocuments {
+		return ErrKeyNotFound
+	}
+	if err != nil {
+		return err
+	}
+	return f(v.Val)
+}
+
+func (mt *MongoTxn) Put(key Key, val Val) error {
+	return put(mt.sessCtx, mt.coll, key, val)
+}
+
+func (mt *MongoTxn) Del(key Key) error {
+	return del(mt.sessCtx, mt.coll, key)
+}
+
+func (mt *MongoTxn) Scan(prefix Prefix) (Iter, error) {
+	return scan(mt.sessCtx, mt.coll, prefix)
+}
+
+func get(ctx context.Context, coll *mongo.Collection, key Key) (Val, error) {
+	v := KvInMongo{}
+	err := coll.FindOne(ctx, bson.M{"_id": KeyToString(key)}).Decode(&v)
+	if err == mongo.ErrNoDocuments {
+		return nil, ErrKeyNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return v.Val, nil
+}
+
+func put(ctx context.Context, coll *mongo.Collection, key Key, val Val) error {
+	_, err := coll.UpdateOne(ctx, bson.M{"_id": KeyToString(key)}, bson.M{"$set": KvInMongo{
+		Key:    KeyToString(key),
+		RawKey: key,
+		Val:    val,
+	}}, &options.UpdateOptions{
+		Upsert: &Upsert,
+	})
+	return err
+}
+
+func del(ctx context.Context, coll *mongo.Collection, key Key) error {
+	_, err := coll.DeleteOne(ctx, bson.M{"_id": KeyToString(key)})
+	return err
+}
+
+func scan(ctx context.Context, coll *mongo.Collection, prefix Prefix) (Iter, error) {
+	s := KeyToString(prefix)
+	s = "^" + s
+	cur, err := coll.Find(ctx, bson.M{"_id": primitive.Regex{
+		Pattern: s,
+		Options: "i",
+	}})
+	if err != nil {
+		return nil, err
+	}
+	return &MongoIter{cur: cur}, nil
 }
 
 type MongoIter struct {
@@ -62,75 +209,20 @@ func (m *MongoIter) Key() Key {
 	return m.data.RawKey
 }
 
-func (m *MongoIter) View(ctx context.Context, callback Callback) error {
+func (m *MongoIter) View(ctx context.Context, f func(Val) error) error {
 	if m.data == nil {
 		return fmt.Errorf("wrong usage of View, should call next first")
 	}
-	return callback(m.data.Val)
+	return f(m.data.Val)
 }
 
 func (m *MongoIter) Close() {
 	m.cur.Close(context.TODO())
 }
 
-func (m MongoStore) Get(ctx context.Context, key Key) (Val, error) {
-	v := Val{}
-	err := m.View(ctx, key, func(val Val) error {
-		v = val
-		return nil
-	})
-	return v, err
-}
-
-func (m MongoStore) Has(ctx context.Context, key Key) (bool, error) {
-	count, err := m.col.CountDocuments(ctx, bson.D{{Key: "_id", Value: KeyToString(key)}})
-	return count > 0, err
-}
-
-func (m MongoStore) View(ctx context.Context, key Key, callback Callback) error {
-	v := KvInMongo{}
-	err := m.col.FindOne(ctx, bson.M{"_id": KeyToString(key)}).Decode(&v)
-	if err == mongo.ErrNoDocuments {
-		return ErrKeyNotFound
-	}
-	if err != nil {
-		return err
-	}
-
-	return callback(v.Val)
-}
-
-func (m MongoStore) Put(ctx context.Context, key Key, val Val) error {
-	_, err := m.col.UpdateOne(ctx, bson.M{"_id": KeyToString(key)}, bson.M{"$set": KvInMongo{
-		Key:    KeyToString(key),
-		RawKey: key,
-		Val:    val,
-	}}, &options.UpdateOptions{
-		Upsert: &Upsert,
-	})
-	return err
-}
-
-func (m MongoStore) Del(ctx context.Context, key Key) error {
-	_, err := m.col.DeleteOne(ctx, bson.M{"_id": KeyToString(key)})
-	return err
-}
-
-func (m MongoStore) Scan(ctx context.Context, prefix Prefix) (Iter, error) {
-	s := KeyToString(prefix)
-	s = "^" + s
-	cur, err := m.col.Find(ctx, bson.M{"_id": primitive.Regex{
-		Pattern: s,
-		Options: "i",
-	}})
-	if err != nil {
-		return nil, err
-	}
-	return &MongoIter{cur: cur}, nil
-}
-
 type mongoDB struct {
-	inner *mongo.Database
+	client *mongo.Client
+	dbName string
 }
 
 func (db mongoDB) Run(context.Context) error {
@@ -142,7 +234,10 @@ func (db mongoDB) Close(context.Context) error {
 }
 
 func (db mongoDB) OpenCollection(_ context.Context, name string) (KVStore, error) {
-	return MongoStore{col: db.inner.Collection(name)}, nil
+	return &MongoStore{
+		client: db.client,
+		coll:   db.client.Database(db.dbName).Collection(name),
+	}, nil
 }
 
 func OpenMongo(ctx context.Context, dsn string, dbName string) (DB, error) {
@@ -157,5 +252,8 @@ func OpenMongo(ctx context.Context, dsn string, dbName string) (DB, error) {
 		return nil, err
 	}
 
-	return &mongoDB{inner: client.Database(dbName)}, nil
+	return &mongoDB{
+		client: client,
+		dbName: dbName,
+	}, nil
 }

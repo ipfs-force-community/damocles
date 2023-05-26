@@ -10,7 +10,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 )
 
-func TestKVStore(t *testing.T, collection string) kvstore.KVStore {
+func BadgerKVStore(t *testing.T, collection string) kvstore.KVStore {
 	ctx := context.Background()
 	tmpdir := t.TempDir()
 	db := kvstore.OpenBadger(tmpdir)

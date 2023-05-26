@@ -20,7 +20,7 @@ func (m *StoreManager) resetReserved(ctx context.Context) error {
 }
 
 func TestStoreManagerReserverSpace(t *testing.T) {
-	kvs := testutil.TestKVStore(t, "test")
+	kvs := testutil.BadgerKVStore(t, "test")
 
 	storeName4K := "store-4K"
 	storeName1M := "store-1M"
@@ -181,7 +181,7 @@ func TestStoreManagerReserverSpace(t *testing.T) {
 }
 
 func TestStoreManagerReserverSpaceWeighed(t *testing.T) {
-	kvs := testutil.TestKVStore(t, "test")
+	kvs := testutil.BadgerKVStore(t, "test")
 
 	storeName1 := "store-1"
 	storeName1K := "store-1000"
