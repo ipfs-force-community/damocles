@@ -16,17 +16,17 @@ import (
 
 var log = logging.New("market_event")
 
-type MarketEvent struct {
+type Event struct {
 	unseal core.UnsealSectorManager
 	client gateway.IMarketServiceProvider
 	miner  address.Address
 }
 
-func New(unseal core.UnsealSectorManager, client gateway.IMarketServiceProvider, miner address.Address) *MarketEvent {
-	return &MarketEvent{unseal: unseal, client: client, miner: miner}
+func New(unseal core.UnsealSectorManager, client gateway.IMarketServiceProvider, miner address.Address) *Event {
+	return &Event{unseal: unseal, client: client, miner: miner}
 }
 
-func (me *MarketEvent) StartListening(ctx context.Context) {
+func (me *Event) StartListening(ctx context.Context) {
 	log.Infof("start market event listening for %s", me.miner)
 	for {
 		if err := me.listenMarketRequestOnce(ctx); err != nil {
@@ -45,7 +45,7 @@ func (me *MarketEvent) StartListening(ctx context.Context) {
 	}
 }
 
-func (me *MarketEvent) listenMarketRequestOnce(ctx context.Context) error {
+func (me *Event) listenMarketRequestOnce(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	policy := &gtypes.MarketRegisterPolicy{
