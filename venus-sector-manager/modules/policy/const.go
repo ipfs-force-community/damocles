@@ -27,7 +27,7 @@ func SetupNetwork(ctx context.Context, api chain.API) (err error) {
 		return
 	}
 
-	log.Debugw("NETWORK SETUP", "name", NetParams.NetworkName)
+	log.Infow("NETWORK SETUP", "name", NetParams.NetworkName)
 	return
 }
 
