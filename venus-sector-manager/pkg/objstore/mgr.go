@@ -266,9 +266,9 @@ func (m *StoreManager) ReserveSpace(ctx context.Context, sid abi.SectorID, size 
 	}
 
 	if selected != nil {
-		rlog.Debugw("store selected", "ins", selected.Name)
+		rlog.Infow("store selected", "ins", selected.Name)
 	} else {
-		rlog.Debug("no available store")
+		rlog.Info("no available store")
 	}
 
 	return selected, nil
