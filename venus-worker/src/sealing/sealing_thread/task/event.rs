@@ -6,12 +6,15 @@ use super::{
     sector::{Base, Finalized, Sector, State},
     Planner,
 };
-use crate::rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, Seed, Ticket};
 use crate::sealing::processor::{
     to_prover_id, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output,
     SectorId, SnapEncodeOutput,
 };
 use crate::{logging::trace, metadb::MaybeDirty};
+use crate::{
+    rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, SectorUnsealInfo, Seed, Ticket},
+    sealing::sealing_thread::task::sector::UnsealInput,
+};
 
 pub enum Event {
     SetState(State),
@@ -75,6 +78,15 @@ pub enum Event {
     CheckSealed,
 
     SkipSnap,
+
+    // for unseal
+    AllocatedUnsealSector(SectorUnsealInfo),
+
+    UnsealDone(u64),
+
+    UploadPieceDone,
+
+    UnsealReady,
 }
 
 impl Debug for Event {
@@ -137,6 +149,14 @@ impl Debug for Event {
             Self::CheckSealed => "CheckSealed",
 
             Self::SkipSnap => "SkipSnap",
+
+            Self::AllocatedUnsealSector(_) => "AllocatedUnsealSector",
+
+            Self::UnsealDone(_) => "Unsealed",
+
+            Self::UploadPieceDone => "UploadPieceDone",
+
+            Self::UnsealReady => "UnsealReady",
         };
 
         f.write_str(name)
@@ -177,12 +197,6 @@ impl Event {
 
     fn apply_changes(self, s: &mut MaybeDirty<Sector>) {
         match self {
-            Self::SetState(_) => {}
-
-            Self::Idle => {}
-
-            Self::Retry => {}
-
             Self::Allocate(sector) => {
                 let prover_id = to_prover_id(sector.id.miner);
                 let sector_id = SectorId::from(sector.id.number);
@@ -240,8 +254,6 @@ impl Event {
                 mem_replace!(s.phases.pc2_re_submit, false);
             }
 
-            Self::CheckPC => {}
-
             Self::ReSubmitPC => {
                 mem_replace!(s.phases.pc2_re_submit, true);
             }
@@ -253,10 +265,6 @@ impl Event {
             Self::ReSubmitProof => {
                 mem_replace!(s.phases.c2_re_submit, true);
             }
-
-            Self::SubmitPersistance => {}
-
-            Self::Finish => {}
 
             // for snap up
             Self::AllocatedSnapUpSector(sector, deals, finalized) => {
@@ -272,8 +280,6 @@ impl Event {
             Self::SnapProve(out) => {
                 replace!(s.phases.snap_prov_out, out);
             }
-
-            Self::RePersist => {}
 
             // for rebuild
             Self::AllocatedRebuildSector(rebuild) => {
@@ -291,9 +297,28 @@ impl Event {
                 );
             }
 
-            Self::CheckSealed => {}
+            Self::AllocatedUnsealSector(info) => {
+                Self::Allocate(info.sector).apply_changes(s);
+                Self::AssignTicket(Some(info.ticket)).apply_changes(s);
+                replace!(
+                    s.phases.unseal_in,
+                    UnsealInput {
+                        piece_cid: info.piece_cid,
+                        comm_d: info.comm_d,
+                        offset: info.offset,
+                        size: info.size,
+                    }
+                );
+                replace!(
+                    s.finalized,
+                    Finalized {
+                        public: Default::default(),
+                        private: info.private_info
+                    }
+                );
+            }
 
-            Self::SkipSnap => {}
+            _ => {}
         };
     }
 }

@@ -21,6 +21,7 @@ type SectorUpgradeLandedEpoch abi.ChainEpoch
 type SectorUpgradeMessageID string
 type SectorUpgradePublic SectorPublicInfo
 type SectorNeedRebuild bool
+type SectorUnsealing bool
 
 type SectorUpgradedInfo struct {
 	AccessInstance string
@@ -61,6 +62,9 @@ type SectorState struct {
 
 	// Rebuild
 	NeedRebuild SectorNeedRebuild
+
+	// Unseal
+	Unsealing SectorUnsealing
 }
 
 func (s SectorState) DealIDs() []abi.DealID {
@@ -97,17 +101,19 @@ func (s *SectorState) MatchWorkerJob(jtyp SectorWorkerJob) bool {
 		return true
 
 	case SectorWorkerJobSealing:
-		return !bool(s.Upgraded) && !bool(s.NeedRebuild)
+		return !bool(s.Upgraded) && !bool(s.NeedRebuild) && !bool(s.Unsealing)
 
 	case SectorWorkerJobSnapUp:
-		return bool(s.Upgraded) && !bool(s.NeedRebuild)
+		return bool(s.Upgraded) && !bool(s.NeedRebuild) && !bool(s.Unsealing)
 
 	case SectorWorkerJobRebuild:
 		return bool(s.NeedRebuild)
 
+	case SectorWorkerJobUnseal:
+		return bool(s.Unsealing)
+
 	default:
 		return false
-
 	}
 }
 
@@ -125,4 +131,5 @@ const (
 	SectorWorkerJobSealing SectorWorkerJob = 1
 	SectorWorkerJobSnapUp  SectorWorkerJob = 2
 	SectorWorkerJobRebuild SectorWorkerJob = 3
+	SectorWorkerJobUnseal  SectorWorkerJob = 4
 )

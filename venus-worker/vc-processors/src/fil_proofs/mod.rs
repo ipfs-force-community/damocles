@@ -27,7 +27,7 @@ pub use filecoin_proofs_api::{
         verify_empty_sector_update_proof, verify_partition_proofs,
     },
     ChallengeSeed, Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, PrivateReplicaInfo, ProverId, RegisteredPoStProof,
-    RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket, UnpaddedBytesAmount,
+    RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket, UnpaddedByteIndex, UnpaddedBytesAmount,
 };
 
 /// Identifier for Actors.
@@ -102,6 +102,38 @@ pub fn seal_commit_phase1(
             seed,
             pre_commit,
             piece_infos,
+        )
+    }
+}
+
+pub fn unseal_range<T, W>(
+    registered_proof: RegisteredSealProof,
+    cache_path: T,
+    sealed_path: T,
+    unsealed_output: W,
+    prover_id: ProverId,
+    sector_id: SectorId,
+    comm_d: Commitment,
+    ticket: Ticket,
+    offset: UnpaddedByteIndex,
+    num_bytes: UnpaddedBytesAmount,
+) -> Result<UnpaddedBytesAmount>
+where
+    T: Into<PathBuf> + AsRef<Path>,
+    W: io::Write,
+{
+    safe_call! {
+        seal::get_unsealed_range_mapped (
+            registered_proof ,
+            cache_path ,
+            sealed_path ,
+            unsealed_output ,
+            prover_id ,
+            sector_id ,
+            comm_d ,
+            ticket ,
+            offset,
+            num_bytes,
         )
     }
 }

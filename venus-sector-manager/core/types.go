@@ -7,6 +7,8 @@ import (
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	vtypes "github.com/filecoin-project/venus/venus-shared/types"
+	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 	"github.com/ipfs/go-cid"
 )
@@ -29,8 +31,9 @@ type AllocatedSector struct {
 }
 
 type PieceInfo struct {
-	Size abi.PaddedPieceSize
-	Cid  cid.Cid
+	Size   abi.PaddedPieceSize
+	Offset abi.PaddedPieceSize
+	Cid    cid.Cid
 }
 
 type DealInfo struct {
@@ -349,4 +352,33 @@ type SectorRebuildInfo struct {
 	Pieces        Deals
 	IsSnapUp      bool
 	UpgradePublic *SectorUpgradePublic
+}
+
+type UnsealTaskIdentifier struct {
+	PieceCid     cid.Cid
+	Actor        abi.ActorID
+	SectorNumber abi.SectorNumber
+}
+
+type SectorUnsealInfo struct {
+	Sector   AllocatedSector
+	PieceCid cid.Cid
+	Offset   vtypes.UnpaddedByteIndex
+	Size     abi.UnpaddedPieceSize
+
+	PrivateInfo SectorPrivateInfo
+	Ticket      Ticket
+	CommD       [32]byte
+
+	// there may be more than one unseal event result into on unseal task
+	Dest  []string
+	State gtypes.UnsealState
+}
+
+func UnsealInfoKey(actor abi.ActorID, sectorNumber abi.SectorNumber, pieceCid cid.Cid) string {
+	return fmt.Sprintf("%d-%d-%s", actor, sectorNumber, pieceCid.String())
+}
+
+func (s UnsealTaskIdentifier) String() string {
+	return fmt.Sprintf("%d-%d-%s", s.Actor, s.SectorNumber, s.PieceCid.String())
 }

@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use filecoin_proofs::UnpaddedBytesAmount;
+use filecoin_proofs::{UnpaddedByteIndex, UnpaddedBytesAmount};
 use serde::{Deserialize, Serialize};
 
 use crate::core::Task;
@@ -46,6 +46,9 @@ pub const STAGE_NAME_WINDOW_POST: &str = "window_post";
 
 /// name str for window post
 pub const STAGE_NAME_WINNING_POST: &str = "winning_post";
+
+/// name str for unseal
+pub const STAGE_NAME_UNSEAL: &str = "unseal";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -261,4 +264,25 @@ impl Task for WinningPoSt {
     const STAGE: &'static str = STAGE_NAME_WINNING_POST;
 
     type Output = WinningPoStOutput;
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Unseal {
+    pub registered_proof: RegisteredSealProof,
+    pub prover_id: ProverId,
+    pub sector_id: SectorId,
+    pub comm_d: Commitment,
+    pub ticket: Ticket,
+    pub cache_dir: PathBuf,
+    pub sealed_file: PathBuf,
+    pub unsealed_output: PathBuf,
+
+    pub offset: UnpaddedByteIndex,
+    pub num_bytes: UnpaddedBytesAmount,
+}
+
+impl Task for Unseal {
+    const STAGE: &'static str = STAGE_NAME_UNSEAL;
+
+    type Output = UnpaddedBytesAmount;
 }

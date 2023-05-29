@@ -90,8 +90,9 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.
 			ID:          dinfo.DealID,
 			PayloadSize: dinfo.PayloadSize,
 			Piece: core.PieceInfo{
-				Cid:  dinfo.PieceCID,
-				Size: dinfo.PieceSize,
+				Cid:    dinfo.PieceCID,
+				Size:   dinfo.PieceSize,
+				Offset: dinfo.Offset,
 			},
 			Proposal: proposal,
 		})

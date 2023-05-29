@@ -9,6 +9,7 @@ use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use vc_processors::b64serde::{BytesArray32, BytesVec};
+use vc_processors::fil_proofs::PaddedBytesAmount;
 
 use super::super::types::SealProof;
 
@@ -80,8 +81,15 @@ pub struct DealInfo {
 pub struct PieceInfo {
     /// Size in nodes. For BLS12-381 (capacity 254 bits), must be >= 16. (16 * 8 = 128).
     pub size: PaddedPieceSize,
+    /// Offset within the original file to the first byte of this piece.
+    #[serde(default = "default_padded_byte_amount")]
+    pub offset: PaddedBytesAmount,
     /// Content identifier for piece.
     pub cid: CidJson,
+}
+
+fn default_padded_byte_amount() -> PaddedBytesAmount {
+    PaddedBytesAmount(0)
 }
 
 /// types alias for deal piece info list
@@ -278,7 +286,7 @@ pub struct AllocateSnapUpSpec {
     pub deals: AcquireDealsSpec,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorPublicInfo {
     pub comm_r: [u8; 32],
@@ -352,6 +360,20 @@ pub struct SectorRebuildInfo {
     #[serde(rename = "IsSnapUp")]
     pub is_snapup: bool,
     pub upgrade_public: Option<SectorPublicInfo>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SectorUnsealInfo {
+    pub sector: AllocatedSector,
+    pub piece_cid: CidJson,
+    pub comm_d: [u8; 32],
+    pub ticket: Ticket,
+
+    pub offset: u64,
+    pub size: u64,
+
+    pub private_info: SectorPrivateInfo,
 }
 
 /// defines the SealerRpc service
@@ -430,4 +452,14 @@ pub trait Sealer {
     // rebuild
     #[rpc(name = "Venus.AllocateRebuildSector")]
     fn allocate_rebuild_sector(&self, spec: AllocateSectorSpec) -> Result<Option<SectorRebuildInfo>>;
+
+    // unseal
+    #[rpc(name = "Venus.AllocateUnsealSector")]
+    fn allocate_unseal_sector(&self, spec: AllocateSectorSpec) -> Result<Option<SectorUnsealInfo>>;
+
+    #[rpc(name = "Venus.AchieveUnsealSector")]
+    fn achieve_unseal_sector(&self, id: SectorID, piece_cid: CidJson, error: String) -> Result<()>;
+
+    #[rpc(name = "Venus.AcquireUnsealDest")]
+    fn acquire_unseal_dest(&self, id: SectorID, piece_cid: CidJson) -> Result<Vec<String>>;
 }

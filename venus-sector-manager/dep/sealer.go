@@ -71,6 +71,7 @@ func Product() dix.Option {
 
 		dix.Override(new(core.SnapUpSectorManager), BuildSnapUpManager),
 		dix.Override(new(core.RebuildSectorManager), BuildRebuildManager),
+		dix.Override(new(core.UnsealSectorManager), BuildUnsealManager),
 
 		dix.Override(new(SnapUpMetaStore), BuildSnapUpMetaStore),
 		dix.Override(new(SectorIndexMetaStore), BuildSectorIndexMetaStore),

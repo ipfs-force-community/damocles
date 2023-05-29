@@ -15,7 +15,7 @@ use crate::{
     sealing::{
         processor::{
             ArcAddPiecesProcessor, ArcC2Processor, ArcPC1Processor, ArcPC2Processor, ArcSnapEncodeProcessor, ArcSnapProveProcessor,
-            ArcTransferProcessor, ArcTreeDProcessor,
+            ArcTransferProcessor, ArcTreeDProcessor, ArcUnsealProcessor,
         },
         resource::Pool,
     },
@@ -47,6 +47,7 @@ pub struct GlobalModules {
     pub ext_locks: Arc<Pool>,
     pub rt: Arc<Runtime>,
     pub piece_store: Arc<dyn PieceStore>,
+    pub remote_piece_store: Arc<dyn PieceStore>,
 }
 
 #[derive(Clone)]
@@ -59,6 +60,7 @@ pub struct GlobalProcessors {
     pub snap_encode: ArcSnapEncodeProcessor,
     pub snap_prove: ArcSnapProveProcessor,
     pub transfer: ArcTransferProcessor,
+    pub unseal: ArcUnsealProcessor,
 }
 
 impl Module for Box<dyn Module> {

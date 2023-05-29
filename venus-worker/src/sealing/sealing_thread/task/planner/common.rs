@@ -39,7 +39,7 @@ pub fn add_pieces(task: &Task<'_>, deals: &Deals) -> Result<Vec<PieceInfo>, Fail
         let unpadded_piece_size = deal.piece.size.unpadded();
         let is_pledged = deal.id == 0;
 
-        let piece_file = if is_pledged {
+        let piece_file: PieceFile = if is_pledged {
             PieceFile::Pledge
         } else {
             piece_store

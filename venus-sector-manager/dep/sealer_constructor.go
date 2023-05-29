@@ -512,6 +512,7 @@ type MarketAPIRelatedComponents struct {
 
 	DealManager core.DealManager
 	MarketAPI   market.API
+	PieceStore  piecestore.PieceStore
 }
 
 func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig) (market.API, error) {
@@ -563,7 +564,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 			Name:     pcfg.Name,
 			Path:     pcfg.Path,
 			Meta:     pcfg.Meta,
-			ReadOnly: true,
+			ReadOnly: pcfg.ReadOnly,
 		}
 		// For compatibility with v0.5
 		if pcfg.PluginName == "" && pcfg.Plugin != "" {
@@ -584,6 +585,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	return MarketAPIRelatedComponents{
 		DealManager: dealmgr.New(mapi, minerAPI, scfg),
 		MarketAPI:   mapi,
+		PieceStore:  proxy,
 	}, nil
 }
 
@@ -678,4 +680,22 @@ func BuildWorkerManager(meta WorkerMetaStore) (core.WorkerManager, error) {
 func BuildProxiedSectorIndex(client core.SealerCliClient, storeMgr PersistedObjectStoreManager) (core.SectorIndexer, error) {
 	log.Debug("build proxied sector indexer")
 	return sectors.NewProxiedIndexer(client, storeMgr)
+}
+
+func BuildUnsealManager(
+	gctx GlobalContext,
+	db UnderlyingDB,
+	scfg *modules.SafeConfig,
+	MinerAPI core.MinerAPI,
+) (core.UnsealSectorManager, error) {
+	store, err := db.OpenCollection(gctx, "unseal")
+	if err != nil {
+		return nil, err
+	}
+
+	mgr, err := sectors.NewUnsealManager(gctx, scfg, MinerAPI, store)
+	if err != nil {
+		return nil, fmt.Errorf("construct unseal manager: %w", err)
+	}
+	return mgr, nil
 }

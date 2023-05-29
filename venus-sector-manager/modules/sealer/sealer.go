@@ -10,6 +10,7 @@ import (
 	"github.com/filecoin-project/go-commp-utils/zerocomm"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/venus/venus-shared/types"
+	"github.com/ipfs/go-cid"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/metrics"
@@ -20,6 +21,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/logging"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/piecestore"
 )
 
 var (
@@ -57,21 +59,25 @@ func New(
 	sectorIdxer core.SectorIndexer,
 	sectorTracker core.SectorTracker,
 	prover core.Prover,
+	pieceStore piecestore.PieceStore,
 	snapup core.SnapUpSectorManager,
 	rebuild core.RebuildSectorManager,
+	unseal core.UnsealSectorManager,
 	workerMgr core.WorkerManager,
 ) (*Sealer, error) {
 	return &Sealer{
-		scfg:      scfg,
-		capi:      capi,
-		rand:      rand,
-		sector:    sector,
-		state:     state,
-		deal:      deal,
-		commit:    commit,
-		snapup:    snapup,
-		rebuild:   rebuild,
-		workerMgr: workerMgr,
+		scfg:       scfg,
+		capi:       capi,
+		rand:       rand,
+		sector:     sector,
+		state:      state,
+		deal:       deal,
+		commit:     commit,
+		snapup:     snapup,
+		rebuild:    rebuild,
+		unseal:     unseal,
+		workerMgr:  workerMgr,
+		pieceStore: pieceStore,
 
 		sectorIdxer:   sectorIdxer,
 		sectorTracker: sectorTracker,
@@ -81,16 +87,18 @@ func New(
 }
 
 type Sealer struct {
-	scfg      *modules.SafeConfig
-	capi      chain.API
-	rand      core.RandomnessAPI
-	sector    core.SectorManager
-	state     core.SectorStateManager
-	deal      core.DealManager
-	commit    core.CommitmentManager
-	snapup    core.SnapUpSectorManager
-	rebuild   core.RebuildSectorManager
-	workerMgr core.WorkerManager
+	scfg       *modules.SafeConfig
+	capi       chain.API
+	rand       core.RandomnessAPI
+	sector     core.SectorManager
+	state      core.SectorStateManager
+	deal       core.DealManager
+	commit     core.CommitmentManager
+	snapup     core.SnapUpSectorManager
+	rebuild    core.RebuildSectorManager
+	unseal     core.UnsealSectorManager
+	workerMgr  core.WorkerManager
+	pieceStore piecestore.PieceStore
 
 	sectorIdxer   core.SectorIndexer
 	sectorTracker core.SectorTracker
@@ -358,8 +366,12 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Me
 	if err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
 
 		// Upgrading sectors are not finalized via api calls
-		// Except in the case of sector rebuild, because the prerequisite for sector rebuild is that the sector has been finalized.
-		if !bool(st.NeedRebuild) && bool(st.Upgraded) {
+		// Except in the case of sector rebuild and unseal, because the prerequisite for sector rebuild is that the sector has been finalized.
+		if bool(st.Unsealing) {
+			st.Unsealing = false
+		} else if bool(st.NeedRebuild) {
+			st.NeedRebuild = false
+		} else if bool(st.Upgraded) {
 			return false, nil
 		}
 
@@ -722,4 +734,58 @@ func (s *Sealer) AllocateRebuildSector(ctx context.Context, spec core.AllocateSe
 	}
 
 	return info, nil
+}
+
+func (s *Sealer) AllocateUnsealSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorUnsealInfo, error) {
+	info, err := s.unseal.Allocate(ctx, spec)
+	if err != nil {
+		return nil, fmt.Errorf("allocate unseal sector: %w", err)
+	}
+
+	if info == nil {
+		return nil, nil
+	}
+
+	// get precommit info
+	sectorState, err := s.state.Load(ctx, info.Sector.ID, core.WorkerOffline)
+	if err != nil {
+		return nil, fmt.Errorf("load sector state: %w", err)
+	}
+
+	preOnChain, err := sectorState.Pre.IntoPreCommitOnChainInfo()
+	if err != nil {
+		return nil, fmt.Errorf("load sector state: %w", err)
+	}
+
+	info.CommD = preOnChain.CommD
+	info.Ticket = preOnChain.Ticket
+
+	// get private info
+	access, found, err := s.sectorIdxer.Normal().Find(ctx, info.Sector.ID)
+	if err != nil {
+		return nil, fmt.Errorf("find sector(%s) access store: %w", util.FormatSectorID(info.Sector.ID), err)
+	}
+	if !found {
+		return nil, fmt.Errorf("sector(%s) access store not found", util.FormatSectorID(info.Sector.ID))
+	}
+	info.PrivateInfo.AccessInstance = access.SealedFile
+
+	err = s.state.Restore(ctx, info.Sector.ID, func(st *core.SectorState) (bool, error) {
+		st.Unsealing = true
+		return true, nil
+	})
+
+	if err != nil && !errors.Is(err, kvstore.ErrKeyNotFound) {
+		return nil, fmt.Errorf("restore sector for unseal: %w", err)
+	}
+
+	return info, nil
+}
+
+func (s *Sealer) AchieveUnsealSector(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (core.Meta, error) {
+	return core.Empty, s.unseal.Achieve(ctx, sid, pieceCid, errInfo)
+}
+
+func (s *Sealer) AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error) {
+	return s.unseal.AcquireDest(ctx, sid, pieceCid)
 }

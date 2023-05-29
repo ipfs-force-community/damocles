@@ -5,8 +5,10 @@ import (
 
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
 )
@@ -85,4 +87,12 @@ type WorkerManager interface {
 type RebuildSectorManager interface {
 	Set(ctx context.Context, sid abi.SectorID, info SectorRebuildInfo) error
 	Allocate(ctx context.Context, spec AllocateSectorSpec) (*SectorRebuildInfo, error)
+}
+
+type UnsealSectorManager interface {
+	SetAndCheck(ctx context.Context, req *SectorUnsealInfo) (gtypes.UnsealState, error)
+	Allocate(ctx context.Context, spec AllocateSectorSpec) (*SectorUnsealInfo, error)
+	Achieve(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, unsealErr string) error
+	OnAchieve(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, hook func())
+	AcquireDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error)
 }

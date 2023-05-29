@@ -7,6 +7,7 @@ use super::PieceStore;
 
 const ENDPOINT: &str = "piecestore";
 
+#[derive(Clone)]
 pub struct RemotePieceStore {
     base: Url,
 }

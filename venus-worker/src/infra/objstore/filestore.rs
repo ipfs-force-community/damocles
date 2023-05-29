@@ -61,7 +61,7 @@ impl FileStore {
             return Err(anyhow!("sub path starts with separator").into());
         }
 
-        let res = self.local_path.join(sub);
+        let res = self.local_path.join(p);
         trace!(target: LOG_TARGET, ?res, "get full path");
         Ok(res)
     }
@@ -78,5 +78,28 @@ impl ObjectStore for FileStore {
 
     fn readonly(&self) -> bool {
         self.readonly
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_path() {
+        let fs = FileStore::open("/tmp", None, false).unwrap();
+        assert_eq!(fs.path("/a/b").unwrap(), PathBuf::from("/tmp/a/b"));
+        assert_eq!(fs.path("a/b").unwrap(), PathBuf::from("/tmp/a/b"));
+        assert_eq!(fs.path("a/b/").unwrap(), PathBuf::from("/tmp/a/b"));
+        assert_eq!(fs.path("/a/b/").unwrap(), PathBuf::from("/tmp/a/b"));
+    }
+
+    #[test]
+    fn test_store_uri() {
+        let fs = FileStore::open("/tmp/", Some("test_store".to_string()), false).unwrap();
+        assert_eq!(fs.uri(Path::new("a/b")).unwrap(), PathBuf::from("/tmp/a/b"));
+        assert_eq!(fs.uri(Path::new("/a/b")).unwrap(), PathBuf::from("/tmp/a/b"));
+        assert_eq!(fs.uri(Path::new("a/b/")).unwrap(), PathBuf::from("/tmp/a/b"));
+        assert_eq!(fs.uri(Path::new("/a/b/")).unwrap(), PathBuf::from("/tmp/a/b"));
     }
 }

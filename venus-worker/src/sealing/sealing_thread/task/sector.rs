@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Error};
+use forest_cid::json::CidJson;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -79,6 +80,8 @@ def_state! {
     SnapPieceAdded,
     SnapTreeDBuilt,
     SnapDone,
+    Unsealed,
+    UnsealPrepared,
 }
 
 impl std::fmt::Debug for State {
@@ -98,6 +101,14 @@ pub struct Trace {
     pub prev: State,
     pub next: State,
     pub detail: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct UnsealInput {
+    pub piece_cid: CidJson,
+    pub comm_d: [u8; 32],
+    pub offset: u64,
+    pub size: u64,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -125,8 +136,10 @@ pub struct Phases {
 
     // snap up
     pub snap_encode_out: Option<SnapEncodeOutput>,
-
     pub snap_prov_out: Option<Vec<u8>>,
+
+    // unseal
+    pub unseal_in: Option<UnsealInput>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use crossbeam_channel::select;
+use forest_cid::json::CidJson;
 
 use self::planner::default_plan;
 
@@ -366,6 +367,10 @@ impl<'c> Task<'c> {
 
     fn staged_file(&self, sector_id: &SectorID) -> Entry {
         Entry::file(&self.store.data_path, PathBuf::from("unsealed").join(self.sector_path(sector_id)))
+    }
+
+    fn piece_file(&self, piece_cid: &CidJson) -> Entry {
+        Entry::file(&self.store.data_path, PathBuf::from("unsealed").join(format!("{}", piece_cid.0)))
     }
 
     fn update_file(&self, sector_id: &SectorID) -> Entry {
