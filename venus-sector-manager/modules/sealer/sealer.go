@@ -183,7 +183,7 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.A
 	success := false
 	slog := sectorLogger(sid).With("total-pieces", len(pieces))
 
-	slog.Debugw("deals acquired")
+	slog.Infow("deals acquired")
 
 	defer func() {
 		if !success {
@@ -354,7 +354,7 @@ func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.Rep
 }
 
 func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Meta, error) {
-	sectorLogger(sid).Debug("sector finalized")
+	sectorLogger(sid).Info("sector finalized")
 	if err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
 
 		// Upgrading sectors are not finalized via api calls
@@ -383,7 +383,7 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 				return false, fmt.Errorf("release deals in sector: %w", err)
 			}
 
-			sectorLogger(sid).Debugw("deals released", "count", dealCount)
+			sectorLogger(sid).Infow("deals released", "count", dealCount)
 		}
 
 		if st.Upgraded {
