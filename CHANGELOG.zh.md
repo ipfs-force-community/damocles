@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.2
+- venus-sector-manager
+  - 调用新 api `ReleaseDeals` 释放订单避免重复释放订单 bug [#664](https://github.com/ipfs-force-community/venus-cluster/pull/664)
+  - 修改部分日志的日志级别 debug -> info [#738](https://github.com/ipfs-force-community/venus-cluster/pull/738)
+
 ## v0.6.1
 - venus-sector-manager
   - 日志默认级别从 `DEBUG` 修改为 `INFO` [#719](https://github.com/ipfs-force-community/venus-cluster/pull/719)
