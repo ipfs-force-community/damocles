@@ -45,7 +45,15 @@ type Sealer struct {
 }
 
 func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.AllocatedSector, error) {
-	return s.sector.Allocate(ctx, spec)
+	sectors, err := s.AllocateSectorsBatch(ctx, spec, 1)
+	if err != nil {
+		return nil, err
+	}
+	return sectors[0], nil
+}
+
+func (s *Sealer) AllocateSectorsBatch(ctx context.Context, spec core.AllocateSectorSpec, count uint32) ([]*core.AllocatedSector, error) {
+	return s.sector.Allocate(ctx, spec, count)
 }
 
 func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.Deals, error) {

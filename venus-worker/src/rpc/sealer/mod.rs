@@ -384,6 +384,10 @@ pub trait Sealer {
     fn allocate_sector(&self, spec: AllocateSectorSpec) -> Result<Option<AllocatedSector>>;
 
     /// api definition
+    #[rpc(name = "Venus.AllocateSectorsBatch")]
+    fn allocate_sectors_batch(&self, spec: AllocateSectorSpec, count: u32) -> Result<Vec<AllocatedSector>>;
+
+    /// api definition
     #[rpc(name = "Venus.AcquireDeals")]
     fn acquire_deals(&self, id: SectorID, spec: AcquireDealsSpec) -> Result<Option<Deals>>;
 

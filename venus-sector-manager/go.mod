@@ -21,12 +21,12 @@ require (
 	github.com/filecoin-project/lotus v1.22.1
 	github.com/filecoin-project/specs-actors/v2 v2.3.6
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.11.2-0.20230525071843-ab19674dd7b3
+	github.com/filecoin-project/venus v1.11.2-0.20230530033915-7569018e6a31
 	github.com/golang/mock v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs-force-community/venus-cluster-assets v0.1.0
-	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230517052935-9b9f9d057b6e
+	github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230530070608-6fd470cc568f
 	github.com/ipfs/go-cid v0.3.2
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-leveldb v0.5.0

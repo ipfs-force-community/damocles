@@ -36,9 +36,12 @@ type Manager struct {
 	numAlloc core.SectorNumberAllocator
 }
 
-func (m *Manager) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*core.AllocatedSector, error) {
+func (m *Manager) Allocate(ctx context.Context, spec core.AllocateSectorSpec, count uint32) ([]*core.AllocatedSector, error) {
 	allowedMiners := spec.AllowedMiners
 	allowedProofs := spec.AllowedProofTypes
+	if count == 0 {
+		return nil, fmt.Errorf("at least one sector is allocated each call")
+	}
 
 	candidates := m.msel.candidates(ctx, allowedMiners, allowedProofs, func(mcfg modules.MinerConfig) bool {
 		return mcfg.Sector.Enabled
@@ -72,22 +75,33 @@ func (m *Manager) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*
 			minNumber = *selected.cfg.MinNumber
 		}
 
-		next, available, err := m.numAlloc.Next(ctx, selected.info.ID, minNumber, check)
+		next, available, err := m.numAlloc.NextN(ctx, selected.info.ID, count, minNumber, check)
 		if err != nil {
 			return nil, err
 		}
 
-		if available {
-			return &core.AllocatedSector{
-				ID: abi.SectorID{
-					Miner:  selected.info.ID,
-					Number: abi.SectorNumber(next),
-				},
-				ProofType: selected.info.SealProofType,
-			}, nil
+		if !available {
+			candidates[candidateCount-1], candidates[selectIdx] = candidates[selectIdx], candidates[candidateCount-1]
+			candidates = candidates[:candidateCount-1]
+			continue
 		}
 
-		candidates[candidateCount-1], candidates[selectIdx] = candidates[selectIdx], candidates[candidateCount-1]
-		candidates = candidates[:candidateCount-1]
+		var (
+			i  uint32
+			id = next - uint64(count) + 1
+		)
+		allocatedSectors := make([]*core.AllocatedSector, count)
+		for i < count {
+			allocatedSectors[i] = &core.AllocatedSector{
+				ID: abi.SectorID{
+					Miner:  selected.info.ID,
+					Number: abi.SectorNumber(id),
+				},
+				ProofType: selected.info.SealProofType,
+			}
+			i++
+			id++
+		}
+		return allocatedSectors, nil
 	}
 }

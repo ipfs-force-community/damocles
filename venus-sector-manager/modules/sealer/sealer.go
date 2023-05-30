@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-commp-utils/zerocomm"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -106,51 +108,70 @@ type Sealer struct {
 	prover core.Prover
 }
 
-func (s *Sealer) checkSectorNumber(ctx context.Context, sid abi.SectorID) (bool, error) {
-	maddr, err := address.NewIDAddress(uint64(sid.Miner))
+// checkSectorNumbers returns the allocated sector numbers in `sids`
+func (s *Sealer) checkSectorNumbers(ctx context.Context, mid abi.ActorID, sids []uint64) ([]uint64, error) {
+	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
-		return false, err
+		return []uint64{}, err
 	}
 
 	ts, err := s.capi.ChainHead(ctx)
 	if err != nil {
-		return false, err
+		return []uint64{}, err
 	}
 
-	allocated, err := s.capi.StateMinerSectorAllocated(ctx, maddr, sid.Number, ts.Key())
+	allocated, err := s.capi.StateMinerAllocated(ctx, maddr, ts.Key())
 	if err != nil {
-		return false, err
+		return []uint64{}, err
 	}
 
-	return allocated, err
+	toBeAllocated := bitfield.NewFromSet(sids)
+	duplicates, err := bitfield.IntersectBitField(*allocated, toBeAllocated)
+	if err != nil {
+		return []uint64{}, fmt.Errorf("calculate duplicate allocated sectors: %w", err)
+	}
+	return duplicates.All(uint64(len(sids)))
 }
 
 func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.AllocatedSector, error) {
-	sector, err := s.sector.Allocate(ctx, spec)
+	sectors, err := s.AllocateSectorsBatch(ctx, spec, 1)
+	if err != nil {
+		return nil, err
+	}
+	return sectors[0], nil
+}
+
+func (s *Sealer) AllocateSectorsBatch(ctx context.Context, spec core.AllocateSectorSpec, count uint32) ([]*core.AllocatedSector, error) {
+	sectors, err := s.sector.Allocate(ctx, spec, count)
 	if err != nil {
 		return nil, err
 	}
 
-	if sector == nil {
+	if sectors == nil || len(sectors) == 0 {
 		return nil, nil
 	}
 
-	allocated, err := s.checkSectorNumber(ctx, sector.ID)
+	sectorsIDs := make([]uint64, len(sectors))
+	for i, sector := range sectors {
+		sectorsIDs[i] = uint64(sector.ID.Number)
+	}
+	duplicates, err := s.checkSectorNumbers(ctx, sectors[0].ID.Miner, sectorsIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	if allocated {
-		return nil, fmt.Errorf("%w: m-%d-s-%d", ErrSectorAllocated, sector.ID.Miner, sector.ID.Number)
+	if len(duplicates) > 0 {
+		ss := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(duplicates)), ","), "[]")
+		return nil, fmt.Errorf("%w. miner: %d, sectors: (%s)", ErrSectorAllocated, sectors[0].ID.Miner, ss)
 	}
 
-	if err := s.state.Init(ctx, sector.ID, sector.ProofType, core.WorkerOnline); err != nil {
+	if err := s.state.Init(ctx, sectors, core.WorkerOnline); err != nil {
 		return nil, err
 	}
-	ctx, _ = metrics.New(ctx, metrics.Upsert(metrics.Miner, sector.ID.Miner.String()))
-	metrics.Record(ctx, metrics.SectorManagerNewSector.M(1))
+	ctx, _ = metrics.New(ctx, metrics.Upsert(metrics.Miner, sectors[0].ID.Miner.String()))
+	metrics.Record(ctx, metrics.SectorManagerNewSector.M(int64(len(sectors))))
 
-	return sector, nil
+	return sectors, nil
 }
 
 func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.Deals, error) {
@@ -492,7 +513,7 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 	}
 
 	if err != nil {
-		ierr := s.state.InitWith(ctx, candidateSector.Sector.ID, candidateSector.Sector.ProofType, core.WorkerOnline, core.SectorUpgraded(true), pieces, &upgradePublic)
+		ierr := s.state.InitWith(ctx, []*core.AllocatedSector{{ID: candidateSector.Sector.ID, ProofType: candidateSector.Sector.ProofType}}, core.WorkerOnline, core.SectorUpgraded(true), pieces, &upgradePublic)
 		if ierr != nil {
 			return nil, fmt.Errorf("init non-exist snapup sector: %w", err)
 		}

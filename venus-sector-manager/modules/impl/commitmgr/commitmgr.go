@@ -737,7 +737,7 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 		sector.ID = sid
 		sector.SectorType = si.SealProof
 
-		ierr := c.smgr.InitWith(ctx, sid, si.SealProof, core.WorkerOffline, newTerminateInfo)
+		ierr := c.smgr.InitWith(ctx, []*core.AllocatedSector{{ID: sid, ProofType: si.SealProof}}, core.WorkerOffline, newTerminateInfo)
 		if ierr != nil {
 			return core.SubmitTerminateResp{}, fmt.Errorf("init non-exist snapup sector: %w", err)
 		}
