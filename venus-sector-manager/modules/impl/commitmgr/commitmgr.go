@@ -478,6 +478,14 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 		case *ErrPrecommitOnChain:
 			return core.SubmitPreCommitResp{Res: core.SubmitAccepted}, nil
 
+		case *ErrBadCommD:
+			// When encountering `ErrBadCommD` error, venus-worker should not release these deals,
+			// as it is highly likely that the same error will occur when these deals are released and re claimed by venus-cluster.
+			// The current approach is to return an error of type `SubmitMismatchedSubmission``, causing venus-worker to pause the sealing_thread
+			// to waiting for manual processing
+			errMsg := err.Error()
+			return core.SubmitPreCommitResp{Res: core.SubmitMismatchedSubmission, Desc: &errMsg}, nil
+
 		default:
 			errMsg := err.Error()
 			return core.SubmitPreCommitResp{Res: core.SubmitRejected, Desc: &errMsg}, nil
