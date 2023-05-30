@@ -192,56 +192,68 @@ func (sm *StateManager) Import(ctx context.Context, ws core.SectorWorkerState, s
 	return true, nil
 }
 
-func (sm *StateManager) Init(ctx context.Context, sid abi.SectorID, st abi.RegisteredSealProof, ws core.SectorWorkerState) error {
-	return sm.InitWith(ctx, sid, st, ws)
+func (sm *StateManager) Init(ctx context.Context, sectors []*core.AllocatedSector, ws core.SectorWorkerState) error {
+	return sm.InitWith(ctx, sectors, ws)
 }
 
-func (sm *StateManager) InitWith(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, ws core.SectorWorkerState, fieldvals ...interface{}) error {
-	lock := sm.locker.lock(sid)
-	defer lock.unlock()
-
-	state := core.SectorState{
-		ID:         sid,
-		SectorType: proofType,
+func (sm *StateManager) InitWith(ctx context.Context, sectors []*core.AllocatedSector, ws core.SectorWorkerState, fieldvals ...interface{}) error {
+	sids := make([]abi.SectorID, len(sectors))
+	for i, s := range sectors {
+		sids[i] = s.ID
 	}
+	locks := sm.locker.lockBatch(sids)
+	defer locks.Unlock()
 
 	kv, err := sm.pickStore(ws)
 	if err != nil {
 		return fmt.Errorf("init: %w", err)
 	}
 
-	key := makeSectorKey(sid)
-	err = kv.Peek(ctx, key, func([]byte) error { return nil })
-	if err == nil {
-		return fmt.Errorf("sector %s already initialized", string(key))
-	}
+	kvExtend := kvstore.NewExtend(kv)
+	err = kvExtend.MustNoConflict(func() error {
+		return kv.Update(ctx, func(txn kvstore.Txn) error {
+			for _, sector := range sectors {
+				state := core.SectorState{
+					ID:         sector.ID,
+					SectorType: sector.ProofType,
+				}
+				key := makeSectorKey(sector.ID)
+				err = kv.Peek(ctx, key, func([]byte) error { return nil })
+				if err == nil {
+					return fmt.Errorf("sector %s already initialized", string(key))
+				}
 
-	if err != kvstore.ErrKeyNotFound {
-		return err
-	}
+				if err != kvstore.ErrKeyNotFound {
+					return err
+				}
 
-	if len(fieldvals) > 0 {
-		err = apply(ctx, &state, fieldvals...)
-		if err != nil {
-			return fmt.Errorf("apply field vals: %w", err)
-		}
-	}
+				if len(fieldvals) > 0 {
+					err = apply(ctx, &state, fieldvals...)
+					if err != nil {
+						return fmt.Errorf("apply field vals: %w", err)
+					}
+				}
 
-	if err = sm.save(ctx, key, state, ws); err != nil {
-		return err
-	}
+				if err = sm.save(ctx, key, state, ws); err != nil {
+					return err
+				}
+			}
 
-	_ = sm.plugins.Foreach(vsmplugin.SyncSectorState, func(p *vsmplugin.Plugin) error {
-		m := vsmplugin.DeclareSyncSectorStateManifest(p.Manifest)
-		if m.OnInit == nil {
+			_ = sm.plugins.Foreach(vsmplugin.SyncSectorState, func(p *vsmplugin.Plugin) error {
+				m := vsmplugin.DeclareSyncSectorStateManifest(p.Manifest)
+				if m.OnInit == nil {
+					return nil
+				}
+				if err := m.OnInit(sectors, ws); err != nil {
+					log.Errorf("call plugin OnInit '%s': %w", p.Name, err)
+				}
+				return nil
+			})
 			return nil
-		}
-		if err := m.OnInit(sid, proofType, ws); err != nil {
-			log.Errorf("call plugin OnInit '%s': %w", p.Name, err)
-		}
-		return nil
+		})
 	})
-	return nil
+
+	return err
 }
 
 func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID, ws core.SectorWorkerState) (*core.SectorState, error) {

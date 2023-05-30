@@ -339,8 +339,8 @@ github.com/filecoin-project/specs-actors/v8 v8.0.1/go.mod h1:UYIPg65iPWoFw5NEftR
 github.com/filecoin-project/specs-storage v0.4.1 h1:yvLEaLZj8f+uByhNC4mFOtCUyL2wQku+NGBp6hjTe9M=
 github.com/filecoin-project/specs-storage v0.4.1/go.mod h1:Z2eK6uMwAOSLjek6+sy0jNV2DSsMEENziMUz0GHRFBw=
 github.com/filecoin-project/storetheindex v0.4.30-0.20221114113647-683091f8e893 h1:6GCuzxLVHBzlz7y+FkbHh6n0UyoEGWqDwJKQPJoz7bE=
-github.com/filecoin-project/venus v1.11.2-0.20230525071843-ab19674dd7b3 h1:xUiO9SyFj6NdpFIZohgo1fqqmR0DEZm5pzew+0dsBMM=
-github.com/filecoin-project/venus v1.11.2-0.20230525071843-ab19674dd7b3/go.mod h1:9QctTOegFH+hZ5icsuR2BRRnZMhyLDQa5uJAbOog76M=
+github.com/filecoin-project/venus v1.11.2-0.20230530033915-7569018e6a31 h1:w6ZgkBCo0NTDWeYO9dY32aNkNVFwKEgSNUon/qYX49I=
+github.com/filecoin-project/venus v1.11.2-0.20230530033915-7569018e6a31/go.mod h1:9QctTOegFH+hZ5icsuR2BRRnZMhyLDQa5uJAbOog76M=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
 github.com/flynn/noise v1.0.0/go.mod h1:xbMo+0i6+IGbYdJhF31t2eR1BIU0CYc12+BNAKwUTag=
 github.com/francoispqt/gojay v1.2.13 h1:d2m3sFjloqoIUQU3TsHBgj6qg/BVGlTBeHDUmyJnXKk=
@@ -591,8 +591,8 @@ github.com/ipfs-force-community/go-jsonrpc v0.1.7-0.20230220074347-8db78dbc20d4 
 github.com/ipfs-force-community/go-jsonrpc v0.1.7-0.20230220074347-8db78dbc20d4/go.mod h1:jBSvPTl8V1N7gSTuCR4bis8wnQnIjHbRPpROol6iQKM=
 github.com/ipfs-force-community/venus-cluster-assets v0.1.0 h1:K/0+OV9Jm7HjSa7O9MAtgfLDIudQYZUTymhJsp8rGXg=
 github.com/ipfs-force-community/venus-cluster-assets v0.1.0/go.mod h1:ZHXQBvLbsmZrG9Zccpqn6Oba2Q/+cRm3RsHj/SRYSwg=
-github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230517052935-9b9f9d057b6e h1:cgYV78M2VV+Cr+Jn3PMk+O+vdTl1tSZyaYL2tZKDVew=
-github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230517052935-9b9f9d057b6e/go.mod h1:jKlItT3VJIGPfWi8IxktML7TcxICdlM+etmI6x2L454=
+github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230530070608-6fd470cc568f h1:JuPeIyL3/PyY2Wm7UPLJ1DD73p1iMpZKs861AjVhWKg=
+github.com/ipfs-force-community/venus-cluster/vsm-plugin v0.0.0-20230530070608-6fd470cc568f/go.mod h1:jKlItT3VJIGPfWi8IxktML7TcxICdlM+etmI6x2L454=
 github.com/ipfs/bbloom v0.0.1/go.mod h1:oqo8CVWsJFMOZqTglBG4wydCE4IQA/G2/SEofB0rjUI=
 github.com/ipfs/bbloom v0.0.4 h1:Gi+8EGJ2y5qiD5FbsbpX/TMNcJw8gSqr7eyjHa4Fhvs=
 github.com/ipfs/bbloom v0.0.4/go.mod h1:cS9YprKXpoZ9lT0n/Mw/a6/aFV6DTjTLYHeA+gyqMG0=
