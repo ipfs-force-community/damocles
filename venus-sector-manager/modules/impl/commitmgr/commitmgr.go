@@ -784,13 +784,12 @@ func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, 
 	mlog.Debug("handle message receipt")
 
 	var maybeMsg *string
-	if msg.Receipt != nil && len(msg.Receipt.Return) > 0 {
-		msgRet := string(msg.Receipt.Return)
+	if msg.Receipt != nil {
+		recepitStr := msg.Receipt.String()
+		maybeMsg = &recepitStr
 		if msg.State != messager.MessageState.OnChainMsg && msg.State != messager.MessageState.NonceConflictMsg {
-			mlog.Warnf("MAYBE WARN from off-chain msg receipt: %s", msgRet)
+			mlog.Warnf("MAYBE WARN from off-chain msg receipt: %s", msg.Receipt)
 		}
-
-		maybeMsg = &msgRet
 	}
 
 	switch msg.State {
@@ -804,12 +803,12 @@ func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, 
 			return core.OnChainStateFailed, &errMsgReceiptNotFound
 		}
 
-		if msg.Receipt.ExitCode != exitcode.Ok {
-			if msg.Receipt.ExitCode == exitcode.SysErrOutOfGas || msg.Receipt.ExitCode == exitcode.ErrInsufficientFunds {
-				return core.OnChainStateFailed, maybeMsg
-			}
-
-			return core.OnChainStateShouldAbort, maybeMsg
+		switch msg.Receipt.ExitCode {
+		case exitcode.Ok:
+		case exitcode.SysErrOutOfGas, exitcode.SysErrInsufficientFunds, exitcode.ErrInsufficientFunds:
+			return core.OnChainStateFailed, maybeMsg
+		default:
+			return core.OnChainStatePermFailed, maybeMsg
 		}
 
 		return core.OnChainStateLanded, maybeMsg
