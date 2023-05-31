@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.6.3
+- venus-sector-manager
+  - 提交 precommit 消息时，当 CommD 与链上不一致时，不再直接 abort 扇区，而是暂停封装线程等待人为介入处理 [#742](https://github.com/ipfs-force-community/venus-cluster/pull/742)
+  - 提交 precommit 消息时，如果 precommit 消息执行失败不再直接 abort 扇区，而是暂停封装线程等待人为介入处理 [#745](https://github.com/ipfs-force-community/venus-cluster/issues/745)
+
 ## v0.6.2
 - venus-sector-manager
   - 调用新 api `ReleaseDeals` 释放订单避免重复释放订单 bug [#664](https://github.com/ipfs-force-community/venus-cluster/pull/664)
