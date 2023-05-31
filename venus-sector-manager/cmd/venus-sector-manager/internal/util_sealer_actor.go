@@ -927,10 +927,6 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 			return nil
 		}
 
-		if !cctx.Args().Present() {
-			return fmt.Errorf("must pass address of new owner address")
-		}
-
 		api, ctx, stop, err := extractAPI(cctx)
 		if err != nil {
 			return err
