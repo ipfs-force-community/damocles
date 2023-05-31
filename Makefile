@@ -63,6 +63,8 @@ docker-smgr:
 		-t venus-sector-manager \
 		--build-arg HTTPS_PROXY=${BUILD_DOCKER_PROXY} \
 		--build-arg BUILD_TARGET=venus-sector-manager \
+		--build-arg FFI_BUILD_FROM_SOURCE=${FFI_BUILD_FROM_SOURCE} \
+		--build-arg FFI_USE_CUDA=${FFI_USE_CUDA} \
 		.
 
 docker-worker:
