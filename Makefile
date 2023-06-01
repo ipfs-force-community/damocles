@@ -62,7 +62,6 @@ docker-smgr:
 		-f Dockerfile.vsm \
 		-t venus-sector-manager \
 		--build-arg HTTPS_PROXY=${BUILD_DOCKER_PROXY} \
-		--build-arg BUILD_TARGET=venus-sector-manager \
 		.
 
 docker-worker:
