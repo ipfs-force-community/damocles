@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.4
+- docker
+  - 修复 opencl 驱动安装 [#750](https://github.com/ipfs-force-community/venus-cluster/pull/750)
+
 ## v0.6.3
 - venus-sector-manager
   - 提交 precommit 消息时，当 CommD 与链上不一致时，不再直接 abort 扇区，而是暂停封装线程等待人为介入处理 [#742](https://github.com/ipfs-force-community/venus-cluster/pull/742)
