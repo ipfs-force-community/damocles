@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.5
+- docker
+  - 安装 tzdata 解决日志时间的时区问题，现在启动容器时增加环境变量 TZ 即可设置时区 (例如: TZ=Asia/Shanghai)。 [#752](https://github.com/ipfs-force-community/venus-cluster/pull/752)
+- venus-sector-manager
+  - 增加日志输出，window post 消息成功上链会打印形如 `window post message succeeded: xxx` (`xxx` 为消息签名后的 cid) 的日志。[#755](https://github.com/ipfs-force-community/venus-cluster/pull/755)
+  - 修复 snapup 重试机制与 deadline 锁定期冲突的 bug [#744](https://github.com/ipfs-force-community/venus-cluster/pull/744)
+
+
 ## v0.6.4
 - docker
   - 修复 opencl 驱动安装 [#750](https://github.com/ipfs-force-community/venus-cluster/pull/750)

@@ -5,6 +5,7 @@ FROM rust:${RUST_TOOLCHAIN}-buster AS build
 RUN apt-get update
 RUN apt-get install -y \
     --no-install-recommends \
+    tzdata \
     make \
     ca-certificates \
     build-essential \
@@ -27,6 +28,8 @@ RUN cargo clean -q
 RUN make build-all
 
 FROM ubuntu:20.04
+
+COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 
 COPY --from=build /etc/ssl/certs              /etc/ssl/certs
 COPY --from=build /lib/*/libdl.so.2           /lib/
