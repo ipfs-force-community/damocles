@@ -22,6 +22,7 @@ import (
 
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
+	mpolicy "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/policy"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/messager"
@@ -348,8 +349,9 @@ func (h *snapupCommitHandler) submitMessage() error {
 	// `abi.ChainEpoch(10)` indicates that we assume that the message will be real executed within 10 heights
 	//
 	// See: https://github.com/filecoin-project/builtin-actors/blob/10f547c950a99a07231c08a3c6f4f76ff0080a7c/actors/miner/src/lib.rs#L1113-L1124
-	if !deadlineIsMutable(currDeadline.PeriodStart, sl.Deadline, ts.Height(), abi.ChainEpoch(10)) {
-		return newTempErr(fmt.Errorf("cannot upgrade sectors in immutable deadline: %d. sector: %s", sl.Deadline, util.FormatSectorID(h.state.ID)), mcfg.SnapUp.Retry.LocalFailureWait.Std())
+	if shouldDelay, delayBlock := deadlineIsMutable(currDeadline.PeriodStart, sl.Deadline, ts.Height(), abi.ChainEpoch(10)); shouldDelay {
+		delayTime := time.Duration(mpolicy.NetParams.BlockDelaySecs*uint64(delayBlock)) * time.Second
+		return newTempErr(fmt.Errorf("cannot upgrade sectors in immutable deadline: %d. sector: %s", sl.Deadline, util.FormatSectorID(h.state.ID)), delayTime)
 	}
 
 	enc := new(bytes.Buffer)
@@ -640,12 +642,20 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 }
 
 // Returns true if the deadline at the given index is currently mutable.
-func deadlineIsMutable(provingPeriodStart abi.ChainEpoch, deadlineIdx uint64, currentEpoch, msgExecInterval abi.ChainEpoch) bool {
+func deadlineIsMutable(provingPeriodStart abi.ChainEpoch, deadlineIdx uint64, currentEpoch, msgExecInterval abi.ChainEpoch) (bool, abi.ChainEpoch) {
 	// Get the next non-elapsed deadline (i.e., the next time we care about
 	// mutations to the deadline).
 	deadlineInfo := stminer.NewDeadlineInfo(provingPeriodStart, deadlineIdx, currentEpoch).NextNotElapsed()
 
 	// Ensure that the current epoch is at least one challenge window before
 	// that deadline opens.
-	return currentEpoch < deadlineInfo.Open-stminer.WPoStChallengeWindow-msgExecInterval
+	var delay abi.ChainEpoch
+	shouldDelay := currentEpoch < deadlineInfo.Open-stminer.WPoStChallengeWindow-msgExecInterval
+
+	if shouldDelay {
+		delay = deadlineInfo.Close - currentEpoch
+		log.Warnf("delay upgrade to avoid mutating deadline %d at %d before it opens at %d", deadlineIdx, currentEpoch, deadlineInfo.Open)
+	}
+
+	return shouldDelay, delay
 }
