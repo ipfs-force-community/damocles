@@ -1,6 +1,6 @@
 FROM golang:1.19.7-buster AS vsm-build
 
-RUN apt-get update && apt-get install -y ca-certificates build-essential clang ocl-icd-opencl-dev ocl-icd-libopencl1 jq libhwloc-dev
+RUN apt-get update && apt-get install -y tzdata ca-certificates build-essential clang ocl-icd-opencl-dev ocl-icd-libopencl1 jq libhwloc-dev
 
 ENV XDG_CACHE_HOME="/tmp"
 
@@ -22,6 +22,8 @@ ARG GOFLAGS=""
 RUN make build-smgr
 
 FROM ubuntu:20.04
+
+COPY --from=vsm-build /usr/share/zoneinfo /usr/share/zoneinfo
 
 COPY --from=vsm-build /etc/ssl/certs            /etc/ssl/certs
 COPY --from=vsm-build /lib/*/libdl.so.2         /lib/
