@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use crossterm::tty::IsTty;
-use time::{format_description::well_known, UtcOffset};
+use time::{format_description::well_known, util::local_offset, UtcOffset};
 use tracing_subscriber::{
     filter::{self, FilterExt},
     fmt::{layer, time::OffsetTime},
@@ -30,12 +30,19 @@ pub fn init() -> Result<()> {
         .with_env_var("VENUS_WORKER_LOG")
         .from_env()
         .context("invalid venus worker log filter")?;
+
+    unsafe {
+        // SAFETY: It's sound as we don't manipulate environment variables while querying local offsets.
+        local_offset::set_soundness(local_offset::Soundness::Unsound);
+    }
+    let timer = OffsetTime::new(UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC), well_known::Rfc3339);
+
     let fmt_layer = layer()
         .with_writer(std::io::stderr)
         .with_ansi(std::io::stderr().is_tty())
         .with_target(true)
         .with_thread_ids(true)
-        .with_timer(OffsetTime::local_rfc_3339().unwrap_or_else(|_| OffsetTime::new(UtcOffset::UTC, well_known::Rfc3339)))
+        .with_timer(timer)
         .with_filter(env_filter.or(worker_env_filter));
 
     registry().with(fmt_layer).init();
