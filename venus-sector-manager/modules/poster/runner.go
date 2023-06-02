@@ -182,9 +182,11 @@ func (pr *postRunner) submitSinglePost(slog *logging.ZapLogger, pcfg *modules.Mi
 	case <-waitCtx.Done():
 		wlog.Warn("waited too long")
 
-	case err := <-resCh:
-		if err != nil {
+	case res := <-resCh:
+		if res.err != nil {
 			wlog.Errorf("wait for message result failed: %s", err)
+		} else {
+			wlog.Infof("window post message succeeded: %s", res.msg.SignedCid)
 		}
 	}
 }
@@ -572,9 +574,9 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 
 		hlog.Warn("declare faults recovered message published")
 
-		err = <-resCh
+		res := <-resCh
 
-		if err != nil {
+		if res.err != nil {
 			hlog.Errorf("declare faults recovered wait error: %s", err)
 			return
 		}
@@ -742,8 +744,8 @@ func (pr *postRunner) checkFaults(l *logging.ZapLogger, declIndex uint64, partit
 
 	cklog.Warnw("declare faults message published", "message-id", uid)
 
-	err = <-waitCh
-	if err != nil {
+	res := <-waitCh
+	if res.err != nil {
 		return fmt.Errorf("declare faults wait error: %w", err)
 	}
 
@@ -797,7 +799,12 @@ func (pr *postRunner) checkSectors(clog *logging.ZapLogger, check bitfield.BitFi
 	return sbf, nil
 }
 
-func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler, useExtraMsgID bool) (string, <-chan error, error) {
+type msgResult struct {
+	msg *messager.Message
+	err error
+}
+
+func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler, useExtraMsgID bool) (string, <-chan msgResult, error) {
 	encoded, aerr := actors.SerializeParams(params)
 	if aerr != nil {
 		return "", nil, fmt.Errorf("serialize params: %w", aerr)
@@ -822,7 +829,7 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 	}
 
 	if pr.mock {
-		ch := make(chan error, 1)
+		ch := make(chan msgResult, 1)
 		close(ch)
 		return mid, ch, nil
 	}
@@ -832,18 +839,24 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 		return "", nil, fmt.Errorf("push msg with id %s: %w", mid, err)
 	}
 
-	ch := make(chan error, 1)
+	ch := make(chan msgResult, 1)
 	go func() {
 		defer close(ch)
 
 		m, err := pr.waitMessage(uid, pr.startCtx.pcfg.Confidence)
 		if err != nil {
-			ch <- err
+			ch <- msgResult{
+				msg: m,
+				err: err,
+			}
 			return
 		}
 
 		if m == nil || m.Receipt == nil {
-			ch <- fmt.Errorf("invalid message returned")
+			ch <- msgResult{
+				msg: m,
+				err: fmt.Errorf("invalid message returned"),
+			}
 			return
 		}
 
@@ -853,7 +866,10 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 				signed = m.SignedCid.String()
 			}
 
-			ch <- fmt.Errorf("got non-zero exit code for %s: %w", signed, m.Receipt.ExitCode)
+			ch <- msgResult{
+				msg: m,
+				err: fmt.Errorf("got non-zero exit code for %s: %w", signed, m.Receipt.ExitCode),
+			}
 			return
 		}
 	}()
