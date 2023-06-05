@@ -872,6 +872,11 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 			}
 			return
 		}
+
+		ch <- msgResult{
+			msg: m,
+			err: nil,
+		}
 	}()
 
 	return uid, ch, nil
