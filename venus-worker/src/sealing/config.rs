@@ -10,6 +10,8 @@ use crate::{
     SealProof,
 };
 
+use super::sealing_thread::default_plan;
+
 /// The config of the sealing thread
 pub struct Config {
     /// allowed miners parsed from config
@@ -66,8 +68,8 @@ impl Config {
     }
 
     /// Returns the plan config item
-    pub fn plan(&self) -> &Option<String> {
-        &self.hot_config.config().plan
+    pub fn plan(&self) -> &str {
+        self.hot_config.config().plan.as_deref().unwrap_or_else(|| default_plan())
     }
 
     fn extract_allowed(sealing: &Sealing) -> Result<(Vec<ActorID>, Vec<SealProof>)> {
