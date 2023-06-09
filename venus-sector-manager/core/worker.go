@@ -30,5 +30,6 @@ type WorkerPingInfo struct {
 type WorkerInfo struct {
 	Name    string
 	Dest    string
+	Version string
 	Summary WorkerInfoSummary
 }

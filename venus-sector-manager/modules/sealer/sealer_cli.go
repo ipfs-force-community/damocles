@@ -24,6 +24,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules/util"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/objstore"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/ver"
 )
 
 func (s *Sealer) ListSectors(ctx context.Context, ws core.SectorWorkerState, job core.SectorWorkerJob) ([]*core.SectorState, error) {
@@ -596,4 +597,8 @@ func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid
 	}
 
 	return stream, nil
+}
+
+func (s *Sealer) Version(ctx context.Context) (string, error) {
+	return ver.VersionStr(), nil
 }

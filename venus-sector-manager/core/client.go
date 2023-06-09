@@ -122,6 +122,10 @@ var UnavailableSealerCliClient = SealerCliClient{
 	UnsealPiece: func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset types.UnpaddedByteIndex, size abi.UnpaddedPieceSize, dest string) (<-chan []byte, error) {
 		panic("sealer client unavailable")
 	},
+
+	Version: func(context.Context) (string, error) {
+		panic("sealer client unavailable")
+	},
 }
 
 type SealerCliClient struct {
@@ -181,6 +185,8 @@ type SealerCliClient struct {
 	SubmitProof func(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error)
 
 	UnsealPiece func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset types.UnpaddedByteIndex, size abi.UnpaddedPieceSize, dest string) (<-chan []byte, error)
+
+	Version func(context.Context) (string, error)
 }
 
 var UnavailableMinerAPIClient = MinerAPIClient{

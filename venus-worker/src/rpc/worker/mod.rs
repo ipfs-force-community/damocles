@@ -53,4 +53,8 @@ pub trait Worker {
     /// remove os environment
     #[rpc(name = "VenusWorker.WorkerRemoveEnv")]
     fn worker_remove_env(&self, name: String) -> Result<()>;
+
+    /// get version of the worker
+    #[rpc(name = "VenusWorker.WorkerVersion")]
+    fn worker_version(&self) -> Result<String>;
 }

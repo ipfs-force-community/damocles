@@ -71,6 +71,7 @@ impl Module for Ping {
             match self.summary().and_then(|sum| {
                 let winfo = WorkerInfo {
                     name: ctx.instance.clone(),
+                    version: (*crate::version::VERSION).clone(),
                     dest: ctx.dest.clone(),
                     summary: sum,
                 };
