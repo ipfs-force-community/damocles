@@ -18,6 +18,7 @@ import (
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/core"
 	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/modules"
 	chainAPI "github.com/ipfs-force-community/venus-cluster/venus-sector-manager/pkg/chain"
+	"github.com/ipfs-force-community/venus-cluster/venus-sector-manager/ver"
 )
 
 var _ core.SealerAPI = (*Sealer)(nil)
@@ -302,4 +303,8 @@ func (s *Sealer) AchieveUnsealSector(ctx context.Context, sid abi.SectorID, piec
 
 func (s *Sealer) AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error) {
 	return nil, nil
+}
+
+func (s *Sealer) Version(context.Context) (string, error) {
+	return ver.VersionStr(), nil
 }

@@ -125,6 +125,8 @@ type SealerCliAPI interface {
 
 	// Unseal Sector
 	UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset types.UnpaddedByteIndex, size abi.UnpaddedPieceSize, dest string) (<-chan []byte, error)
+
+	Version(ctx context.Context) (string, error)
 }
 
 type RandomnessAPI interface {

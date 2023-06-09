@@ -54,7 +54,7 @@ var utilWorkerListCmd = &cli.Command{
 
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		defer tw.Flush()
-		_, _ = fmt.Fprintln(tw, "Name\tDest\tThreads\tEmpty\tPaused\tErrors\tLastPing(with ! if expired)")
+		_, _ = fmt.Fprintln(tw, "Name\tDest\tVersion\tThreads\tEmpty\tPaused\tErrors\tLastPing(with ! if expired)")
 		for _, pinfo := range pinfos {
 			lastPing := time.Since(time.Unix(pinfo.LastPing, 0))
 			lastPingWarn := ""
@@ -63,9 +63,10 @@ var utilWorkerListCmd = &cli.Command{
 			}
 
 			_, _ = fmt.Fprintf(
-				tw, "%s\t%s\t%d\t%d\t%d\t%d\t%s%s\n",
+				tw, "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%s%s\n",
 				pinfo.Info.Name,
 				pinfo.Info.Dest,
+				pinfo.Info.Version,
 				pinfo.Info.Summary.Threads,
 				pinfo.Info.Summary.Empty,
 				pinfo.Info.Summary.Paused,

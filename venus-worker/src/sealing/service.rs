@@ -121,6 +121,10 @@ impl Worker for ServiceImpl {
         }
         Ok(())
     }
+
+    fn worker_version(&self) -> Result<String> {
+        Ok((*crate::version::VERSION).clone())
+    }
 }
 
 pub struct Service {

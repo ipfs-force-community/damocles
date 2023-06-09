@@ -16,7 +16,7 @@ use crate::sealing::processor::external::config::Ext;
 pub const DEFAULT_WORKER_SERVER_PORT: u16 = 17890;
 pub const DEFAULT_WORKER_SERVER_HOST: &str = "0.0.0.0";
 pub const LOCAL_HOST: &str = "127.0.0.1";
-pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(180);
+pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(20);
 
 /// configurations for sealing sectors
 #[derive(Debug, Clone, PartialEq, Eq)]

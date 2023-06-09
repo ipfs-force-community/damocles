@@ -339,6 +339,7 @@ pub struct WorkerInfoSummary {
 pub struct WorkerInfo {
     pub name: String,
     pub dest: String,
+    pub version: String,
     pub summary: WorkerInfoSummary,
 }
 
