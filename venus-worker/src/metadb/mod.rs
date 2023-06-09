@@ -132,6 +132,10 @@ impl<T> MaybeDirty<T> {
         Self { inner, is_dirty: false }
     }
 
+    pub fn new_dirty(inner: T) -> Self {
+        Self { inner, is_dirty: true }
+    }
+
     pub fn is_dirty(&self) -> bool {
         self.is_dirty
     }
@@ -164,7 +168,7 @@ impl<T> Drop for MaybeDirty<T> {
 
 pub struct Saved<T, K, DB>
 where
-    T: Default + Serialize,
+    T: Serialize,
     K: AsRef<str>,
     DB: MetaDB,
 {
@@ -176,26 +180,23 @@ where
 
 impl<T, K, DB> Saved<T, K, DB>
 where
-    T: Default + Serialize,
+    T: Serialize,
     K: AsRef<str>,
     DB: MetaDB,
 {
-    pub fn load(key: K, db: DB) -> anyhow::Result<Self>
+    pub fn load(key: K, db: DB, mut default: impl FnMut() -> T) -> anyhow::Result<Self>
     where
         T: for<'a> Deserialize<'a>,
     {
         let db = MetaDocumentDB::wrap(db);
 
-        let data = db.get(&key).or_else(|e| match e {
-            MetaError::NotFound => Ok(T::default()),
-            MetaError::Failure(ie) => Err(ie),
-        })?;
+        let data = match db.get(&key) {
+            Ok(x) => MaybeDirty::new(x),
+            Err(MetaError::NotFound) => MaybeDirty::new_dirty(default()),
+            Err(MetaError::Failure(e)) => return Err(e),
+        };
 
-        Ok(Self {
-            data: MaybeDirty::new(data),
-            key,
-            db,
-        })
+        Ok(Self { data, key, db })
     }
 
     pub fn sync(&mut self) -> anyhow::Result<()> {
@@ -207,10 +208,8 @@ where
         Ok(())
     }
 
-    pub fn delete(&mut self) -> anyhow::Result<()> {
+    pub fn delete(self) -> anyhow::Result<()> {
         self.db.remove(&self.key)?;
-        *self.data = Default::default();
-        self.data.sync();
         Ok(())
     }
 
@@ -221,7 +220,7 @@ where
 
 impl<T, K, DB> core::ops::Deref for Saved<T, K, DB>
 where
-    T: Default + Serialize,
+    T: Serialize,
     K: AsRef<str>,
     DB: MetaDB,
 {
@@ -234,7 +233,7 @@ where
 
 impl<T, K, DB> core::ops::DerefMut for Saved<T, K, DB>
 where
-    T: Default + Serialize,
+    T: Serialize,
     K: AsRef<str>,
     DB: MetaDB,
 {

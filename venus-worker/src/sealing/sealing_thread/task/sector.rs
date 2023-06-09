@@ -176,11 +176,11 @@ pub struct Sector {
     pub phases: Phases,
 }
 
-impl Default for Sector {
-    fn default() -> Self {
+impl Sector {
+    pub fn new(plan: String) -> Self {
         Self {
             version: CURRENT_SECTOR_VERSION,
-            plan: None,
+            plan: Some(plan),
             state: Default::default(),
             prev_state: None,
             retry: 0,
@@ -188,16 +188,6 @@ impl Default for Sector {
             deals: None,
             finalized: None,
             phases: Default::default(),
-        }
-    }
-}
-
-impl Sector {
-    #[allow(dead_code)]
-    pub fn new(plan: Option<String>) -> Self {
-        Sector {
-            plan,
-            ..Default::default()
         }
     }
 

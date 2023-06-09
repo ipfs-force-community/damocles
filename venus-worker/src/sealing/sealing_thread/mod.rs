@@ -14,6 +14,7 @@ use super::config::{merge_sealing_fields, Config};
 use super::{failure::*, store::Store};
 
 mod task;
+pub use task::default_plan;
 use task::{sector::State, Task};
 
 mod ctrl;
@@ -126,7 +127,9 @@ impl Module for SealingThread {
                         continue 'SEAL_LOOP;
                     }
 
-                    Level::Abort => {}
+                    Level::Abort => {
+                        error!(?failure, "an abort level error occurred");
+                    }
                 };
             }
 

@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use crossbeam_channel::select;
 use forest_cid::json::CidJson;
 
-use self::planner::default_plan;
+pub use self::planner::default_plan;
 
 use super::{super::failure::*, CtrlCtx};
 use crate::logging::{debug, error, info, warn, warn_span};
@@ -73,20 +73,16 @@ impl<'c> Task<'c> {
 // public methods
 impl<'c> Task<'c> {
     pub fn build(ctx: &'c Ctx, ctrl_ctx: &'c CtrlCtx, sealing_config: &'c mut Config, s: &'c mut Store) -> Result<Self, Failure> {
-        let sector_meta = PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta);
-        let mut sector: Saved<Sector, _, _> = Saved::load(SECTOR_INFO_KEY, sector_meta).context("load sector").crit()?;
-
         sealing_config
             .reload_if_needed(|_, _| Ok(true))
             .context("reload sealing thread hot config")
             .crit()?;
 
-        if &sector.plan != sealing_config.plan() {
-            // init setup sector plan or modify by hot config
-            sector.plan = sealing_config.plan().clone();
-        }
+        let sector_meta = PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta);
 
-        // create sector or sync sector plan
+        let mut sector: Saved<Sector, _, _> = Saved::load(SECTOR_INFO_KEY, sector_meta, || Sector::new(sealing_config.plan().to_string()))
+            .context("load sector")
+            .crit()?;
         sector.sync().context("init sync sector").crit()?;
 
         ctrl_ctx
@@ -344,7 +340,7 @@ impl<'c> Task<'c> {
         self.sector.sync().context("sync sector").crit()
     }
 
-    fn finalize(mut self) -> Result<(), Failure> {
+    fn finalize(self) -> Result<(), Failure> {
         self.store.cleanup().context("cleanup store").crit()?;
         self.sector.delete().context("remove sector").crit()
     }
