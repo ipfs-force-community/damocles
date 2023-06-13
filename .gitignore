@@ -1,11 +1,11 @@
 /dist
 .idea
 
-/venus-sector-manager/venus-sector-manager
-/venus-sector-manager/build-dep/.*
+/damocles-manager/damocles-manager
+/damocles-manager/build-dep/.*
 /tmp
 /mock-tmp
-/venus-worker/target
+/damocles-worker/target
 *.so
 
 .DS_Store

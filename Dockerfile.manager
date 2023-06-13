@@ -1,0 +1,45 @@
+FROM golang:1.19.7-buster AS build
+
+RUN apt-get update && apt-get install -y tzdata ca-certificates build-essential clang ocl-icd-opencl-dev ocl-icd-libopencl1 jq libhwloc-dev
+
+ENV XDG_CACHE_HOME="/tmp"
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup.sh && chmod +x rustup.sh &&./rustup.sh -y
+ENV PATH="/root/.cargo/bin:$PATH"
+
+WORKDIR /build/
+COPY . /build/
+
+# make configurable filecoin-ffi build
+ARG FFI_BUILD_FROM_SOURCE=0
+ENV FFI_BUILD_FROM_SOURCE=${FFI_BUILD_FROM_SOURCE}
+
+RUN make dist-clean
+
+ARG RUSTFLAGS=""
+ARG GOFLAGS=""
+
+RUN make build-manager
+
+FROM ubuntu:20.04
+
+COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
+
+COPY --from=build /etc/ssl/certs            /etc/ssl/certs
+COPY --from=build /lib/*/libdl.so.2         /lib/
+COPY --from=build /lib/*/librt.so.1         /lib/
+COPY --from=build /lib/*/libgcc_s.so.1      /lib/
+COPY --from=build /lib/*/libutil.so.1       /lib/
+COPY --from=build /usr/lib/*/libltdl.so.7   /lib/
+COPY --from=build /usr/lib/*/libnuma.so.1   /lib/
+COPY --from=build /usr/lib/*/libhwloc.so.5  /lib/
+COPY --from=build /usr/lib/*/libOpenCL.so.1 /lib/
+
+RUN mkdir -p /etc/OpenCL/vendors \
+ && echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
+
+# copy the binary from build
+COPY --from=build  /build/dist/bin/damocles-manager /damocles-manager
+
+EXPOSE 1789
+ENTRYPOINT ["/damocles-manager"]
