@@ -105,7 +105,7 @@ impl MemoryFileDirPattern {
     /// # Examples
     ///
     /// ```
-    /// use venus_worker::seal_util::MemoryFileDirPattern;
+    /// use damocles_worker::seal_util::MemoryFileDirPattern;
     ///
     /// let p = MemoryFileDirPattern::new_default("/dev/shm/abc");
     /// assert_eq!(p.to_glob_pattern(), String::from("/dev/shm/abc/numa_*/*"));
@@ -126,7 +126,7 @@ impl MemoryFileDirPattern {
     /// # Examples
     ///
     /// ```
-    /// use venus_worker::seal_util::MemoryFileDirPattern;
+    /// use damocles_worker::seal_util::MemoryFileDirPattern;
     ///
     /// let p = MemoryFileDirPattern::new_default("/dev/shm/abc");
     /// assert_eq!(p.to_regex_pattern(), String::from(r"/dev/shm/abc/numa_(\d+)/.+"));
@@ -149,7 +149,7 @@ impl MemoryFileDirPattern {
     /// ```
     /// use std::path::PathBuf;
     ///
-    /// use venus_worker::seal_util::MemoryFileDirPattern;
+    /// use damocles_worker::seal_util::MemoryFileDirPattern;
     ///
     /// let p = MemoryFileDirPattern::new_default("/dev/shm/abc");
     /// assert_eq!(p.to_path(0), PathBuf::from("/dev/shm/abc/numa_0"));

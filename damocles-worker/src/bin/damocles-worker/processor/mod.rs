@@ -64,8 +64,8 @@ pub(crate) fn run(cmd: &ProcessorCommand) -> Result<()> {
             hugepage_files_path,
             hugepage_files_path_pattern,
         } => {
+            use damocles_worker::seal_util::{scan_memory_files, MemoryFileDirPattern};
             use storage_proofs_porep::stacked::init_numa_mem_pool;
-            use venus_worker::seal_util::{scan_memory_files, MemoryFileDirPattern};
 
             // Argument `hugepage_files_path_pattern` take precedence over argument `hugepage_files_path`
             match (

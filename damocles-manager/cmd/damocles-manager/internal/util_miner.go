@@ -141,7 +141,7 @@ var utilMinerCreateCmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "exid",
-			Usage: "extra identifier to avoid duplicate msg id for pushing into venus-messager",
+			Usage: "extra identifier to avoid duplicate msg id for pushing into sophon-messager",
 		},
 	},
 	Action: func(cctx *cli.Context) error {

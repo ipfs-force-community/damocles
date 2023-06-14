@@ -1,12 +1,12 @@
 use anyhow::Result;
 use clap::{Arg, ArgAction, ArgMatches, Command};
+use damocles_worker_util::hwinfo::{byte_string, cpu, disk, gpu, mem};
 use itertools::Itertools;
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
     Table, TableStyle,
 };
-use venus_worker_util::hwinfo::{byte_string, cpu, disk, gpu, mem};
 
 pub const SUB_CMD_NAME: &str = "hwinfo";
 

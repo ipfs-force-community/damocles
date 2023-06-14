@@ -278,6 +278,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "damocles-worker-util"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byte-unit",
+ "clap",
+ "crossterm",
+ "csv",
+ "hwloc2",
+ "itertools",
+ "rust-gpu-tools",
+ "strum",
+ "sysinfo",
+ "term-table",
+ "tui",
+]
+
+[[package]]
 name = "digest"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -972,24 +990,6 @@ name = "utf8-width"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5190c9442dcdaf0ddd50f37420417d219ae5261bbf5db120d0f9bab996c9cba1"
-
-[[package]]
-name = "venus-worker-util"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "byte-unit",
- "clap",
- "crossterm",
- "csv",
- "hwloc2",
- "itertools",
- "rust-gpu-tools",
- "strum",
- "sysinfo",
- "term-table",
- "tui",
-]
 
 [[package]]
 name = "wasi"

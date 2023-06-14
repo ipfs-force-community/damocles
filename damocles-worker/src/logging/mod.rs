@@ -27,7 +27,7 @@ pub fn init() -> Result<()> {
 
     let worker_env_filter = filter::EnvFilter::builder()
         .with_default_directive(filter::LevelFilter::OFF.into())
-        .with_env_var("VENUS_WORKER_LOG")
+        .with_env_var("DAMOCLES_WORKER_LOG")
         .from_env()
         .context("invalid venus worker log filter")?;
 

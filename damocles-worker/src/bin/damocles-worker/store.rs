@@ -5,8 +5,8 @@ use bytesize::ByteSize;
 use clap::Parser;
 use tracing::{error, info};
 
-use venus_worker::seal_util::MemoryFileDirPattern;
-use venus_worker::{objstore::filestore::FileStore, store::Store};
+use damocles_worker::seal_util::MemoryFileDirPattern;
+use damocles_worker::{objstore::filestore::FileStore, store::Store};
 
 #[cfg(target_os = "linux")]
 mod hugepage;

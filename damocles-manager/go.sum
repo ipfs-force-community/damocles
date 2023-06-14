@@ -587,12 +587,12 @@ github.com/icza/mighty v0.0.0-20180919140131-cfd07d671de6 h1:8UsGZ2rr2ksmEru6lTo
 github.com/icza/mighty v0.0.0-20180919140131-cfd07d671de6/go.mod h1:xQig96I1VNBDIWGCdTt54nHt6EeI639SmHycLYL7FkA=
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d/go.mod h1:qj24IKcXYK6Iy9ceXlo3Tc+vtHo9lIhSX5JddghvEPo=
+github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230613072356-8713ced20557 h1:/qqCFCmqbpqW8tFpv7xr1J5pIGL90Mo+SQcJ0Df1SY8=
+github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230613072356-8713ced20557/go.mod h1:me1u2cl7qdxBCZiVL0laDop8uBHDdUwlUNnQ7KkHF64=
 github.com/ipfs-force-community/go-jsonrpc v0.1.7-0.20230220074347-8db78dbc20d4 h1:iu/3irYevdNpdc0B/gRi1vuS3+lRn+6Ro9G0FeBiAfE=
 github.com/ipfs-force-community/go-jsonrpc v0.1.7-0.20230220074347-8db78dbc20d4/go.mod h1:jBSvPTl8V1N7gSTuCR4bis8wnQnIjHbRPpROol6iQKM=
 github.com/ipfs-force-community/venus-cluster-assets v0.1.0 h1:K/0+OV9Jm7HjSa7O9MAtgfLDIudQYZUTymhJsp8rGXg=
 github.com/ipfs-force-community/venus-cluster-assets v0.1.0/go.mod h1:ZHXQBvLbsmZrG9Zccpqn6Oba2Q/+cRm3RsHj/SRYSwg=
-github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230530070608-6fd470cc568f h1:JuPeIyL3/PyY2Wm7UPLJ1DD73p1iMpZKs861AjVhWKg=
-github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230530070608-6fd470cc568f/go.mod h1:jKlItT3VJIGPfWi8IxktML7TcxICdlM+etmI6x2L454=
 github.com/ipfs/bbloom v0.0.1/go.mod h1:oqo8CVWsJFMOZqTglBG4wydCE4IQA/G2/SEofB0rjUI=
 github.com/ipfs/bbloom v0.0.4 h1:Gi+8EGJ2y5qiD5FbsbpX/TMNcJw8gSqr7eyjHa4Fhvs=
 github.com/ipfs/bbloom v0.0.4/go.mod h1:cS9YprKXpoZ9lT0n/Mw/a6/aFV6DTjTLYHeA+gyqMG0=

@@ -21,7 +21,7 @@ var utilMessageCmd = &cli.Command{
 var utilMessageWaitCmd = &cli.Command{
 	Name:      "wait",
 	Usage:     "Wait for the execution result of the specified uid message",
-	ArgsUsage: "<uid from venus-messager>",
+	ArgsUsage: "<uid from sophon-messager>",
 	Action: func(cctx *cli.Context) error {
 		if cctx.NArg() != 1 {
 			cli.ShowSubcommandHelpAndExit(cctx, 1)
@@ -56,7 +56,7 @@ var utilMessageWaitCmd = &cli.Command{
 var utilMessageSearchCmd = &cli.Command{
 	Name:      "search",
 	Usage:     "Search for the execution result of the specified uid message",
-	ArgsUsage: "<uid from venus-messager>",
+	ArgsUsage: "<uid from sophon-messager>",
 	Action: func(cctx *cli.Context) error {
 		if cctx.NArg() != 1 {
 			cli.ShowSubcommandHelpAndExit(cctx, 1)

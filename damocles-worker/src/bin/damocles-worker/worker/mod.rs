@@ -6,14 +6,14 @@ use std::{io::Write, path::PathBuf};
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 
-use jsonrpc_core::ErrorCode;
-use jsonrpc_core_client::RpcError;
-use venus_worker::{
+use damocles_worker::{
     block_on,
     client::{connect, WorkerClient},
     logging::info,
     Config,
 };
+use jsonrpc_core::ErrorCode;
+use jsonrpc_core_client::RpcError;
 
 #[derive(Parser)]
 pub(crate) struct WorkerCommand {

@@ -43,3 +43,14 @@ func (h *Home) Dir() string {
 func (h *Home) Sub(elem ...string) string {
 	return filepath.Join(h.dir, filepath.Join(elem...))
 }
+
+func (h *Home) Exist() (bool, error) {
+	_, err := os.Stat(h.Dir())
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err == nil {
+		return true, nil
+	}
+	return false, err
+}

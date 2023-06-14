@@ -972,6 +972,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "damocles-worker"
+version = "0.6.0-rc1"
+dependencies = [
+ "anyhow",
+ "base64 0.13.1",
+ "base64-serde 0.6.1",
+ "byte-unit",
+ "bytesize",
+ "clap",
+ "crossbeam-channel",
+ "crossbeam-utils",
+ "crossterm",
+ "fil_clock",
+ "fil_types",
+ "forest_cid",
+ "forest_json_utils",
+ "glob",
+ "humantime",
+ "humantime-serde",
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "jsonrpc-http-server",
+ "libc",
+ "metrics",
+ "metrics-exporter-prometheus",
+ "multiaddr",
+ "nix 0.23.2",
+ "once_cell",
+ "paste",
+ "pretty_assertions",
+ "rand 0.8.5",
+ "regex",
+ "reqwest",
+ "rocksdb",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "signal-hook",
+ "storage-proofs-porep",
+ "tempfile",
+ "time 0.3.20",
+ "tokio",
+ "toml 0.7.3",
+ "tracing",
+ "tracing-subscriber",
+ "url 2.3.1",
+ "vc-processors",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4250,57 +4301,6 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
-
-[[package]]
-name = "venus-worker"
-version = "0.6.0-rc1"
-dependencies = [
- "anyhow",
- "base64 0.13.1",
- "base64-serde 0.6.1",
- "byte-unit",
- "bytesize",
- "clap",
- "crossbeam-channel",
- "crossbeam-utils",
- "crossterm",
- "fil_clock",
- "fil_types",
- "forest_cid",
- "forest_json_utils",
- "glob",
- "humantime",
- "humantime-serde",
- "jsonrpc-core",
- "jsonrpc-core-client",
- "jsonrpc-derive",
- "jsonrpc-http-server",
- "libc",
- "metrics",
- "metrics-exporter-prometheus",
- "multiaddr",
- "nix 0.23.2",
- "once_cell",
- "paste",
- "pretty_assertions",
- "rand 0.8.5",
- "regex",
- "reqwest",
- "rocksdb",
- "serde",
- "serde_json",
- "serde_repr",
- "signal-hook",
- "storage-proofs-porep",
- "tempfile",
- "time 0.3.20",
- "tokio",
- "toml 0.7.3",
- "tracing",
- "tracing-subscriber",
- "url 2.3.1",
- "vc-processors",
-]
 
 [[package]]
 name = "version_check"

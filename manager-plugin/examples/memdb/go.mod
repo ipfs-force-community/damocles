@@ -3,7 +3,7 @@ module github.com/ipfs-force-community/damocles/manager-plugin/examples/memdb
 go 1.18
 
 require (
-	github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230517052935-9b9f9d057b6e
+	github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230613072356-8713ced20557
 	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/btree v1.6.0
 )

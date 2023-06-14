@@ -6,6 +6,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use damocles_worker_util::sealcalc;
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Layout},
@@ -13,7 +14,6 @@ use tui::{
     widgets::{Block, Borders, Cell, Row, Table, TableState},
     Frame, Terminal as TuiTerminal,
 };
-use venus_worker_util::sealcalc;
 
 /// Display the status of tasks running at different times by tui's table
 pub fn display(

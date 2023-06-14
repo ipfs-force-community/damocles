@@ -5,9 +5,9 @@ use std::convert::TryFrom;
 use std::path::PathBuf;
 use tracing::{error, info};
 
-use venus_worker::create_tree_d;
+use damocles_worker::create_tree_d;
 
-use venus_worker::{RegisteredSealProof, SealProof};
+use damocles_worker::{RegisteredSealProof, SealProof};
 
 #[derive(Parser)]
 pub(crate) enum GeneratorCommand {

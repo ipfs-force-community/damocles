@@ -28,7 +28,10 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 )
 
-const logSubSystem = "cmd"
+const (
+	logSubSystem  = "cmd"
+	legacyHomeDir = "~/.venus-sector-manager"
+)
 
 var Log = logging.New(logSubSystem)
 
@@ -83,6 +86,23 @@ func HomeFromCLICtx(cctx *cli.Context) (*homedir.Home, error) {
 	home, err := homedir.Open(cctx.String(HomeFlag.Name))
 	if err != nil {
 		return nil, fmt.Errorf("open home: %w", err)
+	}
+	exist, err := home.Exist()
+	if err != nil {
+		return nil, err
+	}
+	if !exist {
+		legacyHome, err := homedir.Open(legacyHomeDir)
+		if err != nil {
+			return nil, fmt.Errorf("open home: %w", err)
+		}
+		legacyExist, err := legacyHome.Exist()
+		if err != nil {
+			return nil, err
+		}
+		if legacyExist {
+			home = legacyHome
+		}
 	}
 
 	if err := home.Init(); err != nil {

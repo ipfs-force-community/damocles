@@ -25,8 +25,8 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230613072356-8713ced20557
 	github.com/ipfs-force-community/venus-cluster-assets v0.1.0
-	github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230530070608-6fd470cc568f
 	github.com/ipfs/go-cid v0.3.2
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-leveldb v0.5.0
