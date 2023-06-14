@@ -24,7 +24,7 @@ For instructions on more intricate details of `damocles` configurations, please 
 
 ## Venus Architecture
 
-Damocles architecture mianly compose of three parts: chain service, storage deal service and storage power service. Learn more about each of them [here](https://sophon.venus-fil.io/intro/#mining-architecture).
+Venus architecture mianly compose of three parts: chain service, storage deal service and storage power service. Learn more about each of them [here](https://sophon.venus-fil.io/intro/#mining-architecture).
 
 ## Related Components
 
