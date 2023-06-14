@@ -10,7 +10,7 @@ fi
 echo "check git changes"
 ./scripts/check-git-dirty.sh
 
-sed -i "3c version = \"$1\"" ./venus-worker/vc-processors/Cargo.toml
+sed -i "3c version = \"$1\"" ./damocles-worker/vc-processors/Cargo.toml
 echo "vc-processors version upgraded"
 
 make build-worker

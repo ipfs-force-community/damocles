@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: "cargo"
-    directory: "/venus-worker"
+    directory: "/damocles-worker"
     schedule:
       interval: "daily"
     allow:
@@ -16,7 +16,7 @@ updates:
       - dependency-name: "fil_types"
 
   - package-ecosystem: "gomod"
-    directory: "/venus-sector-manager"
+    directory: "/damocles-manager"
     schedule:
       interval: "daily"
     allow:

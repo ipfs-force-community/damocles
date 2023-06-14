@@ -1,13 +1,13 @@
-# venus-cluster Q&A
+# damocles-cluster Q&A
 ## Q: load state: key not found 是什么异常？是密钥配置问题么？
 **A**: `load state: key not found` 发生在扇区密封或升级过程中，是由于扇区对应的状态记录未找到导致的。
 
 这里的 `key not found` 异常由底层的组件传导上来，其中的 `key` 是指 kv 数据库中的键。
 
 这种异常通常发生在以下场景：
-1. 已经在 `venus-sector-manager` 一侧通过类似 `util sealer sectors abort` 这样的命令终止了某个扇区，而对应的 `venus-worker` 仍在继续执行这个扇区的任务；
-2. `venus-sector-manager` 更换了 `home` 目录，导致无法读取之前的扇区记录数据；
-3. `venus-worker` 连接到了错误的 `venus-sector-manager` 实例；
+1. 已经在 `damocles-manager` 一侧通过类似 `util sealer sectors abort` 这样的命令终止了某个扇区，而对应的 `damocles-worker` 仍在继续执行这个扇区的任务；
+2. `damocles-manager` 更换了 `home` 目录，导致无法读取之前的扇区记录数据；
+3. `damocles-worker` 连接到了错误的 `damocles-manager` 实例；
 
 对于 1)，可以先通过 `util sealer sectors list` 命令观察已终止的扇区列表，确认是否存在问题扇区对应的记录，如果存在的话，再通过 `util sealer sectors restore` 命令进行恢复。
 
@@ -15,8 +15,8 @@
 
 
 
-## Q: 编译出的 venus-worker 可执行文件特别大，是什么原因？
-**A**: 这里的特别大，通常是指可执行文件的体积达到上 G。正常来说，`venus-worker` 可执行文件的体积在数十M 这个量级。上 G 的文件肯定已经超出了正常的范畴。
+## Q: 编译出的 damocles-worker 可执行文件特别大，是什么原因？
+**A**: 这里的特别大，通常是指可执行文件的体积达到上 G。正常来说，`damocles-worker` 可执行文件的体积在数十M 这个量级。上 G 的文件肯定已经超出了正常的范畴。
 
 这种情况通常是编译过程中意外启用了 debug 信息导致的，通常有几种可能性：
 1. 在各层级的 [cargo config 文件](https://doc.rust-lang.org/cargo/reference/config.html) 中设置了 `[profile.<name>.debug]`；
@@ -77,7 +77,7 @@ export RUSTFLAGS="-C target-cpu=native"
 
 ## Q：为什么我期望的结果是两张 GPU 都被使用，但是实际情况有一张 GPU 始终空闲？
 
-**A**：发生这种问题的原因有很多，但是一般来说，刚接触 venus-cluster 的用户在进行资源编排的时候误理解和配置了一些参数导致这种结果的情况比较多。换句话说，这通常是由*对硬件和调度配置的误解* 导致的。
+**A**：发生这种问题的原因有很多，但是一般来说，刚接触 damocles-cluster 的用户在进行资源编排的时候误理解和配置了一些参数导致这种结果的情况比较多。换句话说，这通常是由*对硬件和调度配置的误解* 导致的。
 
 这里我们从原理说起。
 
@@ -185,16 +185,16 @@ args = ["args1", "args2", "args3"]
 
 ## Q: `vc_processors::core::ext::producer: failed to unmarshal response string` 是什么错误？ 如何处理？
 
-**A**：发生这种错误是因为外部处理器产生了错误格式的响应。可以通过 venus-worker 提供的命令运行时的开启或关闭 dump 功能，查看错误格式的响应。
+**A**：发生这种错误是因为外部处理器产生了错误格式的响应。可以通过 damocles-worker 提供的命令运行时的开启或关闭 dump 功能，查看错误格式的响应。
 
 开启 dump
 ```
-venus-worker worker --config="path/to/your_config_file.toml" enable_dump --child_pid=<target_ext_processor_pid> --dump_dir="path/to/dump_dir"
+damocles-worker worker --config="path/to/your_config_file.toml" enable_dump --child_pid=<target_ext_processor_pid> --dump_dir="path/to/dump_dir"
 ```
 
 关闭 dump
 ```
-venus-worker worker --config="path/to/your_config_file.toml" disable_dump --child_pid=<target_ext_processor_pid>
+damocles-worker worker --config="path/to/your_config_file.toml" disable_dump --child_pid=<target_ext_processor_pid>
 ```
 
 可根据 dump 文件进行 debug。
@@ -208,4 +208,4 @@ thread '<unnamed>' panicked at 'assertion failed: `(left == right)`
 ```
 是什么错误？ 如何处理？
 
-**A**: 这个错误大概率是 venus-worker 中 PC1 的 `cgroup.cpuset` 配置问题引发的. 参考: [`cgroup.cpuset` 配置注意事项](./03.venus-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#cgroupcpuset-%E9%85%8D%E7%BD%AE%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9)
+**A**: 这个错误大概率是 damocles-worker 中 PC1 的 `cgroup.cpuset` 配置问题引发的. 参考: [`cgroup.cpuset` 配置注意事项](./03.damocles-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#cgroupcpuset-%E9%85%8D%E7%BD%AE%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9)

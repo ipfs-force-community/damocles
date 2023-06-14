@@ -9,9 +9,9 @@ body:
       选择涉及模块。
       Please select the related components.
     options:
-      - label: venus-sector-manager
+      - label: damocles-manager
         required: false
-      - label: venus-worker
+      - label: damocles-worker
         required: false
       - label: 工具链 / toolchains
         required: false

@@ -1,9 +1,0 @@
-# go run github.com/ipfs-force-community/venus-cluster/venus-sector-manager/cmd/plugin@latest -- build --src-dir=./ --out-dir=./
-name = "fsstore"
-description = ""
-kind = "ObjStore"
-onInit = "OnInit"
-onShutdown = ""
-export = [
-    {extPoint="Constructor", impl="Open"},
-]

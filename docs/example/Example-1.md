@@ -149,7 +149,7 @@ location="/data/nvme-cache/venus-cluster-worker-cache/cache-store24"
 sealing.allowed_miners=[35201]
 sealing.allowed_sizes=["32GiB"]
 
-# store path <The name should be the same as that configured in venus-sector-manager>
+# store path <The name should be the same as that configured in damocles-manager>
 [[attached]]
 name="calib-t035201-sectors"
 location="/data/calib-t035201-sectors"

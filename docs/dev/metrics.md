@@ -4,7 +4,7 @@
 
 ## common
 
-在 `venus-cluster` 的开发维护过程中，对于 `metrics` 即指标监控的处理应当遵循一些基本的原则。
+在 `damocles` 的开发维护过程中，对于 `metrics` 即指标监控的处理应当遵循一些基本的原则。
 
 
 
@@ -46,17 +46,17 @@
 
 
 
-## metrics in venus-worker 
+## metrics in damocles-worker 
 
 ### 选型
 
-`venus-worker` 中的 `metrics` 部分选用了 [metrics](https://crates.io/crates/metrics) 作为基础框架，并通过 [metrics-exporter-prometheus](https://crates.io/crates/metrics-exporter-prometheus) 接入 `prometheus`.
+`damocles-worker` 中的 `metrics` 部分选用了 [metrics](https://crates.io/crates/metrics) 作为基础框架，并通过 [metrics-exporter-prometheus](https://crates.io/crates/metrics-exporter-prometheus) 接入 `prometheus`.
 
 
 
 ### 封装
 
-参考 TiKV 所使用的 [prometheus-static-metric](https://crates.io/crates/prometheus-static-metric) 的范式，`venus-worker` 编写了用于构造指标对象和指标视图（View）的宏。
+参考 TiKV 所使用的 [prometheus-static-metric](https://crates.io/crates/prometheus-static-metric) 的范式，`damocles-worker` 编写了用于构造指标对象和指标视图（View）的宏。
 
 
 
@@ -98,7 +98,7 @@ if res.is_err() {
 
 
 
-## metrics in venus-sector-manager
+## metrics in damocles-manager
 
 `TODO`
 
