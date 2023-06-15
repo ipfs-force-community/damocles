@@ -991,7 +991,7 @@ var utilSealerProvingCompactPartitionsCmd = &cli.Command{
 			return fmt.Errorf("must include at least one partition to compact")
 		}
 
-		Log.Info("compacting %d paritions", len(parts))
+		Log.Infof("compacting %d paritions", len(parts))
 
 		partitions := bitfield.New()
 		for _, partition := range parts {
