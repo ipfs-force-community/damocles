@@ -17,13 +17,13 @@ pub(crate) enum StoreCommand {
     /// Initializing the sealing directory
     SealingInit {
         /// Location of the store
-        #[arg(short = 'l', long = "loc")]
+        #[arg(short = 'l', long = "loc", num_args=1..)]
         location: Vec<PathBuf>,
     },
     /// Initializing the persistence store directory
     FileInit {
         /// Location of the store
-        #[arg(short = 'l', long = "loc")]
+        #[arg(short = 'l', long = "loc", num_args=1..)]
         location: Vec<PathBuf>,
     },
     HugepageFileInit {
