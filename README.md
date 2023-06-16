@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://damocles.venus-fil.io/" title="Damocles Docs">
-    <img src="https://user-images.githubusercontent.com/1591330/205581532-f0073513-7f52-4c1e-ad98-096592e58bdc.png" alt="Project Venus Logo" width="330" />
+    <img src="https://user-images.githubusercontent.com/1591330/205581532-f0073513-7f52-4c1e-ad98-096592e58bdc.png" alt="Project Venus Logo" width="128" />
   </a>
 </p>
 
