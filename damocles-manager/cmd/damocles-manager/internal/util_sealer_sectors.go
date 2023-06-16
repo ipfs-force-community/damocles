@@ -1334,7 +1334,10 @@ var utilSealerSectorsStateCmd = &cli.Command{
 	Usage:     "Load and display the detailed sector state",
 	ArgsUsage: "<minerID> <sectorNum>",
 	Flags: []cli.Flag{
-		flagListOffline,
+		&cli.BoolFlag{
+			Name:  "offline",
+			Usage: "DEPRECATED: damocles-manager will load sector state in all state dbs",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
@@ -1364,9 +1367,9 @@ var utilSealerSectorsStateCmd = &cli.Command{
 			Number: sectorNumber,
 		}
 
-		state, err := cli.Sealer.FindSector(gctx, extractListWorkerState(cctx), sid)
+		state, err := cli.Sealer.FindSectorInAllStates(gctx, sid)
 		if err != nil {
-			return RPCCallError("FindSector", err)
+			return RPCCallError("FindSectorInAllStates", err)
 		}
 
 		fmt.Fprintf(os.Stdout, "Sector %s: \n", util.FormatSectorID(sid))
