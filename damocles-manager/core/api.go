@@ -83,6 +83,8 @@ type SealerCliAPI interface {
 
 	FindSector(ctx context.Context, state SectorWorkerState, sid abi.SectorID) (*SectorState, error)
 
+	FindSectorInAllStates(ctx context.Context, sid abi.SectorID) (*SectorState, error)
+
 	FindSectorsWithDeal(ctx context.Context, state SectorWorkerState, dealID abi.DealID) ([]*SectorState, error)
 
 	FindSectorWithPiece(ctx context.Context, state SectorWorkerState, pieceCid cid.Cid) (*SectorState, error)

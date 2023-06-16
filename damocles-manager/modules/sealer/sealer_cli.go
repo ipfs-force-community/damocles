@@ -364,6 +364,16 @@ func (s *Sealer) FindSector(ctx context.Context, state core.SectorWorkerState, s
 	return s.state.Load(ctx, sid, state)
 }
 
+func (s *Sealer) FindSectorInAllStates(ctx context.Context, sid abi.SectorID) (*core.SectorState, error) {
+	for _, st := range []core.SectorWorkerState{core.WorkerOnline, core.WorkerOffline} {
+		state, err := s.state.Load(ctx, sid, st)
+		if err == nil || !errors.Is(err, kvstore.ErrKeyNotFound) {
+			return state, err
+		}
+	}
+	return nil, kvstore.ErrKeyNotFound
+}
+
 func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorkerState, dealID abi.DealID) ([]*core.SectorState, error) {
 	if dealID == 0 {
 		return nil, fmt.Errorf("empty deal id")

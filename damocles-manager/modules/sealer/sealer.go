@@ -147,7 +147,7 @@ func (s *Sealer) AllocateSectorsBatch(ctx context.Context, spec core.AllocateSec
 		return nil, err
 	}
 
-	if sectors == nil || len(sectors) == 0 {
+	if len(sectors) == 0 {
 		return nil, nil
 	}
 
