@@ -1,5 +1,50 @@
 # Changelog
 
+## v0.7.0-rc1
+- damocles-manager
+  - 支持 unseal 任务 [#663](https://github.com/ipfs-force-community/damocles/issues/663)
+  - cli: `util sealer sectors state` 不再需要添加 `--offline` flag, damocles-manager 会自动分别从 online 和 offline 数据库中查询扇区信息。[#767](https://github.com/ipfs-force-community/damocles/issues/767)
+  - repo 重命名: venus-cluster -> damocles [#5760](https://github.com/filecoin-project/venus/issues/5760)
+  - 新增获取版本号的 rpc 接口。cli `util worker list` 添加 `version` 列显示 worker 版本号。[#717](https://github.com/ipfs-force-community/damocles/issues/717)
+  - cli: `util actor control list` 命令优化输出 [#389](https://github.com/ipfs-force-community/damocles/issues/389)
+
+- damocles-worker
+  - 支持 unseal 任务 [#663](https://github.com/ipfs-force-community/damocles/issues/663)
+  - local_piece_dirs 支持配置多目录。[文档](https://github.com/ipfs-force-community/damocles/blob/main/docs/zh/03.damocles-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#%E5%9F%BA%E7%A1%80%E9%85%8D%E7%BD%AE%E8%8C%83%E4%BE%8B); [#713](https://github.com/ipfs-force-community/damocles/issues/713)
+  - 修复修改 sealing_thread plan 可能会导致释放当前任务的 bug [#764](https://github.com/ipfs-force-community/damocles/issues/764)
+  - 新增获取版本号的 rpc 接口 [#717](https://github.com/ipfs-force-community/damocles/issues/717)
+  - cli: clap 升级到 4.x 版本 [#666](https://github.com/ipfs-force-community/damocles/issues/666)
+
+
+## v0.6.5
+- docker
+  - 安装 tzdata 解决日志时间的时区问题，现在启动容器时增加环境变量 TZ 即可设置时区 (例如: TZ=Asia/Shanghai)。 [#752](https://github.com/ipfs-force-community/damocles/pull/752)
+- venus-sector-manager
+  - 增加日志输出，window post 消息成功上链会打印形如 `window post message succeeded: xxx` (`xxx` 为消息签名后的 cid) 的日志。[#755](https://github.com/ipfs-force-community/damocles/pull/755)
+  - 修复 snapup 重试机制与 deadline 锁定期冲突的 bug [#744](https://github.com/ipfs-force-community/damocles/pull/744)
+
+
+## v0.6.4
+- docker
+  - 修复 opencl 驱动安装 [#750](https://github.com/ipfs-force-community/damocles/pull/750)
+
+## v0.6.3
+- venus-sector-manager
+  - 提交 precommit 消息时，当 CommD 与链上不一致时，不再直接 abort 扇区，而是暂停封装线程等待人为介入处理 [#742](https://github.com/ipfs-force-community/damocles/pull/742)
+  - 提交 precommit 消息时，如果 precommit 消息执行失败不再直接 abort 扇区，而是暂停封装线程等待人为介入处理 [#745](https://github.com/ipfs-force-community/damocles/issues/745)
+
+## v0.6.2
+- venus-sector-manager
+  - 调用新 api `ReleaseDeals` 释放订单避免重复释放订单 bug [#664](https://github.com/ipfs-force-community/damocles/pull/664)
+  - 修改部分日志的日志级别 debug -> info [#738](https://github.com/ipfs-force-community/damocles/pull/738)
+
+## v0.6.1
+- venus-sector-manager
+  - 日志默认级别从 `DEBUG` 修改为 `INFO` [#719](https://github.com/ipfs-force-community/damocles/pull/719)
+  - 修复 `ProveReplicaUpdates` 消息可能在 windowPoST 窗口锁定期提交的 bug [#494](https://github.com/ipfs-force-community/damocles/pull/494)
+  - cli: `util sealer sectors extend` 使用新版续期方法 `ExpirationExtension2` [#636](https://github.com/ipfs-force-community/damocles/pull/636)
+  - 支持从环境变量设置数据和配置目录 [#733](https://github.com/ipfs-force-community/damocles/pull/733)
+
 ## v0.6.0
 - venus-sector-manager
   - 插件支持自定义数据库。 [#561](https://github.com/ipfs-force-community/damocles/issues/561)
