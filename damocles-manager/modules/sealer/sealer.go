@@ -330,6 +330,9 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedR
 	if err != nil {
 		return core.WaitSeedResp{}, err
 	}
+	if pci == nil {
+		return core.WaitSeedResp{}, fmt.Errorf("precommit info not found on chain. sid: %s", util.FormatSectorID(sid))
+	}
 
 	curEpoch := ts.Height()
 	// TODO: remove this guard
