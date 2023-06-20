@@ -349,7 +349,7 @@ func (h *snapupCommitHandler) submitMessage() error {
 	// `abi.ChainEpoch(10)` indicates that we assume that the message will be real executed within 10 heights
 	//
 	// See: https://github.com/filecoin-project/builtin-actors/blob/10f547c950a99a07231c08a3c6f4f76ff0080a7c/actors/miner/src/lib.rs#L1113-L1124
-	if shouldDelay, delayBlock := deadlineIsMutable(currDeadline.PeriodStart, sl.Deadline, ts.Height(), abi.ChainEpoch(10)); shouldDelay {
+	if isMut, delayBlock := deadlineIsMutable(currDeadline.PeriodStart, sl.Deadline, ts.Height(), abi.ChainEpoch(10)); !isMut {
 		delayTime := time.Duration(mpolicy.NetParams.BlockDelaySecs*uint64(delayBlock)) * time.Second
 		return newTempErr(fmt.Errorf("cannot upgrade sectors in immutable deadline: %d. sector: %s", sl.Deadline, util.FormatSectorID(h.state.ID)), delayTime)
 	}
@@ -650,12 +650,12 @@ func deadlineIsMutable(provingPeriodStart abi.ChainEpoch, deadlineIdx uint64, cu
 	// Ensure that the current epoch is at least one challenge window before
 	// that deadline opens.
 	var delay abi.ChainEpoch
-	shouldDelay := currentEpoch < deadlineInfo.Open-stminer.WPoStChallengeWindow-msgExecInterval
+	isMut := currentEpoch < deadlineInfo.Open-stminer.WPoStChallengeWindow-msgExecInterval
 
-	if shouldDelay {
+	if !isMut { // deadline is immutable. should delay
 		delay = deadlineInfo.Close - currentEpoch
 		log.Warnf("delay upgrade to avoid mutating deadline %d at %d before it opens at %d", deadlineIdx, currentEpoch, deadlineInfo.Open)
 	}
 
-	return shouldDelay, delay
+	return isMut, delay
 }
