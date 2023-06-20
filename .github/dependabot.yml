@@ -21,3 +21,8 @@ updates:
       interval: "daily"
     allow:
       - dependency-name: "github.com/filecoin-project/venus"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
