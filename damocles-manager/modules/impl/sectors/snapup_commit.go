@@ -584,7 +584,7 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 		return fmt.Errorf("get miner config: %w", err)
 	}
 	if !mcfg.SnapUp.CleanupCCData {
-		log.Debug("skip cleanup cc data")
+		log.Debug("skip cleanup CC data")
 		return nil
 	}
 	sref := core.SectorRef{
@@ -625,7 +625,7 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 			errwg.Go(func() error {
 				delErr := store.Del(h.committer.ctx, uri)
 				if delErr == nil {
-					log.Debugf("cc data cleaned: %s", uri)
+					log.Debugf("CC data cleaned: %s", uri)
 					return nil
 				}
 
