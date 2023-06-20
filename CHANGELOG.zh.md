@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.6
+- venus-sector-manager
+  - 修复 snapdeal 判断目标 CC 扇区是否为时空证明锁定期的 bug [#789](https://github.com/ipfs-force-community/damocles/pull/789)
+  - snapdeal 支持配置不清除原 CC 扇区数据。新增配置 `Miners.SnapUp.CleanupCCData` [#790](https://github.com/ipfs-force-community/damocles/pull/790)
+
+
 ## v0.6.5
 - docker
   - 安装 tzdata 解决日志时间的时区问题，现在启动容器时增加环境变量 TZ 即可设置时区 (例如: TZ=Asia/Shanghai)。 [#752](https://github.com/ipfs-force-community/venus-cluster/pull/752)
