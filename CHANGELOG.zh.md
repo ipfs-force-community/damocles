@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.0-rc2
+- damocles-manager
+  - 修复 snapdeal 判断目标 CC 扇区是否为时空证明锁定期的 bug [#789](https://github.com/ipfs-force-community/damocles/issues/789)
+  - snapdeal 支持配置不清除原 CC 扇区数据。新增配置 `Miners.SnapUp.CleanupCCData` [#790](https://github.com/ipfs-force-community/damocles/issues/790)
+  - 修复不配置 market 地址无法启动的 bug [#793](https://github.com/ipfs-force-community/damocles/issues/793)
+
 ## v0.7.0-rc1
 - damocles-manager
   - 支持 unseal 任务 [#663](https://github.com/ipfs-force-community/damocles/issues/663)
