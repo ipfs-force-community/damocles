@@ -327,6 +327,7 @@ type MinerSnapUpConfig struct {
 	Sender   MustAddress
 	SendFund bool
 	FeeConfig
+	CleanupCCData bool
 
 	MessageConfidential *abi.ChainEpoch
 	ReleaseCondidential *abi.ChainEpoch
@@ -358,6 +359,7 @@ func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
 		Enabled:           false,
 		SendFund:          true,
 		FeeConfig:         defaultFeeConfig(),
+		CleanupCCData:     true,
 		MessageConfidence: 15,
 		ReleaseConfidence: 30,
 		Retry:             defaultMinerSnapUpRetryConfig(example),

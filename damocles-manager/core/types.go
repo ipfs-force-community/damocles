@@ -371,8 +371,9 @@ type SectorUnsealInfo struct {
 	CommD       [32]byte
 
 	// there may be more than one unseal event result into on unseal task
-	Dest  []string
-	State gtypes.UnsealState
+	Dest      []string
+	State     gtypes.UnsealState
+	ErrorInfo string
 }
 
 func UnsealInfoKey(actor abi.ActorID, sectorNumber abi.SectorNumber, pieceCid cid.Cid) string {

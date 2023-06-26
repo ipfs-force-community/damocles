@@ -212,3 +212,38 @@ func TestCheckUrl(t *testing.T) {
 	_, err = u.checkDestUrl("oss://bucket/path")
 	require.Error(t, err)
 }
+
+func TestMarketPieceStore(t *testing.T) {
+	testCases := []struct {
+		name       string
+		marketAddr string
+		expect     string
+		hasErr     bool
+	}{
+		{
+			name:       "empty address",
+			marketAddr: "",
+			expect:     "http://" + invalidMarketHost,
+			hasErr:     true,
+		},
+
+		{
+			name:       "normal address",
+			marketAddr: "/dns/market/tcp/7890",
+			expect:     "http://market:7890/resource",
+			hasErr:     false,
+		},
+	}
+	for _, v := range testCases {
+		t.Run(v.name, func(t *testing.T) {
+			url, err := getDefaultMarketPiecesStore(v.marketAddr)
+			require.Equal(t, v.expect, url.String())
+			if v.hasErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+
+}
