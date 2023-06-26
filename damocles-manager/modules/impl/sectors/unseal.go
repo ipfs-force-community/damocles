@@ -20,6 +20,8 @@ import (
 
 var unsealInfoKey = kvstore.Key("unseal-infos")
 
+const invalidMarketHost = "invalid.market.host"
+
 type Key = string
 type UnsealInfos struct {
 	AllocIndex map[abi.ActorID]map[Key]struct{}
@@ -48,7 +50,7 @@ func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI co
 	scfg.Unlock()
 	ret.defaultDest, err = getDefaultMarketPiecesStore(commonAPI.Market)
 	if err != nil {
-		return nil, fmt.Errorf("get default market pieces store: %w", err)
+		log.Warnw("get default market pieces store fail, upload unseal piece to market will not be possible", "error", err)
 	}
 	q := ret.defaultDest.Query()
 	q.Set("token", commonAPI.Token)
@@ -322,6 +324,9 @@ func (u *UnsealManager) checkDestUrl(dest string) (string, error) {
 	switch urlStruct.Scheme {
 	case "http", "https", "file", "store":
 	case "market":
+		if u.defaultDest.Host == invalidMarketHost {
+			return "", fmt.Errorf("upload pieces to market will not be possible when market address dose not set, please check you config")
+		}
 		// add host , scheme and token
 		q := urlStruct.Query()
 		q.Set("token", u.defaultDest.Query().Get("token"))
@@ -341,16 +346,17 @@ type MultiAddr = string
 func getDefaultMarketPiecesStore(marketAPI MultiAddr) (*url.URL, error) {
 	ret := &url.URL{
 		Scheme: "http",
+		Host:   invalidMarketHost,
 	}
 
 	ma, err := multiaddr.NewMultiaddr(marketAPI)
 	if err != nil {
-		return nil, fmt.Errorf("parse market api fail %w", err)
+		return ret, fmt.Errorf("parse market api fail %w", err)
 	}
 
 	_, addr, err := manet.DialArgs(ma)
 	if err != nil {
-		return nil, fmt.Errorf("parse market api fail %w", err)
+		return ret, fmt.Errorf("parse market api fail %w", err)
 	}
 	ret.Host = addr
 
