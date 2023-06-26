@@ -211,26 +211,35 @@ func (u *UnsealManager) Achieve(ctx context.Context, sid abi.SectorID, pieceCid 
 		if !ok {
 			return false
 		}
-		info.State = gtypes.UnsealStateFinished
+		if unsealErr == "" {
+			info.State = gtypes.UnsealStateFinished
+		} else {
+			info.State = gtypes.UnsealStateFailed
+			info.ErrorInfo = unsealErr
+		}
 		db.Data[key] = info
 		return true
 	})
 
 	if err != nil {
-		return fmt.Errorf("achieve unseal info(%s): %w", key, err)
+		return fmt.Errorf("achieve unseal info(%s): load task fail: %w", key, err)
 	}
 
 	if info == nil {
 		return fmt.Errorf("achieve unseal info(%s): task not found", key)
 	}
 
-	// call hook
-	hooks, ok := u.onAchieve[key]
-	if ok {
-		for _, hook := range hooks {
-			hook()
+	if unsealErr != "" {
+		log.Errorf("unseal task(%s) fail: %s", key, unsealErr)
+	} else {
+		// call hook
+		hooks, ok := u.onAchieve[key]
+		if ok {
+			for _, hook := range hooks {
+				hook()
+			}
+			delete(u.onAchieve, key)
 		}
-		delete(u.onAchieve, key)
 	}
 
 	return nil
