@@ -39,7 +39,7 @@ Venus is a universally open project and welcomes contributions of all kinds: cod
 
 ## Community
 
-For general help in using `damocles, please refer to the [documentation](https://github.com/ipfs-force-community/damocles/tree/main/docs) hosted within the repo. For additional help, you can use one of these channels to ask a question:
+For general help in using `damocles`, please refer to the [documentation](https://github.com/ipfs-force-community/damocles/tree/main/docs) hosted within the repo. For additional help, you can use one of these channels to ask a question:
 
 - [Slack](https://filecoinproject.slack.com/archives/CEHHJNJS3) (For live discussion with the Community)
 - [GitHub](https://github.com/ipfs-force-community/damocles/issues) (Feature/Bug reports, Contributions)
