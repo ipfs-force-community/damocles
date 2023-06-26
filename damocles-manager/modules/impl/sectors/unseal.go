@@ -20,6 +20,8 @@ import (
 
 var unsealInfoKey = kvstore.Key("unseal-infos")
 
+const invalidMarketHost = "invalid.market.host"
+
 type Key = string
 type UnsealInfos struct {
 	AllocIndex map[abi.ActorID]map[Key]struct{}
@@ -48,7 +50,7 @@ func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI co
 	scfg.Unlock()
 	ret.defaultDest, err = getDefaultMarketPiecesStore(commonAPI.Market)
 	if err != nil {
-		return nil, fmt.Errorf("get default market pieces store: %w", err)
+		log.Warnw("get default market pieces store fail, upload unseal piece to market will not be possible", "error", err)
 	}
 	q := ret.defaultDest.Query()
 	q.Set("token", commonAPI.Token)
@@ -209,26 +211,35 @@ func (u *UnsealManager) Achieve(ctx context.Context, sid abi.SectorID, pieceCid 
 		if !ok {
 			return false
 		}
-		info.State = gtypes.UnsealStateFinished
+		if unsealErr == "" {
+			info.State = gtypes.UnsealStateFinished
+		} else {
+			info.State = gtypes.UnsealStateFailed
+			info.ErrorInfo = unsealErr
+		}
 		db.Data[key] = info
 		return true
 	})
 
 	if err != nil {
-		return fmt.Errorf("achieve unseal info(%s): %w", key, err)
+		return fmt.Errorf("achieve unseal info(%s): load task fail: %w", key, err)
 	}
 
 	if info == nil {
 		return fmt.Errorf("achieve unseal info(%s): task not found", key)
 	}
 
-	// call hook
-	hooks, ok := u.onAchieve[key]
-	if ok {
-		for _, hook := range hooks {
-			hook()
+	if unsealErr != "" {
+		log.Errorf("unseal task(%s) fail: %s", key, unsealErr)
+	} else {
+		// call hook
+		hooks, ok := u.onAchieve[key]
+		if ok {
+			for _, hook := range hooks {
+				hook()
+			}
+			delete(u.onAchieve, key)
 		}
-		delete(u.onAchieve, key)
 	}
 
 	return nil
@@ -322,6 +333,9 @@ func (u *UnsealManager) checkDestUrl(dest string) (string, error) {
 	switch urlStruct.Scheme {
 	case "http", "https", "file", "store":
 	case "market":
+		if u.defaultDest.Host == invalidMarketHost {
+			return "", fmt.Errorf("upload pieces to market will not be possible when market address dose not set, please check you config")
+		}
 		// add host , scheme and token
 		q := urlStruct.Query()
 		q.Set("token", u.defaultDest.Query().Get("token"))
@@ -341,16 +355,17 @@ type MultiAddr = string
 func getDefaultMarketPiecesStore(marketAPI MultiAddr) (*url.URL, error) {
 	ret := &url.URL{
 		Scheme: "http",
+		Host:   invalidMarketHost,
 	}
 
 	ma, err := multiaddr.NewMultiaddr(marketAPI)
 	if err != nil {
-		return nil, fmt.Errorf("parse market api fail %w", err)
+		return ret, fmt.Errorf("parse market api fail %w", err)
 	}
 
 	_, addr, err := manet.DialArgs(ma)
 	if err != nil {
-		return nil, fmt.Errorf("parse market api fail %w", err)
+		return ret, fmt.Errorf("parse market api fail %w", err)
 	}
 	ret.Host = addr
 
