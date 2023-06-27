@@ -71,19 +71,20 @@ func NewMarketEventClients(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.Saf
 
 	var ret MarketEventClients
 
-	cli, closer, err := mkapi.DialIMarketRPC(context.Background(), addr, token, nil, jsonrpc.WithRetry(true))
-	if err != nil {
-		return nil, fmt.Errorf("construct market api client: %w", err)
+	if addr != "" {
+		cli, closer, err := mkapi.DialIMarketRPC(context.Background(), addr, token, nil, jsonrpc.WithRetry(true))
+		if err != nil {
+			return nil, fmt.Errorf("construct market api client: %w", err)
+		}
+		lc.Append(fx.Hook{
+			OnStop: func(_ context.Context) error {
+				closer()
+				return nil
+			},
+		})
+		ret = append(ret, cli)
 	}
 
-	lc.Append(fx.Hook{
-		OnStop: func(_ context.Context) error {
-			closer()
-			return nil
-		},
-	})
-
-	ret = append(ret, cli)
 	for _, cli := range gatewayClients {
 		ret = append(ret, cli)
 	}
