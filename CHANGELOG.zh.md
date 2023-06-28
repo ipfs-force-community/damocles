@@ -1,5 +1,10 @@
 # Changelog
 
+
+## v0.7.0-rc3
+- damocles-manager
+  - 去除 market-event-client 对 market address 的依赖 [#797](https://github.com/ipfs-force-community/damocles/pull/797)
+
 ## v0.7.0-rc2
 - damocles-manager
   - 修复 snapdeal 判断目标 CC 扇区是否为时空证明锁定期的 bug [#789](https://github.com/ipfs-force-community/damocles/issues/789)
