@@ -11,29 +11,27 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
 )
 
-var _ TaskManager = (*kvTaskManager)(nil)
-
-func NewKVTaskStore(kv kvstore.ExtendKV) *kvTaskManager {
+func NewKVTaskStore(kv kvstore.KVExt) TaskManager {
 	return &kvTaskManager{
 		kv: kv,
 	}
 }
 
 type kvTaskManager struct {
-	kv kvstore.ExtendKV
+	kv kvstore.KVExt
 }
 
 // TODO(0x5459): Consider putting `txn` into context?
-func (tm *kvTaskManager) filter(ctx context.Context, txn kvstore.ExtendTxn, state TaskState, limit uint32, f func(*Task) bool) (tasks []*Task, err error) {
+func (tm *kvTaskManager) filter(ctx context.Context, txn kvstore.TxnExt, state TaskState, limit uint32, f func(*Task) bool) (tasks []*Task, err error) {
 	var it kvstore.Iter
 	it, err = txn.Scan([]byte(makeWdPoStPrefix(state)))
 	if err != nil {
 		return
 	}
 	defer it.Close()
-	var task Task
 	for it.Next() && len(tasks) <= int(limit) {
-		if err = it.View(ctx, kvstore.LoadJson(&task)); err != nil {
+		var task Task
+		if err = it.View(ctx, kvstore.LoadJSON(&task)); err != nil {
 			return
 		}
 		if f(&task) {
@@ -44,7 +42,7 @@ func (tm *kvTaskManager) filter(ctx context.Context, txn kvstore.ExtendTxn, stat
 }
 
 func (tm *kvTaskManager) All(ctx context.Context, state TaskState, limit uint32, filter func(*Task) bool) (tasks []*Task, err error) {
-	err = tm.kv.ViewMustNoConflict(ctx, func(txn kvstore.ExtendTxn) error {
+	err = tm.kv.ViewMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		tasks, err = tm.filter(ctx, txn, state, limit, filter)
 		return err
 	})
@@ -53,10 +51,10 @@ func (tm *kvTaskManager) All(ctx context.Context, state TaskState, limit uint32,
 
 func (tm *kvTaskManager) ListByTaskIDs(ctx context.Context, state TaskState, taskIDs ...string) ([]*Task, error) {
 	tasks := make([]*Task, 0, len(taskIDs))
-	err := tm.kv.ViewMustNoConflict(ctx, func(txn kvstore.ExtendTxn) error {
+	err := tm.kv.ViewMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		for _, taskID := range taskIDs {
 			var task Task
-			err := txn.Peek(kvstore.Key(makeWdPoStKey(state, taskID)), kvstore.LoadJson(&task))
+			err := txn.Peek(kvstore.Key(makeWdPoStKey(state, taskID)), kvstore.LoadJSON(&task))
 			if errors.Is(err, kvstore.ErrKeyNotFound) {
 				continue
 			}
@@ -75,15 +73,15 @@ func (tm *kvTaskManager) Create(ctx context.Context, input stage.WindowPoSt) (*T
 		taskID string
 		task   *Task
 	)
-	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.ExtendTxn) error {
+	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		rawInput, err := json.Marshal(input)
 		if err != nil {
 			return err
 		}
-		taskID = genTaskID(rawInput)
+		taskID = GenTaskID(rawInput)
 		// check if task exists
 		err = txn.PeekAny(
-			kvstore.LoadJson(task),
+			kvstore.LoadJSON(task),
 			kvstore.Key(makeWdPoStKey(TaskReadyToRun, taskID)),
 			kvstore.Key(makeWdPoStKey(TaskRunning, taskID)),
 			kvstore.Key(makeWdPoStKey(TaskFinished, taskID)),
@@ -121,7 +119,7 @@ func (tm *kvTaskManager) Create(ctx context.Context, input stage.WindowPoSt) (*T
 
 func (tm *kvTaskManager) AllocateTasks(ctx context.Context, n uint32, workName string) (allocatedTasks []AllocatedTask, err error) {
 	var readyToRun []*Task
-	err = tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.ExtendTxn) error {
+	err = tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		readyToRun, err = tm.filter(ctx, txn, TaskReadyToRun, n, func(t *Task) bool { return true })
 		if err != nil {
 			return err
@@ -157,10 +155,10 @@ func (tm *kvTaskManager) AllocateTasks(ctx context.Context, n uint32, workName s
 }
 
 func (tm *kvTaskManager) Heartbeat(ctx context.Context, taskIDs []string, workerName string) error {
-	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.ExtendTxn) error {
+	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		for _, taskID := range taskIDs {
 			var task Task
-			if err := txn.Peek([]byte(makeWdPoStKey(TaskRunning, taskID)), kvstore.LoadJson(&task)); err != nil {
+			if err := txn.Peek([]byte(makeWdPoStKey(TaskRunning, taskID)), kvstore.LoadJSON(&task)); err != nil {
 				return err
 			}
 			now := uint64(time.Now().Unix())
@@ -180,10 +178,10 @@ func (tm *kvTaskManager) Heartbeat(ctx context.Context, taskIDs []string, worker
 }
 
 func (tm *kvTaskManager) Finish(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error {
-	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.ExtendTxn) error {
+	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		runningKey := []byte(makeWdPoStKey(TaskRunning, taskID))
 		var task Task
-		if err := txn.Peek(runningKey, kvstore.LoadJson(&task)); err != nil {
+		if err := txn.Peek(runningKey, kvstore.LoadJSON(&task)); err != nil {
 			return err
 		}
 		if err := txn.Del(runningKey); err != nil {
@@ -207,13 +205,13 @@ func (tm *kvTaskManager) Finish(ctx context.Context, taskID string, output *stag
 	return err
 }
 
-func (ts *kvTaskManager) MakeTasksDie(ctx context.Context, heartbeatTimeout time.Duration, limit uint32) error {
+func (tm *kvTaskManager) MakeTasksDie(ctx context.Context, heartbeatTimeout time.Duration, limit uint32) error {
 	var shouldDead []*Task
 	shouldDeadTime := time.Now().Add(-heartbeatTimeout)
 
-	err := ts.kv.UpdateMustNoConflict(ctx, func(txn kvstore.ExtendTxn) error {
+	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		var err error
-		shouldDead, err = ts.filter(ctx, txn, TaskRunning, limit, func(t *Task) bool {
+		shouldDead, err = tm.filter(ctx, txn, TaskRunning, limit, func(t *Task) bool {
 			return t.HeartbeatAt > 0 && time.Unix(int64(t.HeartbeatAt), 0).Before(shouldDeadTime)
 		})
 		if err != nil {
@@ -225,6 +223,7 @@ func (ts *kvTaskManager) MakeTasksDie(ctx context.Context, heartbeatTimeout time
 				return err
 			}
 			task.FinishedAt = now
+			task.Output = nil
 			task.ErrorReason = "heartbeat timeout"
 			task.UpdatedAt = now
 			if err := txn.PutJson([]byte(makeWdPoStKey(TaskFinished, task.ID)), task); err != nil {
@@ -241,7 +240,7 @@ func (tm *kvTaskManager) CleanupExpiredTasks(ctx context.Context, taskLifetime t
 	var shouldClean []*Task
 	shouldCleanTime := time.Now().Add(-taskLifetime)
 
-	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.ExtendTxn) error {
+	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		var err error
 		shouldClean, err = tm.filter(ctx, txn, TaskFinished, limit, func(t *Task) bool {
 			return time.Unix(int64(t.CreatedAt), 0).Before(shouldCleanTime)
@@ -267,7 +266,7 @@ func (tm *kvTaskManager) CleanupExpiredTasks(ctx context.Context, taskLifetime t
 
 func (tm *kvTaskManager) RetryFailedTasks(ctx context.Context, maxTry, limit uint32) error {
 	var shouldRetry []*Task
-	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.ExtendTxn) error {
+	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		var err error
 		shouldRetry, err = tm.filter(ctx, txn, TaskFinished, limit, func(t *Task) bool {
 			return len(t.ErrorReason) != 0 && t.tryNum > maxTry
@@ -278,6 +277,7 @@ func (tm *kvTaskManager) RetryFailedTasks(ctx context.Context, maxTry, limit uin
 		now := uint64(time.Now().Unix())
 		for _, task := range shouldRetry {
 			task.ErrorReason = ""
+			task.Output = nil
 			task.StartedAt = 0
 			task.FinishedAt = 0
 			task.UpdatedAt = now

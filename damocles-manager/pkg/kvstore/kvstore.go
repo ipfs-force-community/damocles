@@ -29,23 +29,23 @@ type (
 	Txn     = pluginkvstore.Txn
 )
 
-var LoadJson = func(target any) func(Val) error {
+var LoadJSON = func(target any) func(Val) error {
 	return func(data Val) error {
 		return json.Unmarshal(data, target)
 	}
 }
 
-func NewExtendKV(kvStore KVStore) *ExtendKV {
-	return &ExtendKV{
+func NewKVExt(kvStore KVStore) *KVExt {
+	return &KVExt{
 		KVStore: kvStore,
 	}
 }
 
-type ExtendKV struct {
+type KVExt struct {
 	KVStore
 }
 
-func (kv *ExtendKV) MustNoConflict(f func() error) error {
+func (kv *KVExt) MustNoConflict(f func() error) error {
 	if kv.NeedRetryTransactions() {
 		for {
 			err := f()
@@ -58,27 +58,27 @@ func (kv *ExtendKV) MustNoConflict(f func() error) error {
 	}
 }
 
-func (kv *ExtendKV) UpdateMustNoConflict(ctx context.Context, f func(txn ExtendTxn) error) error {
+func (kv *KVExt) UpdateMustNoConflict(ctx context.Context, f func(txn TxnExt) error) error {
 	return kv.MustNoConflict(func() error {
 		return kv.Update(ctx, func(t Txn) error {
-			return f(ExtendTxn{Txn: t})
+			return f(TxnExt{Txn: t})
 		})
 	})
 }
 
-func (kv *ExtendKV) ViewMustNoConflict(ctx context.Context, f func(txn ExtendTxn) error) error {
+func (kv *KVExt) ViewMustNoConflict(ctx context.Context, f func(txn TxnExt) error) error {
 	return kv.MustNoConflict(func() error {
 		return kv.View(ctx, func(t Txn) error {
-			return f(ExtendTxn{Txn: t})
+			return f(TxnExt{Txn: t})
 		})
 	})
 }
 
-type ExtendTxn struct {
+type TxnExt struct {
 	Txn
 }
 
-func (et ExtendTxn) PeekAny(f func(Val) error, keys ...Key) error {
+func (et TxnExt) PeekAny(f func(Val) error, keys ...Key) error {
 	for _, k := range keys {
 		err := et.Peek(k, f)
 		if errors.Is(err, ErrKeyNotFound) {
@@ -89,7 +89,7 @@ func (et ExtendTxn) PeekAny(f func(Val) error, keys ...Key) error {
 	return ErrKeyNotFound
 }
 
-func (et ExtendTxn) PutJson(k Key, v any) error {
+func (et TxnExt) PutJson(k Key, v any) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
