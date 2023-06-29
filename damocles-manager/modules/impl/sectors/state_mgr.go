@@ -209,7 +209,7 @@ func (sm *StateManager) InitWith(ctx context.Context, sectors []*core.AllocatedS
 		return fmt.Errorf("init: %w", err)
 	}
 
-	kvExtend := kvstore.NewExtend(kv)
+	kvExtend := kvstore.NewExtendKV(kv)
 	err = kvExtend.MustNoConflict(func() error {
 		return kv.Update(ctx, func(txn kvstore.Txn) error {
 			for _, sector := range sectors {
