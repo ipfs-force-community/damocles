@@ -32,6 +32,18 @@ type Task struct {
 	UpdatedAt   uint64
 }
 
+func (t *Task) Finished(maxTry uint32) bool {
+	if t.FinishedAt == 0 {
+		return false
+	}
+
+	if t.ErrorReason != "" && t.tryNum < maxTry {
+		return false
+	}
+
+	return true
+}
+
 type AllocatedTask struct {
 	ID    string
 	Input stage.WindowPoSt
@@ -49,7 +61,7 @@ type TaskManager interface {
 	RetryFailedTasks(ctx context.Context, maxTry, limit uint32) error
 }
 
-func genTaskID(rawInput []byte) string {
+func GenTaskID(rawInput []byte) string {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, xxhash.Sum64(rawInput))
 	return base64.URLEncoding.EncodeToString(b)

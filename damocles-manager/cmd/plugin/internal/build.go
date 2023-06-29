@@ -86,7 +86,7 @@ func goBuild(ctx context.Context, goc, srcDir, outDir string) error {
 	if err != nil {
 		return fmt.Errorf("read pkg %s's manifest failure: %w", srcDir, err)
 	}
-	manifest["buildTime"] = time.Now().Format("2006.01.02 15:04:05")
+	manifest["buildTime"] = time.Now().Format(time.RFC3339)
 
 	pluginName := manifest["name"].(string)
 	tmpl, err := template.New("gen-plugin").Parse(codeTemplate)
