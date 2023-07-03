@@ -1,6 +1,6 @@
 [package]
 name = "damocles-worker"
-version = "0.7.0"
+version = "0.7.1"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2021"
 exclude = [
@@ -34,7 +34,7 @@ jsonrpc-derive = "18"
 jsonrpc-http-server = "18"
 toml = "0.7"
 humantime-serde = "1"
-clap = { version = "4.2", features = ["derive"] }
+clap = { version = "4.2", features = ["derive", "env"] }
 signal-hook = "0.3"
 multiaddr = "0.17.1"
 rand = "0.8.5"

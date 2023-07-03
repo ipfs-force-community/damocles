@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.1
+- damocles-worker
+  - 修复 pc1 无法从环境变量中加载大页内存路径的 bug [#804](https://github.com/ipfs-force-community/damocles/pull/804)
+
 ## v0.7.0
 
 ## v0.7.0-rc3

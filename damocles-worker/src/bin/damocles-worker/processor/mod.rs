@@ -30,14 +30,14 @@ pub enum ProcessorCommand {
         ///
         /// Make sure that the memory files stored in the folder are created in the numa node corresponding to $NUMA_NODE_INDEX.
         /// This argument will be ignored if `hugepage_files_path_pattern` is specified.
-        #[arg(long, alias = "hugepage_files_path")]
+        #[arg(long, alias = "hugepage_files_path", env = "HUGEPAGE_FILES_PATH")]
         hugepage_files_path: Option<String>,
         /// Specify the hugepage memory file path pattern where $NUMA_NODE_INDEX represents
         /// the numa node index placeholder, which extracts the number in the folder name as the numa node index
         /// Make sure that the memory files stored in the folder are created in the numa node corresponding to $NUMA_NODE_INDEX.
         /// If both the argument `hugepage_files_path` and the argument `hugepage_files_path_pattern` are specified,
         /// the argument `hugepage_files_path` will be ignored.
-        #[arg(long, alias = "hugepage_files_path_pattern")]
+        #[arg(long, alias = "hugepage_files_path_pattern", env = "HUGEPAGE_FILES_PATH_PATTERN")]
         hugepage_files_path_pattern: Option<String>,
     },
     #[command(name=STAGE_NAME_PC2)]
