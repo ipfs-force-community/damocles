@@ -138,7 +138,10 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 	if err != nil {
 		return nil, err
 	}
-	return sectors[0], nil
+	if len(sectors) > 0 {
+		return sectors[0], nil
+	}
+	return nil, nil
 }
 
 func (s *Sealer) AllocateSectorsBatch(ctx context.Context, spec core.AllocateSectorSpec, count uint32) ([]*core.AllocatedSector, error) {
