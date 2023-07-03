@@ -80,71 +80,20 @@ func (*Prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.Aggre
 }
 
 func (p *Prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, sectors prover.SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, []abi.SectorID, error) {
-	randomness[31] &= 0x3f
 
 	if p.windowProc == nil {
 		return prover.Prover.GenerateWindowPoSt(ctx, minerID, sectors, randomness)
 	}
 
-	sectorInners := sectors.Values()
-	if len(sectorInners) == 0 {
-		return nil, nil, nil
-	}
-
-	proofType := sectorInners[0].PoStProofType
-	data := stage.WindowPoSt{
-		MinerID:   minerID,
-		ProofType: stage.ProofType2String(proofType),
-	}
-	copy(data.Seed[:], randomness[:])
-
-	for i := range sectorInners {
-		inner := sectorInners[i]
-
-		if pt := inner.PoStProofType; pt != proofType {
-			return nil, nil, fmt.Errorf("proof type not match for sector %d of miner %d: want %s, got %s", inner.SectorNumber, minerID, stage.ProofType2String(proofType), stage.ProofType2String(pt))
-		}
-
-		commR, err := util.CID2ReplicaCommitment(inner.SealedCID)
+	return prover.ExtGenerateWindowPoSt(minerID, sectors, randomness)(func(data stage.WindowPoSt) (stage.WindowPoStOutput, error) {
+		var res stage.WindowPoStOutput
+		err := p.windowProc.Process(ctx, data, &res)
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid selaed cid %s for sector %d of miner %d: %w", inner.SealedCID, inner.SectorNumber, minerID, err)
+			return res, fmt.Errorf("WindowPoStProcessor.Process: %w", err)
 		}
+		return res, nil
+	})
 
-		data.Replicas = append(data.Replicas, stage.PoStReplicaInfo{
-			SectorID:   inner.SectorNumber,
-			CommR:      commR,
-			CacheDir:   inner.CacheDirPath,
-			SealedFile: inner.SealedSectorPath,
-		})
-	}
-
-	var res stage.WindowPoStOutput
-
-	err := p.windowProc.Process(ctx, data, &res)
-	if err != nil {
-		return nil, nil, fmt.Errorf("WindowPoStProcessor.Process: %w", err)
-	}
-
-	if faultCount := len(res.Faults); faultCount != 0 {
-		faults := make([]abi.SectorID, faultCount)
-		for fi := range res.Faults {
-			faults[fi] = abi.SectorID{
-				Miner:  minerID,
-				Number: res.Faults[fi],
-			}
-		}
-
-		return nil, faults, fmt.Errorf("got %d fault sectors", faultCount)
-	}
-
-	proofs := make([]builtin.PoStProof, len(res.Proofs))
-	for pi := range res.Proofs {
-		proofs[pi] = builtin.PoStProof{
-			PoStProof:  proofType,
-			ProofBytes: res.Proofs[pi],
-		}
-	}
-	return proofs, nil, nil
 }
 
 func (p *Prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sectors prover.SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
