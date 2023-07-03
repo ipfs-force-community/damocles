@@ -19,6 +19,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/commitmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/dealmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/mock"
+	proverworker "github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover/worker"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/sectors"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/worker"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
@@ -46,6 +47,7 @@ type (
 	WorkerMetaStore             kvstore.KVStore
 	ConfDirPath                 string
 	CommonMetaStore             kvstore.KVStore
+	WorkerProverStore           kvstore.KVStore
 )
 
 func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
@@ -292,34 +294,26 @@ func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Conf
 	return mcli, nil
 }
 
-// used for cli commands
-func MaybeSealerCliClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) core.SealerCliClient {
-	var cli core.SealerCliClient
-	err := buildDamoclesAPIClient(gctx, lc, core.SealerAPINamespace, &cli, string(listen), false)
+func MaybeAPIClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) *core.APIClient {
+	var client core.APIClient
+	err := buildDamoclesAPIClient(gctx, lc, core.APINamespace, &client, string(listen), false)
 	if err != nil {
-		log.Errorf("failed to build sealer cli client. err: %s", err)
-		cli = core.UnavailableSealerCliClient
+		log.Errorf("failed to build api client. err: %s", err)
+		client = core.UnavailableAPIClient
 	}
 
-	return cli
-}
-
-// used for cli commands
-func MaybeMinerAPIClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) core.MinerAPIClient {
-	var c core.MinerAPIClient
-	err := buildDamoclesAPIClient(gctx, lc, core.MinerAPINamespace, &c, string(listen), false)
-	if err != nil {
-		log.Errorf("failed to build miner api client. err: %s", err)
-		c = core.UnavailableMinerAPIClient
-	}
-	return c
+	return &client
 }
 
 // used for proxy
-func BuildSealerProxyClient(gctx GlobalContext, lc fx.Lifecycle, proxy ProxyAddress) (core.SealerCliClient, error) {
-	var cli core.SealerCliClient
-	err := buildDamoclesAPIClient(gctx, lc, core.SealerAPINamespace, &cli, string(proxy), true)
-	return cli, err
+func BuildAPIProxyClient(gctx GlobalContext, lc fx.Lifecycle, proxy ProxyAddress) (*core.APIClient, error) {
+	var proxyClient core.APIClient
+	err := buildDamoclesAPIClient(gctx, lc, core.APINamespace, &proxyClient, string(proxy), true)
+	return &proxyClient, err
+}
+
+func BuildSealerCliAPIClient(client *core.APIClient) *core.SealerCliAPIClient {
+	return &client.SealerCliAPIClient
 }
 
 func buildDamoclesAPIClient(gctx GlobalContext, lc fx.Lifecycle, namespace string, out interface{}, serverAddr string, useHTTP bool) error {
@@ -677,7 +671,7 @@ func BuildWorkerManager(meta WorkerMetaStore) (core.WorkerManager, error) {
 	return worker.NewManager(meta)
 }
 
-func BuildProxiedSectorIndex(client core.SealerCliClient, storeMgr PersistedObjectStoreManager) (core.SectorIndexer, error) {
+func BuildProxiedSectorIndex(client *core.SealerCliAPIClient, storeMgr PersistedObjectStoreManager) (core.SectorIndexer, error) {
 	log.Debug("build proxied sector indexer")
 	return sectors.NewProxiedIndexer(client, storeMgr)
 }
@@ -698,4 +692,16 @@ func BuildUnsealManager(
 		return nil, fmt.Errorf("construct unseal manager: %w", err)
 	}
 	return mgr, nil
+}
+
+func BuildWorkerProverStore(gctx GlobalContext, db UnderlyingDB) (WorkerProverStore, error) {
+	return db.OpenCollection(gctx, "prover")
+}
+
+func BuildWorkerWdPoStTaskManager(kv WorkerProverStore) (core.WorkerWdPoStTaskManager, error) {
+	wdpostKV, err := kvstore.NewWrappedKVStore([]byte("wdpost-"), kv)
+	if err != nil {
+		return nil, err
+	}
+	return proverworker.NewKVTaskManager(*kvstore.NewKVExt(wdpostKV)), nil
 }

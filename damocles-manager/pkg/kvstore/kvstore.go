@@ -78,15 +78,15 @@ type TxnExt struct {
 	Txn
 }
 
-func (et TxnExt) PeekAny(f func(Val) error, keys ...Key) error {
+func (et TxnExt) PeekAny(f func(Val) error, keys ...Key) (Key, error) {
 	for _, k := range keys {
 		err := et.Peek(k, f)
 		if errors.Is(err, ErrKeyNotFound) {
 			continue
 		}
-		return err
+		return k, err
 	}
-	return ErrKeyNotFound
+	return []byte{}, ErrKeyNotFound
 }
 
 func (et TxnExt) PutJson(k Key, v any) error {

@@ -166,7 +166,7 @@ var utilSealerSectorsListCmd = &cli.Command{
 
 		defer stop()
 
-		states, err := cli.Sealer.ListSectors(gctx, extractListWorkerState(cctx), core.SectorWorkerJobAll)
+		states, err := cli.Damocles.ListSectors(gctx, extractListWorkerState(cctx), core.SectorWorkerJobAll)
 		if err != nil {
 			return err
 		}
@@ -296,7 +296,7 @@ var utilSealerSectorsRestoreCmd = &cli.Command{
 
 		defer stop()
 
-		_, err = cli.Sealer.RestoreSector(gctx, abi.SectorID{
+		_, err = cli.Damocles.RestoreSector(gctx, abi.SectorID{
 			Miner:  miner,
 			Number: abi.SectorNumber(sectorNum),
 		}, cctx.Bool("force"))
@@ -460,7 +460,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 		toCheck := bitfield.New()
 		toCheckSectors := make(map[abi.SectorNumber]*core.SectorState)
 		{
-			sectors, err := extAPI.Sealer.ListSectors(ctx, core.WorkerOffline, core.SectorWorkerJobAll)
+			sectors, err := extAPI.Damocles.ListSectors(ctx, core.WorkerOffline, core.SectorWorkerJobAll)
 			if err != nil {
 				return fmt.Errorf("getting sector list: %w", err)
 			}
@@ -575,7 +575,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 			for _, number := range toRemove {
 				fmt.Printf("Removing sector\t%s:\t", color.YellowString("%d", number))
 
-				err = extAPI.Sealer.RemoveSector(ctx, abi.SectorID{Miner: abi.ActorID(actor), Number: number})
+				err = extAPI.Damocles.RemoveSector(ctx, abi.SectorID{Miner: abi.ActorID(actor), Number: number})
 				if err != nil {
 					color.Red("ERROR: %s\n", err.Error())
 				} else {
@@ -1196,7 +1196,7 @@ var utilSealerSectorsTerminateCmd = &cli.Command{
 		}
 
 		actor := cctx.Uint64("actor")
-		resp, err := cli.Sealer.TerminateSector(gctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(id)})
+		resp, err := cli.Damocles.TerminateSector(gctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(id)})
 		if err != nil {
 			return err
 		}
@@ -1228,7 +1228,7 @@ var utilSealerSectorsTerminateQueryCmd = &cli.Command{
 		}
 
 		actor := cctx.Uint64("actor")
-		resp, err := cli.Sealer.PollTerminateSectorState(gctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(id)})
+		resp, err := cli.Damocles.PollTerminateSectorState(gctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(id)})
 		if err != nil {
 			return err
 		}
@@ -1276,7 +1276,7 @@ var utilSealerSectorsRemoveCmd = &cli.Command{
 		}
 
 		actor := cctx.Uint64("actor")
-		err = cli.Sealer.RemoveSector(gctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(id)})
+		err = cli.Damocles.RemoveSector(gctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(id)})
 		if err != nil {
 			return err
 		}
@@ -1319,7 +1319,7 @@ var utilSealerSectorsFinalizeCmd = &cli.Command{
 		}
 
 		actor := cctx.Uint64("actor")
-		err = cli.Sealer.FinalizeSector(gctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(id)})
+		err = cli.Damocles.FinalizeSector(gctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(id)})
 		if err != nil {
 			return err
 		}
@@ -1367,7 +1367,7 @@ var utilSealerSectorsStateCmd = &cli.Command{
 			Number: sectorNumber,
 		}
 
-		state, err := cli.Sealer.FindSectorInAllStates(gctx, sid)
+		state, err := cli.Damocles.FindSectorInAllStates(gctx, sid)
 		if err != nil {
 			return RPCCallError("FindSectorInAllStates", err)
 		}
@@ -1496,7 +1496,7 @@ var utilSealerSectorsFindDealCmd = &cli.Command{
 
 		defer stop()
 
-		sectors, err := cli.Sealer.FindSectorsWithDeal(gctx, extractListWorkerState(cctx), abi.DealID(dealID))
+		sectors, err := cli.Damocles.FindSectorsWithDeal(gctx, extractListWorkerState(cctx), abi.DealID(dealID))
 		if err != nil {
 			return RPCCallError("FindSectorsWithDeal", err)
 		}
@@ -1549,7 +1549,7 @@ var utilSealerSectorsResendPreCommitCmd = &cli.Command{
 			Number: sectorNumber,
 		}
 
-		state, err := cli.Sealer.FindSector(gctx, core.WorkerOnline, sid)
+		state, err := cli.Damocles.FindSector(gctx, core.WorkerOnline, sid)
 		if err != nil {
 			return RPCCallError("FindSector", err)
 		}
@@ -1571,7 +1571,7 @@ var utilSealerSectorsResendPreCommitCmd = &cli.Command{
 			return fmt.Errorf("convert to pre commit on chain info: %w", err)
 		}
 
-		resp, err := cli.Sealer.SubmitPreCommit(gctx, core.AllocatedSector{
+		resp, err := cli.Damocles.SubmitPreCommit(gctx, core.AllocatedSector{
 			ID:        sid,
 			ProofType: state.SectorType,
 		}, onChainInfo, true)
@@ -1624,7 +1624,7 @@ var utilSealerSectorsResendProveCommitCmd = &cli.Command{
 			Number: sectorNumber,
 		}
 
-		state, err := cli.Sealer.FindSector(gctx, core.WorkerOnline, sid)
+		state, err := cli.Damocles.FindSector(gctx, core.WorkerOnline, sid)
 		if err != nil {
 			return RPCCallError("FindSector", err)
 		}
@@ -1637,7 +1637,7 @@ var utilSealerSectorsResendProveCommitCmd = &cli.Command{
 			return fmt.Errorf("sector is still being marked as 'Need To Be Send' in the state machine")
 		}
 
-		resp, err := cli.Sealer.SubmitProof(gctx, sid, *state.Proof, true)
+		resp, err := cli.Damocles.SubmitProof(gctx, sid, *state.Proof, true)
 
 		if err != nil {
 			return RPCCallError("SubmitProof", err)
@@ -1737,7 +1737,7 @@ var utilSealerSectorsImportCmd = &cli.Command{
 				continue
 			}
 
-			imported, err := cli.Sealer.ImportSector(gctx, core.WorkerOffline, state, override)
+			imported, err := cli.Damocles.ImportSector(gctx, core.WorkerOffline, state, override)
 			if err != nil {
 				slog.Errorf("import failed: %s", err)
 				continue
@@ -1818,7 +1818,7 @@ var utilSealerSectorsExportMetadataCmd = &cli.Command{
 			}
 			defer stop()
 
-			states, err := cli.Sealer.ListSectors(gctx, core.WorkerOffline, core.SectorWorkerJobAll)
+			states, err := cli.Damocles.ListSectors(gctx, core.WorkerOffline, core.SectorWorkerJobAll)
 			if err != nil {
 				return err
 			}
@@ -1970,7 +1970,7 @@ var utilSealerSectorsExportFilesCmd = &cli.Command{
 		}
 		defer stop()
 
-		states, err := cli.Sealer.ListSectors(gctx, core.WorkerOffline, core.SectorWorkerJobAll)
+		states, err := cli.Damocles.ListSectors(gctx, core.WorkerOffline, core.SectorWorkerJobAll)
 		if err != nil {
 			return err
 		}
@@ -1989,7 +1989,7 @@ var utilSealerSectorsExportFilesCmd = &cli.Command{
 				continue
 			}
 
-			loc, err := cli.Sealer.ProvingSectorInfo(ctx, state.ID)
+			loc, err := cli.Damocles.ProvingSectorInfo(ctx, state.ID)
 			if err != nil {
 				fmt.Fprintf(os.Stdout, "find sector %v location: %s\n", state.ID.Number, err)
 				failCounts++
@@ -2337,7 +2337,7 @@ var utilSealerSectorsRebuildCmd = &cli.Command{
 
 		defer stop()
 
-		_, err = cli.Sealer.SectorSetForRebuild(gctx, abi.SectorID{
+		_, err = cli.Damocles.SectorSetForRebuild(gctx, abi.SectorID{
 			Miner:  miner,
 			Number: abi.SectorNumber(sectorNum),
 		}, core.RebuildOptions{
@@ -2394,7 +2394,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		}
 
 		// query sector for piece
-		sector, err := cli.Sealer.FindSectorWithPiece(gctx, core.WorkerOffline, pieceCid)
+		sector, err := cli.Damocles.FindSectorWithPiece(gctx, core.WorkerOffline, pieceCid)
 		if err != nil {
 			return fmt.Errorf("find sector with piece: %w", err)
 		}
@@ -2426,7 +2426,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		dest := cctx.String("dest")
 		output := cctx.String("output")
 
-		stream, err := cli.Sealer.UnsealPiece(gctx, sector.ID, pieceCid, offset, size, dest)
+		stream, err := cli.Damocles.UnsealPiece(gctx, sector.ID, pieceCid, offset, size, dest)
 		if err != nil {
 			return fmt.Errorf("set task for unseal failed: %w", err)
 		}

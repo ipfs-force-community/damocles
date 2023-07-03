@@ -48,7 +48,7 @@ var utilSealerSnapFetchCmd = &cli.Command{
 
 		defer stop()
 
-		res, err := api.Sealer.SnapUpPreFetch(gctx, mid, &deadidx)
+		res, err := api.Damocles.SnapUpPreFetch(gctx, mid, &deadidx)
 		if err != nil {
 			return RPCCallError("SnapPreFetch", err)
 		}
@@ -88,7 +88,7 @@ var utilSealerSnapCandidatesCmd = &cli.Command{
 
 		defer stop()
 
-		candidates, err := api.Sealer.SnapUpCandidates(gctx, mid)
+		candidates, err := api.Damocles.SnapUpCandidates(gctx, mid)
 		if err != nil {
 			return RPCCallError("SnapPreFetch", err)
 		}
@@ -150,7 +150,7 @@ var utilSealerSnapCancelCommitmentCmd = &cli.Command{
 
 		defer stop()
 
-		err = api.Sealer.SnapUpCancelCommitment(gctx, abi.SectorID{
+		err = api.Damocles.SnapUpCancelCommitment(gctx, abi.SectorID{
 			Miner:  mid,
 			Number: num,
 		})
