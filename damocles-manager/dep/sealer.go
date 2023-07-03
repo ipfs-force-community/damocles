@@ -11,6 +11,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/mock"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover"
+	proverworker "github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover/worker"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/randomness"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/sealer"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
@@ -79,6 +80,10 @@ func Product() dix.Option {
 		dix.Override(new(OfflineMetaStore), BuildOfflineMetaStore),
 		dix.Override(new(WorkerMetaStore), BuildWorkerMetaStore),
 		dix.Override(new(CommonMetaStore), BuildCommonMetaStore),
+		dix.Override(new(WorkerProverStore), BuildWorkerProverStore),
+
+		dix.Override(new(core.WorkerWdPoStTaskManager), BuildWorkerWdPoStTaskManager),
+		dix.Override(new(core.WorkerWdPoStAPI), proverworker.NewWdPoStAPIImpl),
 	)
 }
 
@@ -89,7 +94,8 @@ type ProxyOptions struct {
 func Proxy(dest string, opt ProxyOptions) dix.Option {
 	return dix.Options(
 		dix.Override(new(ProxyAddress), ProxyAddress(dest)),
-		dix.Override(new(core.SealerCliClient), BuildSealerProxyClient),
+		dix.Override(new(core.APIClient), BuildAPIProxyClient),
+		dix.Override(new(core.SealerCliAPIClient), BuildSealerCliAPIClient),
 		dix.If(opt.EnableSectorIndexer,
 			dix.Override(new(core.SectorIndexer), BuildProxiedSectorIndex),
 		),
@@ -114,10 +120,10 @@ func APIClient(target ...interface{}) dix.Option {
 		dix.Override(new(*modules.Config), ProvideConfig),
 		dix.Override(new(*modules.SafeConfig), ProvideSafeConfig),
 		dix.Override(new(chain.API), BuildChainClient),
-		dix.Override(new(core.MinerAPIClient), MaybeMinerAPIClient),
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.Override(new(market.API), BuildMarketAPI),
-		dix.Override(new(core.SealerCliClient), MaybeSealerCliClient),
+		dix.Override(new(core.APIClient), MaybeAPIClient),
+		dix.Override(new(core.SealerCliAPIClient), BuildSealerCliAPIClient),
 		dix.If(len(target) > 0, dix.Populate(InvokePopulate, target...)),
 	)
 }

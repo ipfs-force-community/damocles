@@ -45,7 +45,7 @@ var utilWorkerListCmd = &cli.Command{
 		}
 		defer stopper()
 
-		pinfos, err := a.Sealer.WorkerPingInfoList(actx)
+		pinfos, err := a.Damocles.WorkerPingInfoList(actx)
 		if err != nil {
 			return RPCCallError("WorkerPingInfoList", err)
 		}
@@ -97,7 +97,7 @@ var utilWorkerRemoveCmd = &cli.Command{
 		}
 		defer stopper()
 
-		workerInfo, err := a.Sealer.WorkerGetPingInfo(actx, name)
+		workerInfo, err := a.Damocles.WorkerGetPingInfo(actx, name)
 		if err != nil {
 			return RPCCallError("WorkerGetPingInfo", err)
 		}
@@ -106,7 +106,7 @@ var utilWorkerRemoveCmd = &cli.Command{
 			return fmt.Errorf("worker info not found. please make sure the instance name is correct: %s", name)
 		}
 
-		if err = a.Sealer.WorkerPingInfoRemove(actx, name); err != nil {
+		if err = a.Damocles.WorkerPingInfoRemove(actx, name); err != nil {
 			return err
 		}
 		fmt.Printf("'%s' removed\n", name)
@@ -273,7 +273,7 @@ func resolveWorkerDest(ctx context.Context, a *APIClient, name string) (string, 
 	var info *core.WorkerPingInfo
 	var err error
 	if a != nil {
-		info, err = a.Sealer.WorkerGetPingInfo(ctx, name)
+		info, err = a.Damocles.WorkerGetPingInfo(ctx, name)
 		if err != nil {
 			return "", RPCCallError("WorkerGetPingInfo", err)
 		}

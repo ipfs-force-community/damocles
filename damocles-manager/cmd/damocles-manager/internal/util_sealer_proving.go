@@ -627,7 +627,7 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 				return fmt.Errorf("invalid seal proof type %d: %w", tocheck[0].SealProof, err)
 			}
 
-			bad, err := api.Sealer.CheckProvable(ctx, abi.ActorID(mid), postProofType, tocheck, slow, stateCheck)
+			bad, err := api.Damocles.CheckProvable(ctx, abi.ActorID(mid), postProofType, tocheck, slow, stateCheck)
 			if err != nil {
 				return err
 			}
@@ -752,7 +752,7 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			return fmt.Errorf("convert to winning post proof: %w", err)
 		}
 
-		err = api.Sealer.SimulateWdPoSt(ctx, maddr, ppt, proofSectors, rand)
+		err = api.Damocles.SimulateWdPoSt(ctx, maddr, ppt, proofSectors, rand)
 		if err != nil {
 			return err
 		}
@@ -792,7 +792,7 @@ var utilSealerProvingSectorInfoCmd = &cli.Command{
 
 			slog := mlog.With("num", num)
 
-			info, err := api.Sealer.ProvingSectorInfo(actx, abi.SectorID{
+			info, err := api.Damocles.ProvingSectorInfo(actx, abi.SectorID{
 				Miner:  mid,
 				Number: abi.SectorNumber(num),
 			})

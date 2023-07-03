@@ -2,10 +2,13 @@ package worker
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/cespare/xxhash"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
@@ -16,8 +19,14 @@ import (
 
 var log = logging.New("worker prover")
 
+func GenTaskID(rawInput []byte) string {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, xxhash.Sum64(rawInput))
+	return base64.URLEncoding.EncodeToString(b)
+}
+
 type workerProver struct {
-	taskMgr TaskManager
+	taskMgr core.WorkerWdPoStTaskManager
 
 	inflightTasks map[string][]chan<- struct {
 		output *stage.WindowPoStOutput
@@ -33,7 +42,7 @@ type workerProver struct {
 	taskLifetime                   time.Duration
 }
 
-func NewProver(taskMgr TaskManager) core.Prover {
+func NewProver(taskMgr core.WorkerWdPoStTaskManager) core.Prover {
 	return &workerProver{
 		taskMgr: taskMgr,
 		inflightTasks: make(map[string][]chan<- struct {
@@ -71,7 +80,7 @@ func (p *workerProver) runNotifyTaskDoneJob(ctx context.Context) {
 			}
 			p.inflightTasksLock.Unlock()
 
-			finishedTasks, err := p.taskMgr.ListByTaskIDs(ctx, TaskFinished, inflightTaskIDs...)
+			finishedTasks, err := p.taskMgr.ListByTaskIDs(ctx, core.WdPoStTaskFinished, inflightTaskIDs...)
 			if err != nil {
 				log.Errorf("failed to list tasks: %s", err)
 			}

@@ -426,7 +426,7 @@ var utilStorageListCmd = &cli.Command{
 		}
 		defer astop()
 
-		details, err := api.Sealer.StoreList(actx)
+		details, err := api.Damocles.StoreList(actx)
 		if err != nil {
 			return RPCCallError("StoreList", err)
 		}
@@ -489,7 +489,7 @@ var utilStorageReleaseReservedCmd = &cli.Command{
 			Miner:  minerID,
 			Number: num,
 		}
-		done, err := api.Sealer.StoreReleaseReserved(actx, sid)
+		done, err := api.Damocles.StoreReleaseReserved(actx, sid)
 		if err != nil {
 			return RPCCallError("StoreReleaseReserved", err)
 		}
