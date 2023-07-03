@@ -393,7 +393,7 @@ var utilSealerActorControlList = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("invalid miner addr '%s': %w", maddr, err)
 		}
-		minerConfig, err := api.Miner.GetMinerConfig(ctx, abi.ActorID(mid))
+		minerConfig, err := api.Damocles.GetMinerConfig(ctx, abi.ActorID(mid))
 		if err != nil {
 			return fmt.Errorf("get miner config: %w", err)
 		}

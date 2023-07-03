@@ -15,7 +15,7 @@ var _ core.SectorTypedIndexer = (*proxiedTypeIndexer)(nil)
 
 type proxiedTypeIndexer struct {
 	indexType core.SectorIndexType
-	client    core.SealerCliClient
+	client    *core.SealerCliAPIClient
 }
 
 func (p *proxiedTypeIndexer) Find(ctx context.Context, sid abi.SectorID) (core.SectorAccessStores, bool, error) {
@@ -31,7 +31,7 @@ func (p *proxiedTypeIndexer) Update(ctx context.Context, sid abi.SectorID, store
 	return ErrProxiedTypedIndexerUnableForUpdating
 }
 
-func NewProxiedIndexer(client core.SealerCliClient, storeMgr objstore.Manager) (core.SectorIndexer, error) {
+func NewProxiedIndexer(client *core.SealerCliAPIClient, storeMgr objstore.Manager) (core.SectorIndexer, error) {
 	return &proxiedIndexer{
 		client:   client,
 		storeMgr: storeMgr,
@@ -39,7 +39,7 @@ func NewProxiedIndexer(client core.SealerCliClient, storeMgr objstore.Manager) (
 }
 
 type proxiedIndexer struct {
-	client   core.SealerCliClient
+	client   *core.SealerCliAPIClient
 	storeMgr objstore.Manager
 }
 

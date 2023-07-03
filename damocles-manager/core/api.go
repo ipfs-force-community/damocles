@@ -11,19 +11,29 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
 )
 
+//go:generate go run gen.go -interface=SealerAPI,SealerCliAPI,RandomnessAPI,MinerAPI,WorkerWdPoStAPI
+
 const (
-	// TODO: The sealerAPI namespace is Venus due to historical reasons,
+	// TODO: The APINamespace is Venus due to historical reasons,
 	// and we should consider changing it to a more appropriate name in future versions
-	SealerAPINamespace = "Venus"
-	MinerAPINamespace  = "Damocles.miner"
-	MajorVersion       = 0
+	APINamespace = "Venus"
+	MajorVersion = 0
 )
 
 var Empty Meta
 
 type Meta *struct{}
+
+type API interface {
+	SealerAPI
+	SealerCliAPI
+	RandomnessAPI
+	MinerAPI
+	WorkerWdPoStAPI
+}
 
 type SealerAPI interface {
 	AllocateSector(context.Context, AllocateSectorSpec) (*AllocatedSector, error)
@@ -73,9 +83,6 @@ type SealerAPI interface {
 	AllocateUnsealSector(ctx context.Context, spec AllocateSectorSpec) (*SectorUnsealInfo, error)
 	AchieveUnsealSector(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (Meta, error)
 	AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error)
-
-	// utils
-	SealerCliAPI
 }
 
 type SealerCliAPI interface {
@@ -109,6 +116,8 @@ type SealerCliAPI interface {
 
 	WorkerPingInfoList(ctx context.Context) ([]WorkerPingInfo, error)
 
+	WorkerPingInfoRemove(ctx context.Context, name string) error
+
 	SectorIndexerFind(ctx context.Context, indexType SectorIndexType, sid abi.SectorID) (SectorIndexLocation, error)
 
 	TerminateSector(context.Context, abi.SectorID) (SubmitTerminateResp, error)
@@ -141,4 +150,12 @@ type RandomnessAPI interface {
 type MinerAPI interface {
 	GetInfo(context.Context, abi.ActorID) (*MinerInfo, error)
 	GetMinerConfig(context.Context, abi.ActorID) (*modules.MinerConfig, error)
+}
+
+type WorkerWdPoStAPI interface {
+	WdPoStHeartbeatTask(ctx context.Context, runningTaskIDs []string, workerName string) error
+	WdPoStAllocateTasks(ctx context.Context, num uint32, workName string) (allocatedTasks []WdPoStAllocatedTask, err error)
+	WdPoStFinishTask(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error
+	WdPoStResetTask(ctx context.Context, taskID string) error
+	WdPoStAllTasks(ctx context.Context) ([]*WdPoStTask, error)
 }
