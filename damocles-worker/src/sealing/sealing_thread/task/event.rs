@@ -12,9 +12,11 @@ use crate::sealing::processor::{
 };
 use crate::{logging::trace, metadb::MaybeDirty};
 use crate::{
-    rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, SectorUnsealInfo, Seed, Ticket},
+    rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, SectorUnsealInfo, Seed, Ticket, WdPostTaskInfo},
     sealing::sealing_thread::task::sector::UnsealInput,
 };
+
+use vc_processors::builtin::tasks::WindowPoStOutput;
 
 pub enum Event {
     SetState(State),
@@ -312,6 +314,10 @@ impl Event {
                         private: info.private_info
                     }
                 );
+            }
+
+            Self::WdPostGenerated(out) => {
+                replace!(s.phases.wd_post_out, out);
             }
 
             _ => {}
