@@ -13,8 +13,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::sealing::processor::external::config::Ext;
 
+/// Default worker server port
 pub const DEFAULT_WORKER_SERVER_PORT: u16 = 17890;
 pub const DEFAULT_WORKER_SERVER_HOST: &str = "0.0.0.0";
+/// The localhost addr
 pub const LOCAL_HOST: &str = "127.0.0.1";
 pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(20);
 

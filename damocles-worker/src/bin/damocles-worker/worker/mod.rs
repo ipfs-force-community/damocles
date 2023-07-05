@@ -1,25 +1,29 @@
 use std::fs;
-use std::path::Path;
+use std::net::SocketAddr;
 use std::time::Duration;
 use std::{io::Write, path::PathBuf};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 
 use damocles_worker::{
     block_on,
     client::{connect, WorkerClient},
     logging::info,
-    Config,
+    Config, DEFAULT_WORKER_SERVER_PORT, LOCAL_HOST,
 };
 use jsonrpc_core::ErrorCode;
 use jsonrpc_core_client::RpcError;
 
 #[derive(Parser)]
 pub(crate) struct WorkerCommand {
+    /// Daemon socket(s) to connect to
+    #[arg(short = 'H', long)]
+    host: Option<SocketAddr>,
+
     /// Path to the config file
-    #[arg(short = 'c', long, value_name = "FILE")]
-    config: PathBuf,
+    #[arg(short, long, value_name = "FILE")]
+    config: Option<PathBuf>,
 
     #[command(subcommand)]
     subcommand: WorkerSubCommand,
@@ -63,7 +67,7 @@ enum WorkerSubCommand {
 }
 
 pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
-    let wcli = get_client(&cmd.config)?;
+    let wcli = get_client(cmd.host.as_ref(), cmd.config.as_ref())?;
     match &cmd.subcommand {
         WorkerSubCommand::List => {
             let infos = block_on(wcli.worker_list()).map_err(|e| anyhow!("rpc error: {:?}", e))?;
@@ -119,7 +123,17 @@ pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
     }
 }
 
-fn get_client(config_path: impl AsRef<Path>) -> Result<WorkerClient> {
-    let cfg = Config::load(config_path)?;
-    connect(&cfg)
+fn get_client(host: Option<&SocketAddr>, config: Option<&PathBuf>) -> Result<WorkerClient> {
+    let host = match (host, config) {
+        (None, None) => {
+            let h = format!("{}:{}", LOCAL_HOST, DEFAULT_WORKER_SERVER_PORT);
+            h.parse().with_context(|| format!("parse connect address: {}", h))?
+        }
+        (Some(host), None) => host.clone(),
+        (None, Some(config)) | (Some(_), Some(config)) => {
+            let cfg = Config::load(config)?;
+            cfg.worker_server_connect_addr()?
+        }
+    };
+    connect(host)
 }
