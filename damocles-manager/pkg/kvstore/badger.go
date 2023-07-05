@@ -113,13 +113,23 @@ func (b *BadgerKVStore) Scan(ctx context.Context, prefix Prefix) (it Iter, err e
 	txn := b.db.NewTransaction(false)
 	iter := txn.NewIterator(badger.DefaultIteratorOptions)
 
-	return &BadgerIter{
-		txn:    txn,
-		iter:   iter,
-		seeked: false,
-		valid:  false,
-		prefix: prefix,
-	}, nil
+	return &BadgerIterWithoutTrans{
+		BadgerIter: &BadgerIter{
+			txn:    txn,
+			iter:   iter,
+			seeked: false,
+			valid:  false,
+			prefix: prefix,
+		}}, nil
+}
+
+type BadgerIterWithoutTrans struct {
+	*BadgerIter
+}
+
+func (bi *BadgerIterWithoutTrans) Close() {
+	bi.BadgerIter.Close()
+	bi.txn.Discard()
 }
 
 var _ Txn = (*BadgerTxn)(nil)
@@ -236,7 +246,6 @@ func (bi *BadgerIter) View(ctx context.Context, f func(Val) error) error {
 
 func (bi *BadgerIter) Close() {
 	bi.iter.Close()
-	bi.txn.Discard()
 }
 
 var _ DB = (*badgerDB)(nil)
