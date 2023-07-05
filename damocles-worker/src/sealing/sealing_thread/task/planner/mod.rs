@@ -17,6 +17,8 @@ mod common;
 
 mod unseal;
 
+mod wdpost;
+
 type ExecResult = Result<Event, Failure>;
 
 macro_rules! plan {

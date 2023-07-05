@@ -6,11 +6,12 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub use fil_clock::ChainEpoch;
 pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness};
 
-use crate::rpc::sealer::{AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket};
+use crate::rpc::sealer::{AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket, WdPostTaskInfo};
 use crate::sealing::processor::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
     SnapEncodeOutput,
 };
+use vc_processors::builtin::tasks::WindowPoStOutput;
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
 
@@ -82,6 +83,7 @@ def_state! {
     SnapDone,
     Unsealed,
     UnsealPrepared,
+    WdPostGenerated,
 }
 
 impl std::fmt::Debug for State {
@@ -140,6 +142,11 @@ pub struct Phases {
 
     // unseal
     pub unseal_in: Option<UnsealInput>,
+
+    // window PoST
+    pub wd_post_in: Option<WdPostTaskInfo>,
+
+    pub wd_post_out: Option<WindowPoStOutput>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

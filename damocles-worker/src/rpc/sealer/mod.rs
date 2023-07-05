@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use super::super::types::SealProof;
+use crate::sealing::processor::ChallengeSeed;
 use fil_clock::ChainEpoch;
 use fil_types::{ActorID, PaddedPieceSize, SectorNumber};
 use forest_cid::json::CidJson;
@@ -9,9 +11,7 @@ use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use vc_processors::b64serde::{BytesArray32, BytesVec};
-use vc_processors::fil_proofs::PaddedBytesAmount;
-
-use super::super::types::SealProof;
+use vc_processors::fil_proofs::{Commitment, PaddedBytesAmount, RegisteredPoStProof, SectorId, SnarkProof};
 
 /// type alias for BytesArray32
 pub type Randomness = BytesArray32;
@@ -377,6 +377,44 @@ pub struct SectorUnsealInfo {
     pub private_info: SectorPrivateInfo,
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct PoStSectorInfo {
+    pub sector_id: SectorId,
+    pub comm_r: Commitment,
+    pub access_instance: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WdPostTaskInfo {
+    pub miner_id: ActorID,
+    pub deadline_id: u64,
+    pub sectors: Vec<PoStSectorInfo>,
+    pub seed: ChallengeSeed,
+    pub proof_type: RegisteredPoStProof,
+    pub instance: String,
+}
+
+#[derive(Deserialize, Clone, Serialize)]
+pub enum WdpostState {
+    Assigned,
+    Generating,
+    Generated,
+    Failed,
+    Done,
+    Error,
+}
+
+#[derive(Deserialize, Clone, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WdPoStResult {
+    pub state: WdpostState,
+    pub error: Option<String>,
+    pub proofs: Option<Vec<SnarkProof>>,
+    pub faults: Option<Vec<u64>>,
+}
+
 /// defines the SealerRpc service
 #[rpc]
 pub trait Sealer {
@@ -467,4 +505,10 @@ pub trait Sealer {
 
     #[rpc(name = "Venus.AcquireUnsealDest")]
     fn acquire_unseal_dest(&self, id: SectorID, piece_cid: CidJson) -> Result<Vec<String>>;
+
+    #[rpc(name = "Venus.WdPoStAllocateTasks")]
+    fn allocate_wd_post_task(&self, spec: AllocateSectorSpec) -> Result<Option<WdPostTaskInfo>>;
+
+    #[rpc(name = "Venus.WdPoStHeartbeatTask")]
+    fn wd_post_heartbeat(&self, miner_id: ActorID, deadline_id: u64, result: WdPoStResult) -> Result<()>;
 }

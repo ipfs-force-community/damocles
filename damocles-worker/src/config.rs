@@ -207,6 +207,9 @@ pub struct Processors {
 
     /// section for unseal processor
     pub unseal: Option<Vec<Ext>>,
+
+    /// section for fetch processor
+    pub wdpost: Option<Vec<Ext>>,
 }
 
 impl Processors {
