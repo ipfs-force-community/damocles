@@ -13,8 +13,9 @@ pub use worker::WorkerClient;
 /// returns a worker client based on the given config
 pub fn connect(host: SocketAddr) -> Result<WorkerClient> {
     let endpoint = format!("http://{}", host);
-
-    let client = block_on(async move { http::connect(&endpoint).await }).map_err(|e| anyhow!("http connect: {:?}", e))?;
+    let endpoint_ref = &endpoint;
+    let client = block_on(async move { http::connect(endpoint_ref).await })
+        .map_err(|e| anyhow!("http connect: {:?}; endpoint: {}", e, endpoint_ref))?;
 
     Ok(client)
 }

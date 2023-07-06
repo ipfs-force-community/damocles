@@ -18,11 +18,11 @@ use jsonrpc_core_client::RpcError;
 #[derive(Parser)]
 pub(crate) struct WorkerCommand {
     /// Daemon socket(s) to connect to
-    #[arg(short = 'H', long)]
+    #[arg(short = 'H', long, env="DAMOCLES_WORKER_HOST")]
     host: Option<SocketAddr>,
 
     /// Path to the config file
-    #[arg(short, long, value_name = "FILE")]
+    #[arg(short, long, value_name = "FILE", env="DAMOCLES_WORKER_CONFIG")]
     config: Option<PathBuf>,
 
     #[command(subcommand)]
