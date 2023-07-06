@@ -23,7 +23,7 @@ enum Commands {
     /// Run the damocles-worker daemon
     Daemon {
         /// Path to the config file
-        #[arg(short, long)]
+        #[arg(short, long, env = "DAMOCLES_WORKER_CONFIG")]
         config: PathBuf,
     },
     #[command(subcommand)]

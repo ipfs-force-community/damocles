@@ -16,7 +16,7 @@ mod run;
 mod util;
 mod version;
 
-pub use config::Config;
+pub use config::{Config, DEFAULT_WORKER_SERVER_PORT, LOCAL_HOST};
 pub use infra::objstore;
 pub use run::start_daemon;
 pub use sealing::processor::{create_tree_d, RegisteredSealProof, SnapEncodeInput, SnapProveInput};
