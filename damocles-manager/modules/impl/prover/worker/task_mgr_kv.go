@@ -12,6 +12,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
+	"golang.org/x/exp/slices"
 )
 
 func NewKVTaskManager(kv kvstore.KVExt) core.WorkerWdPoStTaskManager {
@@ -45,6 +46,7 @@ func (tm *kvTaskManager) filter(ctx context.Context, txn kvstore.TxnExt, state c
 }
 
 func (tm *kvTaskManager) All(ctx context.Context, filter func(*core.WdPoStTask) bool) (tasks []*core.WdPoStTask, err error) {
+	tasks = make([]*core.WdPoStTask, 0)
 	err = tm.kv.ViewMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		for _, state := range []core.WdPoStTaskState{core.WdPoStTaskReadyToRun, core.WdPoStTaskRunning, core.WdPoStTaskFinished} {
 			ts, err := tm.filter(ctx, txn, state, math.MaxUint32, filter)
@@ -77,7 +79,7 @@ func (tm *kvTaskManager) ListByTaskIDs(ctx context.Context, state core.WdPoStTas
 	return tasks, err
 }
 
-func (tm *kvTaskManager) Create(ctx context.Context, input stage.WindowPoSt) (*core.WdPoStTask, error) {
+func (tm *kvTaskManager) Create(ctx context.Context, input core.WdPoStInput) (*core.WdPoStTask, error) {
 	var (
 		taskID string
 		task   *core.WdPoStTask
@@ -126,10 +128,19 @@ func (tm *kvTaskManager) Create(ctx context.Context, input stage.WindowPoSt) (*c
 	return task, err
 }
 
-func (tm *kvTaskManager) AllocateTasks(ctx context.Context, n uint32, workName string) (allocatedTasks []core.WdPoStAllocatedTask, err error) {
+func (tm *kvTaskManager) AllocateTasks(ctx context.Context, spec core.AllocateWdPoStTaskSpec, n uint32, workerName string) (allocatedTasks []*core.WdPoStAllocatedTask, err error) {
 	var readyToRun []*core.WdPoStTask
+	allocatedTasks = make([]*core.WdPoStAllocatedTask, 0)
 	err = tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
-		readyToRun, err = tm.filter(ctx, txn, core.WdPoStTaskReadyToRun, n, func(_ *core.WdPoStTask) bool { return true })
+		readyToRun, err = tm.filter(ctx, txn, core.WdPoStTaskReadyToRun, n, func(t *core.WdPoStTask) bool {
+			if len(spec.AllowedMiners) > 0 && !slices.Contains(spec.AllowedMiners, t.Input.MinerID) {
+				return false
+			}
+			if len(spec.AllowedProofTypes) > 0 && !slices.Contains(spec.AllowedProofTypes, t.Input.ProofType) {
+				return false
+			}
+			return true
+		})
 		if err != nil {
 			return err
 		}
@@ -137,7 +148,7 @@ func (tm *kvTaskManager) AllocateTasks(ctx context.Context, n uint32, workName s
 		for _, task := range readyToRun {
 			task.TryNum++
 			task.StartedAt = now
-			task.WorkerName = workName
+			task.WorkerName = workerName
 			task.HeartbeatAt = now
 			task.UpdatedAt = now
 			// Moving ready to run tasks to running tasks
@@ -147,7 +158,7 @@ func (tm *kvTaskManager) AllocateTasks(ctx context.Context, n uint32, workName s
 			if err := txn.PutJson([]byte(makeWdPoStKey(core.WdPoStTaskRunning, task.ID)), task); err != nil {
 				return err
 			}
-			allocatedTasks = append(allocatedTasks, core.WdPoStAllocatedTask{
+			allocatedTasks = append(allocatedTasks, &core.WdPoStAllocatedTask{
 				ID:    task.ID,
 				Input: task.Input,
 			})

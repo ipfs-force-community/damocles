@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	v2 "github.com/filecoin-project/venus/venus-shared/api/gateway/v2"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
@@ -98,7 +99,7 @@ func (pe *ProofEvent) listenProofRequestOnce(ctx context.Context) error {
 
 // context.Context, []builtin.ExtendedSectorInfo, abi.PoStRandomness, abi.ChainEpoch, network.Version
 func (pe *ProofEvent) processComputeProof(ctx context.Context, reqID vtypes.UUID, req gtypes.ComputeProofRequest) {
-	privSectors, err := pe.sectorsPubToPrivate(ctx, req.SectorInfos)
+	ppt, err := pe.postProofType(req.SectorInfos)
 	if err != nil {
 		_ = pe.client.ResponseProofEvent(ctx, &gtypes.ResponseEvent{
 			ID:      reqID,
@@ -108,7 +109,7 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqID vtypes.UUID
 		return
 	}
 
-	proof, err := pe.prover.GenerateWinningPoSt(ctx, pe.actor.ID, privSectors, req.Rand)
+	proof, err := pe.prover.GenerateWinningPoSt(ctx, pe.actor.ID, ppt, req.SectorInfos, req.Rand)
 	if err != nil {
 		_ = pe.client.ResponseProofEvent(ctx, &gtypes.ResponseEvent{
 			ID:      reqID,
@@ -138,18 +139,14 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqID vtypes.UUID
 	}
 }
 
-func (pe *ProofEvent) sectorsPubToPrivate(ctx context.Context, sectorInfo []builtin.ExtendedSectorInfo) (core.SortedPrivateSectorInfo, error) {
+func (pe *ProofEvent) postProofType(sectorInfo []builtin.ExtendedSectorInfo) (abi.RegisteredPoStProof, error) {
 	if len(sectorInfo) == 0 {
-		return core.SortedPrivateSectorInfo{}, fmt.Errorf("must provide sectors for winning post")
+		return 0, fmt.Errorf("must provide sectors for winning post")
 	}
 	ppt, err := sectorInfo[0].SealProof.RegisteredWinningPoStProof()
 	if err != nil {
-		return core.SortedPrivateSectorInfo{}, fmt.Errorf("failed to convert to winning post proof: %w", err)
-	}
-	out, err := pe.tracker.PubToPrivate(ctx, pe.actor.ID, ppt, sectorInfo)
-	if err != nil {
-		return core.SortedPrivateSectorInfo{}, fmt.Errorf("convert to private infos: %w", err)
+		return 0, fmt.Errorf("failed to convert to winning post proof: %w", err)
 	}
 
-	return core.NewSortedPrivateSectorInfo(out...), nil
+	return ppt, nil
 }

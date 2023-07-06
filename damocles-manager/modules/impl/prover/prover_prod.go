@@ -1,6 +1,3 @@
-//go:build prod
-// +build prod
-
 package prover
 
 import (
@@ -19,37 +16,54 @@ import (
 
 var log = logging.New("prover")
 
-type verifier struct {
+func NewProdVerifier() core.Verifier {
+	return &prodVerifier{}
 }
 
-func (verifier) VerifySeal(ctx context.Context, svi core.SealVerifyInfo) (bool, error) {
+type prodVerifier struct {
+}
+
+func (prodVerifier) VerifySeal(ctx context.Context, svi core.SealVerifyInfo) (bool, error) {
 	return ffi.VerifySeal(svi)
 }
 
-func (verifier) VerifyAggregateSeals(ctx context.Context, aggregate core.AggregateSealVerifyProofAndInfos) (bool, error) {
+func (prodVerifier) VerifyAggregateSeals(ctx context.Context, aggregate core.AggregateSealVerifyProofAndInfos) (bool, error) {
 	return ffi.VerifyAggregateSeals(aggregate)
 }
 
-func (verifier) VerifyWindowPoSt(ctx context.Context, info core.WindowPoStVerifyInfo) (bool, error) {
+func (prodVerifier) VerifyWindowPoSt(ctx context.Context, info core.WindowPoStVerifyInfo) (bool, error) {
 	info.Randomness[31] &= 0x3f
 	return ffi.VerifyWindowPoSt(info)
 }
 
-func (verifier) VerifyWinningPoSt(ctx context.Context, info core.WinningPoStVerifyInfo) (bool, error) {
+func (prodVerifier) VerifyWinningPoSt(ctx context.Context, info core.WinningPoStVerifyInfo) (bool, error) {
 	info.Randomness[31] &= 0x3f
 	return ffi.VerifyWinningPoSt(info)
 }
 
-type prover struct {
+func NewProdProver(sectorTracker core.SectorTracker) core.Prover {
+	return &prodProver{
+		sectorTracker: sectorTracker,
+	}
 }
 
-func (prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
+type prodProver struct {
+	sectorTracker core.SectorTracker
+}
+
+func (prodProver) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
 	return ffi.AggregateSealProofs(aggregateInfo, proofs)
 }
 
-func (prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, sectors SortedPrivateSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+func (p prodProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, minerID abi.ActorID, ppt abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
 	randomness[31] &= 0x3f
-	proof, faulty, err := ffi.GenerateWindowPoSt(minerID, sectors, randomness)
+
+	privSectors, err := p.sectorTracker.PubToPrivate(ctx, minerID, ppt, sectors)
+	if err != nil {
+		return nil, nil, fmt.Errorf("turn public sector infos into private: %w", err)
+	}
+
+	proof, faulty, err := ffi.GenerateWindowPoSt(minerID, core.NewSortedPrivateSectorInfo(privSectors...), randomness)
 
 	var faultyIDs []abi.SectorID
 	for _, f := range faulty {
@@ -62,18 +76,23 @@ func (prover) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, secto
 	return proof, faultyIDs, err
 }
 
-func (prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sectors SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
+func (p prodProver) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, ppt abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
 	randomness[31] &= 0x3f
 
-	return ffi.GenerateWinningPoSt(minerID, sectors, randomness)
+	privSectors, err := p.sectorTracker.PubToPrivate(ctx, minerID, ppt, sectors)
+	if err != nil {
+		return nil, fmt.Errorf("turn public sector infos into private: %w", err)
+	}
+
+	return ffi.GenerateWinningPoSt(minerID, core.NewSortedPrivateSectorInfo(privSectors...), randomness)
 }
 
-func (prover) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
+func (prodProver) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
 	randomness[31] &= 0x3f
 	return ffi.GeneratePoStFallbackSectorChallenges(proofType, minerID, randomness, sectorIds)
 }
 
-func (prover) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
+func (prodProver) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
 	start := time.Now()
 
 	resCh := make(chan core.Result[[]byte], 1)
@@ -92,7 +111,7 @@ func (prover) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPr
 	}
 }
 
-func (prover) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
+func (prodProver) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
 	randomness[31] &= 0x3f
 	return ffi.GenerateWinningPoStWithVanilla(proofType, minerID, randomness, proofs)
 }
