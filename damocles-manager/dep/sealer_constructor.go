@@ -19,7 +19,6 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/commitmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/dealmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/mock"
-	proverworker "github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover/worker"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/sectors"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/worker"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
@@ -47,7 +46,6 @@ type (
 	WorkerMetaStore             kvstore.KVStore
 	ConfDirPath                 string
 	CommonMetaStore             kvstore.KVStore
-	WorkerProverStore           kvstore.KVStore
 )
 
 func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
@@ -310,10 +308,6 @@ func BuildAPIProxyClient(gctx GlobalContext, lc fx.Lifecycle, proxy ProxyAddress
 	var proxyClient core.APIClient
 	err := buildDamoclesAPIClient(gctx, lc, core.APINamespace, &proxyClient, string(proxy), true)
 	return &proxyClient, err
-}
-
-func BuildSealerCliAPIClient(client *core.APIClient) *core.SealerCliAPIClient {
-	return &client.SealerCliAPIClient
 }
 
 func buildDamoclesAPIClient(gctx GlobalContext, lc fx.Lifecycle, namespace string, out interface{}, serverAddr string, useHTTP bool) error {
@@ -696,16 +690,4 @@ func BuildUnsealManager(
 		return nil, fmt.Errorf("construct unseal manager: %w", err)
 	}
 	return mgr, nil
-}
-
-func BuildWorkerProverStore(gctx GlobalContext, db UnderlyingDB) (WorkerProverStore, error) {
-	return db.OpenCollection(gctx, "prover")
-}
-
-func BuildWorkerWdPoStTaskManager(kv WorkerProverStore) (core.WorkerWdPoStTaskManager, error) {
-	wdpostKV, err := kvstore.NewWrappedKVStore([]byte("wdpost-"), kv)
-	if err != nil {
-		return nil, err
-	}
-	return proverworker.NewKVTaskManager(*kvstore.NewKVExt(wdpostKV)), nil
 }

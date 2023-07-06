@@ -323,12 +323,8 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 		if err != nil {
 			return false, fmt.Errorf("convert to v1_1 post proof: %w", err)
 		}
-		privSectors, err := pr.deps.sectorTracker.PubToPrivate(pr.ctx, pr.mid, pp, xsinfos)
-		if err != nil {
-			return true, fmt.Errorf("turn public sector infos into private: %w", err)
-		}
 
-		postOut, ps, err := pr.deps.prover.GenerateWindowPoSt(pr.ctx, pr.mid, core.NewSortedPrivateSectorInfo(privSectors...), append(abi.PoStRandomness{}, rand.Rand...))
+		postOut, ps, err := pr.deps.prover.GenerateWindowPoSt(pr.ctx, pr.dinfo.Index, pr.mid, pp, xsinfos, append(abi.PoStRandomness{}, rand.Rand...))
 
 		alog.Infow("computing window post", "elapsed", time.Since(tsStart))
 

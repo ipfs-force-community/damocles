@@ -4,6 +4,7 @@ package core
 
 import (
 	"context"
+
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -120,7 +121,7 @@ type SealerCliAPIClient struct {
 	ImportSector             func(ctx context.Context, ws SectorWorkerState, state *SectorState, override bool) (bool, error)
 	RestoreSector            func(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
 	CheckProvable            func(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error)
-	SimulateWdPoSt           func(context.Context, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
+	SimulateWdPoSt           func(context.Context, uint64, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
 	SnapUpPreFetch           func(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error)
 	SnapUpCandidates         func(ctx context.Context, mid abi.ActorID) ([]*bitfield.BitField, error)
 	SnapUpCancelCommitment   func(ctx context.Context, sid abi.SectorID) error
@@ -166,7 +167,7 @@ var UnavailableSealerCliAPIClient = SealerCliAPIClient{
 	CheckProvable: func(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
 		panic("SealerCliAPI client unavailable")
 	},
-	SimulateWdPoSt: func(context.Context, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
+	SimulateWdPoSt: func(context.Context, uint64, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
 		panic("SealerCliAPI client unavailable")
 	},
 	SnapUpPreFetch: func(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error) {
@@ -265,7 +266,7 @@ var UnavailableMinerAPIClient = MinerAPIClient{
 // WorkerWdPoStAPIClient is generated client for WorkerWdPoStAPI interface.
 type WorkerWdPoStAPIClient struct {
 	WdPoStHeartbeatTask func(ctx context.Context, runningTaskIDs []string, workerName string) error
-	WdPoStAllocateTasks func(ctx context.Context, num uint32, workName string) (allocatedTasks []WdPoStAllocatedTask, err error)
+	WdPoStAllocateTasks func(ctx context.Context, num uint32, workerName string) (allocatedTasks []WdPoStAllocatedTask, err error)
 	WdPoStFinishTask    func(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error
 	WdPoStResetTask     func(ctx context.Context, taskID string) error
 	WdPoStAllTasks      func(ctx context.Context) ([]*WdPoStTask, error)
@@ -276,7 +277,7 @@ var UnavailableWorkerWdPoStAPIClient = WorkerWdPoStAPIClient{
 	WdPoStHeartbeatTask: func(ctx context.Context, runningTaskIDs []string, workerName string) error {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStAllocateTasks: func(ctx context.Context, num uint32, workName string) (allocatedTasks []WdPoStAllocatedTask, err error) {
+	WdPoStAllocateTasks: func(ctx context.Context, num uint32, workerName string) (allocatedTasks []WdPoStAllocatedTask, err error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
 	WdPoStFinishTask: func(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error {
