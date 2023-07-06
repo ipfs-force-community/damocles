@@ -29,8 +29,8 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
+	ffi "github.com/filecoin-project/filecoin-ffi"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
-	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
@@ -685,8 +685,8 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
-
-		partitions, err := api.Chain.StateMinerPartitions(ctx, maddr, cctx.Uint64("ddl-idx"), ts.Key())
+		ddlIdx := cctx.Uint64("ddl-idx")
+		partitions, err := api.Chain.StateMinerPartitions(ctx, maddr, ddlIdx, ts.Key())
 		if err != nil {
 			return fmt.Errorf("get parttion info failed: %w", err)
 		}
@@ -752,7 +752,7 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			return fmt.Errorf("convert to winning post proof: %w", err)
 		}
 
-		err = api.Damocles.SimulateWdPoSt(ctx, maddr, ppt, proofSectors, rand)
+		err = api.Damocles.SimulateWdPoSt(ctx, ddlIdx, maddr, ppt, proofSectors, rand)
 		if err != nil {
 			return err
 		}
@@ -877,7 +877,8 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 		slog.Infof("commR: %v", commR)
 
 		randomness := make(abi.PoStRandomness, abi.RandomnessLength)
-		challenges, err := prover.Prover.GeneratePoStFallbackSectorChallenges(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, []abi.SectorNumber{sectorID.Number})
+
+		challenges, err := ffi.GeneratePoStFallbackSectorChallenges(abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, []abi.SectorNumber{sectorID.Number})
 		if err != nil {
 			return fmt.Errorf("generate challenge for sector %s: %w", sealedFileName, err)
 		}
@@ -889,7 +890,7 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 
 		slog.Infof("%d challenge generated", len(challenge))
 
-		vannilla, err := prover.Prover.GenerateSingleVanillaProof(actx, core.FFIPrivateSectorInfo{
+		vannilla, err := ffi.GenerateSingleVanillaProof(core.FFIPrivateSectorInfo{
 			SectorInfo:       sectorInfo,
 			PoStProofType:    abi.RegisteredPoStProof_StackedDrgWinning32GiBV1,
 			CacheDirPath:     cacheDirPath,
@@ -901,14 +902,15 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 
 		slog.Infof("vannilla generated with %d bytes", len(vannilla))
 
-		proofs, err := prover.Prover.GenerateWinningPoStWithVanilla(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, [][]byte{vannilla})
+		proofs, err := ffi.GenerateWinningPoStWithVanilla(abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, [][]byte{vannilla})
 		if err != nil {
 			return fmt.Errorf("generate winning post with vannilla for %s: %w", sealedFileName, err)
 		}
 
 		slog.Infof("proof generated with %d bytes", len(proofs[0].ProofBytes))
 
-		verified, err := prover.Verifier.VerifyWinningPoSt(actx, core.WinningPoStVerifyInfo{
+		randomness[31] &= 0x3f
+		verified, err := ffi.VerifyWinningPoSt(core.WinningPoStVerifyInfo{
 			Randomness:        randomness,
 			Proofs:            proofs,
 			ChallengedSectors: []core.SectorInfo{sectorInfo},

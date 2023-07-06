@@ -4,8 +4,23 @@ import (
 	"context"
 	"time"
 
+	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
 )
+
+type WdPoStSectorInfo struct {
+	SectorID abi.SectorNumber
+	CommR    [32]byte
+	Upgrade  bool // is upgrade sector
+	Accesses SectorAccessStores
+}
+
+type WdPoStInput struct {
+	Sectors   []WdPoStSectorInfo
+	MinerID   abi.ActorID
+	ProofType abi.RegisteredPoStProof
+	Seed      [32]byte
+}
 
 type WdPoStTaskState string
 
@@ -17,7 +32,7 @@ const (
 
 type WdPoStTask struct {
 	ID          string
-	Input       stage.WindowPoSt
+	Input       WdPoStInput
 	Output      *stage.WindowPoStOutput
 	TryNum      uint32
 	ErrorReason string
@@ -43,14 +58,19 @@ func (t *WdPoStTask) Finished(maxTry uint32) bool {
 
 type WdPoStAllocatedTask struct {
 	ID    string
-	Input stage.WindowPoSt
+	Input WdPoStInput
+}
+
+type AllocateWdPoStTaskSpec struct {
+	AllowedMiners     []abi.ActorID
+	AllowedProofTypes []abi.RegisteredPoStProof
 }
 
 type WorkerWdPoStTaskManager interface {
 	All(ctx context.Context, filter func(*WdPoStTask) bool) ([]*WdPoStTask, error)
 	ListByTaskIDs(ctx context.Context, state WdPoStTaskState, taskIDs ...string) ([]*WdPoStTask, error)
-	Create(ctx context.Context, input stage.WindowPoSt) (*WdPoStTask, error)
-	AllocateTasks(ctx context.Context, num uint32, workName string) (allocatedTasks []WdPoStAllocatedTask, err error)
+	Create(ctx context.Context, input WdPoStInput) (*WdPoStTask, error)
+	AllocateTasks(ctx context.Context, spec AllocateWdPoStTaskSpec, num uint32, workerName string) (allocatedTasks []*WdPoStAllocatedTask, err error)
 	Heartbeat(ctx context.Context, taskIDs []string, workerName string) error
 	Finish(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error
 	MakeTasksDie(ctx context.Context, shouldDeadDur time.Duration, limit uint32) error

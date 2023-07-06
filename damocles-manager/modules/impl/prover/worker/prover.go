@@ -8,11 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cespare/xxhash"
+	"github.com/cespare/xxhash/v2"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover"
+	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 )
@@ -26,7 +27,9 @@ func GenTaskID(rawInput []byte) string {
 }
 
 type workerProver struct {
-	taskMgr core.WorkerWdPoStTaskManager
+	taskMgr       core.WorkerWdPoStTaskManager
+	sectorTracker core.SectorTracker
+	localProver   core.Prover
 
 	inflightTasks map[string][]chan<- struct {
 		output *stage.WindowPoStOutput
@@ -42,9 +45,11 @@ type workerProver struct {
 	taskLifetime                   time.Duration
 }
 
-func NewProver(taskMgr core.WorkerWdPoStTaskManager) core.Prover {
+func NewProver(taskMgr core.WorkerWdPoStTaskManager, sectorTracker core.SectorTracker) core.Prover {
 	return &workerProver{
-		taskMgr: taskMgr,
+		taskMgr:       taskMgr,
+		sectorTracker: sectorTracker,
+		localProver:   prover.NewProdProver(sectorTracker),
 		inflightTasks: make(map[string][]chan<- struct {
 			output *stage.WindowPoStOutput
 			err    string
@@ -141,49 +146,95 @@ func (p *workerProver) runCleanupExpiredTasksJob(ctx context.Context) {
 }
 
 func (p *workerProver) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
-	return prover.Prover.AggregateSealProofs(ctx, aggregateInfo, proofs)
+	return p.localProver.AggregateSealProofs(ctx, aggregateInfo, proofs)
 }
 
-func (p *workerProver) GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, sectors core.SortedPrivateSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+func (p *workerProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
 
-	return prover.ExtGenerateWindowPoSt(minerID, sectors, randomness)(func(input stage.WindowPoSt) (stage.WindowPoStOutput, error) {
-		task, err := p.taskMgr.Create(ctx, input)
+	sis := make([]core.WdPoStSectorInfo, len(sectors))
+	for i, s := range sectors {
+		privInfo, err := p.sectorTracker.SinglePubToPrivateInfo(ctx, minerID, s, nil)
 		if err != nil {
-			return stage.WindowPoStOutput{}, fmt.Errorf("create wdPoSt task: %w", err)
+			return nil, nil, fmt.Errorf("construct private info for %d: %w", s.SectorNumber, err)
+		}
+		commR, err := util.CID2ReplicaCommitment(s.SealedCID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid sealed cid %s for sector %d of miner %d: %w", s.SealedCID, s.SectorNumber, minerID, err)
 		}
 
-		ch := make(chan struct {
-			output *stage.WindowPoStOutput
-			err    string
-		}, 1)
-
-		p.inflightTasksLock.Lock()
-		p.inflightTasks[task.ID] = append(p.inflightTasks[task.ID], ch)
-		p.inflightTasksLock.Unlock()
-
-		result, ok := <-ch
-		if !ok {
-			return stage.WindowPoStOutput{}, fmt.Errorf("wdPoSt result channel was closed unexpectedly")
+		sis[i] = core.WdPoStSectorInfo{
+			SectorID: s.SectorNumber,
+			CommR:    commR,
+			Upgrade:  s.SectorKey != nil,
+			Accesses: privInfo.Accesses,
 		}
-		if result.err != "" {
-			return stage.WindowPoStOutput{}, fmt.Errorf("error from worker: %s", result.err)
+	}
+
+	input := core.WdPoStInput{
+		MinerID:   minerID,
+		ProofType: proofType,
+		Sectors:   sis,
+	}
+	copy(input.Seed[:], randomness[:])
+
+	task, err := p.taskMgr.Create(ctx, input)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create wdPoSt task: %w", err)
+	}
+
+	ch := make(chan struct {
+		output *stage.WindowPoStOutput
+		err    string
+	}, 1)
+
+	p.inflightTasksLock.Lock()
+	p.inflightTasks[task.ID] = append(p.inflightTasks[task.ID], ch)
+	p.inflightTasksLock.Unlock()
+
+	result, ok := <-ch
+
+	if !ok {
+		return nil, nil, fmt.Errorf("wdPoSt result channel was closed unexpectedly")
+	}
+	if result.err != "" {
+		return nil, nil, fmt.Errorf("error from worker: %s", result.err)
+	}
+
+	if faultCount := len(result.output.Faults); faultCount != 0 {
+		faults := make([]abi.SectorID, faultCount)
+		for fi := range result.output.Faults {
+			faults[fi] = abi.SectorID{
+				Miner:  minerID,
+				Number: result.output.Faults[fi],
+			}
 		}
-		return *result.output, nil
-	})
+
+		return nil, faults, fmt.Errorf("got %d fault sectors", faultCount)
+	}
+
+	proofs := make([]builtin.PoStProof, len(result.output.Proofs))
+	for pi := range result.output.Proofs {
+		proofs[pi] = builtin.PoStProof{
+			PoStProof:  proofType,
+			ProofBytes: result.output.Proofs[pi],
+		}
+	}
+
+	return proofs, nil, nil
 }
 
-func (p *workerProver) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sectors core.SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
-	return prover.Prover.GenerateWinningPoSt(ctx, minerID, sectors, randomness)
+func (p *workerProver) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
+	return p.localProver.GenerateWinningPoSt(ctx, minerID, proofType, sectors, randomness)
 }
 
 func (p *workerProver) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
-	return prover.Prover.GeneratePoStFallbackSectorChallenges(ctx, proofType, minerID, randomness, sectorIds)
+	return p.localProver.GeneratePoStFallbackSectorChallenges(ctx, proofType, minerID, randomness, sectorIds)
 }
 
 func (p *workerProver) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
-	return prover.Prover.GenerateSingleVanillaProof(ctx, replica, challenges)
+	return p.localProver.GenerateSingleVanillaProof(ctx, replica, challenges)
 }
 
 func (p *workerProver) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
-	return prover.Prover.GenerateWinningPoStWithVanilla(ctx, proofType, minerID, randomness, proofs)
+	return p.localProver.GenerateWinningPoStWithVanilla(ctx, proofType, minerID, randomness, proofs)
 }

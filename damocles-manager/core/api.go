@@ -102,7 +102,7 @@ type SealerCliAPI interface {
 
 	CheckProvable(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error)
 
-	SimulateWdPoSt(context.Context, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
+	SimulateWdPoSt(context.Context, uint64, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
 
 	SnapUpPreFetch(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error)
 
@@ -154,7 +154,7 @@ type MinerAPI interface {
 
 type WorkerWdPoStAPI interface {
 	WdPoStHeartbeatTask(ctx context.Context, runningTaskIDs []string, workerName string) error
-	WdPoStAllocateTasks(ctx context.Context, num uint32, workName string) (allocatedTasks []WdPoStAllocatedTask, err error)
+	WdPoStAllocateTasks(ctx context.Context, spec AllocateWdPoStTaskSpec, num uint32, workerName string) (allocatedTasks []*WdPoStAllocatedTask, err error)
 	WdPoStFinishTask(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error
 	WdPoStResetTask(ctx context.Context, taskID string) error
 	WdPoStAllTasks(ctx context.Context) ([]*WdPoStTask, error)

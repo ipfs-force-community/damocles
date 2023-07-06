@@ -12,7 +12,13 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover/ext"
+	proverworker "github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover/worker"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
+)
+
+type (
+	WorkerProverStore kvstore.KVStore
 )
 
 func ExtProver() dix.Option {
@@ -23,8 +29,23 @@ func ExtProver() dix.Option {
 	)
 }
 
-func BuildExtProver(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.ProcessorConfig) (*ext.Prover, error) {
-	p, err := ext.New(gctx, cfg.WdPost, cfg.WinPost)
+func WorkerProver() dix.Option {
+	return dix.Options(
+		dix.Override(new(WorkerProverStore), BuildWorkerProverStore),
+		dix.Override(new(core.WorkerWdPoStTaskManager), BuildWorkerWdPoStTaskManager),
+		dix.Override(new(core.WorkerWdPoStAPI), proverworker.NewWdPoStAPIImpl),
+		dix.Override(new(core.Prover), proverworker.NewProver),
+	)
+}
+
+func DisableWorkerProver() dix.Option {
+	return dix.Options(
+		dix.Override(new(core.WorkerWdPoStAPI), &proverworker.UnavailableWdPoStAPIImpl{}),
+	)
+}
+
+func BuildExtProver(gctx GlobalContext, lc fx.Lifecycle, sectorTracker core.SectorTracker, cfg *modules.ProcessorConfig) (*ext.Prover, error) {
+	p, err := ext.New(gctx, sectorTracker, cfg.WdPost, cfg.WinPost)
 	if err != nil {
 		return nil, fmt.Errorf("construct ext prover: %w", err)
 	}
@@ -70,4 +91,16 @@ func ProvideExtProverConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.
 	})
 
 	return &cfg, nil
+}
+
+func BuildWorkerProverStore(gctx GlobalContext, db UnderlyingDB) (WorkerProverStore, error) {
+	return db.OpenCollection(gctx, "prover")
+}
+
+func BuildWorkerWdPoStTaskManager(kv WorkerProverStore) (core.WorkerWdPoStTaskManager, error) {
+	wdpostKV, err := kvstore.NewWrappedKVStore([]byte("wdpost-"), kv)
+	if err != nil {
+		return nil, err
+	}
+	return proverworker.NewKVTaskManager(*kvstore.NewKVExt(wdpostKV)), nil
 }

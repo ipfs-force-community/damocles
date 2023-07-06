@@ -60,18 +60,13 @@ func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, postProofTy
 	return s.sectorTracker.Provable(ctx, mid, postProofType, sectors, strict, stateCheck)
 }
 
-func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
+func (s *Sealer) SimulateWdPoSt(ctx context.Context, ddlIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
 	mid, err := address.IDFromAddress(maddr)
 	if err != nil {
 		return err
 	}
 
-	privSectors, err := s.sectorTracker.PubToPrivate(ctx, abi.ActorID(mid), postProofType, sis)
-	if err != nil {
-		return fmt.Errorf("turn public sector infos into private: %w", err)
-	}
-
-	slog := log.With("miner", mid, "sectors", len(privSectors))
+	slog := log.With("miner", mid, "sectors", len(sis))
 
 	go func() {
 		tCtx := context.TODO()
@@ -79,7 +74,7 @@ func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, post
 		tsStart := clock.NewSystemClock().Now()
 
 		slog.Info("mock generate window post start")
-		proof, skipped, err := s.prover.GenerateWindowPoSt(tCtx, abi.ActorID(mid), core.NewSortedPrivateSectorInfo(privSectors...), append(abi.PoStRandomness{}, rand...))
+		proof, skipped, err := s.prover.GenerateWindowPoSt(tCtx, ddlIndex, abi.ActorID(mid), postProofType, sis, append(abi.PoStRandomness{}, rand...))
 		if err != nil {
 			slog.Warnf("generate window post failed: %v", err.Error())
 			return

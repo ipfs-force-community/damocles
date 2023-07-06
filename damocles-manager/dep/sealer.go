@@ -11,13 +11,13 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/mock"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover"
-	proverworker "github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover/worker"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/randomness"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/sealer"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/market"
 	messager "github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
+	"github.com/ipfs-force-community/damocles/damocles-manager/ver"
 )
 
 type GlobalContext context.Context
@@ -36,6 +36,7 @@ func MockSealer(s ...interface{}) dix.Option {
 	return dix.Options(
 		dix.Override(new(*mock.Sealer), mock.NewSealer),
 		dix.Override(new(core.SealerAPI), dix.From(new(*mock.Sealer))),
+		dix.Override(new(core.SealerCliAPI), dix.From(new(*mock.Sealer))),
 		dix.Populate(InvokePopulate, s...),
 	)
 }
@@ -56,9 +57,8 @@ func Product() dix.Option {
 		dix.Override(new(core.SectorNumberAllocator), BuildSectorNumberAllocator),
 		dix.Override(new(core.RandomnessAPI), randomness.New),
 		dix.Override(new(core.SectorTracker), BuildSectorTracker),
-		dix.Override(new(core.Prover), prover.Prover),
-		dix.Override(new(core.Verifier), prover.Verifier),
-		dix.Override(new(core.MinerAPI), BuildMinerAPI),
+		dix.If(ver.ProverIsProd(), prodProver()),
+		dix.If(!ver.ProverIsProd(), fakerProver()),
 
 		dix.Override(new(core.CommitmentManager), BuildCommitmentManager),
 		dix.Override(new(messager.API), BuildMessagerClient),
@@ -80,10 +80,20 @@ func Product() dix.Option {
 		dix.Override(new(OfflineMetaStore), BuildOfflineMetaStore),
 		dix.Override(new(WorkerMetaStore), BuildWorkerMetaStore),
 		dix.Override(new(CommonMetaStore), BuildCommonMetaStore),
-		dix.Override(new(WorkerProverStore), BuildWorkerProverStore),
+	)
+}
 
-		dix.Override(new(core.WorkerWdPoStTaskManager), BuildWorkerWdPoStTaskManager),
-		dix.Override(new(core.WorkerWdPoStAPI), proverworker.NewWdPoStAPIImpl),
+func fakerProver() dix.Option {
+	return dix.Options(
+		dix.Override(new(core.Prover), prover.NewFakeProver),
+		dix.Override(new(core.Verifier), prover.NewFakeVerifier),
+	)
+}
+
+func prodProver() dix.Option {
+	return dix.Options(
+		dix.Override(new(core.Prover), prover.NewProdProver),
+		dix.Override(new(core.Verifier), prover.NewProdVerifier),
 	)
 }
 
@@ -94,8 +104,8 @@ type ProxyOptions struct {
 func Proxy(dest string, opt ProxyOptions) dix.Option {
 	return dix.Options(
 		dix.Override(new(ProxyAddress), ProxyAddress(dest)),
-		dix.Override(new(core.APIClient), BuildAPIProxyClient),
-		dix.Override(new(core.SealerCliAPIClient), BuildSealerCliAPIClient),
+		dix.Override(new(*core.APIClient), BuildAPIProxyClient),
+		dix.Override(new(*core.SealerCliAPIClient), dix.From(new(*core.APIClient))),
 		dix.If(opt.EnableSectorIndexer,
 			dix.Override(new(core.SectorIndexer), BuildProxiedSectorIndex),
 		),
@@ -106,6 +116,7 @@ func Sealer(target ...interface{}) dix.Option {
 	return dix.Options(
 		dix.Override(new(*sealer.Sealer), sealer.New),
 		dix.Override(new(core.SealerAPI), dix.From(new(*sealer.Sealer))),
+		dix.Override(new(core.SealerCliAPI), dix.From(new(*sealer.Sealer))),
 		dix.If(len(target) > 0, dix.Populate(InvokePopulate, target...)),
 	)
 }
@@ -122,8 +133,8 @@ func APIClient(target ...interface{}) dix.Option {
 		dix.Override(new(chain.API), BuildChainClient),
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.Override(new(market.API), BuildMarketAPI),
-		dix.Override(new(core.APIClient), MaybeAPIClient),
-		dix.Override(new(core.SealerCliAPIClient), BuildSealerCliAPIClient),
+		dix.Override(new(*core.APIClient), MaybeAPIClient),
+		dix.Override(new(*core.SealerCliAPIClient), dix.From(new(*core.APIClient))),
 		dix.If(len(target) > 0, dix.Populate(InvokePopulate, target...)),
 	)
 }
