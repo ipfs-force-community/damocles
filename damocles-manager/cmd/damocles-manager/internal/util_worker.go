@@ -26,6 +26,7 @@ var utilWorkerCmd = &cli.Command{
 		utilWorkerInfoCmd,
 		utilWorkerPauseCmd,
 		utilWorkerResumeCmd,
+		utilWdPostCmd,
 	},
 }
 
@@ -301,4 +302,102 @@ func resolveWorkerDest(ctx context.Context, a *APIClient, name string) (string, 
 	}
 
 	return addr.String(), nil
+}
+
+var utilWdPostCmd = &cli.Command{
+	Name:  "wdpost",
+	Usage: "manager wdpost task when the task is handle by worker",
+	Subcommands: []*cli.Command{
+		utilWdPostListCmd,
+		utilWdPostResetCmd,
+	},
+}
+
+var utilWdPostListCmd = &cli.Command{
+	Name:  "list",
+	Usage: "list all wdpost task",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "all",
+			Usage: "list all wdpost task, include the task that has been succeed",
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		a, actx, stopper, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("get api: %w", err)
+		}
+		defer stopper()
+
+		var tasks []*core.WdPoStTask
+		tasks, err = a.Damocles.WdPoStAllTasks(actx)
+		if err != nil {
+			return fmt.Errorf("get wdpost tasks: %w", err)
+		}
+
+		w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
+		_, err = w.Write([]byte("ID\tMinerID\tWorker\tState\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tError\n"))
+		if err != nil {
+			return err
+		}
+		for _, task := range tasks {
+
+			state := "ReadyToRun"
+			if task.StartedAt != 0 {
+				state = "Running"
+			}
+			if task.FinishedAt != 0 {
+				if task.ErrorReason != "" {
+					state = "Failed"
+				} else {
+					state = "Succeed"
+				}
+			}
+
+			if !cctx.Bool("all") && state == "Succeed" {
+				continue
+			}
+
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				task.ID,
+				task.Input.MinerID,
+				task.WorkerName,
+				state,
+				time.Unix(int64(task.CreatedAt), 0),
+				time.Unix(int64(task.StartedAt), 0),
+				time.Unix(int64(task.HeartbeatAt), 0),
+				time.Unix(int64(task.FinishedAt), 0),
+				task.ErrorReason,
+			)
+		}
+
+		w.Flush()
+		return nil
+	},
+}
+
+var utilWdPostResetCmd = &cli.Command{
+	Name:      "reset",
+	Usage:     "reset wdpost task",
+	ArgsUsage: "<task id>",
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if args.Len() < 1 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		id := args.First()
+		a, actx, stopper, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("get api: %w", err)
+		}
+		defer stopper()
+
+		err = a.Damocles.WdPoStResetTask(actx, id)
+		if err != nil {
+			return fmt.Errorf("reset wdpost task: %w", err)
+		}
+
+		return nil
+	},
 }
