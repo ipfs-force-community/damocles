@@ -57,7 +57,7 @@ func (s *Sealer) RestoreSector(ctx context.Context, sid abi.SectorID, forced boo
 }
 
 func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
-	return s.sectorTracker.Provable(ctx, mid, postProofType, sectors, strict, stateCheck)
+	return s.sectorProving.Provable(ctx, mid, postProofType, sectors, strict, stateCheck)
 }
 
 func (s *Sealer) SimulateWdPoSt(ctx context.Context, ddlIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
@@ -119,7 +119,7 @@ func (s *Sealer) ProvingSectorInfo(ctx context.Context, sid abi.SectorID) (core.
 		return core.ProvingSectorInfo{}, fmt.Errorf("get sector info: %w", err)
 	}
 
-	private, err := s.sectorTracker.SinglePubToPrivateInfo(ctx, sid.Miner, util.SectorOnChainInfoToExtended(sinfo), nil)
+	private, err := s.sectorProving.SinglePubToPrivateInfo(ctx, sid.Miner, util.SectorOnChainInfoToExtended(sinfo), nil)
 	if err != nil {
 		return core.ProvingSectorInfo{}, fmt.Errorf("get private sector info: %w", err)
 	}

@@ -59,7 +59,7 @@ func New(
 	deal core.DealManager,
 	commit core.CommitmentManager,
 	sectorIdxer core.SectorIndexer,
-	sectorTracker core.SectorTracker,
+	sectorProving core.SectorProving,
 	prover core.Prover,
 	pieceStore piecestore.PieceStore,
 	snapup core.SnapUpSectorManager,
@@ -82,7 +82,7 @@ func New(
 		pieceStore: pieceStore,
 
 		sectorIdxer:   sectorIdxer,
-		sectorTracker: sectorTracker,
+		sectorProving: sectorProving,
 
 		prover: prover,
 	}, nil
@@ -103,7 +103,7 @@ type Sealer struct {
 	pieceStore piecestore.PieceStore
 
 	sectorIdxer   core.SectorIndexer
-	sectorTracker core.SectorTracker
+	sectorProving core.SectorProving
 
 	prover core.Prover
 }
@@ -635,7 +635,7 @@ func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proo
 	if err != nil {
 		return false, fmt.Errorf("convert to v1_1 post proof: %w", err)
 	}
-	err = s.sectorTracker.SingleProvable(ctx, ppt, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false, false)
+	err = s.sectorProving.SingleProvable(ctx, ppt, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false, false)
 	if err != nil {
 		if errors.Is(err, objstore.ErrObjectNotFound) {
 			return false, nil
