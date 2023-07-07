@@ -25,13 +25,13 @@ func RunPoSter(
 	scfg *modules.SafeConfig,
 	verifier core.Verifier,
 	prover core.Prover,
-	sectorTracker core.SectorTracker,
+	sectorProving core.SectorProving,
 	capi chain.API,
 	rapi core.RandomnessAPI,
 	mapi messager.API,
 	minerAPI core.MinerAPI,
 ) error {
-	p, err := poster.NewPoSter(scfg, capi, mapi, rapi, minerAPI, prover, verifier, sectorTracker)
+	p, err := poster.NewPoSter(scfg, capi, mapi, rapi, minerAPI, prover, verifier, sectorProving)
 	if err != nil {
 		return err
 	}

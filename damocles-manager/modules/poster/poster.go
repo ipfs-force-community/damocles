@@ -34,7 +34,7 @@ func newPostDeps(
 	minerAPI core.MinerAPI,
 	prover core.Prover,
 	verifier core.Verifier,
-	sectorTracker core.SectorTracker,
+	sectorProving core.SectorProving,
 ) postDeps {
 	return postDeps{
 		chain:         chain,
@@ -44,7 +44,7 @@ func newPostDeps(
 		clock:         clock.NewSystemClock(),
 		prover:        prover,
 		verifier:      verifier,
-		sectorTracker: sectorTracker,
+		sectorProving: sectorProving,
 	}
 }
 
@@ -56,7 +56,7 @@ type postDeps struct {
 	clock         clock.Clock
 	prover        core.Prover
 	verifier      core.Verifier
-	sectorTracker core.SectorTracker
+	sectorProving core.SectorProving
 }
 
 func NewPoSter(
@@ -67,7 +67,7 @@ func NewPoSter(
 	minerAPI core.MinerAPI,
 	prover core.Prover,
 	verifier core.Verifier,
-	sectorTracker core.SectorTracker,
+	sectorProving core.SectorProving,
 ) (*PoSter, error) {
 	return newPoSterWithRunnerConstructor(
 		scfg,
@@ -77,7 +77,7 @@ func NewPoSter(
 		minerAPI,
 		prover,
 		verifier,
-		sectorTracker,
+		sectorProving,
 		postRunnerConstructor,
 	)
 }
@@ -90,12 +90,12 @@ func newPoSterWithRunnerConstructor(
 	minerAPI core.MinerAPI,
 	prover core.Prover,
 	verifier core.Verifier,
-	sectorTracker core.SectorTracker,
+	sectorProving core.SectorProving,
 	runnerCtor runnerConstructor,
 ) (*PoSter, error) {
 	return &PoSter{
 		cfg:               scfg,
-		deps:              newPostDeps(chain, msg, rand, minerAPI, prover, verifier, sectorTracker),
+		deps:              newPostDeps(chain, msg, rand, minerAPI, prover, verifier, sectorProving),
 		schedulers:        make(map[abi.ActorID]map[abi.ChainEpoch]*scheduler),
 		runnerConstructor: runnerCtor,
 	}, nil

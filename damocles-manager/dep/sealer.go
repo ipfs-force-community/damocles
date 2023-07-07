@@ -12,6 +12,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/mock"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/randomness"
+	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/sectors"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/sealer"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/confmgr"
@@ -56,7 +57,8 @@ func Product() dix.Option {
 		dix.Override(new(core.SectorStateManager), BuildLocalSectorStateManager),
 		dix.Override(new(core.SectorNumberAllocator), BuildSectorNumberAllocator),
 		dix.Override(new(core.RandomnessAPI), randomness.New),
-		dix.Override(new(core.SectorTracker), BuildSectorTracker),
+		dix.Override(new(core.SectorTracker), sectors.NewTracker),
+		dix.Override(new(core.SectorProving), BuildSectorProving),
 		dix.If(ver.ProverIsProd(), prodProver()),
 		dix.If(!ver.ProverIsProd(), fakerProver()),
 
