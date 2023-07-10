@@ -38,7 +38,7 @@ mod imp {
         }
 
         /// Attach a task to this controller.
-        pub fn add_task(&mut self, _pid: CgroupPid) -> Result<()> {
+        pub fn add_task_by_tgid(&mut self, _tgid: CgroupPid) -> Result<()> {
             Ok(())
         }
 
@@ -50,10 +50,8 @@ mod imp {
 
 #[cfg(target_os = "linux")]
 mod imp {
-    use std::collections::HashSet;
-
     use anyhow::{Context, Result};
-    use cgroups_rs::{hierarchies, Cgroup, CgroupPid, Controller, Subsystem};
+    use cgroups_rs::{cpuset::CpuSetController, hierarchies, Cgroup, CgroupPid};
 
     use super::{ENV_CGROUP_CPUSET, ENV_CGROUP_NAME};
 
@@ -64,13 +62,13 @@ mod imp {
         match (var(ENV_CGROUP_NAME), var(ENV_CGROUP_CPUSET)) {
             (Ok(cgname), Ok(cpuset)) => match CtrlGroup::new(&cgname, &cpuset) {
                 Ok(mut cg) => {
-                    let pid = std::process::id() as u64;
-                    match cg.add_task(pid.into()) {
+                    let tgid = libc::pid_t::from(nix::unistd::getpid()) as u64;
+                    match cg.add_task_by_tgid(tgid.into()) {
                         Ok(_) => {
-                            tracing::info!(pid = pid, group = cgname.as_str(), "add into cgroup");
+                            tracing::info!(tgid = tgid, group = cgname.as_str(), cpuset = cpuset.as_str(), "add into cgroup");
                         }
                         Err(e) => {
-                            tracing::error!(pid = pid, group = cgname.as_str(), err=?e, "failed to add cgroup");
+                            tracing::error!(tgid = tgid, group = cgname.as_str(), err=?e, "failed to add cgroup");
                         }
                     }
                     cg
@@ -86,59 +84,36 @@ mod imp {
 
     /// An Cgroup type
     pub struct CtrlGroup {
-        subsystems: Vec<Subsystem>,
+        cg: Cgroup,
     }
 
     impl CtrlGroup {
         /// Returns an empty `CtrlGroup`
         pub fn empty() -> Self {
-            Self { subsystems: vec![] }
+            Self { cg: Default::default() }
         }
 
         /// Creates a new CtrlGroup with cgroup name `cgname` and cpuset.
-        pub fn new(cgname: impl AsRef<str>, cpuset: impl AsRef<str>) -> Result<Self> {
-            let mut wanted = HashSet::new();
+        pub fn new(cgname: impl AsRef<str>, cpus: impl AsRef<str>) -> Result<Self> {
+            let cg = Cgroup::new(hierarchies::auto(), cgname.as_ref())?;
+            let cpuset = cg.controller_of::<CpuSetController>().expect("No cpu controller attached!");
 
-            let cg = Cgroup::load(hierarchies::auto(), cgname.as_ref());
-            let cgsubs = cg.subsystems();
-
-            for (sidx, sub) in cgsubs.iter().enumerate() {
-                if let Subsystem::CpuSet(ctrl) = sub {
-                    ctrl.create();
-                    ctrl.set_cpus(cpuset.as_ref())
-                        .with_context(|| format!("set cpuset to {}", cpuset.as_ref()))?;
-                    wanted.insert(sidx);
-                    break;
-                }
-            }
-
-            let mut subsystems = Vec::with_capacity(cgsubs.len());
-            for (sidx, sub) in cgsubs.iter().enumerate() {
-                if wanted.contains(&sidx) {
-                    subsystems.push(sub.clone());
-                }
-            }
-
-            Ok(CtrlGroup { subsystems })
+            cpuset.set_cpus(cpus.as_ref())?;
+            Ok(CtrlGroup { cg })
         }
 
         /// Attach a task to this controller.
-        pub fn add_task(&mut self, pid: CgroupPid) -> Result<()> {
-            for sub in self.subsystems.iter() {
-                sub.to_controller()
-                    .add_task(&pid)
-                    .with_context(|| format!("subsystem {}", sub.controller_name()))?;
-            }
-
-            Ok(())
+        pub fn add_task_by_tgid(&mut self, tgid: CgroupPid) -> Result<()> {
+            self.cg.add_task_by_tgid(tgid).context("add task to cgroup")
         }
 
         /// Delete the controller.
         pub fn delete(&mut self) {
-            for sub in self.subsystems.iter() {
-                if let Err(e) = sub.to_controller().delete() {
-                    tracing::warn!(system = sub.controller_name().as_str(), "subsystem delete failed: {:?}", e);
-                };
+            for task in self.cg.tasks() {
+                let _ = self.cg.remove_task_by_tgid(task);
+            }
+            if let Err(e) = self.cg.delete() {
+                tracing::warn!("subsystem delete failed: {:?}", e);
             }
         }
     }
