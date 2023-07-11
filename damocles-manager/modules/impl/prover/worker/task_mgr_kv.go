@@ -79,7 +79,7 @@ func (tm *kvTaskManager) ListByTaskIDs(ctx context.Context, state core.WdPoStTas
 	return tasks, err
 }
 
-func (tm *kvTaskManager) Create(ctx context.Context, input core.WdPoStInput) (*core.WdPoStTask, error) {
+func (tm *kvTaskManager) Create(ctx context.Context, deadlineIdx uint64, input core.WdPoStInput) (*core.WdPoStTask, error) {
 	var (
 		taskID string
 		task   *core.WdPoStTask
@@ -108,6 +108,7 @@ func (tm *kvTaskManager) Create(ctx context.Context, input core.WdPoStInput) (*c
 		now := time.Now().Unix()
 		task = &core.WdPoStTask{
 			ID:          taskID,
+			DeadlineIdx: deadlineIdx,
 			Input:       input,
 			Output:      nil,
 			TryNum:      0,

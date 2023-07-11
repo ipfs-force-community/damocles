@@ -18,10 +18,11 @@ import (
 	"github.com/ipfs/go-cid"
 )
 
-func NewProving(sectorTracker core.SectorTracker, state core.SectorStateManager, prover core.Prover, capi chainAPI.API, stCfg modules.ProvingConfig) (core.SectorProving, error) {
+func NewProving(sectorTracker core.SectorTracker, state core.SectorStateManager, storeMgr objstore.Manager, prover core.Prover, capi chainAPI.API, stCfg modules.ProvingConfig) (core.SectorProving, error) {
 	return &Proving{
 		SectorTracker: sectorTracker,
 		state:         state,
+		storeMgr:      storeMgr,
 		prover:        prover,
 		capi:          capi,
 

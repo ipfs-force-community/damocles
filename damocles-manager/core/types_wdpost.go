@@ -32,6 +32,7 @@ const (
 
 type WdPoStTask struct {
 	ID          string
+	DeadlineIdx uint64
 	Input       WdPoStInput
 	Output      *stage.WindowPoStOutput
 	TryNum      uint32
@@ -69,7 +70,7 @@ type AllocateWdPoStTaskSpec struct {
 type WorkerWdPoStTaskManager interface {
 	All(ctx context.Context, filter func(*WdPoStTask) bool) ([]*WdPoStTask, error)
 	ListByTaskIDs(ctx context.Context, state WdPoStTaskState, taskIDs ...string) ([]*WdPoStTask, error)
-	Create(ctx context.Context, input WdPoStInput) (*WdPoStTask, error)
+	Create(ctx context.Context, deadlineIdx uint64, input WdPoStInput) (*WdPoStTask, error)
 	AllocateTasks(ctx context.Context, spec AllocateWdPoStTaskSpec, num uint32, workerName string) (allocatedTasks []*WdPoStAllocatedTask, err error)
 	Heartbeat(ctx context.Context, taskIDs []string, workerName string) error
 	Finish(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error
