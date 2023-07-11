@@ -61,6 +61,7 @@ func Product() dix.Option {
 		dix.Override(new(core.SectorProving), BuildSectorProving),
 		dix.If(ver.ProverIsProd(), prodProver()),
 		dix.If(!ver.ProverIsProd(), fakerProver()),
+		dix.Override(new(core.MinerAPI), BuildMinerAPI),
 
 		dix.Override(new(core.CommitmentManager), BuildCommitmentManager),
 		dix.Override(new(messager.API), BuildMessagerClient),

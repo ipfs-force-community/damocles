@@ -336,9 +336,15 @@ var utilWdPostListCmd = &cli.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
-		_, err = w.Write([]byte("ID\tMinerID\tWorker\tState\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tError\n"))
+		_, err = w.Write([]byte("ID\tMinerID\tDeadline\tWorker\tState\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tError\n"))
 		if err != nil {
 			return err
+		}
+		formatDateTime := func(unix_secs uint64) string {
+			if unix_secs == 0 {
+				return "-"
+			}
+			return time.Unix(int64(unix_secs), 0).Format("01-02 15:04:05")
 		}
 		for _, task := range tasks {
 
@@ -358,15 +364,16 @@ var utilWdPostListCmd = &cli.Command{
 				continue
 			}
 
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 				task.ID,
 				task.Input.MinerID,
+				task.DeadlineIdx,
 				task.WorkerName,
 				state,
-				time.Unix(int64(task.CreatedAt), 0),
-				time.Unix(int64(task.StartedAt), 0),
-				time.Unix(int64(task.HeartbeatAt), 0),
-				time.Unix(int64(task.FinishedAt), 0),
+				formatDateTime(task.CreatedAt),
+				formatDateTime(task.StartedAt),
+				formatDateTime(task.HeartbeatAt),
+				formatDateTime(task.FinishedAt),
 				task.ErrorReason,
 			)
 		}

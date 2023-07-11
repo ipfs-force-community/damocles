@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"sync"
@@ -16,6 +15,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
+	"github.com/mr-tron/base58/base58"
 )
 
 var log = logging.New("worker prover")
@@ -23,7 +23,7 @@ var log = logging.New("worker prover")
 func GenTaskID(rawInput []byte) string {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, xxhash.Sum64(rawInput))
-	return base64.URLEncoding.EncodeToString(b)
+	return base58.Encode(b)
 }
 
 type workerProver struct {
@@ -177,7 +177,7 @@ func (p *workerProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint6
 	}
 	copy(input.Seed[:], randomness[:])
 
-	task, err := p.taskMgr.Create(ctx, input)
+	task, err := p.taskMgr.Create(ctx, deadlineIdx, input)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create wdPoSt task: %w", err)
 	}
