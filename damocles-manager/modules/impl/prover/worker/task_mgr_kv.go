@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
@@ -33,7 +35,7 @@ func (tm *kvTaskManager) filter(ctx context.Context, txn kvstore.TxnExt, state c
 		return
 	}
 	defer it.Close()
-	for it.Next() && len(tasks) <= int(limit) {
+	for it.Next() && len(tasks) < int(limit) {
 		var task core.WdPoStTask
 		if err = it.View(ctx, kvstore.LoadJSON(&task)); err != nil {
 			return
@@ -56,6 +58,9 @@ func (tm *kvTaskManager) All(ctx context.Context, filter func(*core.WdPoStTask) 
 			tasks = append(tasks, ts...)
 		}
 		return err
+	})
+	sort.Slice(tasks, func(i, j int) bool {
+		return tasks[i].CreatedAt > tasks[j].CreatedAt
 	})
 	return
 }
@@ -108,6 +113,7 @@ func (tm *kvTaskManager) Create(ctx context.Context, deadlineIdx uint64, input c
 		now := time.Now().Unix()
 		task = &core.WdPoStTask{
 			ID:          taskID,
+			State:       string(core.WdPoStTaskReadyToRun),
 			DeadlineIdx: deadlineIdx,
 			Input:       input,
 			Output:      nil,
@@ -137,7 +143,9 @@ func (tm *kvTaskManager) AllocateTasks(ctx context.Context, spec core.AllocateWd
 			if len(spec.AllowedMiners) > 0 && !slices.Contains(spec.AllowedMiners, t.Input.MinerID) {
 				return false
 			}
-			if len(spec.AllowedProofTypes) > 0 && !slices.Contains(spec.AllowedProofTypes, t.Input.ProofType) {
+			if len(spec.AllowedProofTypes) > 0 && !slices.ContainsFunc(spec.AllowedProofTypes, func(allowed abi.RegisteredPoStProof) bool {
+				return stage.ProofType2String(allowed) == t.Input.ProofType
+			}) {
 				return false
 			}
 			return true
@@ -147,15 +155,16 @@ func (tm *kvTaskManager) AllocateTasks(ctx context.Context, spec core.AllocateWd
 		}
 		now := uint64(time.Now().Unix())
 		for _, task := range readyToRun {
+			// Moving ready to run tasks to running tasks
+			if err := txn.Del([]byte(makeWdPoStKey(core.WdPoStTaskReadyToRun, task.ID))); err != nil {
+				return err
+			}
+			task.State = string(core.WdPoStTaskRunning)
 			task.TryNum++
 			task.StartedAt = now
 			task.WorkerName = workerName
 			task.HeartbeatAt = now
 			task.UpdatedAt = now
-			// Moving ready to run tasks to running tasks
-			if err := txn.Del([]byte(makeWdPoStKey(core.WdPoStTaskReadyToRun, task.ID))); err != nil {
-				return err
-			}
 			if err := txn.PutJson([]byte(makeWdPoStKey(core.WdPoStTaskRunning, task.ID)), task); err != nil {
 				return err
 			}
@@ -176,13 +185,16 @@ func (tm *kvTaskManager) AllocateTasks(ctx context.Context, spec core.AllocateWd
 }
 
 func (tm *kvTaskManager) Heartbeat(ctx context.Context, taskIDs []string, workerName string) error {
+	now := uint64(time.Now().Unix())
 	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		for _, taskID := range taskIDs {
 			var task core.WdPoStTask
 			if err := txn.Peek([]byte(makeWdPoStKey(core.WdPoStTaskRunning, taskID)), kvstore.LoadJSON(&task)); err != nil {
 				return err
 			}
-			now := uint64(time.Now().Unix())
+			if task.StartedAt == 0 {
+				task.StartedAt = now
+			}
 			task.HeartbeatAt = now
 			task.WorkerName = workerName
 			task.UpdatedAt = now
@@ -209,6 +221,7 @@ func (tm *kvTaskManager) Finish(ctx context.Context, taskID string, output *stag
 			return err
 		}
 		now := uint64(time.Now().Unix())
+		task.State = string(core.WdPoStTaskFinished)
 		task.Output = output
 		task.ErrorReason = errorReason
 		task.FinishedAt = now
@@ -243,6 +256,7 @@ func (tm *kvTaskManager) MakeTasksDie(ctx context.Context, heartbeatTimeout time
 			if err := txn.Del([]byte(makeWdPoStKey(core.WdPoStTaskRunning, task.ID))); err != nil {
 				return err
 			}
+			task.State = string(core.WdPoStTaskFinished)
 			task.FinishedAt = now
 			task.Output = nil
 			task.ErrorReason = "heartbeat timeout"
@@ -253,6 +267,12 @@ func (tm *kvTaskManager) MakeTasksDie(ctx context.Context, heartbeatTimeout time
 		}
 		return nil
 	})
+
+	if err == nil {
+		for _, task := range shouldDead {
+			log.Infof("make wdPoSt task die: %s; heartbeat_at: %s", task.ID, time.Unix(int64(task.HeartbeatAt), 0).Format(time.RFC3339))
+		}
+	}
 
 	return err
 }
@@ -290,7 +310,7 @@ func (tm *kvTaskManager) RetryFailedTasks(ctx context.Context, maxTry, limit uin
 	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		var err error
 		shouldRetry, err = tm.filter(ctx, txn, core.WdPoStTaskFinished, limit, func(t *core.WdPoStTask) bool {
-			return len(t.ErrorReason) != 0 && t.TryNum > maxTry
+			return len(t.ErrorReason) != 0 && t.TryNum < maxTry
 		})
 		if err != nil {
 			return err
@@ -298,11 +318,12 @@ func (tm *kvTaskManager) RetryFailedTasks(ctx context.Context, maxTry, limit uin
 		now := uint64(time.Now().Unix())
 		for _, task := range shouldRetry {
 			task.ErrorReason = ""
+			task.State = string(core.WdPoStTaskReadyToRun)
 			task.Output = nil
 			task.StartedAt = 0
 			task.FinishedAt = 0
 			task.UpdatedAt = now
-			if err := txn.PutJson([]byte(makeWdPoStKey(core.WdPoStTaskFinished, task.ID)), task); err != nil {
+			if err := txn.PutJson([]byte(makeWdPoStKey(core.WdPoStTaskReadyToRun, task.ID)), task); err != nil {
 				return err
 			}
 		}
@@ -311,7 +332,7 @@ func (tm *kvTaskManager) RetryFailedTasks(ctx context.Context, maxTry, limit uin
 
 	if err == nil {
 		for _, task := range shouldRetry {
-			log.Debugf("retry wdPoSt task: %d; try_num: %d, error_reason: %s", task.ID, task.TryNum)
+			log.Debugf("retry wdPoSt task: %s; try_num: %d, error_reason: %s", task.ID, task.TryNum, task.ErrorReason)
 		}
 	}
 
@@ -333,6 +354,7 @@ func (tm *kvTaskManager) Reset(ctx context.Context, taskID string) error {
 			return fmt.Errorf("load task from db: %w. taskID: %s", err, taskID)
 		}
 
+		task.State = string(core.WdPoStTaskReadyToRun)
 		task.CreatedAt = now
 		task.StartedAt = 0
 		task.TryNum = 0
@@ -351,6 +373,30 @@ func (tm *kvTaskManager) Reset(ctx context.Context, taskID string) error {
 
 	if err == nil {
 		log.Infof("task is reset: %s", taskID)
+	}
+
+	return err
+}
+
+func (tm *kvTaskManager) Remove(ctx context.Context, taskID string) error {
+	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
+		key, err := txn.PeekAny(
+			kvstore.NilF,
+			kvstore.Key(makeWdPoStKey(core.WdPoStTaskReadyToRun, taskID)),
+			kvstore.Key(makeWdPoStKey(core.WdPoStTaskRunning, taskID)),
+			kvstore.Key(makeWdPoStKey(core.WdPoStTaskFinished, taskID)),
+		)
+		if errors.Is(err, kvstore.ErrKeyNotFound) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("load task from db: %w. taskID: %s", err, taskID)
+		}
+		return txn.Del(key)
+	})
+
+	if err == nil {
+		log.Infof("task removed: %s", taskID)
 	}
 
 	return err

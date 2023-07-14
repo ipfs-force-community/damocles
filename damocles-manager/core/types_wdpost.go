@@ -9,7 +9,7 @@ import (
 )
 
 type WdPoStSectorInfo struct {
-	SectorID abi.SectorNumber
+	SectorID abi.SectorNumber `json:"SectorId"`
 	CommR    [32]byte
 	Upgrade  bool // is upgrade sector
 	Accesses SectorAccessStores
@@ -17,8 +17,8 @@ type WdPoStSectorInfo struct {
 
 type WdPoStInput struct {
 	Sectors   []WdPoStSectorInfo
-	MinerID   abi.ActorID
-	ProofType abi.RegisteredPoStProof
+	MinerID   abi.ActorID `json:"MinerId"`
+	ProofType string
 	Seed      [32]byte
 }
 
@@ -31,7 +31,8 @@ const (
 )
 
 type WdPoStTask struct {
-	ID          string
+	ID          string `json:"Id"`
+	State       string
 	DeadlineIdx uint64
 	Input       WdPoStInput
 	Output      *stage.WindowPoStOutput
@@ -58,7 +59,7 @@ func (t *WdPoStTask) Finished(maxTry uint32) bool {
 }
 
 type WdPoStAllocatedTask struct {
-	ID    string
+	ID    string `json:"Id"`
 	Input WdPoStInput
 }
 
@@ -78,4 +79,5 @@ type WorkerWdPoStTaskManager interface {
 	CleanupExpiredTasks(ctx context.Context, taskLifetime time.Duration, limit uint32) error
 	RetryFailedTasks(ctx context.Context, maxTry, limit uint32) error
 	Reset(ctx context.Context, taskID string) error
+	Remove(ctx context.Context, taskID string) error
 }

@@ -35,6 +35,10 @@ var LoadJSON = func(target any) func(Val) error {
 	}
 }
 
+var NilF = func(Val) error {
+	return nil
+}
+
 func NewKVExt(kvStore KVStore) *KVExt {
 	return &KVExt{
 		KVStore: kvStore,

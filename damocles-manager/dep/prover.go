@@ -32,15 +32,16 @@ func ExtProver() dix.Option {
 func WorkerProver() dix.Option {
 	return dix.Options(
 		dix.Override(new(WorkerProverStore), BuildWorkerProverStore),
+		dix.Override(new(*proverworker.Config), proverworker.DefaultConfig),
 		dix.Override(new(core.WorkerWdPoStTaskManager), BuildWorkerWdPoStTaskManager),
 		dix.Override(new(core.WorkerWdPoStAPI), proverworker.NewWdPoStAPIImpl),
-		dix.Override(new(core.Prover), proverworker.NewProver),
+		dix.Override(new(core.Prover), BuildWorkerProver),
 	)
 }
 
 func DisableWorkerProver() dix.Option {
 	return dix.Options(
-		dix.Override(new(core.WorkerWdPoStAPI), &proverworker.UnavailableWdPoStAPIImpl{}),
+		dix.Override(new(core.WorkerWdPoStAPI), proverworker.NewUnavailableWdPoStAPIImpl),
 	)
 }
 
@@ -95,6 +96,18 @@ func ProvideExtProverConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.
 
 func BuildWorkerProverStore(gctx GlobalContext, db UnderlyingDB) (WorkerProverStore, error) {
 	return db.OpenCollection(gctx, "prover")
+}
+
+func BuildWorkerProver(lc fx.Lifecycle, taskMgr core.WorkerWdPoStTaskManager, sectorTracker core.SectorTracker, config *proverworker.Config) (core.Prover, error) {
+	p := proverworker.NewProver(taskMgr, sectorTracker, config)
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			p.StartJob(ctx)
+			return nil
+		},
+	})
+
+	return p, nil
 }
 
 func BuildWorkerWdPoStTaskManager(kv WorkerProverStore) (core.WorkerWdPoStTaskManager, error) {

@@ -21,6 +21,7 @@ func Setup() {
 		_ = logging.SetLogLevel("*", "INFO")
 		_ = logging.SetLogLevel("dix", "INFO")
 		_ = logging.SetLogLevel("badger", "INFO")
+		_ = logging.SetLogLevel("kv", "INFO")
 		_ = logging.SetLogLevel("rpc", "INFO")
 
 		// copy from lotus
