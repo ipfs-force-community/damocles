@@ -153,9 +153,10 @@ type MinerAPI interface {
 }
 
 type WorkerWdPoStAPI interface {
-	WdPoStHeartbeatTask(ctx context.Context, runningTaskIDs []string, workerName string) error
+	WdPoStHeartbeatTasks(ctx context.Context, runningTaskIDs []string, workerName string) (Meta, error)
 	WdPoStAllocateTasks(ctx context.Context, spec AllocateWdPoStTaskSpec, num uint32, workerName string) (allocatedTasks []*WdPoStAllocatedTask, err error)
-	WdPoStFinishTask(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error
-	WdPoStResetTask(ctx context.Context, taskID string) error
+	WdPoStFinishTask(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
+	WdPoStResetTask(ctx context.Context, taskID string) (Meta, error)
+	WdPoStRemoveTask(ctx context.Context, taskID string) (Meta, error)
 	WdPoStAllTasks(ctx context.Context) ([]*WdPoStTask, error)
 }

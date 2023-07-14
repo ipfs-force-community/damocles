@@ -12,7 +12,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
-	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/workercli"
 )
 
@@ -157,7 +156,7 @@ var utilWorkerInfoCmd = &cli.Command{
 
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		defer tw.Flush()
-		_, _ = fmt.Fprintln(tw, "Index\tLoc\tPlan\tSectorID\tPaused\tPausedElapsed\tState\tLastErr")
+		_, _ = fmt.Fprintln(tw, "Index\tLoc\tPlan\tJobID\tPaused\tPausedElapsed\tState\tLastErr")
 
 		for _, detail := range details {
 			_, _ = fmt.Fprintf(
@@ -165,7 +164,7 @@ var utilWorkerInfoCmd = &cli.Command{
 				detail.Index,
 				detail.Location,
 				detail.Plan,
-				FormatOrNull(detail.SectorID, func() string { return util.FormatSectorID(*detail.SectorID) }),
+				FormatOrNull(detail.JobID, func() string { return *detail.JobID }),
 				detail.Paused,
 				FormatOrNull(detail.PausedElapsed, func() string { return (time.Duration(*detail.PausedElapsed) * time.Second).String() }),
 				detail.State,
@@ -310,6 +309,8 @@ var utilWdPostCmd = &cli.Command{
 	Subcommands: []*cli.Command{
 		utilWdPostListCmd,
 		utilWdPostResetCmd,
+		utilWdPostRemoveCmd,
+		utilWdPostRemoveAllCmd,
 	},
 }
 
@@ -320,6 +321,10 @@ var utilWdPostListCmd = &cli.Command{
 		&cli.BoolFlag{
 			Name:  "all",
 			Usage: "list all wdpost task, include the task that has been succeed",
+		},
+		&cli.BoolFlag{
+			Name:  "detail",
+			Usage: "show more detailed information",
 		},
 	},
 	Action: func(cctx *cli.Context) error {
@@ -335,8 +340,14 @@ var utilWdPostListCmd = &cli.Command{
 			return fmt.Errorf("get wdpost tasks: %w", err)
 		}
 
+		detail := cctx.Bool("detail")
+
 		w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
-		_, err = w.Write([]byte("ID\tMinerID\tDeadline\tWorker\tState\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tError\n"))
+		if detail {
+			_, err = w.Write([]byte("ID\tPrefix\tMiner\tDDL\tWorker\tState\tTry\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tUpdatedAt\tError\n"))
+		} else {
+			_, err = w.Write([]byte("ID\tMinerID\tDDL\tWorker\tState\tTry\tCreateAt\tElapsed\tError\n"))
+		}
 		if err != nil {
 			return err
 		}
@@ -347,7 +358,6 @@ var utilWdPostListCmd = &cli.Command{
 			return time.Unix(int64(unix_secs), 0).Format("01-02 15:04:05")
 		}
 		for _, task := range tasks {
-
 			state := "ReadyToRun"
 			if task.StartedAt != 0 {
 				state = "Running"
@@ -363,19 +373,45 @@ var utilWdPostListCmd = &cli.Command{
 			if !cctx.Bool("all") && state == "Succeed" {
 				continue
 			}
+			if detail {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+					task.ID,
+					task.State,
+					task.Input.MinerID,
+					task.DeadlineIdx,
+					task.WorkerName,
+					state,
+					task.TryNum,
+					formatDateTime(task.CreatedAt),
+					formatDateTime(task.StartedAt),
+					formatDateTime(task.HeartbeatAt),
+					formatDateTime(task.FinishedAt),
+					formatDateTime(task.UpdatedAt),
+					task.ErrorReason,
+				)
+			} else {
+				var elapsed string
 
-			fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				task.ID,
-				task.Input.MinerID,
-				task.DeadlineIdx,
-				task.WorkerName,
-				state,
-				formatDateTime(task.CreatedAt),
-				formatDateTime(task.StartedAt),
-				formatDateTime(task.HeartbeatAt),
-				formatDateTime(task.FinishedAt),
-				task.ErrorReason,
-			)
+				if task.StartedAt == 0 {
+					elapsed = "-"
+				} else if task.FinishedAt == 0 {
+					elapsed = time.Since(time.Unix(int64(task.StartedAt), 0)).Truncate(time.Second).String()
+				} else {
+					elapsed = fmt.Sprintf("%s(done)", time.Duration(task.FinishedAt-task.StartedAt)*time.Second)
+				}
+
+				fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\n",
+					task.ID,
+					task.Input.MinerID,
+					task.DeadlineIdx,
+					task.WorkerName,
+					state,
+					task.TryNum,
+					formatDateTime(task.CreatedAt),
+					elapsed,
+					task.ErrorReason,
+				)
+			}
 		}
 
 		w.Flush()
@@ -385,26 +421,90 @@ var utilWdPostListCmd = &cli.Command{
 
 var utilWdPostResetCmd = &cli.Command{
 	Name:      "reset",
-	Usage:     "reset wdpost task",
-	ArgsUsage: "<task id>",
+	Usage:     "reset the task status to allow new workers can pick it up",
+	ArgsUsage: "<task id>...",
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
 		if args.Len() < 1 {
 			return cli.ShowSubcommandHelp(cctx)
 		}
 
-		id := args.First()
 		a, actx, stopper, err := extractAPI(cctx)
 		if err != nil {
 			return fmt.Errorf("get api: %w", err)
 		}
 		defer stopper()
 
-		err = a.Damocles.WdPoStResetTask(actx, id)
-		if err != nil {
-			return fmt.Errorf("reset wdpost task: %w", err)
+		for _, taskID := range args.Slice() {
+			_, err = a.Damocles.WdPoStResetTask(actx, taskID)
+			if err != nil {
+				return fmt.Errorf("reset wdpost task: %w", err)
+			}
 		}
 
+		return nil
+	},
+}
+
+var utilWdPostRemoveCmd = &cli.Command{
+	Name:      "remove",
+	Usage:     "remove wdpost task",
+	ArgsUsage: "<task id>...",
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if args.Len() < 1 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		a, actx, stopper, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("get api: %w", err)
+		}
+		defer stopper()
+
+		for _, taskID := range args.Slice() {
+			_, err = a.Damocles.WdPoStRemoveTask(actx, taskID)
+			if err != nil {
+				return fmt.Errorf("remove wdpost task: %w", err)
+			}
+		}
+		return nil
+	},
+}
+
+var utilWdPostRemoveAllCmd = &cli.Command{
+	Name:  "remove-all",
+	Usage: "remove all wdpost tasks",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "really-do-it",
+			Usage: "Actually perform the action",
+			Value: false,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		if !cctx.Bool("really-do-it") {
+			fmt.Println("Pass --really-do-it to actually execute this action")
+			return nil
+		}
+
+		a, actx, stopper, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("get api: %w", err)
+		}
+		defer stopper()
+
+		tasks, err := a.Damocles.WdPoStAllTasks(actx)
+		if err != nil {
+			return err
+		}
+		for _, task := range tasks {
+			_, err = a.Damocles.WdPoStRemoveTask(actx, task.ID)
+			if err != nil {
+				return fmt.Errorf("remove wdpost task: %w", err)
+			}
+			fmt.Printf("wdpost task %s removed\n", task.ID)
+		}
 		return nil
 	},
 }
