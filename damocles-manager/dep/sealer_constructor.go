@@ -296,7 +296,7 @@ func MaybeAPIClient(gctx GlobalContext, lc fx.Lifecycle, listen ListenAddress) *
 	var client core.APIClient
 	err := buildDamoclesAPIClient(gctx, lc, core.APINamespace, &client, string(listen), false)
 	if err != nil {
-		log.Errorf("failed to build api client. err: %s", err)
+		log.Warnf("failed to build api client. err: %s", err)
 		client = core.UnavailableAPIClient
 	}
 

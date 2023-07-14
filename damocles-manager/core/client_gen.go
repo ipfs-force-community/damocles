@@ -4,7 +4,6 @@ package core
 
 import (
 	"context"
-
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -265,25 +264,29 @@ var UnavailableMinerAPIClient = MinerAPIClient{
 
 // WorkerWdPoStAPIClient is generated client for WorkerWdPoStAPI interface.
 type WorkerWdPoStAPIClient struct {
-	WdPoStHeartbeatTask func(ctx context.Context, runningTaskIDs []string, workerName string) error
-	WdPoStAllocateTasks func(ctx context.Context, num uint32, workerName string) (allocatedTasks []WdPoStAllocatedTask, err error)
-	WdPoStFinishTask    func(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error
-	WdPoStResetTask     func(ctx context.Context, taskID string) error
-	WdPoStAllTasks      func(ctx context.Context) ([]*WdPoStTask, error)
+	WdPoStHeartbeatTasks func(ctx context.Context, runningTaskIDs []string, workerName string) (Meta, error)
+	WdPoStAllocateTasks  func(ctx context.Context, spec AllocateWdPoStTaskSpec, num uint32, workerName string) (allocatedTasks []*WdPoStAllocatedTask, err error)
+	WdPoStFinishTask     func(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
+	WdPoStResetTask      func(ctx context.Context, taskID string) (Meta, error)
+	WdPoStRemoveTask     func(ctx context.Context, taskID string) (Meta, error)
+	WdPoStAllTasks       func(ctx context.Context) ([]*WdPoStTask, error)
 }
 
 var UnavailableWorkerWdPoStAPIClient = WorkerWdPoStAPIClient{
 
-	WdPoStHeartbeatTask: func(ctx context.Context, runningTaskIDs []string, workerName string) error {
+	WdPoStHeartbeatTasks: func(ctx context.Context, runningTaskIDs []string, workerName string) (Meta, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStAllocateTasks: func(ctx context.Context, num uint32, workerName string) (allocatedTasks []WdPoStAllocatedTask, err error) {
+	WdPoStAllocateTasks: func(ctx context.Context, spec AllocateWdPoStTaskSpec, num uint32, workerName string) (allocatedTasks []*WdPoStAllocatedTask, err error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStFinishTask: func(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error {
+	WdPoStFinishTask: func(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStResetTask: func(ctx context.Context, taskID string) error {
+	WdPoStResetTask: func(ctx context.Context, taskID string) (Meta, error) {
+		panic("WorkerWdPoStAPI client unavailable")
+	},
+	WdPoStRemoveTask: func(ctx context.Context, taskID string) (Meta, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
 	WdPoStAllTasks: func(ctx context.Context) ([]*WdPoStTask, error) {
