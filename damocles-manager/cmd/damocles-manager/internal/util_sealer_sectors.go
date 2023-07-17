@@ -23,6 +23,7 @@ import (
 	"github.com/filecoin-project/go-state-types/builtin"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	"github.com/filecoin-project/venus/pkg/util/fr32"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/verifreg"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
@@ -2362,18 +2363,45 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			Aliases: []string{"o"},
 		},
 		&cli.Uint64Flag{
-			Name:  "offset",
-			Usage: "specify offset of piece manually",
-			Value: 0,
+			Name:     "actor",
+			Usage:    "specify actor id of miner manully, it must worke with flag \"--sector\" ",
+			Required: false,
+			Aliases:  []string{"miner", "actor-id"},
 		},
 		&cli.Uint64Flag{
-			Name:  "size",
-			Usage: "specify size of piece manually",
-			Value: 0,
+			Name:     "sector",
+			Usage:    "specify sector number manully, it must worke with flag \"--actor\" ",
+			Aliases:  []string{"sector-id"},
+			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:     "piece-info-from-market",
+			Usage:    "get piece info from venus-market, which come from damocles db by default .",
+			Value:    false,
+			Aliases:  []string{"from-market"},
+			Required: false,
 		},
 		&cli.StringFlag{
-			Name:  "dest",
-			Usage: "specify destination to transfer piece manually, there are five protocols can be used:" + "\"file:///path\",\"http://\" \"https://\", \"market://store_name/piece_cid\", \"store://store_name/piece_cid\"",
+			Name:     "unseal-file",
+			Usage:    "unseal piece from unseal file",
+			Required: false,
+		},
+		&cli.Uint64Flag{
+			Name:     "offset",
+			Usage:    "specify offset of piece manually",
+			Value:    0,
+			Required: false,
+		},
+		&cli.Uint64Flag{
+			Name:     "size",
+			Usage:    "specify size of piece manually",
+			Value:    0,
+			Required: false,
+		},
+		&cli.StringFlag{
+			Name:     "dest",
+			Usage:    "specify destination to transfer piece manually, there are five protocols can be used:" + "\"file:///path\",\"http://\" \"https://\", \"market://store_name/piece_cid\", \"store://store_name/piece_cid\"",
+			Required: false,
 		},
 	},
 	Action: func(cctx *cli.Context) error {
@@ -2393,83 +2421,168 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			return fmt.Errorf("invalid piece cid: %w", err)
 		}
 
-		// query sector for piece
-		sector, err := cli.Sealer.FindSectorWithPiece(gctx, core.WorkerOffline, pieceCid)
-		if err != nil {
-			return fmt.Errorf("find sector with piece: %w", err)
+		// get sector id
+		sectorID := abi.SectorID{}
+		// todo: rm sectorState when we can get deal by dealID
+		var sectorState *core.SectorState
+		if cctx.IsSet("actor") && cctx.IsSet("sector") {
+			miner := abi.ActorID(cctx.Uint64("actor"))
+			sector := abi.SectorNumber(cctx.Uint64("sector"))
+			sectorID = abi.SectorID{
+				Miner:  miner,
+				Number: sector,
+			}
+			sectorState, err = cli.Sealer.FindSectorInAllStates(gctx, sectorID)
+			if err != nil {
+				return fmt.Errorf("get sector info failed: %w", err)
+			}
+		} else if cctx.IsSet("actor") || cctx.IsSet("sector") {
+			return fmt.Errorf("flag \"--actor\" and \"--sector\" must be set together")
+		} else {
+			sector, err := cli.Sealer.FindSectorWithPiece(gctx, core.WorkerOffline, pieceCid)
+			if err != nil {
+				return fmt.Errorf("find sector with piece: %w", err)
+			}
+
+			if sector == nil {
+				return fmt.Errorf("no sector found with piece %s", pieceCid)
+			}
+			sectorState = sector
 		}
 
-		if sector == nil {
-			return fmt.Errorf("no sector found with piece %s", pieceCid)
-		}
-
-		var _offset, _size uint64
-		for _, p := range sector.Pieces {
-			if pieceCid.Equals(p.Piece.Cid) {
-				_offset = uint64(p.Piece.Offset.Unpadded())
-				_size = uint64(p.Piece.Size.Unpadded())
-				break
+		// get piece-info
+		var offsetPadded, sizePadded abi.PaddedPieceSize
+		if cctx.Bool("piece-info-from-market") {
+			// get piece info from market
+			pieceInfo, err := cli.Market.PiecesGetPieceInfo(gctx, pieceCid)
+			if err != nil {
+				return fmt.Errorf("get piece info from market: %w", err)
+			}
+			if pieceInfo == nil {
+				return fmt.Errorf("no piece info found in market with piece %s", pieceCid)
+			}
+			var matched bool
+			for _, deal := range pieceInfo.Deals {
+				// check miner and sector
+				for _, dealInSectorState := range sectorState.Pieces {
+					if deal.DealID == dealInSectorState.ID {
+						matched = true
+						offsetPadded = deal.Offset
+						sizePadded = deal.Length
+						break
+					}
+				}
+			}
+			if !matched {
+				return fmt.Errorf("no matched deal found in market with sector %d and piece %s", sectorState.ID.Number, pieceCid)
+			}
+		} else {
+			// get piece info from sector state
+			for _, p := range sectorState.Pieces {
+				if pieceCid.Equals(p.Piece.Cid) {
+					offsetPadded = p.Piece.Offset
+					sizePadded = p.Piece.Size
+					break
+				}
 			}
 		}
 
 		// allow cover offset and size by flag
 		if cctx.IsSet("offset") {
-			_offset = cctx.Uint64("offset")
+			offsetPadded = abi.PaddedPieceSize(cctx.Uint64("offset"))
 		}
 		if cctx.IsSet("size") {
-			_size = cctx.Uint64("size")
+			sizePadded = abi.PaddedPieceSize(cctx.Uint64("size"))
 		}
 
-		offset := types.UnpaddedByteIndex(abi.PaddedPieceSize(_offset).Unpadded())
-		size := abi.PaddedPieceSize(_size).Unpadded()
+		offset := offsetPadded.Unpadded()
+		size := sizePadded.Unpadded()
+
+		if err := offset.Validate(); err != nil && offset != 0 {
+			return fmt.Errorf("invalid offset: %w", err)
+		}
+		if err := size.Validate(); err != nil {
+			return fmt.Errorf("invalid size: %w", err)
+		}
+
+		// unseal by vsm or worker
+		output := cctx.String("output")
+		if output == "" {
+			pwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("get pwd failed: %w", err)
+			}
+			output = fmt.Sprintf("%s/%s", pwd, pieceCid.String())
+		}
 
 		dest := cctx.String("dest")
-		output := cctx.String("output")
-
-		stream, err := cli.Sealer.UnsealPiece(gctx, sector.ID, pieceCid, offset, size, dest)
-		if err != nil {
-			return fmt.Errorf("set task for unseal failed: %w", err)
-		}
-
-		if stream != nil {
-			if output == "" {
-				pwd, err := os.Getwd()
-				if err != nil {
-					return fmt.Errorf("get pwd failed: %w", err)
-				}
-				output = fmt.Sprintf("%s/%s", pwd, pieceCid.String())
+		if cctx.IsSet("unseal-file") {
+			if cctx.IsSet("dest") {
+				return fmt.Errorf("flag \"--unseal-file\" and \"--dest\" can not be set together")
 			}
-
-			fi, err := os.OpenFile(output, os.O_CREATE|os.O_WRONLY, 0644)
+			unsealFile := cctx.String("unseal-file")
+			fi, err := os.Stat(unsealFile)
 			if err != nil {
-				return err
+				return fmt.Errorf("check unseal file failed: %w", err)
 			}
-			defer func() {
-				err := fi.Close()
-				if err != nil {
-					fmt.Printf("error closing output file: %+v", err)
-				}
-			}()
+			if fi.IsDir() {
+				return fmt.Errorf("unseal file can not be a directory")
+			}
 
-			var finish bool
-			for b := range stream {
-				finish = len(b) == 0
-				fmt.Printf("unseal piece bytes: %x \n", b)
-				_, err := fi.Write(b)
+			src, err := os.ReadFile(unsealFile)
+			if err != nil {
+				return fmt.Errorf("read unseal file failed: %w", err)
+			}
+
+			data := src[offsetPadded : offsetPadded+sizePadded]
+			res := make([]byte, size)
+
+			fr32.Unpad(data, res)
+
+			err = os.WriteFile(output, res, 0644)
+			if err != nil {
+				return fmt.Errorf("write piece file failed: %w", err)
+			}
+
+		} else {
+			stream, err := cli.Sealer.UnsealPiece(gctx, sectorID, pieceCid, types.UnpaddedByteIndex(offset), size, dest)
+			if err != nil {
+				return fmt.Errorf("set task for unseal failed: %w", err)
+			}
+
+			if stream != nil {
+
+				fi, err := os.OpenFile(output, os.O_CREATE|os.O_WRONLY, 0644)
 				if err != nil {
 					return err
 				}
-			}
+				defer func() {
+					err := fi.Close()
+					if err != nil {
+						fmt.Printf("error closing output file: %+v", err)
+					}
+				}()
 
-			if !finish {
-				return fmt.Errorf("unseal piece failed")
+				var finish bool
+				for b := range stream {
+					finish = len(b) == 0
+					fmt.Printf("unseal piece bytes: %x \n", b)
+					_, err := fi.Write(b)
+					if err != nil {
+						return err
+					}
+				}
+
+				if !finish {
+					return fmt.Errorf("unseal piece failed")
+				}
 			}
 		}
 
 		fmt.Println("set task for unseal success:")
 		fmt.Printf("piece cid: %s\n", pieceCid)
-		fmt.Printf("offset: %d\n", _offset)
-		fmt.Printf("size: %d\n", _size)
+		fmt.Printf("offset: %d\n", offsetPadded)
+		fmt.Printf("size: %d\n", sizePadded)
 		fmt.Printf("dest: %s\n", dest)
 
 		return nil
