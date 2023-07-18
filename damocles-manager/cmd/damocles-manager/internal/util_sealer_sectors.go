@@ -2375,10 +2375,10 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			Required: false,
 		},
 		&cli.BoolFlag{
-			Name:     "piece-info-from-market",
-			Usage:    "get piece info from venus-market, which come from damocles db by default .",
+			Name:     "piece-info-from-droplet",
+			Usage:    "get piece info from droplet, which come from damocles db by default .",
 			Value:    false,
-			Aliases:  []string{"from-market"},
+			Aliases:  []string{"from-droplet"},
 			Required: false,
 		},
 		&cli.StringFlag{
@@ -2452,7 +2452,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 
 		// get piece-info
 		var offsetPadded, sizePadded abi.PaddedPieceSize
-		if cctx.Bool("piece-info-from-market") {
+		if cctx.Bool("piece-info-from-droplet") {
 			// get piece info from market
 			pieceInfo, err := cli.Market.PiecesGetPieceInfo(gctx, pieceCid)
 			if err != nil {
