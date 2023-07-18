@@ -2479,6 +2479,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 				return fmt.Errorf("no piece info found in market with piece %s", pieceCid)
 			}
 			var matched bool
+		CHECK_LOOP:
 			for _, deal := range pieceInfo.Deals {
 				// check miner and sector
 				for _, dealInSectorState := range sectorState.Pieces {
@@ -2486,7 +2487,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 						matched = true
 						offsetPadded = deal.Offset
 						sizePadded = deal.Length
-						break
+						break CHECK_LOOP
 					}
 				}
 			}
