@@ -39,6 +39,7 @@ import (
 	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
+	"github.com/filecoin-project/lotus/api"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
@@ -1732,7 +1733,7 @@ var utilSealerSectorsImportCmd = &cli.Command{
 			}
 
 			slog := Log.With("sector", util.FormatSectorID(sid))
-			state, err := sectorInfo2SectorState(sid, &sinfo)
+			state, err := sectorInfo2SectorState(sid, &sinfo, mcli)
 			if err != nil {
 				slog.Warnf("check sector info: %s", err)
 				continue
@@ -2075,7 +2076,7 @@ var utilSealerSectorsExportFilesCmd = &cli.Command{
 	},
 }
 
-func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*core.SectorState, error) {
+func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo, cli api.StorageMiner) (*core.SectorState, error) {
 	var upgraded core.SectorUpgraded
 	switch lotusminer.SectorState(sinfo.State) {
 	case lotusminer.FinalizeSector, lotusminer.Proving:
@@ -2136,8 +2137,24 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo) (*co
 			spiece.Piece = core.PieceInfo{
 				Size: ipiece.Piece.Size,
 				Cid:  ipiece.Piece.PieceCID,
+				// Offset: ,
 			}
 			spiece.Proposal = ipiece.DealInfo.DealProposal
+
+			pieceInfo, err := cli.PiecesGetPieceInfo(context.Background(), ipiece.Piece.PieceCID)
+			if err != nil {
+				fmt.Fprintf(os.Stdout, "get piece info %s: %s\n", ipiece.Piece.PieceCID, err)
+			} else if pieceInfo == nil {
+				fmt.Fprintf(os.Stdout, "piece info not found %s\n", ipiece.Piece.PieceCID)
+			} else {
+				for _, deal := range pieceInfo.Deals {
+					if deal.DealID == ipiece.DealInfo.DealID {
+						spiece.Piece.Offset = deal.Offset
+						break
+					}
+				}
+			}
+
 		}
 
 		pieces = append(pieces, spiece)
