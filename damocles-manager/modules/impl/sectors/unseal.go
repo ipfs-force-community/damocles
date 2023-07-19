@@ -39,25 +39,21 @@ type UnsealManager struct {
 
 var _ core.UnsealSectorManager = (*UnsealManager)(nil)
 
-func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerAPI, kv kvstore.KVStore) (ret *UnsealManager, err error) {
+func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerAPI, kv kvstore.KVStore, marketAddr, marketToken string) (ret *UnsealManager, err error) {
 	ret = &UnsealManager{
 		kv:   kv,
 		msel: newMinerSelector(scfg, minfoAPI),
 	}
 
-	scfg.Lock()
-	commonAPI := scfg.Config.Common.API
-	scfg.Unlock()
-	ret.defaultDest, err = getDefaultMarketPiecesStore(commonAPI.Market)
+	ret.defaultDest, err = getDefaultMarketPiecesStore(marketAddr)
 	if err != nil {
 		log.Warnw("get default market pieces store fail, upload unseal piece to market will not be possible", "error", err)
 	}
 	q := ret.defaultDest.Query()
-	q.Set("token", commonAPI.Token)
+	q.Set("token", marketToken)
 	ret.defaultDest.RawQuery = q.Encode()
 
 	return ret, nil
-
 }
 
 // SetAndCheck set unseal task

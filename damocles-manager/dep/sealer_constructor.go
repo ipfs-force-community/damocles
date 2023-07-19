@@ -693,7 +693,11 @@ func BuildUnsealManager(
 		return nil, err
 	}
 
-	mgr, err := sectors.NewUnsealManager(gctx, scfg, MinerAPI, store)
+	scfg.Lock()
+	addr, token := extractAPIInfo(scfg.Common.API.Market, scfg.Common.API.Token)
+	scfg.Unlock()
+
+	mgr, err := sectors.NewUnsealManager(gctx, scfg, MinerAPI, store, addr, token)
 	if err != nil {
 		return nil, fmt.Errorf("construct unseal manager: %w", err)
 	}
