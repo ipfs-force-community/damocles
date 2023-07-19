@@ -20,9 +20,7 @@ use vc_processors::{
     fil_proofs::{UnpaddedByteIndex, UnpaddedBytesAmount},
 };
 
-use crate::sealing::processor::{
-    cached_filenames_for_sector, TransferInput, TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
-};
+use crate::sealing::processor::{TransferInput, TransferItem, TransferRoute, TransferStoreInfo};
 
 pub struct UnsealPlanner;
 
@@ -36,9 +34,6 @@ impl Planner for UnsealPlanner {
                 Event::AllocatedUnsealSector(_) => State::Allocated,
             },
             State::Allocated => {
-                Event::UnsealReady => State::UnsealPrepared,
-            },
-            State::UnsealPrepared => {
                 Event::UnsealDone(_) => State::Unsealed,
             },
             State::Unsealed => {
@@ -55,8 +50,7 @@ impl Planner for UnsealPlanner {
 
         match state {
             State::Empty => inner.acquire_task(),
-            State::Allocated => inner.pre_unseal(),
-            State::UnsealPrepared => inner.unseal(),
+            State::Allocated => inner.unseal(),
             State::Unsealed => inner.upload_piece(),
             State::Finished => return Ok(None),
 
@@ -102,112 +96,6 @@ impl<'c, 't> Unseal<'c, 't> {
         Ok(Event::AllocatedUnsealSector(allocated))
     }
 
-    fn pre_unseal(&self) -> ExecResult {
-        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
-
-        // persist store -> thread store
-        let sector_id = self.task.sector_id()?;
-        let proof_type = self.task.sector_proof_type()?;
-        field_required!(
-            access_instance,
-            self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
-        );
-
-        debug!("find access store named {}", access_instance);
-        let access_store = self
-            .task
-            .ctx
-            .global
-            .attached
-            .get(access_instance)
-            .with_context(|| format!("get access store instance named {}", access_instance))
-            .perm()?;
-
-        debug!("get basic info for access store named {}", access_instance);
-        let access_store_basic_info = call_rpc! {
-            self.task.ctx.global.rpc,
-            store_basic_info,
-            access_instance.clone(),
-        }?
-        .with_context(|| format!("get basic info for store named {}", access_instance))
-        .perm()?;
-
-        // sealed file & persisted cache files should be accessed inside persist store
-        let sealed_file = self.task.sealed_file(sector_id);
-        sealed_file.prepare().perm()?;
-        let sealed_rel = sealed_file.rel();
-
-        let cache_dir = self.task.cache_dir(sector_id);
-
-        let cached_file_routes = cached_filenames_for_sector(proof_type.into())
-            .into_iter()
-            .map(|fname| {
-                let cached_file = cache_dir.join(fname);
-                let cached_rel = cached_file.rel();
-
-                Ok(TransferRoute {
-                    src: TransferItem {
-                        store_name: Some(access_instance.clone()),
-                        uri: access_store
-                            .uri(cached_rel)
-                            .with_context(|| format!("get uri for cache dir {:?} in {}", cached_rel, access_instance))
-                            .perm()?,
-                    },
-                    dest: TransferItem {
-                        store_name: None,
-                        uri: cached_file.full().clone(),
-                    },
-                    opt: Some(TransferOption {
-                        is_dir: false,
-                        allow_link: true,
-                    }),
-                })
-            })
-            .collect::<Result<Vec<_>, Failure>>()?;
-
-        let mut transfer_routes = vec![TransferRoute {
-            src: TransferItem {
-                store_name: Some(access_instance.clone()),
-                uri: access_store
-                    .uri(sealed_rel)
-                    .with_context(|| format!("get uri for sealed file {:?} in {}", sealed_rel, access_instance))
-                    .perm()?,
-            },
-            dest: TransferItem {
-                store_name: None,
-                uri: sealed_file.full().clone(),
-            },
-            opt: Some(TransferOption {
-                is_dir: false,
-                allow_link: true,
-            }),
-        }];
-
-        transfer_routes.extend(cached_file_routes.into_iter());
-
-        let transfer = TransferInput {
-            stores: HashMap::from_iter([(
-                access_instance.clone(),
-                TransferStoreInfo {
-                    name: access_instance.clone(),
-                    meta: access_store_basic_info.meta,
-                },
-            )]),
-            routes: transfer_routes,
-        };
-
-        self.task
-            .ctx
-            .global
-            .processors
-            .transfer
-            .process(transfer)
-            .context("link unseal sector files")
-            .perm()?;
-
-        Ok(Event::UnsealReady)
-    }
-
     fn unseal(&self) -> ExecResult {
         // query token
         let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_UNSEAL).crit()?;
@@ -216,9 +104,35 @@ impl<'c, 't> Unseal<'c, 't> {
         let proof_type = self.task.sector_proof_type()?;
 
         field_required!(unseal_info, self.task.sector.phases.unseal_in.as_ref());
+        field_required!(
+            instance_name,
+            self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
+        );
 
-        let cache_dir = self.task.cache_dir(sector_id);
-        let sealed_file = self.task.sealed_file(sector_id);
+        debug!("find access store named {}", instance_name);
+        let instance = self
+            .task
+            .ctx
+            .global
+            .attached
+            .get(instance_name)
+            .with_context(|| format!("get access store instance named {}", instance_name))
+            .perm()?;
+
+        let sealed_temp = self.task.sealed_file(sector_id);
+        let sealed_rel = sealed_temp.rel();
+
+        let cache_temp = self.task.cache_dir(sector_id);
+        let cache_rel = cache_temp.rel();
+
+        let sealed_path = instance
+            .uri(sealed_rel)
+            .with_context(|| format!("get uri for sealed file {:?} in {}", sealed_rel, instance_name))
+            .perm()?;
+        let cache_path = instance
+            .uri(cache_rel)
+            .with_context(|| format!("get uri for cache file {:?} in {}", cache_rel, instance_name))
+            .perm()?;
 
         let piece_file = self.task.piece_file(&unseal_info.piece_cid);
         if piece_file.full().exists() {
@@ -248,8 +162,8 @@ impl<'c, 't> Unseal<'c, 't> {
                 sector_id,
                 comm_d: unseal_info.comm_d,
                 ticket: ticket.ticket.0,
-                cache_dir: cache_dir.into(),
-                sealed_file: sealed_file.into(),
+                cache_dir: cache_path,
+                sealed_file: sealed_path,
                 unsealed_output: piece_file.into(),
                 offset: UnpaddedByteIndex(unseal_info.offset),
                 num_bytes: UnpaddedBytesAmount(unseal_info.size),

@@ -85,8 +85,6 @@ pub enum Event {
     UnsealDone(u64),
 
     UploadPieceDone,
-
-    UnsealReady,
 }
 
 impl Debug for Event {
@@ -155,8 +153,6 @@ impl Debug for Event {
             Self::UnsealDone(_) => "Unsealed",
 
             Self::UploadPieceDone => "UploadPieceDone",
-
-            Self::UnsealReady => "UnsealReady",
         };
 
         f.write_str(name)
