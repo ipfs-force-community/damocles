@@ -1,7 +1,8 @@
 use std::{backtrace::Backtrace, panic::PanicInfo};
 
 /// Exit the whole process when panic.
-pub fn set_panic_hook(panic_abort: bool) {
+pub fn install_panic_hook(panic_abort: bool) {
+    let old_hook = std::panic::take_hook();
     // Set a panic hook that records the panic as a `tracing` event at the
     // `ERROR` verbosity level.
     //
@@ -10,6 +11,7 @@ pub fn set_panic_hook(panic_abort: bool) {
     // occurred to be recorded.
     std::panic::set_hook(Box::new(move |panic| {
         log_panic(panic);
+        old_hook(panic);
         if panic_abort {
             std::process::abort();
         } else {

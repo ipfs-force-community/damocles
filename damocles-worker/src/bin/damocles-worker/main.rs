@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use tokio::runtime::Builder;
 
-use damocles_worker::{logging, set_panic_hook, start_daemon};
+use damocles_worker::{install_panic_hook, logging, start_daemon};
 
 mod generator;
 mod processor;
@@ -44,7 +44,7 @@ pub fn main() -> Result<()> {
     let _rt_guard = rt.enter();
 
     logging::init()?;
-    set_panic_hook(true);
+    install_panic_hook(true);
 
     let cli = Cli::parse();
     match cli.command {
