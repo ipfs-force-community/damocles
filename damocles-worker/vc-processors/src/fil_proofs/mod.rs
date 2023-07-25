@@ -49,8 +49,9 @@ impl fmt::Display for PanicError {
 }
 
 macro_rules! safe_call {
-    ($ex:expr) => {
-        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || $ex)) {
+    ($ex:expr) => {{
+        let hook = std::panic::take_hook();
+        let res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || $ex)) {
             Ok(r) => r,
             Err(p) => {
                 let error_msg = match p.downcast_ref::<&str>() {
@@ -63,8 +64,10 @@ macro_rules! safe_call {
 
                 Err(crate::fil_proofs::PanicError { message: error_msg }.into())
             }
-        }
-    };
+        };
+        std::panic::set_hook(hook);
+        res
+    }};
 }
 
 pub fn write_and_preprocess<R, W>(
