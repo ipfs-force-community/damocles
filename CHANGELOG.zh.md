@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.2
+- damocles-worker
+  - 修复封装任务 panic 导致 damocles-worker 进程退出的 bug [#834](https://github.com/ipfs-force-community/damocles/pull/834)
+
 ## v0.7.1
 - damocles-worker
   - 修复 pc1 无法从环境变量中加载大页内存路径的 bug [#804](https://github.com/ipfs-force-community/damocles/pull/804)
