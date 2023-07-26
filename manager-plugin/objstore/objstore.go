@@ -20,17 +20,39 @@ type Config struct {
 	Name     string
 	Path     string
 	Meta     map[string]string
-	Strict   bool
-	ReadOnly bool
-	Weight   uint
+	Strict   *bool
+	ReadOnly *bool
+	Weight   *uint
+}
+
+func (c Config) GetStrict() bool {
+	if c.Strict == nil {
+		return false
+	}
+	return *c.Strict
+}
+
+func (c Config) GetReadOnly() bool {
+	if c.ReadOnly == nil {
+		return false
+	}
+	return *c.ReadOnly
+}
+
+func (c Config) GetWeight() uint {
+	if c.Weight == nil {
+		return 1
+	}
+	return *c.Weight
 }
 
 func DefaultConfig(path string, readonly bool) Config {
+	one := uint(1)
 	return Config{
 		Path:     path,
 		Meta:     map[string]string{},
-		ReadOnly: readonly,
-		Weight:   1,
+		ReadOnly: &readonly,
+		Weight:   &one,
 	}
 }
 
