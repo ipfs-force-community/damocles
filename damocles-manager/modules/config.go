@@ -367,6 +367,20 @@ func defaultCommonConfig(example bool) CommonConfig {
 			PluginName: "s3store",
 		})
 
+		cfg.PieceStorePreset = PieceStorePreset{
+			Meta:     map[string]string{"SomeKey": "SomeValue"},
+			Strict:   new(bool),
+			ReadOnly: new(bool),
+			Weight:   new(uint),
+
+			AllowMiners: []abi.ActorID{1, 2},
+			DenyMiners:  []abi.ActorID{3, 4},
+
+			StorageConfigPath: new(string),
+		}
+		*cfg.PieceStorePreset.Weight = 1
+		*cfg.PieceStorePreset.StorageConfigPath = "/optional/path/to/your/storage.json"
+
 		cfg.PersistStores = append(cfg.PersistStores, PersistStoreConfig{
 			Config: objstore.Config{
 				Name: exampleCfg.Name,
