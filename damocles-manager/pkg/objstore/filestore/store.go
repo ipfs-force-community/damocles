@@ -137,7 +137,7 @@ func (s *Store) open(p string, r *readRange) (io.ReadCloser, error) {
 		}
 	}()
 
-	if s.cfg.Strict {
+	if s.cfg.GetStrict() {
 		stat, err := file.Stat()
 		if err != nil {
 			return nil, fmt.Errorf("obj %s: get stat: %w", p, err)
@@ -211,7 +211,7 @@ func (s *Store) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 }
 
 func (s *Store) Del(ctx context.Context, p string) error {
-	if s.cfg.ReadOnly {
+	if s.cfg.GetReadOnly() {
 		return objstore.ErrReadOnlyStore
 	}
 
@@ -268,7 +268,7 @@ func (s *Store) getAbsPath(p string) (string, error) {
 }
 
 func (s *Store) Put(ctx context.Context, p string, r io.Reader) (int64, error) {
-	if s.cfg.ReadOnly {
+	if s.cfg.GetReadOnly() {
 		return 0, objstore.ErrReadOnlyStore
 	}
 

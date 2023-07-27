@@ -82,7 +82,7 @@ var utilStorageAttachCmd = &cli.Command{
 
 		scfg := objstore.DefaultConfig(abs, readOnly)
 		scfg.Name = name
-		scfg.Strict = strict
+		scfg.Strict = &strict
 
 		store, err := filestore.Open(scfg, false)
 		if err != nil {
@@ -440,6 +440,8 @@ var utilStorageListCmd = &cli.Command{
 			fmt.Printf("%s:\n", detail.Name)
 			fmt.Printf("\tPath: %s\n", detail.Path)
 			fmt.Printf("\tType: %s\n", detail.Type)
+			fmt.Printf("\tReadOnly: %t\n", detail.ReadOnly)
+			fmt.Printf("\tWeight: %d\n", detail.Weight)
 			fmt.Printf("\tTotal: %s\n", units.BytesSize(float64(detail.Total)))
 			fmt.Printf("\tFree: %s\n", units.BytesSize(float64(detail.Free)))
 			fmt.Printf("\tUsed: %s\n", units.BytesSize(float64(detail.Used)))

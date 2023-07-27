@@ -17,12 +17,16 @@ var (
 )
 
 type Config struct {
-	Name     string
-	Path     string
-	Meta     map[string]string
-	Strict   *bool
+	Name string
+	Path string
+	Meta map[string]string
+
+	// Strict should never be used directly, use GetStrict() instead
+	Strict *bool
+	// ReadOnly should never be used directly, use GetReadOnly() instead
 	ReadOnly *bool
-	Weight   *uint
+	// Weight should never be used directly, use GetWeight() instead
+	Weight *uint
 }
 
 func (c Config) GetStrict() bool {

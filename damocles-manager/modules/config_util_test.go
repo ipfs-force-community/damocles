@@ -1,8 +1,11 @@
 package modules_test
 
 import (
+	"bytes"
+	"fmt"
 	"testing"
 
+	"github.com/BurntSushi/toml"
 	"github.com/filecoin-project/go-address"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/testutil"
@@ -53,4 +56,23 @@ func TestMustAddressUnmarshalText(t *testing.T) {
 		require.NoError(t, actual.UnmarshalText([]byte(tc.addr)))
 		require.Equal(t, tc.expected, actual.Std())
 	}
+}
+
+func TestStructWithNilField(t *testing.T) {
+	type A struct {
+		B *int
+		C *bool
+		D *string
+		E map[int]int
+	}
+
+	a := A{}
+
+	buf := bytes.Buffer{}
+	enc := toml.NewEncoder(&buf)
+	enc.Indent = ""
+	err := enc.Encode(a)
+	require.NoError(t, err)
+	fmt.Println(string(buf.Bytes()))
+
 }

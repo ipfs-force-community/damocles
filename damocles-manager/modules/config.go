@@ -154,6 +154,16 @@ type PersistStoreConfig struct {
 	PluginName string
 }
 
+type PieceStorePreset struct {
+	Meta     map[string]string
+	Strict   *bool
+	ReadOnly *bool
+	Weight   *uint
+
+	AllowMiners []abi.ActorID
+	DenyMiners  []abi.ActorID
+}
+
 type ProvingConfig struct {
 	// Maximum number of sector checks to run in parallel. (0 = unlimited)
 	//
@@ -190,13 +200,95 @@ func defaultProvingConfig() ProvingConfig {
 }
 
 type CommonConfig struct {
-	API           CommonAPIConfig
-	Plugins       *PluginConfig
-	PieceStores   []PieceStoreConfig
+	API              CommonAPIConfig
+	Plugins          *PluginConfig
+	PieceStores      []PieceStoreConfig
+	PieceStorePreset PieceStorePreset
+
+	// PersistStores should not be used directly, use GetPersistStores instead
 	PersistStores []PersistStoreConfig
 	MongoKVStore  *KVStoreMongoDBConfig // For compatibility with v0.5
 	DB            *DBConfig
 	Proving       ProvingConfig
+}
+
+func (c CommonConfig) GetPersistStores() []PersistStoreConfig {
+	// apply preset
+	preset := c.PieceStorePreset
+	ret := make([]PersistStoreConfig, 0, len(c.PersistStores))
+
+	// fill preset with default values if not set
+	if preset.Strict == nil {
+		preset.Strict = new(bool)
+		*preset.Strict = false
+	}
+	if preset.ReadOnly == nil {
+		preset.ReadOnly = new(bool)
+		*preset.ReadOnly = false
+	}
+	if preset.Weight == nil {
+		preset.Weight = new(uint)
+		*preset.Weight = 1
+	}
+	if preset.Meta == nil {
+		preset.Meta = make(map[string]string)
+	}
+	if preset.AllowMiners == nil {
+		preset.AllowMiners = make([]abi.ActorID, 0)
+	}
+	if preset.DenyMiners == nil {
+		preset.DenyMiners = make([]abi.ActorID, 0)
+	}
+
+	for i := range c.PersistStores {
+		ps := c.PersistStores[i]
+		if ps.Strict == nil {
+			ps.Strict = preset.Strict
+		}
+		if ps.ReadOnly == nil {
+			ps.ReadOnly = preset.ReadOnly
+		}
+		if ps.Weight == nil {
+			ps.Weight = preset.Weight
+		}
+		mergeMapInto[string, string](preset.Meta, ps.Meta)
+		mergeSliceInto[abi.ActorID](preset.AllowMiners, ps.AllowMiners)
+		mergeSliceInto[abi.ActorID](preset.DenyMiners, ps.DenyMiners)
+
+		ret = append(ret, ps)
+	}
+	return ret
+}
+
+func mergeSliceInto[T comparable](from, into []T) []T {
+	if len(from) == 0 {
+		return into
+	}
+	has := make(map[T]struct{})
+	for _, m := range into {
+		has[m] = struct{}{}
+	}
+	for _, m := range from {
+		if _, ok := has[m]; !ok {
+			into = append(into, m)
+		}
+	}
+	return into
+}
+
+func mergeMapInto[T comparable, V any](from, into map[T]V) map[T]V {
+	if len(from) == 0 {
+		return into
+	}
+	if into == nil {
+		into = make(map[T]V)
+	}
+	for k, v := range from {
+		if _, ok := into[k]; !ok {
+			into[k] = v
+		}
+	}
+	return into
 }
 
 func exampleFilestoreConfig() objstore.Config {

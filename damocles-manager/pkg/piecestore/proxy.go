@@ -79,7 +79,7 @@ func (p *Proxy) handlePut(rw http.ResponseWriter, req *http.Request) {
 			continue
 		}
 
-		if storeInfo.Config.ReadOnly {
+		if storeInfo.Config.GetReadOnly() {
 			continue
 		}
 
@@ -119,7 +119,7 @@ func (p *Proxy) Put(ctx context.Context, pieceCid cid.Cid, data io.Reader) (int6
 			continue
 		}
 
-		if storeInfo.Config.ReadOnly {
+		if storeInfo.Config.GetReadOnly() {
 			continue
 		}
 
