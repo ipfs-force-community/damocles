@@ -32,9 +32,10 @@ crossbeam-utils = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "time"] }
 crossterm = "0.26"
-jsonrpc-core = "18"
-jsonrpc-derive = "18"
-jsonrpc-http-server = "18"
+jsonrpc-core-client = { git = "https://github.com/ipfs-force-community/jsonrpc.git", branch = "feat/0x5459/v18-do-not-check-http-status", features = ["tls", "http"] }
+jsonrpc-core = { git = "https://github.com/ipfs-force-community/jsonrpc.git", branch = "feat/0x5459/v18-do-not-check-http-status" }
+jsonrpc-derive = { git = "https://github.com/ipfs-force-community/jsonrpc.git", branch = "feat/0x5459/v18-do-not-check-http-status" }
+jsonrpc-http-server = { git = "https://github.com/ipfs-force-community/jsonrpc.git", branch = "feat/0x5459/v18-do-not-check-http-status" }
 toml = "0.7"
 humantime-serde = "1"
 clap = { version = "4.2", features = ["derive", "env"] }
@@ -67,10 +68,6 @@ features = ["json"]
 
 [dependencies.rocksdb]
 version = "0.20"
-
-[dependencies.jsonrpc-core-client]
-version = "18"
-features = ["tls", "http"]
 
 [dependencies.byte-unit]
 version = "4"

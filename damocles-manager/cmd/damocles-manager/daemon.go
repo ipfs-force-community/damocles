@@ -128,11 +128,16 @@ var daemonRunCmd = &cli.Command{
 				dep.Miner(),
 			),
 			dep.Gateway(),
+			dix.Override(new(*APIService), NewAPIServiceDisbaleWorkerWdPoSt),
+
 			dix.If(extProver, dep.ExtProver()),
-			dix.If(workerProver, dep.WorkerProver()),
-			dix.If(!workerProver, dep.DisableWorkerProver()),
+			dix.If(
+				workerProver,
+				dep.WorkerProver(),
+				dix.Override(new(*APIService), NewAPIService),
+			),
 			dep.Sealer(),
-			dix.Override(new(*APIService), NewAPIService),
+
 			dix.Populate(dep.InvokePopulate, &apiService),
 		)
 		if err != nil {

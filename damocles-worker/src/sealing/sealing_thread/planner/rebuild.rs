@@ -1,16 +1,26 @@
 use anyhow::{anyhow, Context, Result};
 
 use super::{
-    super::{call_rpc, field_required, Event, State, Task},
-    common, plan, ExecResult, Planner,
+    super::{call_rpc, field_required},
+    common::{self, event::Event, sector::State, task::Task},
+    plan, PlannerTrait, PLANNER_NAME_REBUILD,
 };
 use crate::logging::warn;
 use crate::rpc::sealer::{AllocateSectorSpec, Seed};
 use crate::sealing::failure::*;
 
+#[derive(Default)]
 pub struct RebuildPlanner;
 
-impl Planner for RebuildPlanner {
+impl PlannerTrait for RebuildPlanner {
+    type Job = Task;
+    type State = State;
+    type Event = Event;
+
+    fn name(&self) -> &str {
+        PLANNER_NAME_REBUILD
+    }
+
     fn plan(&self, evt: &Event, st: &State) -> Result<State> {
         let next = plan! {
             evt,
@@ -69,7 +79,7 @@ impl Planner for RebuildPlanner {
         Ok(next)
     }
 
-    fn exec(&self, task: &mut Task<'_>) -> Result<Option<Event>, Failure> {
+    fn exec(&self, task: &mut Task) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
         let inner = Rebuild { task };
 
@@ -106,28 +116,30 @@ impl Planner for RebuildPlanner {
 
             other => return Err(anyhow!("unexpected state {:?} in rebuild planner", other).abort()),
         }
-        .map(From::from)
+        .map(Some)
+    }
+
+    fn apply(&self, event: Event, state: State, task: &mut Task) -> Result<()> {
+        event.apply(state, task)
     }
 }
 
-struct Rebuild<'c, 't> {
-    task: &'t mut Task<'c>,
+struct Rebuild<'t> {
+    task: &'t mut Task,
 }
 
-impl<'c, 't> Rebuild<'c, 't> {
+impl<'t> Rebuild<'t> {
     fn is_snapup(&self) -> bool {
         self.task.sector.finalized.is_some()
     }
 
-    fn empty(&self) -> ExecResult {
+    fn empty(&self) -> Result<Event, Failure> {
         let maybe_res = call_rpc! {
-            self.task.ctx.global.rpc,
-            allocate_rebuild_sector,
-            AllocateSectorSpec {
-                allowed_miners: Some(self.task.sealing_config.allowed_miners.clone()),
-                allowed_proof_types: Some(self.task.sealing_config.allowed_proof_types.clone()),
+            self.task.rpc() => allocate_rebuild_sector(AllocateSectorSpec {
+                allowed_miners: Some(self.task.sealing_ctrl.config().allowed_miners.clone()),
+                allowed_proof_types: Some(self.task.sealing_ctrl.config().allowed_proof_types.clone()),
             },
-        };
+        )};
 
         let maybe_allocated = match maybe_res {
             Ok(a) => a,
@@ -148,7 +160,7 @@ impl<'c, 't> Rebuild<'c, 't> {
         Ok(Event::AllocatedRebuildSector(allocated))
     }
 
-    fn add_pieces_for_sealing(&self) -> ExecResult {
+    fn add_pieces_for_sealing(&self) -> Result<Event, Failure> {
         // if this is a snapup sector, then the deals should be used later
         let maybe_deals = if self.is_snapup() { None } else { self.task.sector.deals.as_ref() };
 
@@ -157,21 +169,21 @@ impl<'c, 't> Rebuild<'c, 't> {
         Ok(Event::AddPiece(pieces))
     }
 
-    fn build_tree_d_for_sealing(&self) -> ExecResult {
+    fn build_tree_d_for_sealing(&self) -> Result<Event, Failure> {
         common::build_tree_d(self.task, true)?;
         Ok(Event::BuildTreeD)
     }
 
-    fn pc1(&self) -> ExecResult {
+    fn pc1(&self) -> Result<Event, Failure> {
         let (ticket, out) = common::pre_commit1(self.task)?;
         Ok(Event::PC1(ticket, out))
     }
 
-    fn pc2(&self) -> ExecResult {
+    fn pc2(&self) -> Result<Event, Failure> {
         common::pre_commit2(self.task).map(Event::PC2)
     }
 
-    fn check_sealed(&self) -> ExecResult {
+    fn check_sealed(&self) -> Result<Event, Failure> {
         field_required! {
             ticket,
             self.task.sector.phases.ticket.as_ref()
@@ -185,7 +197,7 @@ impl<'c, 't> Rebuild<'c, 't> {
         common::commit1_with_seed(self.task, seed).map(|_| Event::CheckSealed)
     }
 
-    fn prepare_for_snapup(&self) -> ExecResult {
+    fn prepare_for_snapup(&self) -> Result<Event, Failure> {
         if !self.is_snapup() {
             return Ok(Event::SkipSnap);
         }
@@ -195,22 +207,22 @@ impl<'c, 't> Rebuild<'c, 't> {
         common::add_pieces(self.task, deals).map(Event::AddPiece)
     }
 
-    fn build_tree_d_for_snapup(&self) -> ExecResult {
+    fn build_tree_d_for_snapup(&self) -> Result<Event, Failure> {
         common::build_tree_d(self.task, false).map(|_| Event::BuildTreeD)
     }
 
-    fn snap_encode(&self) -> ExecResult {
+    fn snap_encode(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
 
         common::snap_encode(self.task, sector_id, proof_type).map(Event::SnapEncode)
     }
 
-    fn snap_prove(&self) -> ExecResult {
+    fn snap_prove(&self) -> Result<Event, Failure> {
         common::snap_prove(self.task).map(Event::SnapProve)
     }
 
-    fn persist(&self) -> ExecResult {
+    fn persist(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
 
         let (cache_dir, sealed_file) = if self.is_snapup() {
@@ -222,7 +234,7 @@ impl<'c, 't> Rebuild<'c, 't> {
         common::persist_sector_files(self.task, cache_dir, sealed_file).map(Event::Persist)
     }
 
-    fn submit_persist(&self) -> ExecResult {
+    fn submit_persist(&self) -> Result<Event, Failure> {
         common::submit_persisted(self.task, self.is_snapup()).map(|_| Event::SubmitPersistance)
     }
 }

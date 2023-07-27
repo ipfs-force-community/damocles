@@ -11,46 +11,141 @@ use crate::store::Location;
 use crate::watchdog::{Ctx, Module};
 
 use super::config::{merge_sealing_fields, Config};
-use super::{failure::*, store::Store};
+use super::failure::*;
 
-mod task;
-pub use task::default_plan;
-use task::{sector::State, Task};
+mod planner;
+pub use planner::default_plan;
+pub mod entry;
+#[macro_use]
+mod util;
+use util::*;
 
 mod ctrl;
 pub use ctrl::Ctrl;
 use ctrl::*;
+
+pub trait Sealer {
+    fn seal(&mut self, state: Option<&str>) -> Result<R, Failure>;
+}
+
+pub enum R {
+    SwitchPlanner(String),
+    #[allow(dead_code)]
+    Wait(Duration),
+    Done,
+}
+
+#[derive(Clone)]
+pub struct SealingCtrl<'a> {
+    ctx: &'a Ctx,
+    ctrl_ctx: &'a CtrlCtx,
+    sealing_config: &'a Config,
+}
+
+impl<'a> SealingCtrl<'a> {
+    pub fn config(&self) -> &Config {
+        self.sealing_config
+    }
+
+    pub fn ctx(&self) -> &Ctx {
+        self.ctx
+    }
+
+    pub fn ctrl_ctx(&self) -> &CtrlCtx {
+        self.ctrl_ctx
+    }
+
+    pub fn interrupted(&self) -> Result<(), Failure> {
+        select! {
+            recv(self.ctx.done) -> _done_res => {
+                Err(Interrupt.into())
+            }
+
+            recv(self.ctrl_ctx.pause_rx) -> pause_res => {
+                pause_res.context("pause signal channel closed unexpectedly").crit()?;
+                Err(Interrupt.into())
+            }
+
+            default => {
+                Ok(())
+            }
+        }
+    }
+
+    pub fn wait_or_interrupted(&self, duration: Duration) -> Result<(), Failure> {
+        select! {
+            recv(self.ctx.done) -> _done_res => {
+                Err(Interrupt.into())
+            }
+
+            recv(self.ctrl_ctx.pause_rx) -> pause_res => {
+                pause_res.context("pause signal channel closed unexpectedly").crit()?;
+                Err(Interrupt.into())
+            }
+
+            default(duration) => {
+                Ok(())
+            }
+        }
+    }
+}
 
 pub struct SealingThread {
     idx: usize,
 
     /// the config of this SealingThread
     pub config: Config,
-    pub store: Store,
+    location: Option<Location>,
 
     ctrl_ctx: CtrlCtx,
 }
 
 impl SealingThread {
-    pub fn new(idx: usize, plan: Option<String>, sealing_config: Sealing, location: Location) -> Result<(Self, Ctrl)> {
-        let store_path = location.to_pathbuf();
-        let store = Store::open(store_path).with_context(|| format!("open store {}", location.as_ref().display()))?;
+    pub fn new(idx: usize, plan: Option<String>, sealing_config: Sealing, location: Option<Location>) -> Result<(Self, Ctrl)> {
         let (ctrl, ctrl_ctx) = new_ctrl(location.clone());
 
         Ok((
             Self {
-                config: Config::new(sealing_config, plan, Some(location.hot_config_path()))?,
-                store,
-                ctrl_ctx,
                 idx,
+                config: Config::new(sealing_config, plan, location.as_ref().map(|x| x.hot_config_path()))?,
+                location,
+                ctrl_ctx,
             },
             ctrl,
         ))
     }
 
-    fn seal_one(&mut self, ctx: &Ctx, state: Option<State>) -> Result<(), Failure> {
-        let task = Task::build(ctx, &self.ctrl_ctx, &mut self.config, &mut self.store)?;
-        task.exec(state)
+    fn seal_one(&mut self, ctx: &Ctx, state: Option<String>) -> Result<(), Failure> {
+        self.config
+            .reload_if_needed(|_, _| Ok(true))
+            .context("reload sealing thread hot config")
+            .crit()?;
+        let mut plan = self.config.plan().to_string();
+        loop {
+            self.ctrl_ctx
+                .update_state(|cst| cst.job.plan = plan.clone())
+                .context("update ctrl state")
+                .crit()?;
+            let mut sealer = planner::create_selaer(&plan, ctx, self).crit()?;
+            match sealer.seal(state.as_deref())? {
+                R::SwitchPlanner(new_plan) => {
+                    tracing::info!(new_plan = new_plan, "switch planner");
+                    plan = new_plan;
+                }
+                R::Wait(dur) => self.sealing_ctrl(ctx).wait_or_interrupted(dur)?,
+                R::Done => return Ok(()),
+            }
+        }
+    }
+
+    fn sealing_ctrl(&self, ctx: &Ctx) -> SealingCtrl<'static> {
+        unsafe {
+            SealingCtrl {
+                ctx: extend_lifetime(ctx),
+                ctrl_ctx: extend_lifetime(&self.ctrl_ctx),
+                sealing_config: extend_lifetime(&self.config),
+            }
+        }
     }
 }
 
@@ -140,7 +235,7 @@ impl Module for SealingThread {
 
             self.ctrl_ctx.update_state(|cst| {
                 cst.job.id.take();
-                let _ = std::mem::replace(&mut cst.job.state, State::Empty);
+                cst.job.state = None;
             })?;
 
             select! {
@@ -167,17 +262,23 @@ pub(crate) fn build_sealing_threads(
         let sealing_config = customized_sealing_config(common, scfg.inner.sealing.as_ref());
         let plan = scfg.inner.plan.as_ref().cloned();
 
-        let store_path = PathBuf::from(&scfg.location)
-            .canonicalize()
-            .with_context(|| format!("canonicalize store path {}", &scfg.location))?;
-        if path_set.contains(&store_path) {
-            tracing::warn!(path = ?store_path, "store already loaded");
-            continue;
-        }
+        let loc = match &scfg.location {
+            Some(loc) => {
+                let store_path = PathBuf::from(loc)
+                    .canonicalize()
+                    .with_context(|| format!("canonicalize store path {}", loc))?;
+                if path_set.contains(&store_path) {
+                    tracing::warn!(path = ?store_path, "store already loaded");
+                    continue;
+                }
+                path_set.insert(store_path.clone());
+                Some(Location::new(store_path))
+            }
+            None => None,
+        };
 
-        let (sealing_thread, ctrl) = SealingThread::new(idx, plan, sealing_config, Location::new(store_path.clone()))?;
+        let (sealing_thread, ctrl) = SealingThread::new(idx, plan, sealing_config, loc)?;
         sealing_threads.push((sealing_thread, (idx, ctrl)));
-        path_set.insert(store_path);
     }
 
     Ok(sealing_threads)
@@ -191,4 +292,15 @@ fn customized_sealing_config(common: &SealingOptional, customized: Option<&Seali
     } else {
         common_sealing
     }
+}
+
+/// The caller is responsible for ensuring lifetime validity
+pub const unsafe fn extend_lifetime<'b, T>(inp: &T) -> &'b T {
+    std::mem::transmute(inp)
+}
+
+/// The caller is responsible for ensuring lifetime validity
+#[allow(dead_code)]
+pub unsafe fn extend_lifetime_mut<'b, T>(inp: &mut T) -> &'b mut T {
+    std::mem::transmute(inp)
 }

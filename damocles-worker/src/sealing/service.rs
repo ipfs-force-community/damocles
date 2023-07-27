@@ -1,4 +1,5 @@
 use std::env;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crossbeam_channel::select;
@@ -29,10 +30,10 @@ impl Worker for ServiceImpl {
         self.ctrls
             .iter()
             .map(|(idx, ctrl)| {
-                let (state, sector_id, plan, last_error, paused_at) = ctrl
+                let (state, job_id, plan, last_error, paused_at) = ctrl
                     .load_state(|cst| {
                         (
-                            cst.job.state,
+                            cst.job.state.clone(),
                             cst.job.id.to_owned(),
                             cst.job.plan.clone(),
                             cst.job.last_error.to_owned(),
@@ -46,13 +47,17 @@ impl Worker for ServiceImpl {
                     })?;
 
                 Ok(WorkerInfo {
-                    location: ctrl.location.to_pathbuf(),
+                    location: ctrl
+                        .location
+                        .as_ref()
+                        .map(|loc| loc.to_pathbuf())
+                        .unwrap_or_else(|| PathBuf::from("-")),
                     plan,
-                    sector_id,
+                    job_id,
                     index: *idx,
                     paused: paused_at.is_some(),
                     paused_elapsed: paused_at.map(|ins| ins.elapsed().as_secs()),
-                    state: state.as_str().to_owned(),
+                    state: state.unwrap_or(String::new()),
                     last_error,
                 })
             })

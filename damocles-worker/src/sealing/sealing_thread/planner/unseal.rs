@@ -1,6 +1,7 @@
 use super::{
-    super::{call_rpc, field_required, Event, State, Task},
-    plan, ExecResult, Planner,
+    super::{call_rpc, field_required},
+    common::{event::Event, sector::State, task::Task},
+    plan, PlannerTrait, PLANNER_NAME_UNSEAL,
 };
 use crate::logging::warn;
 use crate::rpc::sealer::AllocateSectorSpec;
@@ -20,11 +21,22 @@ use vc_processors::{
     fil_proofs::{UnpaddedByteIndex, UnpaddedBytesAmount},
 };
 
-use crate::sealing::processor::{TransferInput, TransferItem, TransferRoute, TransferStoreInfo};
+use crate::sealing::processor::{
+    cached_filenames_for_sector, TransferInput, TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
+};
 
+#[derive(Default)]
 pub struct UnsealPlanner;
 
-impl Planner for UnsealPlanner {
+impl PlannerTrait for UnsealPlanner {
+    type Job = Task;
+    type State = State;
+    type Event = Event;
+
+    fn name(&self) -> &str {
+        PLANNER_NAME_UNSEAL
+    }
+
     fn plan(&self, evt: &Event, st: &State) -> Result<State> {
         let next = plan! {
             evt,
@@ -34,6 +46,9 @@ impl Planner for UnsealPlanner {
                 Event::AllocatedUnsealSector(_) => State::Allocated,
             },
             State::Allocated => {
+                Event::UnsealReady => State::UnsealPrepared,
+            },
+            State::UnsealPrepared => {
                 Event::UnsealDone(_) => State::Unsealed,
             },
             State::Unsealed => {
@@ -44,37 +59,40 @@ impl Planner for UnsealPlanner {
         Ok(next)
     }
 
-    fn exec(&self, task: &mut Task<'_>) -> Result<Option<Event>, Failure> {
+    fn exec(&self, task: &mut Task) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
         let inner = Unseal { task };
 
         match state {
             State::Empty => inner.acquire_task(),
-            State::Allocated => inner.unseal(),
+            State::Allocated => inner.pre_unseal(),
+            State::UnsealPrepared => inner.unseal(),
             State::Unsealed => inner.upload_piece(),
             State::Finished => return Ok(None),
 
             other => Err(anyhow!("unexpected state: {:?} in unseal planner", other).abort()),
         }
-        .map(From::from)
+        .map(Some)
+    }
+
+    fn apply(&self, event: Event, state: State, task: &mut Task) -> Result<()> {
+        event.apply(state, task)
     }
 }
 
 // empty -> acquire -> unseal -> upload -> finish
 
-struct Unseal<'c, 't> {
-    task: &'t mut Task<'c>,
+struct Unseal<'t> {
+    task: &'t mut Task,
 }
 
-impl<'c, 't> Unseal<'c, 't> {
-    fn acquire_task(&self) -> ExecResult {
+impl<'t> Unseal<'t> {
+    fn acquire_task(&self) -> Result<Event, Failure> {
         let maybe_res = call_rpc! {
-            self.task.ctx.global.rpc,
-            allocate_unseal_sector,
-            AllocateSectorSpec {
-                allowed_miners: Some(self.task.sealing_config.allowed_miners.clone()),
-                allowed_proof_types: Some(self.task.sealing_config.allowed_proof_types.clone()),
-            },
+            self.task.rpc()=>allocate_unseal_sector(AllocateSectorSpec {
+                allowed_miners: Some(self.task.sealing_ctrl.config().allowed_miners.clone()),
+                allowed_proof_types: Some(self.task.sealing_ctrl.config().allowed_proof_types.clone()),
+            },)
         };
 
         let maybe_allocated = match maybe_res {
@@ -96,43 +114,123 @@ impl<'c, 't> Unseal<'c, 't> {
         Ok(Event::AllocatedUnsealSector(allocated))
     }
 
-    fn unseal(&self) -> ExecResult {
+    fn pre_unseal(&self) -> Result<Event, Failure> {
+        let _token = self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
+
+        // persist store -> thread store
+        let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
+        field_required!(
+            access_instance,
+            self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
+        );
+
+        debug!("find access store named {}", access_instance);
+        let access_store = self
+            .task
+            .sealing_ctrl
+            .ctx()
+            .global
+            .attached
+            .get(access_instance)
+            .with_context(|| format!("get access store instance named {}", access_instance))
+            .perm()?;
+
+        debug!("get basic info for access store named {}", access_instance);
+        let access_store_basic_info = call_rpc! {
+            self.task.rpc() => store_basic_info(access_instance.clone(),)
+        }?
+        .with_context(|| format!("get basic info for store named {}", access_instance))
+        .perm()?;
+
+        // sealed file & persisted cache files should be accessed inside persist store
+        let sealed_file = self.task.sealed_file(sector_id);
+        sealed_file.prepare().perm()?;
+        let sealed_rel = sealed_file.rel();
+
+        let cache_dir = self.task.cache_dir(sector_id);
+
+        let cached_file_routes = cached_filenames_for_sector(proof_type.into())
+            .into_iter()
+            .map(|fname| {
+                let cached_file = cache_dir.join(fname);
+                let cached_rel = cached_file.rel();
+
+                Ok(TransferRoute {
+                    src: TransferItem {
+                        store_name: Some(access_instance.clone()),
+                        uri: access_store
+                            .uri(cached_rel)
+                            .with_context(|| format!("get uri for cache dir {:?} in {}", cached_rel, access_instance))
+                            .perm()?,
+                    },
+                    dest: TransferItem {
+                        store_name: None,
+                        uri: cached_file.full().clone(),
+                    },
+                    opt: Some(TransferOption {
+                        is_dir: false,
+                        allow_link: true,
+                    }),
+                })
+            })
+            .collect::<Result<Vec<_>, Failure>>()?;
+
+        let mut transfer_routes = vec![TransferRoute {
+            src: TransferItem {
+                store_name: Some(access_instance.clone()),
+                uri: access_store
+                    .uri(sealed_rel)
+                    .with_context(|| format!("get uri for sealed file {:?} in {}", sealed_rel, access_instance))
+                    .perm()?,
+            },
+            dest: TransferItem {
+                store_name: None,
+                uri: sealed_file.full().clone(),
+            },
+            opt: Some(TransferOption {
+                is_dir: false,
+                allow_link: true,
+            }),
+        }];
+
+        transfer_routes.extend(cached_file_routes.into_iter());
+
+        let transfer = TransferInput {
+            stores: HashMap::from_iter([(
+                access_instance.clone(),
+                TransferStoreInfo {
+                    name: access_instance.clone(),
+                    meta: access_store_basic_info.meta,
+                },
+            )]),
+            routes: transfer_routes,
+        };
+
+        self.task
+            .sealing_ctrl
+            .ctx()
+            .global
+            .processors
+            .transfer
+            .process(transfer)
+            .context("link unseal sector files")
+            .perm()?;
+
+        Ok(Event::UnsealReady)
+    }
+
+    fn unseal(&self) -> Result<Event, Failure> {
         // query token
-        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_UNSEAL).crit()?;
+        let _token = self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_UNSEAL).crit()?;
 
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
 
         field_required!(unseal_info, self.task.sector.phases.unseal_in.as_ref());
-        field_required!(
-            instance_name,
-            self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
-        );
 
-        debug!("find access store named {}", instance_name);
-        let instance = self
-            .task
-            .ctx
-            .global
-            .attached
-            .get(instance_name)
-            .with_context(|| format!("get access store instance named {}", instance_name))
-            .perm()?;
-
-        let sealed_temp = self.task.sealed_file(sector_id);
-        let sealed_rel = sealed_temp.rel();
-
-        let cache_temp = self.task.cache_dir(sector_id);
-        let cache_rel = cache_temp.rel();
-
-        let sealed_path = instance
-            .uri(sealed_rel)
-            .with_context(|| format!("get uri for sealed file {:?} in {}", sealed_rel, instance_name))
-            .perm()?;
-        let cache_path = instance
-            .uri(cache_rel)
-            .with_context(|| format!("get uri for cache file {:?} in {}", cache_rel, instance_name))
-            .perm()?;
+        let cache_dir = self.task.cache_dir(sector_id);
+        let sealed_file = self.task.sealed_file(sector_id);
 
         let piece_file = self.task.piece_file(&unseal_info.piece_cid);
         if piece_file.full().exists() {
@@ -152,7 +250,8 @@ impl<'c, 't> Unseal<'c, 't> {
         // call unseal fn
         let out = self
             .task
-            .ctx
+            .sealing_ctrl
+            .ctx()
             .global
             .processors
             .unseal
@@ -162,8 +261,8 @@ impl<'c, 't> Unseal<'c, 't> {
                 sector_id,
                 comm_d: unseal_info.comm_d,
                 ticket: ticket.ticket.0,
-                cache_dir: cache_path,
-                sealed_file: sealed_path,
+                cache_dir: cache_dir.into(),
+                sealed_file: sealed_file.into(),
                 unsealed_output: piece_file.into(),
                 offset: UnpaddedByteIndex(unseal_info.offset),
                 num_bytes: UnpaddedBytesAmount(unseal_info.size),
@@ -179,8 +278,8 @@ impl<'c, 't> Unseal<'c, 't> {
         Ok(Event::UnsealDone(out.0))
     }
 
-    fn upload_piece(&self) -> ExecResult {
-        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
+    fn upload_piece(&self) -> Result<Event, Failure> {
+        let _token = self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
 
         let sector_id = self.task.sector_id()?;
 
@@ -190,10 +289,7 @@ impl<'c, 't> Unseal<'c, 't> {
 
         // parse dest
         let dests = call_rpc! {
-            self.task.ctx.global.rpc,
-            acquire_unseal_dest,
-            sector_id.clone(),
-            unseal_info.piece_cid.clone(),
+            self.task.rpc()=>acquire_unseal_dest(sector_id.clone(), unseal_info.piece_cid.clone(),)
         }?;
 
         if !dests.is_empty() {
@@ -279,7 +375,8 @@ impl<'c, 't> Unseal<'c, 't> {
                             let ins_name = ins_name.to_string();
                             let access_store = self
                                 .task
-                                .ctx
+                                .sealing_ctrl
+                                .ctx()
                                 .global
                                 .attached
                                 .get(&ins_name)
@@ -288,9 +385,7 @@ impl<'c, 't> Unseal<'c, 't> {
 
                             debug!("get basic info for access store named {}", ins_name);
                             let access_store_basic_info = call_rpc! {
-                                self.task.ctx.global.rpc,
-                                store_basic_info,
-                                ins_name.clone(),
+                                self.task.rpc()=>store_basic_info(ins_name.clone(),)
                             }?
                             .with_context(|| format!("get basic info for store named {}", ins_name))
                             .perm()?;
@@ -319,7 +414,8 @@ impl<'c, 't> Unseal<'c, 't> {
                             };
 
                             self.task
-                                .ctx
+                                .sealing_ctrl
+                                .ctx()
                                 .global
                                 .processors
                                 .transfer
@@ -329,7 +425,7 @@ impl<'c, 't> Unseal<'c, 't> {
                         }
                         None => {
                             // use remote piece store by default
-                            let access_store = &self.task.ctx.global.remote_piece_store;
+                            let access_store = &self.task.sealing_ctrl.ctx().global.remote_piece_store;
                             let p = p.trim_matches('/');
                             let piece_cid = Cid::try_from(p).context(format!("parse cid {}", p)).perm()?;
                             let url = match access_store.get(&piece_cid).unwrap() {
@@ -357,11 +453,7 @@ impl<'c, 't> Unseal<'c, 't> {
         }
 
         call_rpc! {
-            self.task.ctx.global.rpc,
-            achieve_unseal_sector,
-            sector_id.clone(),
-            unseal_info.piece_cid.clone(),
-            "".to_string(),
+            self.task.rpc()=>achieve_unseal_sector(sector_id.clone(), unseal_info.piece_cid.clone(), "".to_string(),)
         }?;
 
         Ok(Event::UploadPieceDone)

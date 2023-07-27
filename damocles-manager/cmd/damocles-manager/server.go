@@ -43,13 +43,38 @@ func NewAPIService(
 	}
 }
 
+func NewAPIServiceDisbaleWorkerWdPoSt(
+	sealerAPI core.SealerAPI,
+	sealerCliAPI core.SealerCliAPI,
+	randomnessAPI core.RandomnessAPI,
+	minerAPI core.MinerAPI,
+	plugins *managerplugin.LoadedPlugins,
+) *APIService {
+	type coreAPI struct {
+		core.SealerAPI
+		core.SealerCliAPI
+		core.RandomnessAPI
+		core.MinerAPI
+	}
+
+	return &APIService{
+		coreAPI: &coreAPI{
+			SealerAPI:     sealerAPI,
+			SealerCliAPI:  sealerCliAPI,
+			RandomnessAPI: randomnessAPI,
+			MinerAPI:      minerAPI,
+		},
+		plugins: plugins,
+	}
+}
+
 type handler struct {
 	namespace string
 	hdl       interface{}
 }
 
 type APIService struct {
-	coreAPI core.API
+	coreAPI interface{}
 	plugins *managerplugin.LoadedPlugins
 }
 
