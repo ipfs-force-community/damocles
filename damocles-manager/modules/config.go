@@ -2,7 +2,9 @@ package modules
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -13,8 +15,11 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 )
+
+var log = logging.New("config")
 
 func init() {
 	fake, err := address.NewFromString("f1abjxfbp274xpdqcpuaykwkfb43omjotacm2p3za")
@@ -162,6 +167,17 @@ type PieceStorePreset struct {
 
 	AllowMiners []abi.ActorID
 	DenyMiners  []abi.ActorID
+
+	// compatibility for storage.json with lotus
+	StorageConfigPath *string
+}
+
+type StoragePathConfig struct {
+	StoragePaths []LocalPath
+}
+
+type LocalPath struct {
+	Path string
 }
 
 type ProvingConfig struct {
@@ -256,6 +272,40 @@ func (c CommonConfig) GetPersistStores() []PersistStoreConfig {
 		mergeSliceInto[abi.ActorID](preset.DenyMiners, ps.DenyMiners)
 
 		ret = append(ret, ps)
+	}
+
+	if preset.StorageConfigPath != nil {
+		p := *preset.StorageConfigPath
+		if p != "" {
+			cfg := StoragePathConfig{}
+			file, err := os.Open(p)
+			if err != nil {
+				log.Errorf("open storage config file %s failed: %s", p, err)
+			} else {
+				defer file.Close()
+				err := json.NewDecoder(file).Decode(&cfg)
+				if err != nil {
+					log.Errorf("decode storage config file %s failed: %s", p, err)
+				} else {
+					for _, lp := range cfg.StoragePaths {
+						ret = append(ret, PersistStoreConfig{
+							Config: objstore.Config{
+								Path:     lp.Path,
+								Meta:     preset.Meta,
+								Strict:   preset.Strict,
+								ReadOnly: preset.ReadOnly,
+								Weight:   preset.Weight,
+							},
+							StoreSelectPolicy: objstore.StoreSelectPolicy{
+								AllowMiners: preset.AllowMiners,
+								DenyMiners:  preset.DenyMiners,
+							},
+						})
+					}
+					log.Infof("load storage config file %s success", p)
+				}
+			}
+		}
 	}
 	return ret
 }
