@@ -27,7 +27,7 @@ var Empty Meta
 
 type Meta *struct{}
 
-type API interface {
+type APIFull interface {
 	SealerAPI
 	SealerCliAPI
 	RandomnessAPI
@@ -153,10 +153,10 @@ type MinerAPI interface {
 }
 
 type WorkerWdPoStAPI interface {
-	WdPoStHeartbeatTasks(ctx context.Context, runningTaskIDs []string, workerName string) (Meta, error)
-	WdPoStAllocateTasks(ctx context.Context, spec AllocateWdPoStTaskSpec, num uint32, workerName string) (allocatedTasks []*WdPoStAllocatedTask, err error)
-	WdPoStFinishTask(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
-	WdPoStResetTask(ctx context.Context, taskID string) (Meta, error)
-	WdPoStRemoveTask(ctx context.Context, taskID string) (Meta, error)
-	WdPoStAllTasks(ctx context.Context) ([]*WdPoStTask, error)
+	WdPoStHeartbeatJobs(ctx context.Context, runningJobIDs []string, workerName string) (Meta, error)
+	WdPoStAllocateJobs(ctx context.Context, spec AllocateWdPoStJobSpec, num uint32, workerName string) (allocatedJobs []*WdPoStAllocatedJob, err error)
+	WdPoStFinishJob(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
+	WdPoStResetJob(ctx context.Context, jobID string) (Meta, error)
+	WdPoStRemoveJob(ctx context.Context, jobID string) (Meta, error)
+	WdPoStAllJobs(ctx context.Context) ([]*WdPoStJob, error)
 }

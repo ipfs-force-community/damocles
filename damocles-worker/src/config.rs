@@ -16,7 +16,7 @@ use crate::sealing::processor::external::config::Ext;
 pub const DEFAULT_WORKER_SERVER_PORT: u16 = 17890;
 pub const DEFAULT_WORKER_SERVER_HOST: &str = "0.0.0.0";
 pub const LOCAL_HOST: &str = "127.0.0.1";
-pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(20);
+pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(30);
 
 /// configurations for sealing sectors
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -137,7 +137,7 @@ pub struct Attached {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SealingThread {
     /// store location
-    pub location: String,
+    pub location: Option<String>,
 
     #[serde(flatten)]
     pub inner: SealingThreadInner,
@@ -284,6 +284,7 @@ pub struct Config {
     pub attached: Option<Vec<Attached>>,
 
     /// section for processors
+    #[serde(default)]
     pub processors: Processors,
 }
 

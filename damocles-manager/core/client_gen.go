@@ -264,32 +264,32 @@ var UnavailableMinerAPIClient = MinerAPIClient{
 
 // WorkerWdPoStAPIClient is generated client for WorkerWdPoStAPI interface.
 type WorkerWdPoStAPIClient struct {
-	WdPoStHeartbeatTasks func(ctx context.Context, runningTaskIDs []string, workerName string) (Meta, error)
-	WdPoStAllocateTasks  func(ctx context.Context, spec AllocateWdPoStTaskSpec, num uint32, workerName string) (allocatedTasks []*WdPoStAllocatedTask, err error)
-	WdPoStFinishTask     func(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
-	WdPoStResetTask      func(ctx context.Context, taskID string) (Meta, error)
-	WdPoStRemoveTask     func(ctx context.Context, taskID string) (Meta, error)
-	WdPoStAllTasks       func(ctx context.Context) ([]*WdPoStTask, error)
+	WdPoStHeartbeatJobs func(ctx context.Context, runningJobIDs []string, workerName string) (Meta, error)
+	WdPoStAllocateJobs  func(ctx context.Context, spec AllocateWdPoStJobSpec, num uint32, workerName string) (allocatedJobs []*WdPoStAllocatedJob, err error)
+	WdPoStFinishJob     func(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
+	WdPoStResetJob      func(ctx context.Context, jobID string) (Meta, error)
+	WdPoStRemoveJob     func(ctx context.Context, jobID string) (Meta, error)
+	WdPoStAllJobs       func(ctx context.Context) ([]*WdPoStJob, error)
 }
 
 var UnavailableWorkerWdPoStAPIClient = WorkerWdPoStAPIClient{
 
-	WdPoStHeartbeatTasks: func(ctx context.Context, runningTaskIDs []string, workerName string) (Meta, error) {
+	WdPoStHeartbeatJobs: func(ctx context.Context, runningJobIDs []string, workerName string) (Meta, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStAllocateTasks: func(ctx context.Context, spec AllocateWdPoStTaskSpec, num uint32, workerName string) (allocatedTasks []*WdPoStAllocatedTask, err error) {
+	WdPoStAllocateJobs: func(ctx context.Context, spec AllocateWdPoStJobSpec, num uint32, workerName string) (allocatedJobs []*WdPoStAllocatedJob, err error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStFinishTask: func(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error) {
+	WdPoStFinishJob: func(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStResetTask: func(ctx context.Context, taskID string) (Meta, error) {
+	WdPoStResetJob: func(ctx context.Context, jobID string) (Meta, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStRemoveTask: func(ctx context.Context, taskID string) (Meta, error) {
+	WdPoStRemoveJob: func(ctx context.Context, jobID string) (Meta, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStAllTasks: func(ctx context.Context) ([]*WdPoStTask, error) {
+	WdPoStAllJobs: func(ctx context.Context) ([]*WdPoStJob, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
 }

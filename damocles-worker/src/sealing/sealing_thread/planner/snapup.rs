@@ -3,8 +3,14 @@ use std::collections::HashMap;
 use anyhow::{anyhow, Context, Result};
 
 use super::{
-    super::{call_rpc, cloned_required, field_required, Finalized},
-    common, plan, Event, ExecResult, Planner, State, Task,
+    super::{call_rpc, cloned_required, field_required},
+    common::{
+        self,
+        event::Event,
+        sector::{Finalized, State},
+        task::Task,
+    },
+    plan, PlannerTrait, PLANNER_NAME_SNAPUP,
 };
 use crate::logging::{debug, warn};
 use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult};
@@ -13,9 +19,18 @@ use crate::sealing::processor::{
     cached_filenames_for_sector, TransferInput, TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
 };
 
+#[derive(Default)]
 pub struct SnapUpPlanner;
 
-impl Planner for SnapUpPlanner {
+impl PlannerTrait for SnapUpPlanner {
+    type Job = Task;
+    type State = State;
+    type Event = Event;
+
+    fn name(&self) -> &str {
+        PLANNER_NAME_SNAPUP
+    }
+
     fn plan(&self, evt: &Event, st: &State) -> Result<State> {
         let next = plan! {
             evt,
@@ -54,7 +69,7 @@ impl Planner for SnapUpPlanner {
         Ok(next)
     }
 
-    fn exec(&self, task: &mut Task<'_>) -> Result<Option<Event>, Failure> {
+    fn exec(&self, task: &mut Task) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
         let inner = SnapUp { task };
         match state {
@@ -80,30 +95,32 @@ impl Planner for SnapUpPlanner {
 
             other => return Err(anyhow!("unexpected state {:?} in snapup planner", other).abort()),
         }
-        .map(From::from)
+        .map(Some)
+    }
+
+    fn apply(&self, event: Event, state: State, task: &mut Task) -> Result<()> {
+        event.apply(state, task)
     }
 }
 
-struct SnapUp<'c, 't> {
-    task: &'t mut Task<'c>,
+struct SnapUp<'t> {
+    task: &'t mut Task,
 }
 
-impl<'c, 't> SnapUp<'c, 't> {
-    fn empty(&self) -> ExecResult {
+impl<'t> SnapUp<'t> {
+    fn empty(&self) -> Result<Event, Failure> {
         let maybe_res = call_rpc! {
-            self.task.ctx.global.rpc,
-            allocate_snapup_sector,
-            AllocateSnapUpSpec {
+            self.task.rpc() => allocate_snapup_sector(AllocateSnapUpSpec {
                 sector: AllocateSectorSpec {
-                    allowed_miners: Some(self.task.sealing_config.allowed_miners.clone()),
-                    allowed_proof_types: Some(self.task.sealing_config.allowed_proof_types.clone()),
+                    allowed_miners: Some(self.task.sealing_ctrl.config().allowed_miners.clone()),
+                    allowed_proof_types: Some(self.task.sealing_ctrl.config().allowed_proof_types.clone()),
                 },
                 deals: AcquireDealsSpec {
-                    max_deals: self.task.sealing_config.max_deals,
-                    min_used_space: self.task.sealing_config.min_deal_space.map(|b| b.get_bytes() as usize),
+                    max_deals: self.task.sealing_ctrl.config().max_deals,
+                    min_used_space: self.task.sealing_ctrl.config().min_deal_space.map(|b| b.get_bytes() as usize),
                 },
             },
-        };
+        )};
 
         let maybe_allocated = match maybe_res {
             Ok(a) => a,
@@ -136,7 +153,7 @@ impl<'c, 't> SnapUp<'c, 't> {
         ))
     }
 
-    fn add_piece(&self) -> ExecResult {
+    fn add_piece(&self) -> Result<Event, Failure> {
         field_required!(deals, self.task.sector.deals.as_ref());
 
         let pieces = common::add_pieces(self.task, deals)?;
@@ -144,12 +161,12 @@ impl<'c, 't> SnapUp<'c, 't> {
         Ok(Event::AddPiece(pieces))
     }
 
-    fn build_tree_d(&self) -> ExecResult {
+    fn build_tree_d(&self) -> Result<Event, Failure> {
         common::build_tree_d(self.task, false)?;
         Ok(Event::BuildTreeD)
     }
 
-    fn snap_encode(&self) -> ExecResult {
+    fn snap_encode(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
         field_required!(
@@ -160,7 +177,8 @@ impl<'c, 't> SnapUp<'c, 't> {
         debug!("find access store named {}", access_instance);
         let access_store = self
             .task
-            .ctx
+            .sealing_ctrl
+            .ctx()
             .global
             .attached
             .get(access_instance)
@@ -169,9 +187,7 @@ impl<'c, 't> SnapUp<'c, 't> {
 
         debug!("get basic info for access store named {}", access_instance);
         let access_store_basic_info = call_rpc! {
-            self.task.ctx.global.rpc,
-            store_basic_info,
-            access_instance.clone(),
+            self.task.rpc() => store_basic_info(access_instance.clone(),)
         }?
         .with_context(|| format!("get basic info for store named {}", access_instance))
         .perm()?;
@@ -241,7 +257,8 @@ impl<'c, 't> SnapUp<'c, 't> {
         };
 
         self.task
-            .ctx
+            .sealing_ctrl
+            .ctx()
             .global
             .processors
             .transfer
@@ -252,11 +269,11 @@ impl<'c, 't> SnapUp<'c, 't> {
         common::snap_encode(self.task, sector_id, proof_type).map(Event::SnapEncode)
     }
 
-    fn snap_prove(&self) -> ExecResult {
+    fn snap_prove(&self) -> Result<Event, Failure> {
         common::snap_prove(self.task).map(Event::SnapProve)
     }
 
-    fn persist(&self) -> ExecResult {
+    fn persist(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
         let update_cache_dir = self.task.update_cache_dir(sector_id);
         let update_file = self.task.update_file(sector_id);
@@ -266,7 +283,7 @@ impl<'c, 't> SnapUp<'c, 't> {
         Ok(Event::Persist(ins_name))
     }
 
-    fn submit(&self) -> ExecResult {
+    fn submit(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
         field_required!(proof, self.task.sector.phases.snap_prov_out.as_ref());
         field_required!(deals, self.task.sector.deals.as_ref());
@@ -275,16 +292,16 @@ impl<'c, 't> SnapUp<'c, 't> {
         let piece_cids = deals.iter().map(|d| d.piece.cid.clone()).collect();
 
         let res = call_rpc! {
-            self.task.ctx.global.rpc,
-            submit_snapup_proof,
-            sector_id.clone(),
-            SnapUpOnChainInfo {
-                comm_r: encode_out.comm_r_new,
-                comm_d: encode_out.comm_d_new,
-                access_instance: instance,
-                pieces: piece_cids,
-                proof: proof.into(),
-            },
+            self.task.rpc()=>submit_snapup_proof(
+                sector_id.clone(),
+                SnapUpOnChainInfo {
+                    comm_r: encode_out.comm_r_new,
+                    comm_d: encode_out.comm_d_new,
+                    access_instance: instance,
+                    pieces: piece_cids,
+                    proof: proof.into(),
+                },
+            )
         }?;
 
         match res.res {

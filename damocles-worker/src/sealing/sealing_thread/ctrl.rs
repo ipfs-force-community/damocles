@@ -4,10 +4,9 @@ use std::time::Instant;
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver, Sender};
 
-use super::{super::store::Location, State};
-use crate::rpc::sealer::SectorID;
+use super::super::store::Location;
 
-pub fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
+pub fn new_ctrl(loc: Option<Location>) -> (Ctrl, CtrlCtx) {
     let (pause_tx, pause_rx) = bounded(1);
     let (resume_tx, resume_rx) = bounded(0);
     let state = Arc::new(RwLock::new(Default::default()));
@@ -29,9 +28,9 @@ pub fn new_ctrl(loc: Location) -> (Ctrl, CtrlCtx) {
 
 #[derive(Default)]
 pub struct CtrlJobState {
-    pub id: Option<SectorID>,
+    pub id: Option<String>,
     pub plan: String,
-    pub state: State,
+    pub state: Option<String>,
     pub last_error: Option<String>,
 }
 
@@ -42,9 +41,9 @@ pub struct CtrlState {
 }
 
 pub struct Ctrl {
-    pub location: Location,
+    pub location: Option<Location>,
     pub pause_tx: Sender<()>,
-    pub resume_tx: Sender<Option<State>>,
+    pub resume_tx: Sender<Option<String>>,
     state: Arc<RwLock<CtrlState>>,
 }
 
@@ -60,7 +59,7 @@ impl Ctrl {
 
 pub struct CtrlCtx {
     pub pause_rx: Receiver<()>,
-    pub resume_rx: Receiver<Option<State>>,
+    pub resume_rx: Receiver<Option<String>>,
     state: Arc<RwLock<CtrlState>>,
 }
 
