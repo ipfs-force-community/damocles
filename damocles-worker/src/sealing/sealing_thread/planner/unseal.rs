@@ -1,6 +1,7 @@
 use super::{
-    super::{call_rpc, field_required, Event, State, Task},
-    plan, ExecResult, Planner,
+    super::{call_rpc, field_required},
+    common::{event::Event, sector::State, task::Task},
+    plan, PlannerTrait, PLANNER_NAME_UNSEAL,
 };
 use crate::logging::warn;
 use crate::rpc::sealer::AllocateSectorSpec;
@@ -24,9 +25,18 @@ use crate::sealing::processor::{
     cached_filenames_for_sector, TransferInput, TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
 };
 
+#[derive(Default)]
 pub struct UnsealPlanner;
 
-impl Planner for UnsealPlanner {
+impl PlannerTrait for UnsealPlanner {
+    type Job = Task;
+    type State = State;
+    type Event = Event;
+
+    fn name(&self) -> &str {
+        PLANNER_NAME_UNSEAL
+    }
+
     fn plan(&self, evt: &Event, st: &State) -> Result<State> {
         let next = plan! {
             evt,
@@ -49,7 +59,7 @@ impl Planner for UnsealPlanner {
         Ok(next)
     }
 
-    fn exec(&self, task: &mut Task<'_>) -> Result<Option<Event>, Failure> {
+    fn exec(&self, task: &mut Task) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
         let inner = Unseal { task };
 
@@ -62,25 +72,27 @@ impl Planner for UnsealPlanner {
 
             other => Err(anyhow!("unexpected state: {:?} in unseal planner", other).abort()),
         }
-        .map(From::from)
+        .map(Some)
+    }
+
+    fn apply(&self, event: Event, state: State, task: &mut Task) -> Result<()> {
+        event.apply(state, task)
     }
 }
 
 // empty -> acquire -> unseal -> upload -> finish
 
-struct Unseal<'c, 't> {
-    task: &'t mut Task<'c>,
+struct Unseal<'t> {
+    task: &'t mut Task,
 }
 
-impl<'c, 't> Unseal<'c, 't> {
-    fn acquire_task(&self) -> ExecResult {
+impl<'t> Unseal<'t> {
+    fn acquire_task(&self) -> Result<Event, Failure> {
         let maybe_res = call_rpc! {
-            self.task.ctx.global.rpc,
-            allocate_unseal_sector,
-            AllocateSectorSpec {
-                allowed_miners: Some(self.task.sealing_config.allowed_miners.clone()),
-                allowed_proof_types: Some(self.task.sealing_config.allowed_proof_types.clone()),
-            },
+            self.task.rpc()=>allocate_unseal_sector(AllocateSectorSpec {
+                allowed_miners: Some(self.task.sealing_ctrl.config().allowed_miners.clone()),
+                allowed_proof_types: Some(self.task.sealing_ctrl.config().allowed_proof_types.clone()),
+            },)
         };
 
         let maybe_allocated = match maybe_res {
@@ -102,8 +114,8 @@ impl<'c, 't> Unseal<'c, 't> {
         Ok(Event::AllocatedUnsealSector(allocated))
     }
 
-    fn pre_unseal(&self) -> ExecResult {
-        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
+    fn pre_unseal(&self) -> Result<Event, Failure> {
+        let _token = self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
 
         // persist store -> thread store
         let sector_id = self.task.sector_id()?;
@@ -116,7 +128,8 @@ impl<'c, 't> Unseal<'c, 't> {
         debug!("find access store named {}", access_instance);
         let access_store = self
             .task
-            .ctx
+            .sealing_ctrl
+            .ctx()
             .global
             .attached
             .get(access_instance)
@@ -125,9 +138,7 @@ impl<'c, 't> Unseal<'c, 't> {
 
         debug!("get basic info for access store named {}", access_instance);
         let access_store_basic_info = call_rpc! {
-            self.task.ctx.global.rpc,
-            store_basic_info,
-            access_instance.clone(),
+            self.task.rpc() => store_basic_info(access_instance.clone(),)
         }?
         .with_context(|| format!("get basic info for store named {}", access_instance))
         .perm()?;
@@ -197,7 +208,8 @@ impl<'c, 't> Unseal<'c, 't> {
         };
 
         self.task
-            .ctx
+            .sealing_ctrl
+            .ctx()
             .global
             .processors
             .transfer
@@ -208,9 +220,9 @@ impl<'c, 't> Unseal<'c, 't> {
         Ok(Event::UnsealReady)
     }
 
-    fn unseal(&self) -> ExecResult {
+    fn unseal(&self) -> Result<Event, Failure> {
         // query token
-        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_UNSEAL).crit()?;
+        let _token = self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_UNSEAL).crit()?;
 
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
@@ -238,7 +250,8 @@ impl<'c, 't> Unseal<'c, 't> {
         // call unseal fn
         let out = self
             .task
-            .ctx
+            .sealing_ctrl
+            .ctx()
             .global
             .processors
             .unseal
@@ -265,8 +278,8 @@ impl<'c, 't> Unseal<'c, 't> {
         Ok(Event::UnsealDone(out.0))
     }
 
-    fn upload_piece(&self) -> ExecResult {
-        let _token = self.task.ctx.global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
+    fn upload_piece(&self) -> Result<Event, Failure> {
+        let _token = self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
 
         let sector_id = self.task.sector_id()?;
 
@@ -276,10 +289,7 @@ impl<'c, 't> Unseal<'c, 't> {
 
         // parse dest
         let dests = call_rpc! {
-            self.task.ctx.global.rpc,
-            acquire_unseal_dest,
-            sector_id.clone(),
-            unseal_info.piece_cid.clone(),
+            self.task.rpc()=>acquire_unseal_dest(sector_id.clone(), unseal_info.piece_cid.clone(),)
         }?;
 
         if !dests.is_empty() {
@@ -365,7 +375,8 @@ impl<'c, 't> Unseal<'c, 't> {
                             let ins_name = ins_name.to_string();
                             let access_store = self
                                 .task
-                                .ctx
+                                .sealing_ctrl
+                                .ctx()
                                 .global
                                 .attached
                                 .get(&ins_name)
@@ -374,9 +385,7 @@ impl<'c, 't> Unseal<'c, 't> {
 
                             debug!("get basic info for access store named {}", ins_name);
                             let access_store_basic_info = call_rpc! {
-                                self.task.ctx.global.rpc,
-                                store_basic_info,
-                                ins_name.clone(),
+                                self.task.rpc()=>store_basic_info(ins_name.clone(),)
                             }?
                             .with_context(|| format!("get basic info for store named {}", ins_name))
                             .perm()?;
@@ -405,7 +414,8 @@ impl<'c, 't> Unseal<'c, 't> {
                             };
 
                             self.task
-                                .ctx
+                                .sealing_ctrl
+                                .ctx()
                                 .global
                                 .processors
                                 .transfer
@@ -415,7 +425,7 @@ impl<'c, 't> Unseal<'c, 't> {
                         }
                         None => {
                             // use remote piece store by default
-                            let access_store = &self.task.ctx.global.remote_piece_store;
+                            let access_store = &self.task.sealing_ctrl.ctx().global.remote_piece_store;
                             let p = p.trim_matches('/');
                             let piece_cid = Cid::try_from(p).context(format!("parse cid {}", p)).perm()?;
                             let url = match access_store.get(&piece_cid).unwrap() {
@@ -443,11 +453,7 @@ impl<'c, 't> Unseal<'c, 't> {
         }
 
         call_rpc! {
-            self.task.ctx.global.rpc,
-            achieve_unseal_sector,
-            sector_id.clone(),
-            unseal_info.piece_cid.clone(),
-            "".to_string(),
+            self.task.rpc()=>achieve_unseal_sector(sector_id.clone(), unseal_info.piece_cid.clone(), "".to_string(),)
         }?;
 
         Ok(Event::UploadPieceDone)

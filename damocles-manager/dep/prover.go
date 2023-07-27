@@ -33,15 +33,9 @@ func WorkerProver() dix.Option {
 	return dix.Options(
 		dix.Override(new(WorkerProverStore), BuildWorkerProverStore),
 		dix.Override(new(*proverworker.Config), proverworker.DefaultConfig),
-		dix.Override(new(core.WorkerWdPoStTaskManager), BuildWorkerWdPoStTaskManager),
+		dix.Override(new(core.WorkerWdPoStJobManager), BuildWorkerWdPoStJobManager),
 		dix.Override(new(core.WorkerWdPoStAPI), proverworker.NewWdPoStAPIImpl),
 		dix.Override(new(core.Prover), BuildWorkerProver),
-	)
-}
-
-func DisableWorkerProver() dix.Option {
-	return dix.Options(
-		dix.Override(new(core.WorkerWdPoStAPI), proverworker.NewUnavailableWdPoStAPIImpl),
 	)
 }
 
@@ -98,11 +92,11 @@ func BuildWorkerProverStore(gctx GlobalContext, db UnderlyingDB) (WorkerProverSt
 	return db.OpenCollection(gctx, "prover")
 }
 
-func BuildWorkerProver(lc fx.Lifecycle, taskMgr core.WorkerWdPoStTaskManager, sectorTracker core.SectorTracker, config *proverworker.Config) (core.Prover, error) {
-	p := proverworker.NewProver(taskMgr, sectorTracker, config)
+func BuildWorkerProver(lc fx.Lifecycle, jobMgr core.WorkerWdPoStJobManager, sectorTracker core.SectorTracker, config *proverworker.Config) (core.Prover, error) {
+	p := proverworker.NewProver(jobMgr, sectorTracker, config)
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			p.StartJob(ctx)
+			p.Start(ctx)
 			return nil
 		},
 	})
@@ -110,10 +104,10 @@ func BuildWorkerProver(lc fx.Lifecycle, taskMgr core.WorkerWdPoStTaskManager, se
 	return p, nil
 }
 
-func BuildWorkerWdPoStTaskManager(kv WorkerProverStore) (core.WorkerWdPoStTaskManager, error) {
+func BuildWorkerWdPoStJobManager(kv WorkerProverStore) (core.WorkerWdPoStJobManager, error) {
 	wdpostKV, err := kvstore.NewWrappedKVStore([]byte("wdpost-"), kv)
 	if err != nil {
 		return nil, err
 	}
-	return proverworker.NewKVTaskManager(*kvstore.NewKVExt(wdpostKV)), nil
+	return proverworker.NewKVJobManager(*kvstore.NewKVExt(wdpostKV)), nil
 }

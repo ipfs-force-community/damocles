@@ -6,12 +6,12 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub use fil_clock::ChainEpoch;
 pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness};
 
-use crate::rpc::sealer::{AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket, WdPostTaskInfo};
+use crate::rpc::sealer::{AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket};
 use crate::sealing::processor::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
     SnapEncodeOutput,
 };
-use vc_processors::builtin::tasks::WindowPoStOutput;
+use crate::sealing::sealing_thread::default_plan;
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
 
@@ -25,7 +25,7 @@ macro_rules! def_state {
             )+
         }
 
-        impl  State {
+        impl State {
             pub fn as_str(&self) -> &'static str {
                 match self {
                     $(
@@ -83,7 +83,6 @@ def_state! {
     SnapDone,
     Unsealed,
     UnsealPrepared,
-    WdPostGenerated,
 }
 
 impl std::fmt::Debug for State {
@@ -142,11 +141,6 @@ pub struct Phases {
 
     // unseal
     pub unseal_in: Option<UnsealInput>,
-
-    // window PoST
-    pub wd_post_in: Option<WdPostTaskInfo>,
-
-    pub wd_post_out: Option<WindowPoStOutput>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -201,5 +195,9 @@ impl Sector {
     pub fn update_state(&mut self, next: State) {
         let prev = std::mem::replace(&mut self.state, next);
         self.prev_state.replace(prev);
+    }
+
+    pub fn plan(&self) -> &str {
+        self.plan.as_deref().unwrap_or_else(|| default_plan())
     }
 }

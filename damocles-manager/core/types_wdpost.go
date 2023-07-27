@@ -22,15 +22,15 @@ type WdPoStInput struct {
 	Seed      [32]byte
 }
 
-type WdPoStTaskState string
+type WdPoStJobState string
 
 const (
-	WdPoStTaskReadyToRun WdPoStTaskState = "ready2run"
-	WdPoStTaskRunning    WdPoStTaskState = "running"
-	WdPoStTaskFinished   WdPoStTaskState = "finished"
+	WdPoStJobReadyToRun WdPoStJobState = "ready2run"
+	WdPoStJobRunning    WdPoStJobState = "running"
+	WdPoStJobFinished   WdPoStJobState = "finished"
 )
 
-type WdPoStTask struct {
+type WdPoStJob struct {
 	ID          string `json:"Id"`
 	State       string
 	DeadlineIdx uint64
@@ -46,8 +46,8 @@ type WdPoStTask struct {
 	UpdatedAt   uint64
 }
 
-func (t *WdPoStTask) Finished(maxTry uint32) bool {
-	if t.FinishedAt == 0 {
+func (t *WdPoStJob) Finished(maxTry uint32) bool {
+	if t.State != string(WdPoStJobFinished) {
 		return false
 	}
 
@@ -58,26 +58,49 @@ func (t *WdPoStTask) Finished(maxTry uint32) bool {
 	return true
 }
 
-type WdPoStAllocatedTask struct {
+func (t *WdPoStJob) Succeed() bool {
+	if t.State != string(WdPoStJobFinished) {
+		return false
+	}
+	return t.Output != nil
+}
+
+func (t *WdPoStJob) DisplayState() string {
+	switch WdPoStJobState(t.State) {
+	case WdPoStJobReadyToRun:
+		return "ReadyToRun"
+	case WdPoStJobRunning:
+		return "Running"
+	case WdPoStJobFinished:
+		if t.Succeed() {
+			return "Succeed"
+		} else {
+			return "Failed"
+		}
+	}
+	return t.State
+}
+
+type WdPoStAllocatedJob struct {
 	ID    string `json:"Id"`
 	Input WdPoStInput
 }
 
-type AllocateWdPoStTaskSpec struct {
+type AllocateWdPoStJobSpec struct {
 	AllowedMiners     []abi.ActorID
 	AllowedProofTypes []abi.RegisteredPoStProof
 }
 
-type WorkerWdPoStTaskManager interface {
-	All(ctx context.Context, filter func(*WdPoStTask) bool) ([]*WdPoStTask, error)
-	ListByTaskIDs(ctx context.Context, state WdPoStTaskState, taskIDs ...string) ([]*WdPoStTask, error)
-	Create(ctx context.Context, deadlineIdx uint64, input WdPoStInput) (*WdPoStTask, error)
-	AllocateTasks(ctx context.Context, spec AllocateWdPoStTaskSpec, num uint32, workerName string) (allocatedTasks []*WdPoStAllocatedTask, err error)
-	Heartbeat(ctx context.Context, taskIDs []string, workerName string) error
-	Finish(ctx context.Context, taskID string, output *stage.WindowPoStOutput, errorReason string) error
-	MakeTasksDie(ctx context.Context, shouldDeadDur time.Duration, limit uint32) error
-	CleanupExpiredTasks(ctx context.Context, taskLifetime time.Duration, limit uint32) error
-	RetryFailedTasks(ctx context.Context, maxTry, limit uint32) error
-	Reset(ctx context.Context, taskID string) error
-	Remove(ctx context.Context, taskID string) error
+type WorkerWdPoStJobManager interface {
+	All(ctx context.Context, filter func(*WdPoStJob) bool) ([]*WdPoStJob, error)
+	ListByJobIDs(ctx context.Context, state WdPoStJobState, jobIDs ...string) ([]*WdPoStJob, error)
+	Create(ctx context.Context, deadlineIdx uint64, input WdPoStInput) (*WdPoStJob, error)
+	AllocateJobs(ctx context.Context, spec AllocateWdPoStJobSpec, num uint32, workerName string) (allocatedJobs []*WdPoStAllocatedJob, err error)
+	Heartbeat(ctx context.Context, jobIDs []string, workerName string) error
+	Finish(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) error
+	MakeJobsDie(ctx context.Context, shouldDeadDur time.Duration, limit uint32) error
+	CleanupExpiredJobs(ctx context.Context, jobLifetime time.Duration, limit uint32) error
+	RetryFailedJobs(ctx context.Context, maxTry, limit uint32) error
+	Reset(ctx context.Context, jobID string) error
+	Remove(ctx context.Context, jobID string) error
 }

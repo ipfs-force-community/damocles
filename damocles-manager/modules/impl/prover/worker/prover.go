@@ -22,101 +22,102 @@ var log = logging.New("worker prover")
 
 var _ core.Prover = (*WorkerProver)(nil)
 
-func GenTaskID(rawInput []byte) string {
+func GenJobID(rawInput []byte) string {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, xxhash.Sum64(rawInput))
 	return base58.Encode(b)
 }
 
+type R struct {
+	output *stage.WindowPoStOutput
+	err    string
+}
+
 type WorkerProver struct {
-	taskMgr       core.WorkerWdPoStTaskManager
+	jobMgr        core.WorkerWdPoStJobManager
 	sectorTracker core.SectorTracker
 	localProver   core.Prover
 
-	inflightTasks map[string][]chan<- struct {
-		output *stage.WindowPoStOutput
-		err    string
-	}
-	inflightTasksLock *sync.Mutex
-	config            *Config
+	inflightJobs     map[string][]chan<- R
+	inflightJobsLock *sync.Mutex
+	config           *Config
 }
 
-func NewProver(taskMgr core.WorkerWdPoStTaskManager, sectorTracker core.SectorTracker, config *Config) *WorkerProver {
+func NewProver(jobMgr core.WorkerWdPoStJobManager, sectorTracker core.SectorTracker, config *Config) *WorkerProver {
 	return &WorkerProver{
-		taskMgr:       taskMgr,
-		sectorTracker: sectorTracker,
-		localProver:   prover.NewProdProver(sectorTracker),
-		inflightTasks: make(map[string][]chan<- struct {
-			output *stage.WindowPoStOutput
-			err    string
-		}),
-		inflightTasksLock: &sync.Mutex{},
-		config:            config,
+		jobMgr:           jobMgr,
+		sectorTracker:    sectorTracker,
+		localProver:      prover.NewProdProver(sectorTracker),
+		inflightJobs:     make(map[string][]chan<- R),
+		inflightJobsLock: &sync.Mutex{},
+		config:           config,
 	}
 }
 
-func (p *WorkerProver) StartJob(ctx context.Context) {
-	go p.runNotifyTaskDoneJob(ctx)
-	go p.runRetryFailedTasksJob(ctx)
-	go p.runCleanupExpiredTasksJob(ctx)
+func (p *WorkerProver) Start(ctx context.Context) {
+	go p.runNotifyJobDone(ctx)
+	go p.runRetryFailedJobs(ctx)
+	go p.runCleanupExpiredJobs(ctx)
 }
 
-func (p *WorkerProver) runNotifyTaskDoneJob(ctx context.Context) {
+func (p *WorkerProver) runNotifyJobDone(ctx context.Context) {
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
+			log.Info("stop notifyJobDone")
 			return
 		case <-ticker.C:
-			p.inflightTasksLock.Lock()
-			inflightTaskIDs := make([]string, 0, len(p.inflightTasks))
-			for taskID := range p.inflightTasks {
-				inflightTaskIDs = append(inflightTaskIDs, taskID)
+			p.inflightJobsLock.Lock()
+			inflightJobIDs := make([]string, 0, len(p.inflightJobs))
+			for jobID := range p.inflightJobs {
+				inflightJobIDs = append(inflightJobIDs, jobID)
 			}
-			p.inflightTasksLock.Unlock()
+			p.inflightJobsLock.Unlock()
 
-			finishedTasks, err := p.taskMgr.ListByTaskIDs(ctx, core.WdPoStTaskFinished, inflightTaskIDs...)
+			finishedJobs, err := p.jobMgr.ListByJobIDs(ctx, core.WdPoStJobFinished, inflightJobIDs...)
 			if err != nil {
-				log.Errorf("failed to list tasks: %s", err)
+				log.Errorf("failed to list jobs: %s", err)
 			}
 
-			p.inflightTasksLock.Lock()
-			for _, task := range finishedTasks {
-				chs, ok := p.inflightTasks[task.ID]
+			p.inflightJobsLock.Lock()
+			for _, job := range finishedJobs {
+				chs, ok := p.inflightJobs[job.ID]
 				if !ok {
 					continue
 				}
-				if !task.Finished(p.config.TaskMaxTry) {
+				if !job.Finished(p.config.JobMaxTry) {
 					continue
 				}
+				delete(p.inflightJobs, job.ID)
+
 				for _, ch := range chs {
-					ch <- struct {
-						output *stage.WindowPoStOutput
-						err    string
-					}{
-						output: task.Output,
-						err:    task.ErrorReason,
+					ch <- R{
+						output: job.Output,
+						err:    job.ErrorReason,
 					}
+					close(ch)
 				}
 			}
-			p.inflightTasksLock.Unlock()
+			p.inflightJobsLock.Unlock()
 		}
 	}
 }
 
-func (p *WorkerProver) runRetryFailedTasksJob(ctx context.Context) {
-	ticker := time.NewTicker(p.config.RetryFailedTasksInterval)
+func (p *WorkerProver) runRetryFailedJobs(ctx context.Context) {
+	ticker := time.NewTicker(p.config.RetryFailedJobsInterval)
 	defer ticker.Stop()
 	for {
-		if err := p.taskMgr.MakeTasksDie(ctx, p.config.HeartbeatTimeout, 128); err != nil {
-			log.Errorf("failed to make tasks die: %s", err)
+		if err := p.jobMgr.MakeJobsDie(ctx, p.config.HeartbeatTimeout, 128); err != nil {
+			log.Errorf("failed to make jobs die: %s", err)
 		}
-		if err := p.taskMgr.RetryFailedTasks(ctx, p.config.TaskMaxTry, 128); err != nil {
-			log.Errorf("failed to retry failed tasks: %s", err)
+		if err := p.jobMgr.RetryFailedJobs(ctx, p.config.JobMaxTry, 128); err != nil {
+			log.Errorf("failed to retry failed jobs: %s", err)
 		}
 		select {
 		case <-ctx.Done():
+			log.Info("stop retryFailedJobs")
 			return
 		case <-ticker.C:
 			continue
@@ -124,14 +125,15 @@ func (p *WorkerProver) runRetryFailedTasksJob(ctx context.Context) {
 	}
 }
 
-func (p *WorkerProver) runCleanupExpiredTasksJob(ctx context.Context) {
-	ticker := time.NewTicker(p.config.CleanupExpiredTasksJobInterval)
+func (p *WorkerProver) runCleanupExpiredJobs(ctx context.Context) {
+	ticker := time.NewTicker(p.config.CleanupExpiredJobsInterval)
 	for {
-		if err := p.taskMgr.CleanupExpiredTasks(ctx, p.config.TaskLifetime, 128); err != nil {
-			log.Errorf("failed to cleanup expired tasks: %s", err)
+		if err := p.jobMgr.CleanupExpiredJobs(ctx, p.config.JobLifetime, 128); err != nil {
+			log.Errorf("failed to cleanup expired jobs: %s", err)
 		}
 		select {
 		case <-ctx.Done():
+			log.Info("stop cleanupExpiredJobs")
 			return
 		case <-ticker.C:
 			continue
@@ -171,25 +173,29 @@ func (p *WorkerProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint6
 	}
 	copy(input.Seed[:], randomness[:])
 
-	task, err := p.taskMgr.Create(ctx, deadlineIdx, input)
+	job, err := p.jobMgr.Create(ctx, deadlineIdx, input)
 	if err != nil {
-		return nil, nil, fmt.Errorf("create wdPoSt task: %w", err)
+		return nil, nil, fmt.Errorf("create wdPoSt job: %w", err)
 	}
 
-	ch := make(chan struct {
-		output *stage.WindowPoStOutput
-		err    string
-	}, 1)
+	ch := make(chan R, 1)
 
-	p.inflightTasksLock.Lock()
-	p.inflightTasks[task.ID] = append(p.inflightTasks[task.ID], ch)
-	p.inflightTasksLock.Unlock()
+	p.inflightJobsLock.Lock()
+	p.inflightJobs[job.ID] = append(p.inflightJobs[job.ID], ch)
+	p.inflightJobsLock.Unlock()
 
-	result, ok := <-ch
-
-	if !ok {
-		return nil, nil, fmt.Errorf("wdPoSt result channel was closed unexpectedly")
+	var result R
+	select {
+	case <-ctx.Done():
+		err = fmt.Errorf("failed to generate window post before context cancellation: %w", ctx.Err())
+		return
+	case res, ok := <-ch:
+		if !ok {
+			return nil, nil, fmt.Errorf("wdPoSt result channel was closed unexpectedly")
+		}
+		result = res
 	}
+
 	if result.err != "" {
 		return nil, nil, fmt.Errorf("error from worker: %s", result.err)
 	}

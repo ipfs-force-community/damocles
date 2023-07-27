@@ -305,7 +305,7 @@ func resolveWorkerDest(ctx context.Context, a *APIClient, name string) (string, 
 
 var utilWdPostCmd = &cli.Command{
 	Name:  "wdpost",
-	Usage: "manager wdpost task when the task is handle by worker",
+	Usage: "manager wdpost jobs if the jobs is handle by worker",
 	Subcommands: []*cli.Command{
 		utilWdPostListCmd,
 		utilWdPostResetCmd,
@@ -316,11 +316,11 @@ var utilWdPostCmd = &cli.Command{
 
 var utilWdPostListCmd = &cli.Command{
 	Name:  "list",
-	Usage: "list all wdpost task",
+	Usage: "list all wdpost job",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "all",
-			Usage: "list all wdpost task, include the task that has been succeed",
+			Usage: "list all wdpost job, include the job that has been succeed",
 		},
 		&cli.BoolFlag{
 			Name:  "detail",
@@ -334,10 +334,10 @@ var utilWdPostListCmd = &cli.Command{
 		}
 		defer stopper()
 
-		var tasks []*core.WdPoStTask
-		tasks, err = a.Damocles.WdPoStAllTasks(actx)
+		var jobs []*core.WdPoStJob
+		jobs, err = a.Damocles.WdPoStAllJobs(actx)
 		if err != nil {
-			return fmt.Errorf("get wdpost tasks: %w", err)
+			return fmt.Errorf("get wdpost jobs: %w", err)
 		}
 
 		detail := cctx.Bool("detail")
@@ -357,59 +357,47 @@ var utilWdPostListCmd = &cli.Command{
 			}
 			return time.Unix(int64(unix_secs), 0).Format("01-02 15:04:05")
 		}
-		for _, task := range tasks {
-			state := "ReadyToRun"
-			if task.StartedAt != 0 {
-				state = "Running"
-			}
-			if task.FinishedAt != 0 {
-				if task.ErrorReason != "" {
-					state = "Failed"
-				} else {
-					state = "Succeed"
-				}
-			}
-
-			if !cctx.Bool("all") && state == "Succeed" {
+		for _, job := range jobs {
+			if !cctx.Bool("all") && job.Succeed() {
 				continue
 			}
 			if detail {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
-					task.ID,
-					task.State,
-					task.Input.MinerID,
-					task.DeadlineIdx,
-					task.WorkerName,
-					state,
-					task.TryNum,
-					formatDateTime(task.CreatedAt),
-					formatDateTime(task.StartedAt),
-					formatDateTime(task.HeartbeatAt),
-					formatDateTime(task.FinishedAt),
-					formatDateTime(task.UpdatedAt),
-					task.ErrorReason,
+					job.ID,
+					job.State,
+					job.Input.MinerID,
+					job.DeadlineIdx,
+					job.WorkerName,
+					job.DisplayState(),
+					job.TryNum,
+					formatDateTime(job.CreatedAt),
+					formatDateTime(job.StartedAt),
+					formatDateTime(job.HeartbeatAt),
+					formatDateTime(job.FinishedAt),
+					formatDateTime(job.UpdatedAt),
+					job.ErrorReason,
 				)
 			} else {
 				var elapsed string
 
-				if task.StartedAt == 0 {
+				if job.StartedAt == 0 {
 					elapsed = "-"
-				} else if task.FinishedAt == 0 {
-					elapsed = time.Since(time.Unix(int64(task.StartedAt), 0)).Truncate(time.Second).String()
+				} else if job.FinishedAt == 0 {
+					elapsed = time.Since(time.Unix(int64(job.StartedAt), 0)).Truncate(time.Second).String()
 				} else {
-					elapsed = fmt.Sprintf("%s(done)", time.Duration(task.FinishedAt-task.StartedAt)*time.Second)
+					elapsed = fmt.Sprintf("%s(done)", time.Duration(job.FinishedAt-job.StartedAt)*time.Second)
 				}
 
 				fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\n",
-					task.ID,
-					task.Input.MinerID,
-					task.DeadlineIdx,
-					task.WorkerName,
-					state,
-					task.TryNum,
-					formatDateTime(task.CreatedAt),
+					job.ID,
+					job.Input.MinerID,
+					job.DeadlineIdx,
+					job.WorkerName,
+					job.DisplayState(),
+					job.TryNum,
+					formatDateTime(job.CreatedAt),
 					elapsed,
-					task.ErrorReason,
+					job.ErrorReason,
 				)
 			}
 		}
@@ -421,8 +409,8 @@ var utilWdPostListCmd = &cli.Command{
 
 var utilWdPostResetCmd = &cli.Command{
 	Name:      "reset",
-	Usage:     "reset the task status to allow new workers can pick it up",
-	ArgsUsage: "<task id>...",
+	Usage:     "reset the job status to allow new workers can pick it up",
+	ArgsUsage: "<job id>...",
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
 		if args.Len() < 1 {
@@ -435,10 +423,10 @@ var utilWdPostResetCmd = &cli.Command{
 		}
 		defer stopper()
 
-		for _, taskID := range args.Slice() {
-			_, err = a.Damocles.WdPoStResetTask(actx, taskID)
+		for _, jobID := range args.Slice() {
+			_, err = a.Damocles.WdPoStResetJob(actx, jobID)
 			if err != nil {
-				return fmt.Errorf("reset wdpost task: %w", err)
+				return fmt.Errorf("reset wdpost job: %w", err)
 			}
 		}
 
@@ -448,8 +436,8 @@ var utilWdPostResetCmd = &cli.Command{
 
 var utilWdPostRemoveCmd = &cli.Command{
 	Name:      "remove",
-	Usage:     "remove wdpost task",
-	ArgsUsage: "<task id>...",
+	Usage:     "remove wdpost job",
+	ArgsUsage: "<job id>...",
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
 		if args.Len() < 1 {
@@ -462,10 +450,10 @@ var utilWdPostRemoveCmd = &cli.Command{
 		}
 		defer stopper()
 
-		for _, taskID := range args.Slice() {
-			_, err = a.Damocles.WdPoStRemoveTask(actx, taskID)
+		for _, jobID := range args.Slice() {
+			_, err = a.Damocles.WdPoStRemoveJob(actx, jobID)
 			if err != nil {
-				return fmt.Errorf("remove wdpost task: %w", err)
+				return fmt.Errorf("remove wdpost job: %w", err)
 			}
 		}
 		return nil
@@ -474,7 +462,7 @@ var utilWdPostRemoveCmd = &cli.Command{
 
 var utilWdPostRemoveAllCmd = &cli.Command{
 	Name:  "remove-all",
-	Usage: "remove all wdpost tasks",
+	Usage: "remove all wdpost jobs",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "really-do-it",
@@ -494,16 +482,16 @@ var utilWdPostRemoveAllCmd = &cli.Command{
 		}
 		defer stopper()
 
-		tasks, err := a.Damocles.WdPoStAllTasks(actx)
+		jobs, err := a.Damocles.WdPoStAllJobs(actx)
 		if err != nil {
 			return err
 		}
-		for _, task := range tasks {
-			_, err = a.Damocles.WdPoStRemoveTask(actx, task.ID)
+		for _, job := range jobs {
+			_, err = a.Damocles.WdPoStRemoveJob(actx, job.ID)
 			if err != nil {
-				return fmt.Errorf("remove wdpost task: %w", err)
+				return fmt.Errorf("remove wdpost job: %w", err)
 			}
-			fmt.Printf("wdpost task %s removed\n", task.ID)
+			fmt.Printf("wdpost job %s removed\n", job.ID)
 		}
 		return nil
 	},

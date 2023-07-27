@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::path::PathBuf;
 
 use super::super::types::SealProof;
@@ -11,7 +12,8 @@ use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use vc_processors::b64serde::{BytesArray32, BytesVec};
-use vc_processors::fil_proofs::{Commitment, PaddedBytesAmount, RegisteredPoStProof, SectorId, SnarkProof};
+use vc_processors::builtin::tasks::WindowPoStOutput;
+use vc_processors::fil_proofs::{Commitment, PaddedBytesAmount, RegisteredPoStProof, SectorId};
 
 /// type alias for BytesArray32
 pub type Randomness = BytesArray32;
@@ -32,9 +34,15 @@ pub struct SectorID {
     pub number: SectorNumber,
 }
 
-impl std::fmt::Debug for SectorID {
+impl Display for SectorID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "s-t0{}-{}", self.miner, self.number)
+    }
+}
+
+impl std::fmt::Debug for SectorID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
     }
 }
 
@@ -377,42 +385,47 @@ pub struct SectorUnsealInfo {
     pub private_info: SectorPrivateInfo,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub struct PoStSectorInfo {
+pub struct SectorAccessStores {
+    pub sealed_file: String, // name for storage instance
+    pub cache_dir: String,
+}
+
+/// rules for allocating sector bases
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct AllocatePoStSpec {
+    /// specified miner actor ids
+    pub allowed_miners: Option<Vec<ActorID>>,
+
+    /// specified seal proof types
+    pub allowed_proof_types: Option<Vec<RegisteredPoStProof>>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct WdPoStSectorInfo {
     pub sector_id: SectorId,
     pub comm_r: Commitment,
-    pub access_instance: String,
+    pub upgrade: bool, // is upgrade sector
+    pub accesses: SectorAccessStores,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub struct WdPostTaskInfo {
+pub struct WdPoStInput {
+    pub sectors: Vec<WdPoStSectorInfo>,
     pub miner_id: ActorID,
-    pub deadline_id: u64,
-    pub sectors: Vec<PoStSectorInfo>,
-    pub seed: ChallengeSeed,
     pub proof_type: RegisteredPoStProof,
-    pub instance: String,
+    pub seed: ChallengeSeed,
 }
 
-#[derive(Deserialize, Clone, Serialize)]
-pub enum WdpostState {
-    Assigned,
-    Generating,
-    Generated,
-    Failed,
-    Done,
-    Error,
-}
-
-#[derive(Deserialize, Clone, Serialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
-pub struct WdPoStResult {
-    pub state: WdpostState,
-    pub error: Option<String>,
-    pub proofs: Option<Vec<SnarkProof>>,
-    pub faults: Option<Vec<u64>>,
+pub struct AllocatedWdPoStJob {
+    pub id: String,
+    pub input: WdPoStInput,
 }
 
 /// defines the SealerRpc service
@@ -506,9 +519,12 @@ pub trait Sealer {
     #[rpc(name = "Venus.AcquireUnsealDest")]
     fn acquire_unseal_dest(&self, id: SectorID, piece_cid: CidJson) -> Result<Vec<String>>;
 
-    #[rpc(name = "Venus.WdPoStAllocateTasks")]
-    fn allocate_wd_post_task(&self, spec: AllocateSectorSpec) -> Result<Option<WdPostTaskInfo>>;
+    #[rpc(name = "Venus.WdPoStAllocateJobs")]
+    fn allocate_wdpost_job(&self, spec: AllocatePoStSpec, num: u32, worker_name: String) -> Result<Vec<AllocatedWdPoStJob>>;
 
-    #[rpc(name = "Venus.WdPoStHeartbeatTask")]
-    fn wd_post_heartbeat(&self, miner_id: ActorID, deadline_id: u64, result: WdPoStResult) -> Result<()>;
+    #[rpc(name = "Venus.WdPoStHeartbeatJobs")]
+    fn wdpost_heartbeat(&self, job_ids: Vec<String>, worker_name: String) -> Result<()>;
+
+    #[rpc(name = "Venus.WdPoStFinishJob")]
+    fn wdpost_finish(&self, job_id: String, output: Option<WindowPoStOutput>, error_reason: String) -> Result<()>;
 }
