@@ -204,7 +204,8 @@ func TestStoreManagerReserverSpaceWeighed(t *testing.T) {
 	require.NoError(t, err, "construct store-1K")
 
 	storeRO, err := NewMockStore(Config{
-		Name: storeNameReadOnly,
+		Name:     storeNameReadOnly,
+		ReadOnly: &TRUE,
 	}, 1<<30)
 	require.NoError(t, err, "construct store-RO")
 
