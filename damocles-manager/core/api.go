@@ -11,19 +11,29 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
 )
 
+//go:generate go run gen.go -interface=SealerAPI,SealerCliAPI,RandomnessAPI,MinerAPI,WorkerWdPoStAPI
+
 const (
-	// TODO: The sealerAPI namespace is Venus due to historical reasons,
+	// TODO: The APINamespace is Venus due to historical reasons,
 	// and we should consider changing it to a more appropriate name in future versions
-	SealerAPINamespace = "Venus"
-	MinerAPINamespace  = "Damocles.miner"
-	MajorVersion       = 0
+	APINamespace = "Venus"
+	MajorVersion = 0
 )
 
 var Empty Meta
 
 type Meta *struct{}
+
+type APIFull interface {
+	SealerAPI
+	SealerCliAPI
+	RandomnessAPI
+	MinerAPI
+	WorkerWdPoStAPI
+}
 
 type SealerAPI interface {
 	AllocateSector(context.Context, AllocateSectorSpec) (*AllocatedSector, error)
@@ -73,9 +83,6 @@ type SealerAPI interface {
 	AllocateUnsealSector(ctx context.Context, spec AllocateSectorSpec) (*SectorUnsealInfo, error)
 	AchieveUnsealSector(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (Meta, error)
 	AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error)
-
-	// utils
-	SealerCliAPI
 }
 
 type SealerCliAPI interface {
@@ -95,7 +102,7 @@ type SealerCliAPI interface {
 
 	CheckProvable(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error)
 
-	SimulateWdPoSt(context.Context, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
+	SimulateWdPoSt(context.Context, uint64, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
 
 	SnapUpPreFetch(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error)
 
@@ -108,6 +115,8 @@ type SealerCliAPI interface {
 	WorkerGetPingInfo(ctx context.Context, name string) (*WorkerPingInfo, error)
 
 	WorkerPingInfoList(ctx context.Context) ([]WorkerPingInfo, error)
+
+	WorkerPingInfoRemove(ctx context.Context, name string) error
 
 	SectorIndexerFind(ctx context.Context, indexType SectorIndexType, sid abi.SectorID) (SectorIndexLocation, error)
 
@@ -141,4 +150,13 @@ type RandomnessAPI interface {
 type MinerAPI interface {
 	GetInfo(context.Context, abi.ActorID) (*MinerInfo, error)
 	GetMinerConfig(context.Context, abi.ActorID) (*modules.MinerConfig, error)
+}
+
+type WorkerWdPoStAPI interface {
+	WdPoStHeartbeatJobs(ctx context.Context, runningJobIDs []string, workerName string) (Meta, error)
+	WdPoStAllocateJobs(ctx context.Context, spec AllocateWdPoStJobSpec, num uint32, workerName string) (allocatedJobs []*WdPoStAllocatedJob, err error)
+	WdPoStFinishJob(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
+	WdPoStResetJob(ctx context.Context, jobID string) (Meta, error)
+	WdPoStRemoveJob(ctx context.Context, jobID string) (Meta, error)
+	WdPoStAllJobs(ctx context.Context) ([]WdPoStJobBrief, error)
 }

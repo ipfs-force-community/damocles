@@ -90,6 +90,11 @@ var daemonRunCmd = &cli.Command{
 			Value: false,
 			Usage: "enable external prover",
 		},
+		&cli.BoolFlag{
+			Name:  "worker-prover",
+			Value: false,
+			Usage: "enable worker prover",
+		},
 		daemonRunProxyFlag,
 		daemonRunProxySectorIndexerOffFlag,
 	},
@@ -100,6 +105,10 @@ var daemonRunCmd = &cli.Command{
 		proxy := cctx.String(daemonRunProxyFlag.Name)
 		proxyOpt := dep.ProxyOptions{
 			EnableSectorIndexer: !cctx.Bool(daemonRunProxySectorIndexerOffFlag.Name),
+		}
+		extProver, workerProver := cctx.Bool("ext-prover"), cctx.Bool("worker-prover")
+		if extProver && workerProver {
+			return fmt.Errorf("ext-prover and worker-prover are mutually exclusive")
 		}
 
 		var apiService *APIService
@@ -119,9 +128,16 @@ var daemonRunCmd = &cli.Command{
 				dep.Miner(),
 			),
 			dep.Gateway(),
-			dix.If(cctx.Bool("ext-prover"), dep.ExtProver()),
+			dix.Override(new(*APIService), NewAPIServiceDisbaleWorkerWdPoSt),
+
+			dix.If(extProver, dep.ExtProver()),
+			dix.If(
+				workerProver,
+				dep.WorkerProver(),
+				dix.Override(new(*APIService), NewAPIService),
+			),
 			dep.Sealer(),
-			dix.Override(new(*APIService), NewAPIService),
+
 			dix.Populate(dep.InvokePopulate, &apiService),
 		)
 		if err != nil {

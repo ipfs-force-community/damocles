@@ -57,8 +57,8 @@ type Verifier interface {
 
 type Prover interface {
 	AggregateSealProofs(ctx context.Context, aggregateInfo AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error)
-	GenerateWindowPoSt(ctx context.Context, minerID abi.ActorID, sectors SortedPrivateSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error)
-	GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, sectors SortedPrivateSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error)
+	GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error)
+	GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, ppt abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error)
 
 	GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*FallbackChallenges, error)
 	GenerateSingleVanillaProof(ctx context.Context, replica FFIPrivateSectorInfo, challenges []uint64) ([]byte, error)

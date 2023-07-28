@@ -11,6 +11,7 @@ use crate::sealing::processor::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
     SnapEncodeOutput,
 };
+use crate::sealing::sealing_thread::default_plan;
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
 
@@ -24,7 +25,7 @@ macro_rules! def_state {
             )+
         }
 
-        impl  State {
+        impl State {
             pub fn as_str(&self) -> &'static str {
                 match self {
                     $(
@@ -193,5 +194,9 @@ impl Sector {
     pub fn update_state(&mut self, next: State) {
         let prev = std::mem::replace(&mut self.state, next);
         self.prev_state.replace(prev);
+    }
+
+    pub fn plan(&self) -> &str {
+        self.plan.as_deref().unwrap_or_else(|| default_plan())
     }
 }

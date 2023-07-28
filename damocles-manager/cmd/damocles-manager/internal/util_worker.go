@@ -12,7 +12,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
-	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/workercli"
 )
 
@@ -26,6 +25,7 @@ var utilWorkerCmd = &cli.Command{
 		utilWorkerInfoCmd,
 		utilWorkerPauseCmd,
 		utilWorkerResumeCmd,
+		utilWdPostCmd,
 	},
 }
 
@@ -45,7 +45,7 @@ var utilWorkerListCmd = &cli.Command{
 		}
 		defer stopper()
 
-		pinfos, err := a.Sealer.WorkerPingInfoList(actx)
+		pinfos, err := a.Damocles.WorkerPingInfoList(actx)
 		if err != nil {
 			return RPCCallError("WorkerPingInfoList", err)
 		}
@@ -97,7 +97,7 @@ var utilWorkerRemoveCmd = &cli.Command{
 		}
 		defer stopper()
 
-		workerInfo, err := a.Sealer.WorkerGetPingInfo(actx, name)
+		workerInfo, err := a.Damocles.WorkerGetPingInfo(actx, name)
 		if err != nil {
 			return RPCCallError("WorkerGetPingInfo", err)
 		}
@@ -106,7 +106,7 @@ var utilWorkerRemoveCmd = &cli.Command{
 			return fmt.Errorf("worker info not found. please make sure the instance name is correct: %s", name)
 		}
 
-		if err = a.Sealer.WorkerPingInfoRemove(actx, name); err != nil {
+		if err = a.Damocles.WorkerPingInfoRemove(actx, name); err != nil {
 			return err
 		}
 		fmt.Printf("'%s' removed\n", name)
@@ -156,7 +156,7 @@ var utilWorkerInfoCmd = &cli.Command{
 
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		defer tw.Flush()
-		_, _ = fmt.Fprintln(tw, "Index\tLoc\tPlan\tSectorID\tPaused\tPausedElapsed\tState\tLastErr")
+		_, _ = fmt.Fprintln(tw, "Index\tLoc\tPlan\tJobID\tPaused\tPausedElapsed\tState\tLastErr")
 
 		for _, detail := range details {
 			_, _ = fmt.Fprintf(
@@ -164,7 +164,7 @@ var utilWorkerInfoCmd = &cli.Command{
 				detail.Index,
 				detail.Location,
 				detail.Plan,
-				FormatOrNull(detail.SectorID, func() string { return util.FormatSectorID(*detail.SectorID) }),
+				FormatOrNull(detail.JobID, func() string { return *detail.JobID }),
 				detail.Paused,
 				FormatOrNull(detail.PausedElapsed, func() string { return (time.Duration(*detail.PausedElapsed) * time.Second).String() }),
 				detail.State,
@@ -273,7 +273,7 @@ func resolveWorkerDest(ctx context.Context, a *APIClient, name string) (string, 
 	var info *core.WorkerPingInfo
 	var err error
 	if a != nil {
-		info, err = a.Sealer.WorkerGetPingInfo(ctx, name)
+		info, err = a.Damocles.WorkerGetPingInfo(ctx, name)
 		if err != nil {
 			return "", RPCCallError("WorkerGetPingInfo", err)
 		}
@@ -301,4 +301,198 @@ func resolveWorkerDest(ctx context.Context, a *APIClient, name string) (string, 
 	}
 
 	return addr.String(), nil
+}
+
+var utilWdPostCmd = &cli.Command{
+	Name:  "wdpost",
+	Usage: "manager wdpost jobs if the jobs is handle by worker",
+	Subcommands: []*cli.Command{
+		utilWdPostListCmd,
+		utilWdPostResetCmd,
+		utilWdPostRemoveCmd,
+		utilWdPostRemoveAllCmd,
+	},
+}
+
+var utilWdPostListCmd = &cli.Command{
+	Name:  "list",
+	Usage: "list all wdpost job",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "all",
+			Usage: "list all wdpost job, include the job that has been succeed",
+		},
+		&cli.BoolFlag{
+			Name:  "detail",
+			Usage: "show more detailed information",
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		a, actx, stopper, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("get api: %w", err)
+		}
+		defer stopper()
+
+		var jobs []*core.WdPoStJob
+		jobs, err = a.Damocles.WdPoStAllJobs(actx)
+		if err != nil {
+			return fmt.Errorf("get wdpost jobs: %w", err)
+		}
+
+		detail := cctx.Bool("detail")
+
+		w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
+		if detail {
+			_, err = w.Write([]byte("JobID\tPrefix\tMiner\tDDL\tWorker\tState\tTry\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tUpdatedAt\tError\n"))
+		} else {
+			_, err = w.Write([]byte("JobID\tMinerID\tDDL\tWorker\tState\tTry\tCreateAt\tElapsed\tError\n"))
+		}
+		if err != nil {
+			return err
+		}
+		formatDateTime := func(unix_secs uint64) string {
+			if unix_secs == 0 {
+				return "-"
+			}
+			return time.Unix(int64(unix_secs), 0).Format("01-02 15:04:05")
+		}
+		for _, job := range jobs {
+			if !cctx.Bool("all") && job.Succeed() {
+				continue
+			}
+			if detail {
+				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+					job.ID,
+					job.State,
+					job.Input.MinerID,
+					job.DeadlineIdx,
+					job.WorkerName,
+					job.DisplayState(),
+					job.TryNum,
+					formatDateTime(job.CreatedAt),
+					formatDateTime(job.StartedAt),
+					formatDateTime(job.HeartbeatAt),
+					formatDateTime(job.FinishedAt),
+					formatDateTime(job.UpdatedAt),
+					job.ErrorReason,
+				)
+			} else {
+				var elapsed string
+
+				if job.StartedAt == 0 {
+					elapsed = "-"
+				} else if job.FinishedAt == 0 {
+					elapsed = time.Since(time.Unix(int64(job.StartedAt), 0)).Truncate(time.Second).String()
+				} else {
+					elapsed = fmt.Sprintf("%s(done)", time.Duration(job.FinishedAt-job.StartedAt)*time.Second)
+				}
+
+				fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\n",
+					job.ID,
+					job.Input.MinerID,
+					job.DeadlineIdx,
+					job.WorkerName,
+					job.DisplayState(),
+					job.TryNum,
+					formatDateTime(job.CreatedAt),
+					elapsed,
+					job.ErrorReason,
+				)
+			}
+		}
+
+		w.Flush()
+		return nil
+	},
+}
+
+var utilWdPostResetCmd = &cli.Command{
+	Name:      "reset",
+	Usage:     "reset the job status to allow new workers can pick it up",
+	ArgsUsage: "<job id>...",
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if args.Len() < 1 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		a, actx, stopper, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("get api: %w", err)
+		}
+		defer stopper()
+
+		for _, jobID := range args.Slice() {
+			_, err = a.Damocles.WdPoStResetJob(actx, jobID)
+			if err != nil {
+				return fmt.Errorf("reset wdpost job: %w", err)
+			}
+		}
+
+		return nil
+	},
+}
+
+var utilWdPostRemoveCmd = &cli.Command{
+	Name:      "remove",
+	Usage:     "remove wdpost job",
+	ArgsUsage: "<job id>...",
+	Action: func(cctx *cli.Context) error {
+		args := cctx.Args()
+		if args.Len() < 1 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		a, actx, stopper, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("get api: %w", err)
+		}
+		defer stopper()
+
+		for _, jobID := range args.Slice() {
+			_, err = a.Damocles.WdPoStRemoveJob(actx, jobID)
+			if err != nil {
+				return fmt.Errorf("remove wdpost job: %w", err)
+			}
+		}
+		return nil
+	},
+}
+
+var utilWdPostRemoveAllCmd = &cli.Command{
+	Name:  "remove-all",
+	Usage: "remove all wdpost jobs",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "really-do-it",
+			Usage: "Actually perform the action",
+			Value: false,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		if !cctx.Bool("really-do-it") {
+			fmt.Println("Pass --really-do-it to actually execute this action")
+			return nil
+		}
+
+		a, actx, stopper, err := extractAPI(cctx)
+		if err != nil {
+			return fmt.Errorf("get api: %w", err)
+		}
+		defer stopper()
+
+		jobs, err := a.Damocles.WdPoStAllJobs(actx)
+		if err != nil {
+			return err
+		}
+		for _, job := range jobs {
+			_, err = a.Damocles.WdPoStRemoveJob(actx, job.ID)
+			if err != nil {
+				return fmt.Errorf("remove wdpost job: %w", err)
+			}
+			fmt.Printf("wdpost job %s removed\n", job.ID)
+		}
+		return nil
+	},
 }

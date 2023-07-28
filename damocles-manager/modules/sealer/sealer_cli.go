@@ -57,21 +57,16 @@ func (s *Sealer) RestoreSector(ctx context.Context, sid abi.SectorID, forced boo
 }
 
 func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
-	return s.sectorTracker.Provable(ctx, mid, postProofType, sectors, strict, stateCheck)
+	return s.sectorProving.Provable(ctx, mid, postProofType, sectors, strict, stateCheck)
 }
 
-func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
+func (s *Sealer) SimulateWdPoSt(ctx context.Context, ddlIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
 	mid, err := address.IDFromAddress(maddr)
 	if err != nil {
 		return err
 	}
 
-	privSectors, err := s.sectorTracker.PubToPrivate(ctx, abi.ActorID(mid), postProofType, sis)
-	if err != nil {
-		return fmt.Errorf("turn public sector infos into private: %w", err)
-	}
-
-	slog := log.With("miner", mid, "sectors", len(privSectors))
+	slog := log.With("miner", mid, "sectors", len(sis))
 
 	go func() {
 		tCtx := context.TODO()
@@ -79,7 +74,7 @@ func (s *Sealer) SimulateWdPoSt(ctx context.Context, maddr address.Address, post
 		tsStart := clock.NewSystemClock().Now()
 
 		slog.Info("mock generate window post start")
-		proof, skipped, err := s.prover.GenerateWindowPoSt(tCtx, abi.ActorID(mid), core.NewSortedPrivateSectorInfo(privSectors...), append(abi.PoStRandomness{}, rand...))
+		proof, skipped, err := s.prover.GenerateWindowPoSt(tCtx, ddlIndex, abi.ActorID(mid), postProofType, sis, append(abi.PoStRandomness{}, rand...))
 		if err != nil {
 			slog.Warnf("generate window post failed: %v", err.Error())
 			return
@@ -124,7 +119,7 @@ func (s *Sealer) ProvingSectorInfo(ctx context.Context, sid abi.SectorID) (core.
 		return core.ProvingSectorInfo{}, fmt.Errorf("get sector info: %w", err)
 	}
 
-	private, err := s.sectorTracker.SinglePubToPrivateInfo(ctx, sid.Miner, util.SectorOnChainInfoToExtended(sinfo), nil)
+	private, err := s.sectorProving.SinglePubToPrivateInfo(ctx, sid.Miner, util.SectorOnChainInfoToExtended(sinfo), nil)
 	if err != nil {
 		return core.ProvingSectorInfo{}, fmt.Errorf("get private sector info: %w", err)
 	}

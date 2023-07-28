@@ -7,10 +7,9 @@ use serde::Deserialize;
 
 use crate::{
     config::{Sealing, SealingOptional, SealingThreadInner},
+    sealing::sealing_thread::default_plan,
     SealProof,
 };
-
-use super::sealing_thread::default_plan;
 
 /// The config of the sealing thread
 pub struct Config {

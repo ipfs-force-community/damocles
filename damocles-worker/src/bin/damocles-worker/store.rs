@@ -28,13 +28,13 @@ pub(crate) enum StoreCommand {
     },
     HugepageFileInit {
         /// Specify the numa node
-        #[arg(short = 'n', long, alias = "numa_node_index")]
+        #[arg(short = 'n', long = "node", alias = "numa_node_index")]
         numa_node_index: u32,
         /// Specify the size of each hugepage memory file. (e.g., 1B, 2KB, 3kiB, 1MB, 2MiB, 3GB, 1GiB, ...)
         #[arg(short = 's', long)]
         size: bytesize::ByteSize,
         /// Specify the number of hugepage memory files to be created
-        #[arg(short = 'c', long, alias = "number_of_files")]
+        #[arg(short = 'c', long = "num", alias = "number_of_files")]
         number_of_files: usize,
         /// Specify the path to the output hugepage memory files and using the default pattern (/specified_hugepage_file_path/numa_$NUMA_NODE_INDEX).
         /// The created files looks like this:

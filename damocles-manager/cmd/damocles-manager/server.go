@@ -15,11 +15,56 @@ import (
 	managerplugin "github.com/ipfs-force-community/damocles/manager-plugin"
 )
 
-func NewAPIService(sealerAPI core.SealerAPI, minerAPI core.MinerAPI, plugins *managerplugin.LoadedPlugins) *APIService {
+func NewAPIService(
+	sealerAPI core.SealerAPI,
+	sealerCliAPI core.SealerCliAPI,
+	randomnessAPI core.RandomnessAPI,
+	minerAPI core.MinerAPI,
+	workerWdPoStAPI core.WorkerWdPoStAPI,
+	plugins *managerplugin.LoadedPlugins,
+) *APIService {
+	type coreAPI struct {
+		core.SealerAPI
+		core.SealerCliAPI
+		core.RandomnessAPI
+		core.MinerAPI
+		core.WorkerWdPoStAPI
+	}
+
 	return &APIService{
-		sealerAPI: sealerAPI,
-		minerAPI:  minerAPI,
-		plugins:   plugins,
+		coreAPI: &coreAPI{
+			SealerAPI:       sealerAPI,
+			SealerCliAPI:    sealerCliAPI,
+			RandomnessAPI:   randomnessAPI,
+			MinerAPI:        minerAPI,
+			WorkerWdPoStAPI: workerWdPoStAPI,
+		},
+		plugins: plugins,
+	}
+}
+
+func NewAPIServiceDisbaleWorkerWdPoSt(
+	sealerAPI core.SealerAPI,
+	sealerCliAPI core.SealerCliAPI,
+	randomnessAPI core.RandomnessAPI,
+	minerAPI core.MinerAPI,
+	plugins *managerplugin.LoadedPlugins,
+) *APIService {
+	type coreAPI struct {
+		core.SealerAPI
+		core.SealerCliAPI
+		core.RandomnessAPI
+		core.MinerAPI
+	}
+
+	return &APIService{
+		coreAPI: &coreAPI{
+			SealerAPI:     sealerAPI,
+			SealerCliAPI:  sealerCliAPI,
+			RandomnessAPI: randomnessAPI,
+			MinerAPI:      minerAPI,
+		},
+		plugins: plugins,
 	}
 }
 
@@ -29,23 +74,18 @@ type handler struct {
 }
 
 type APIService struct {
-	sealerAPI core.SealerAPI
-	minerAPI  core.MinerAPI
-	plugins   *managerplugin.LoadedPlugins
+	coreAPI interface{}
+	plugins *managerplugin.LoadedPlugins
 }
 
-func (api *APIService) handlers() []handler {
+func (s *APIService) handlers() []handler {
 	handlers := make([]handler, 0, 2)
 	handlers = append(handlers, handler{
-		namespace: core.SealerAPINamespace,
-		hdl:       api.sealerAPI,
+		namespace: core.APINamespace,
+		hdl:       s.coreAPI,
 	})
-	handlers = append(handlers, handler{
-		namespace: core.MinerAPINamespace,
-		hdl:       api.minerAPI,
-	})
-	if api.plugins != nil {
-		_ = api.plugins.Foreach(managerplugin.RegisterJsonRpc, func(plugin *managerplugin.Plugin) error {
+	if s.plugins != nil {
+		_ = s.plugins.Foreach(managerplugin.RegisterJsonRpc, func(plugin *managerplugin.Plugin) error {
 			m := managerplugin.DeclareRegisterJsonRpcManifest(plugin.Manifest)
 			namespace, hdl := m.Handler()
 			log.Infof("register json rpc handler by plugin(%s). namespace: '%s'", plugin.Name, namespace)

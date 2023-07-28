@@ -208,8 +208,10 @@ where
         Ok(())
     }
 
-    pub fn delete(self) -> anyhow::Result<()> {
+    pub fn delete(&mut self, mut default: impl FnMut() -> T) -> anyhow::Result<()> {
         self.db.remove(&self.key)?;
+        *self.data = default();
+        self.data.sync();
         Ok(())
     }
 

@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 
 use anyhow::{anyhow, Error};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use vc_processors::fil_proofs::RegisteredPoStProof;
 
 use crate::sealing::processor::{RegisteredSealProof, RegisteredUpdateProof};
 
@@ -63,6 +64,21 @@ impl SealProof {
             SealProof::StackedDrg512MiBV1_1 => SIZE_512M,
             SealProof::StackedDrg32GiBV1_1 => SIZE_32G,
             SealProof::StackedDrg64GiBV1_1 => SIZE_64G,
+        }
+    }
+
+    /// returns post proof types for the seal proof type
+    pub fn to_post_proofs(&self) -> Vec<RegisteredPoStProof> {
+        use RegisteredPoStProof::*;
+        use SealProof::*;
+        match self {
+            StackedDrg2KiBV1 | StackedDrg2KiBV1_1 => vec![StackedDrgWinning2KiBV1, StackedDrgWindow2KiBV1, StackedDrgWindow2KiBV1_2],
+            StackedDrg8MiBV1 | StackedDrg8MiBV1_1 => vec![StackedDrgWinning8MiBV1, StackedDrgWindow8MiBV1, StackedDrgWindow8MiBV1_2],
+            StackedDrg512MiBV1 | StackedDrg512MiBV1_1 => {
+                vec![StackedDrgWinning512MiBV1, StackedDrgWindow512MiBV1, StackedDrgWindow512MiBV1_2]
+            }
+            StackedDrg32GiBV1 | StackedDrg32GiBV1_1 => vec![StackedDrgWinning32GiBV1, StackedDrgWindow32GiBV1, StackedDrgWindow32GiBV1_2],
+            StackedDrg64GiBV1 | StackedDrg64GiBV1_1 => vec![StackedDrgWinning64GiBV1, StackedDrgWindow64GiBV1, StackedDrgWindow64GiBV1_2],
         }
     }
 }

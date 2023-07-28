@@ -30,7 +30,6 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
-	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/prover"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
@@ -627,7 +626,7 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 				return fmt.Errorf("invalid seal proof type %d: %w", tocheck[0].SealProof, err)
 			}
 
-			bad, err := api.Sealer.CheckProvable(ctx, abi.ActorID(mid), postProofType, tocheck, slow, stateCheck)
+			bad, err := api.Damocles.CheckProvable(ctx, abi.ActorID(mid), postProofType, tocheck, slow, stateCheck)
 			if err != nil {
 				return err
 			}
@@ -685,8 +684,8 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
-
-		partitions, err := api.Chain.StateMinerPartitions(ctx, maddr, cctx.Uint64("ddl-idx"), ts.Key())
+		ddlIdx := cctx.Uint64("ddl-idx")
+		partitions, err := api.Chain.StateMinerPartitions(ctx, maddr, ddlIdx, ts.Key())
 		if err != nil {
 			return fmt.Errorf("get parttion info failed: %w", err)
 		}
@@ -752,7 +751,7 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			return fmt.Errorf("convert to winning post proof: %w", err)
 		}
 
-		err = api.Sealer.SimulateWdPoSt(ctx, maddr, ppt, proofSectors, rand)
+		err = api.Damocles.SimulateWdPoSt(ctx, ddlIdx, maddr, ppt, proofSectors, rand)
 		if err != nil {
 			return err
 		}
@@ -792,7 +791,7 @@ var utilSealerProvingSectorInfoCmd = &cli.Command{
 
 			slog := mlog.With("num", num)
 
-			info, err := api.Sealer.ProvingSectorInfo(actx, abi.SectorID{
+			info, err := api.Damocles.ProvingSectorInfo(actx, abi.SectorID{
 				Miner:  mid,
 				Number: abi.SectorNumber(num),
 			})
@@ -830,7 +829,11 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 		},
 	},
 	Action: func(cctx *cli.Context) error {
-		api, actx, astop, err := extractAPI(cctx)
+		var (
+			prover   core.Prover
+			verifier core.Verifier
+		)
+		api, actx, astop, err := extractAPI(cctx, &prover, &verifier)
 		if err != nil {
 			return err
 		}
@@ -877,7 +880,8 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 		slog.Infof("commR: %v", commR)
 
 		randomness := make(abi.PoStRandomness, abi.RandomnessLength)
-		challenges, err := prover.Prover.GeneratePoStFallbackSectorChallenges(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, []abi.SectorNumber{sectorID.Number})
+
+		challenges, err := prover.GeneratePoStFallbackSectorChallenges(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, []abi.SectorNumber{sectorID.Number})
 		if err != nil {
 			return fmt.Errorf("generate challenge for sector %s: %w", sealedFileName, err)
 		}
@@ -889,7 +893,7 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 
 		slog.Infof("%d challenge generated", len(challenge))
 
-		vannilla, err := prover.Prover.GenerateSingleVanillaProof(actx, core.FFIPrivateSectorInfo{
+		vannilla, err := prover.GenerateSingleVanillaProof(actx, core.FFIPrivateSectorInfo{
 			SectorInfo:       sectorInfo,
 			PoStProofType:    abi.RegisteredPoStProof_StackedDrgWinning32GiBV1,
 			CacheDirPath:     cacheDirPath,
@@ -901,14 +905,14 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 
 		slog.Infof("vannilla generated with %d bytes", len(vannilla))
 
-		proofs, err := prover.Prover.GenerateWinningPoStWithVanilla(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, [][]byte{vannilla})
+		proofs, err := prover.GenerateWinningPoStWithVanilla(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, [][]byte{vannilla})
 		if err != nil {
 			return fmt.Errorf("generate winning post with vannilla for %s: %w", sealedFileName, err)
 		}
 
 		slog.Infof("proof generated with %d bytes", len(proofs[0].ProofBytes))
 
-		verified, err := prover.Verifier.VerifyWinningPoSt(actx, core.WinningPoStVerifyInfo{
+		verified, err := verifier.VerifyWinningPoSt(actx, core.WinningPoStVerifyInfo{
 			Randomness:        randomness,
 			Proofs:            proofs,
 			ChallengedSectors: []core.SectorInfo{sectorInfo},

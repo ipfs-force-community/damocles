@@ -117,8 +117,7 @@ type APIClient struct {
 	Chain    chain.API
 	Messager messager.API
 	Market   market.API
-	Sealer   core.SealerCliClient
-	Miner    core.MinerAPIClient
+	Damocles *core.APIClient
 }
 
 func extractAPI(cctx *cli.Context, target ...interface{}) (*APIClient, context.Context, stopper, error) {

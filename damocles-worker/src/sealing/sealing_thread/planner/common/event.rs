@@ -2,19 +2,14 @@ use std::fmt::{self, Debug};
 
 use anyhow::{anyhow, Result};
 
-use super::{
-    sector::{Base, Finalized, Sector, State},
-    Planner,
-};
+use super::sector::{Base, Finalized, Sector, State, UnsealInput};
+use super::task::Task;
+use crate::rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, SectorUnsealInfo, Seed, Ticket};
 use crate::sealing::processor::{
     to_prover_id, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output,
     SectorId, SnapEncodeOutput,
 };
 use crate::{logging::trace, metadb::MaybeDirty};
-use crate::{
-    rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, SectorUnsealInfo, Seed, Ticket},
-    sealing::sealing_thread::task::sector::UnsealInput,
-};
 
 pub enum Event {
     SetState(State),
@@ -174,19 +169,15 @@ macro_rules! mem_replace {
 }
 
 impl Event {
-    pub fn apply<P: Planner>(self, p: &P, s: &mut MaybeDirty<Sector>) -> Result<()> {
-        let next = if let Event::SetState(s) = self {
-            s
-        } else {
-            p.plan(&self, &s.state)?
-        };
+    pub fn apply(self, state: State, task: &mut Task) -> Result<()> {
+        let next = if let Event::SetState(s) = self { s } else { state };
 
-        if next == s.state {
+        if next == task.sector.state {
             return Err(anyhow!("state unchanged, may enter an infinite loop"));
         }
 
-        self.apply_changes(s);
-        s.update_state(next);
+        self.apply_changes(task.sector.inner_mut());
+        task.sector.update_state(next);
 
         Ok(())
     }

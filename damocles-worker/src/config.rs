@@ -18,7 +18,7 @@ pub const DEFAULT_WORKER_SERVER_PORT: u16 = 17890;
 pub const DEFAULT_WORKER_SERVER_HOST: &str = "0.0.0.0";
 /// The localhost addr
 pub const LOCAL_HOST: &str = "127.0.0.1";
-pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(20);
+pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(30);
 
 /// configurations for sealing sectors
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -139,7 +139,7 @@ pub struct Attached {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SealingThread {
     /// store location
-    pub location: String,
+    pub location: Option<String>,
 
     #[serde(flatten)]
     pub inner: SealingThreadInner,
@@ -209,6 +209,9 @@ pub struct Processors {
 
     /// section for unseal processor
     pub unseal: Option<Vec<Ext>>,
+
+    /// section for window_post processor
+    pub window_post: Option<Vec<Ext>>,
 }
 
 impl Processors {
@@ -271,6 +274,7 @@ pub struct Config {
     pub sector_manager: SectorManagerConfig,
 
     /// section for common sealing
+    #[serde(default)]
     pub sealing: SealingOptional,
 
     /// section for list of local sealing stores
@@ -283,6 +287,7 @@ pub struct Config {
     pub attached: Option<Vec<Attached>>,
 
     /// section for processors
+    #[serde(default)]
     pub processors: Processors,
 }
 

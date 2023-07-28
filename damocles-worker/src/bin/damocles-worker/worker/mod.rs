@@ -76,11 +76,11 @@ pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
             for wi in infos {
                 let _ = writeln!(
                     &mut hdl,
-                    "#{}: {:?}; plan={}, sector_id={:?}, paused={}, paused_elapsed={:?}, state={}, last_err={:?}",
+                    "#{}: {}; plan={}, job_id={:?}, paused={}, paused_elapsed={:?}, state={}, last_err={:?}",
                     wi.index,
-                    wi.location,
+                    wi.location.display(),
                     wi.plan,
-                    wi.sector_id,
+                    wi.job_id,
                     wi.paused,
                     wi.paused_elapsed.map(Duration::from_secs),
                     wi.state.as_str(),
