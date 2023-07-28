@@ -48,6 +48,16 @@ func (api WdPoStAPIImpl) WdPoStRemoveJob(ctx context.Context, jobID string) (cor
 	return nil, err
 }
 
-func (api WdPoStAPIImpl) WdPoStAllJobs(ctx context.Context) ([]*core.WdPoStJob, error) {
-	return api.jobMgr.All(ctx, func(_ *core.WdPoStJob) bool { return true })
+func (api WdPoStAPIImpl) WdPoStAllJobs(ctx context.Context) ([]core.WdPoStJobBrief, error) {
+	jobs, err := api.jobMgr.All(ctx, func(_ *core.WdPoStJob) bool { return true })
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]core.WdPoStJobBrief, len(jobs))
+	for i, job := range jobs {
+		ret[i] = core.WdPoStJobBrief{
+			WdPoStJob: job,
+		}
+	}
+	return ret, nil
 }

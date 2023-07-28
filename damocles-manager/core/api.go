@@ -158,5 +158,5 @@ type WorkerWdPoStAPI interface {
 	WdPoStFinishJob(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
 	WdPoStResetJob(ctx context.Context, jobID string) (Meta, error)
 	WdPoStRemoveJob(ctx context.Context, jobID string) (Meta, error)
-	WdPoStAllJobs(ctx context.Context) ([]*WdPoStJob, error)
+	WdPoStAllJobs(ctx context.Context) ([]WdPoStJobBrief, error)
 }

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/filecoin-project/go-state-types/abi"
@@ -78,6 +79,16 @@ func (t *WdPoStJob) DisplayState() string {
 		return "Failed"
 	}
 	return t.State
+}
+
+type WdPoStJobBrief struct {
+	*WdPoStJob
+}
+
+func (j *WdPoStJobBrief) MarshalJSON() ([]byte, error) {
+	j.WdPoStJob.Input = WdPoStInput{}
+	j.WdPoStJob.Output = &stage.WindowPoStOutput{}
+	return json.Marshal(&j.WdPoStJob)
 }
 
 type WdPoStAllocatedJob struct {
