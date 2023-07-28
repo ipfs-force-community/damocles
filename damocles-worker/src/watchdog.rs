@@ -61,7 +61,7 @@ pub struct GlobalProcessors {
     pub snap_prove: ArcSnapProveProcessor,
     pub transfer: ArcTransferProcessor,
     pub unseal: ArcUnsealProcessor,
-    pub wdpost: ArcWdPostProcessor,
+    pub window_post: ArcWdPostProcessor,
 }
 
 impl Module for Box<dyn Module> {

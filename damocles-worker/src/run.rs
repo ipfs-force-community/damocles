@@ -313,7 +313,7 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
 
     let unseal: processor::ArcUnsealProcessor = construct_sub_processor!(unseal, cfg, locks);
 
-    let wdpost: processor::ArcWdPostProcessor = construct_sub_processor!(wdpost, cfg, locks);
+    let window_post: processor::ArcWdPostProcessor = construct_sub_processor!(window_post, cfg, locks);
 
     Ok(GlobalProcessors {
         add_pieces,
@@ -325,7 +325,7 @@ fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result
         snap_prove,
         transfer,
         unseal,
-        wdpost,
+        window_post,
     })
 }
 

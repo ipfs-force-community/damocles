@@ -210,8 +210,8 @@ pub struct Processors {
     /// section for unseal processor
     pub unseal: Option<Vec<Ext>>,
 
-    /// section for fetch processor
-    pub wdpost: Option<Vec<Ext>>,
+    /// section for window_post processor
+    pub window_post: Option<Vec<Ext>>,
 }
 
 impl Processors {
