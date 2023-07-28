@@ -82,7 +82,6 @@ def_state! {
     SnapTreeDBuilt,
     SnapDone,
     Unsealed,
-    UnsealPrepared,
 }
 
 impl std::fmt::Debug for State {
