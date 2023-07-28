@@ -66,7 +66,7 @@ func NewGatewayClients(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.SafeCon
 
 func NewMarketEventClients(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConfig, gatewayClients GatewayClients) (MarketEventClients, error) {
 	cfg.Lock()
-	addr, token := cfg.Common.API.Market, cfg.Common.API.Token
+	addr, token := extractAPIInfo(cfg.Common.API.Market, cfg.Common.API.Token)
 	cfg.Unlock()
 
 	var ret MarketEventClients

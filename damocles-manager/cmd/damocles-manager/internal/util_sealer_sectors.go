@@ -2465,6 +2465,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 				return fmt.Errorf("no sector found with piece %s", pieceCid)
 			}
 			sectorState = sector
+			sectorID = sector.ID
 		}
 
 		// get piece-info

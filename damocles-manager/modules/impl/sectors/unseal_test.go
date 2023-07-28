@@ -39,7 +39,7 @@ func TestUnsealManager(t *testing.T) {
 		kvstore := testutil.BadgerKVStore(t, "test_unseal_01")
 		umgr, err := NewUnsealManager(ctx, scfg, &mockMinerAPI{
 			infos: minfos,
-		}, kvstore)
+		}, kvstore, "/dns/market/tcp/41235", "")
 		require.NoError(t, err, "construct unseal manager")
 		sectorUnsealInfoCase := []core.SectorUnsealInfo{}
 		for mi := range scfg.Miners {
@@ -123,7 +123,7 @@ func TestUnsealManager(t *testing.T) {
 		kvstore := testutil.BadgerKVStore(t, "test_unseal_02")
 		umgr, err := NewUnsealManager(ctx, scfg, &mockMinerAPI{
 			infos: minfos,
-		}, kvstore)
+		}, kvstore, "/dns/market/tcp/41235", "")
 		require.NoError(t, err, "construct unseal manager")
 		sectorUnsealInfoCase := []core.SectorUnsealInfo{}
 		pCid, err := cid.V0Builder.Sum(cid.V0Builder{}, []byte("piece"))
