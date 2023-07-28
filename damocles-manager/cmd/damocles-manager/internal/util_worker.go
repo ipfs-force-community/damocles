@@ -344,9 +344,9 @@ var utilWdPostListCmd = &cli.Command{
 
 		w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		if detail {
-			_, err = w.Write([]byte("ID\tPrefix\tMiner\tDDL\tWorker\tState\tTry\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tUpdatedAt\tError\n"))
+			_, err = w.Write([]byte("JobID\tPrefix\tMiner\tDDL\tWorker\tState\tTry\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tUpdatedAt\tError\n"))
 		} else {
-			_, err = w.Write([]byte("ID\tMinerID\tDDL\tWorker\tState\tTry\tCreateAt\tElapsed\tError\n"))
+			_, err = w.Write([]byte("JobID\tMinerID\tDDL\tWorker\tState\tTry\tCreateAt\tElapsed\tError\n"))
 		}
 		if err != nil {
 			return err

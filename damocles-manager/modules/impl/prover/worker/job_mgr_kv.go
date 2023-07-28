@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
@@ -47,10 +46,14 @@ func (tm *kvJobManager) filter(ctx context.Context, txn kvstore.TxnExt, state co
 	return
 }
 
+func allStates() []core.WdPoStJobState {
+	return []core.WdPoStJobState{core.WdPoStJobReadyToRun, core.WdPoStJobRunning, core.WdPoStJobFinished}
+}
+
 func (tm *kvJobManager) All(ctx context.Context, filter func(*core.WdPoStJob) bool) (jobs []*core.WdPoStJob, err error) {
 	jobs = make([]*core.WdPoStJob, 0)
 	err = tm.kv.ViewMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
-		for _, state := range []core.WdPoStJobState{core.WdPoStJobReadyToRun, core.WdPoStJobRunning, core.WdPoStJobFinished} {
+		for _, state := range allStates() {
 			ts, err := tm.filter(ctx, txn, state, math.MaxUint32, filter)
 			if err != nil {
 				return err
@@ -65,19 +68,21 @@ func (tm *kvJobManager) All(ctx context.Context, filter func(*core.WdPoStJob) bo
 	return
 }
 
-func (tm *kvJobManager) ListByJobIDs(ctx context.Context, state core.WdPoStJobState, jobIDs ...string) ([]*core.WdPoStJob, error) {
+func (tm *kvJobManager) ListByJobIDs(ctx context.Context, jobIDs ...string) ([]*core.WdPoStJob, error) {
 	jobs := make([]*core.WdPoStJob, 0, len(jobIDs))
 	err := tm.kv.ViewMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		for _, jobID := range jobIDs {
-			var job core.WdPoStJob
-			err := txn.Peek(kvstore.Key(makeWdPoStKey(state, jobID)), kvstore.LoadJSON(&job))
-			if errors.Is(err, kvstore.ErrKeyNotFound) {
-				continue
+			for _, state := range allStates() {
+				var job core.WdPoStJob
+				err := txn.Peek(kvstore.Key(makeWdPoStKey(state, jobID)), kvstore.LoadJSON(&job))
+				if errors.Is(err, kvstore.ErrKeyNotFound) {
+					continue
+				}
+				if err != nil {
+					return err
+				}
+				jobs = append(jobs, &job)
 			}
-			if err != nil {
-				return err
-			}
-			jobs = append(jobs, &job)
 		}
 		return nil
 	})
@@ -87,7 +92,7 @@ func (tm *kvJobManager) ListByJobIDs(ctx context.Context, state core.WdPoStJobSt
 func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, input core.WdPoStInput) (*core.WdPoStJob, error) {
 	var (
 		jobID string
-		job   *core.WdPoStJob
+		job   core.WdPoStJob
 	)
 	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		rawInput, err := json.Marshal(input)
@@ -97,7 +102,7 @@ func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, input co
 		jobID = GenJobID(rawInput)
 		// check if job exists
 		_, err = txn.PeekAny(
-			kvstore.LoadJSON(job),
+			kvstore.LoadJSON(&job),
 			kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)),
 			kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, jobID)),
 			kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, jobID)),
@@ -111,7 +116,7 @@ func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, input co
 		}
 
 		now := time.Now().Unix()
-		job = &core.WdPoStJob{
+		job = core.WdPoStJob{
 			ID:          jobID,
 			State:       string(core.WdPoStJobReadyToRun),
 			DeadlineIdx: deadlineIdx,
@@ -126,13 +131,13 @@ func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, input co
 			CreatedAt:   uint64(now),
 			UpdatedAt:   uint64(now),
 		}
-		return txn.PutJson([]byte(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)), job)
+		return txn.PutJson([]byte(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)), &job)
 	})
 
 	if err == nil {
 		log.Infof("wdPoSt job created: %s", jobID)
 	}
-	return job, err
+	return &job, err
 }
 
 func (tm *kvJobManager) AllocateJobs(ctx context.Context, spec core.AllocateWdPoStJobSpec, n uint32, workerName string) (allocatedJobs []*core.WdPoStAllocatedJob, err error) {
@@ -143,9 +148,7 @@ func (tm *kvJobManager) AllocateJobs(ctx context.Context, spec core.AllocateWdPo
 			if len(spec.AllowedMiners) > 0 && !slices.Contains(spec.AllowedMiners, t.Input.MinerID) {
 				return false
 			}
-			if len(spec.AllowedProofTypes) > 0 && !slices.ContainsFunc(spec.AllowedProofTypes, func(allowed abi.RegisteredPoStProof) bool {
-				return stage.ProofType2String(allowed) == t.Input.ProofType
-			}) {
+			if len(spec.AllowedProofTypes) > 0 && !slices.Contains(spec.AllowedProofTypes, t.Input.ProofType) {
 				return false
 			}
 			return true

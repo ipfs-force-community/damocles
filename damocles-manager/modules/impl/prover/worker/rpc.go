@@ -10,16 +10,14 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
 )
 
-func NewWdPoStAPIImpl(jobMgr core.WorkerWdPoStJobManager, config *Config) core.WorkerWdPoStAPI {
+func NewWdPoStAPIImpl(jobMgr core.WorkerWdPoStJobManager) core.WorkerWdPoStAPI {
 	return &WdPoStAPIImpl{
 		jobMgr: jobMgr,
-		config: config,
 	}
 }
 
 type WdPoStAPIImpl struct {
 	jobMgr core.WorkerWdPoStJobManager
-	config *Config
 }
 
 func (api WdPoStAPIImpl) WdPoStHeartbeatJobs(ctx context.Context, runningJobIDs []string, workerName string) (core.Meta, error) {

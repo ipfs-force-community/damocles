@@ -272,6 +272,7 @@ pub struct Config {
     pub sector_manager: SectorManagerConfig,
 
     /// section for common sealing
+    #[serde(default)]
     pub sealing: SealingOptional,
 
     /// section for list of local sealing stores

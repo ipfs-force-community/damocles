@@ -61,7 +61,7 @@ pub trait PlannerTrait: Default {
     fn apply(&self, event: Self::Event, state: Self::State, job: &mut Self::Job) -> Result<()>;
 }
 
-pub fn create_selaer(plan: &str, ctx: &Ctx, st: &SealingThread) -> Result<Box<dyn Sealer>> {
+pub fn create_sealer(plan: &str, ctx: &Ctx, st: &SealingThread) -> Result<Box<dyn Sealer>> {
     match plan {
         PLANNER_NAME_SEALER => Ok(Box::new(CommonSealer::<SealerPlanner>::new(ctx, st)?)),
         PLANNER_NAME_SNAPUP => Ok(Box::new(CommonSealer::<SnapUpPlanner>::new(ctx, st)?)),

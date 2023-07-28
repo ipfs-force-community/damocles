@@ -62,7 +62,7 @@ func (t *WdPoStJob) Succeed() bool {
 	if t.State != string(WdPoStJobFinished) {
 		return false
 	}
-	return t.Output != nil
+	return t.ErrorReason == ""
 }
 
 func (t *WdPoStJob) DisplayState() string {
@@ -88,12 +88,12 @@ type WdPoStAllocatedJob struct {
 
 type AllocateWdPoStJobSpec struct {
 	AllowedMiners     []abi.ActorID
-	AllowedProofTypes []abi.RegisteredPoStProof
+	AllowedProofTypes []string
 }
 
 type WorkerWdPoStJobManager interface {
 	All(ctx context.Context, filter func(*WdPoStJob) bool) ([]*WdPoStJob, error)
-	ListByJobIDs(ctx context.Context, state WdPoStJobState, jobIDs ...string) ([]*WdPoStJob, error)
+	ListByJobIDs(ctx context.Context, jobIDs ...string) ([]*WdPoStJob, error)
 	Create(ctx context.Context, deadlineIdx uint64, input WdPoStInput) (*WdPoStJob, error)
 	AllocateJobs(ctx context.Context, spec AllocateWdPoStJobSpec, num uint32, workerName string) (allocatedJobs []*WdPoStAllocatedJob, err error)
 	Heartbeat(ctx context.Context, jobIDs []string, workerName string) error

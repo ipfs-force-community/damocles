@@ -178,6 +178,8 @@ type ProvingConfig struct {
 	// WARNING: Setting this value too high risks missing PoSt deadline in case IO operations related to this partition are
 	// blocked or slow
 	PartitionCheckTimeout Duration
+
+	WorkerProver *WorkerProverConfig
 }
 
 func defaultProvingConfig() ProvingConfig {
@@ -185,8 +187,28 @@ func defaultProvingConfig() ProvingConfig {
 		ParallelCheckLimit:    128,
 		PartitionCheckTimeout: Duration(20 * time.Minute),
 		SingleCheckTimeout:    Duration(10 * time.Minute),
+		WorkerProver:          DefaultWorkerProverConfig(),
 	}
 	return cfg
+}
+
+type WorkerProverConfig struct {
+	// The maximum number of attempts of the WindowPoSt job,
+	// job that exceeds the JobMaxTry number can only be re-executed by manual reset
+	JobMaxTry uint32
+	// The timeout of the WindowPoSt job's heartbeat
+	// jobs that have not sent a heartbeat for more than this time will be set to fail and retried
+	HeartbeatTimeout time.Duration
+	// WindowPoSt jobs created longer than this time will be deleted
+	JobLifetime time.Duration
+}
+
+func DefaultWorkerProverConfig() *WorkerProverConfig {
+	return &WorkerProverConfig{
+		JobMaxTry:        2,
+		HeartbeatTimeout: 15 * time.Second,
+		JobLifetime:      25 * time.Hour,
+	}
 }
 
 type CommonConfig struct {
