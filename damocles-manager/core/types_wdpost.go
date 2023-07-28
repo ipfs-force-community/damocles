@@ -74,9 +74,8 @@ func (t *WdPoStJob) DisplayState() string {
 	case WdPoStJobFinished:
 		if t.Succeed() {
 			return "Succeed"
-		} else {
-			return "Failed"
 		}
+		return "Failed"
 	}
 	return t.State
 }

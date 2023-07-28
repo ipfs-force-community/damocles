@@ -21,7 +21,7 @@ import (
 
 var log = logging.New("worker prover")
 
-var _ core.Prover = (*WorkerProver)(nil)
+var _ core.Prover = (*Prover)(nil)
 
 var ErrJobRemovedManually = fmt.Errorf("job was manually removed")
 
@@ -49,7 +49,7 @@ type Config struct {
 	JobLifetime time.Duration
 }
 
-type WorkerProver struct {
+type Prover struct {
 	jobMgr        core.WorkerWdPoStJobManager
 	sectorTracker core.SectorTracker
 	localProver   core.Prover
@@ -59,8 +59,8 @@ type WorkerProver struct {
 	config           *Config
 }
 
-func NewProver(jobMgr core.WorkerWdPoStJobManager, sectorTracker core.SectorTracker, config *Config) *WorkerProver {
-	return &WorkerProver{
+func NewProver(jobMgr core.WorkerWdPoStJobManager, sectorTracker core.SectorTracker, config *Config) *Prover {
+	return &Prover{
 		jobMgr:           jobMgr,
 		sectorTracker:    sectorTracker,
 		localProver:      prover.NewProdProver(sectorTracker),
@@ -70,13 +70,13 @@ func NewProver(jobMgr core.WorkerWdPoStJobManager, sectorTracker core.SectorTrac
 	}
 }
 
-func (p *WorkerProver) Start(ctx context.Context) {
+func (p *Prover) Start(ctx context.Context) {
 	go p.runNotifyJobDone(ctx)
 	go p.runRetryFailedJobs(ctx)
 	go p.runCleanupExpiredJobs(ctx)
 }
 
-func (p *WorkerProver) runNotifyJobDone(ctx context.Context) {
+func (p *Prover) runNotifyJobDone(ctx context.Context) {
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -98,10 +98,8 @@ func (p *WorkerProver) runNotifyJobDone(ctx context.Context) {
 			}
 
 			// find all manually deleted jobs
-			var (
-				removed    []string
-				notRemoved map[string]struct{} = make(map[string]struct{})
-			)
+			var removed []string
+			notRemoved := make(map[string]struct{})
 			for _, job := range jobs {
 				notRemoved[job.ID] = struct{}{}
 			}
@@ -160,7 +158,7 @@ func (p *WorkerProver) runNotifyJobDone(ctx context.Context) {
 	}
 }
 
-func (p *WorkerProver) runRetryFailedJobs(ctx context.Context) {
+func (p *Prover) runRetryFailedJobs(ctx context.Context) {
 	ticker := time.NewTicker(p.config.RetryFailedJobsInterval)
 	defer ticker.Stop()
 	for {
@@ -180,7 +178,7 @@ func (p *WorkerProver) runRetryFailedJobs(ctx context.Context) {
 	}
 }
 
-func (p *WorkerProver) runCleanupExpiredJobs(ctx context.Context) {
+func (p *Prover) runCleanupExpiredJobs(ctx context.Context) {
 	ticker := time.NewTicker(p.config.CleanupExpiredJobsInterval)
 	for {
 		if err := p.jobMgr.CleanupExpiredJobs(ctx, p.config.JobLifetime, 128); err != nil {
@@ -196,11 +194,11 @@ func (p *WorkerProver) runCleanupExpiredJobs(ctx context.Context) {
 	}
 }
 
-func (p *WorkerProver) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
+func (p *Prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
 	return p.localProver.AggregateSealProofs(ctx, aggregateInfo, proofs)
 }
 
-func (p *WorkerProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+func (p *Prover) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
 	randomness[31] &= 0x3f
 
 	sis := make([]core.WdPoStSectorInfo, len(sectors))
@@ -263,7 +261,7 @@ func (p *WorkerProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint6
 	return proofs, nil, nil
 }
 
-func (p *WorkerProver) doWindowPoSt(ctx context.Context, deadlineIdx uint64, input core.WdPoStInput) (output *stage.WindowPoStOutput, err error) {
+func (p *Prover) doWindowPoSt(ctx context.Context, deadlineIdx uint64, input core.WdPoStInput) (output *stage.WindowPoStOutput, err error) {
 	job, err := p.jobMgr.Create(ctx, deadlineIdx, input)
 	if err != nil {
 		return nil, fmt.Errorf("create wdPoSt job: %w", err)
@@ -289,18 +287,18 @@ func (p *WorkerProver) doWindowPoSt(ctx context.Context, deadlineIdx uint64, inp
 	return
 }
 
-func (p *WorkerProver) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
+func (p *Prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
 	return p.localProver.GenerateWinningPoSt(ctx, minerID, proofType, sectors, randomness)
 }
 
-func (p *WorkerProver) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
+func (p *Prover) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
 	return p.localProver.GeneratePoStFallbackSectorChallenges(ctx, proofType, minerID, randomness, sectorIds)
 }
 
-func (p *WorkerProver) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
+func (p *Prover) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
 	return p.localProver.GenerateSingleVanillaProof(ctx, replica, challenges)
 }
 
-func (p *WorkerProver) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
+func (p *Prover) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
 	return p.localProver.GenerateWinningPoStWithVanilla(ctx, proofType, minerID, randomness, proofs)
 }
