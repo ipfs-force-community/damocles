@@ -177,6 +177,7 @@ type StoragePathConfig struct {
 }
 
 type LocalPath struct {
+	Name string
 	Path string
 }
 
@@ -288,7 +289,7 @@ func (c CommonConfig) GetPersistStores() []PersistStoreConfig {
 					log.Errorf("decode storage config file %s failed: %s", p, err)
 				} else {
 					for _, lp := range cfg.StoragePaths {
-						ret = append(ret, PersistStoreConfig{
+						psc := PersistStoreConfig{
 							Config: objstore.Config{
 								Path:     lp.Path,
 								Meta:     preset.Meta,
@@ -300,7 +301,11 @@ func (c CommonConfig) GetPersistStores() []PersistStoreConfig {
 								AllowMiners: preset.AllowMiners,
 								DenyMiners:  preset.DenyMiners,
 							},
-						})
+						}
+						if lp.Name != "" {
+							psc.Name = lp.Name
+						}
+						ret = append(ret, psc)
 					}
 					log.Infof("load storage config file %s success", p)
 				}
