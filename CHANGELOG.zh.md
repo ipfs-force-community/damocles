@@ -1,4 +1,13 @@
-# Changelog
+# Changelog 
+
+## v0.8.0-rc1
+- 新增 worker-prover 模块支持多机 wdpost [#483](https://github.com/ipfs-force-community/damocles/issues/483)
+- damocles-manager
+  - 增加从 unseal file 还原 piece 数据的命令行工具 [#820](https://github.com/ipfs-force-community/damocles/issues/820)
+
+- damocles-worker
+  - cli: damocles-worker worker <COMMAND> 子命令不再需要指定配置文件 [#809](https://github.com/ipfs-force-community/damocles/issues/809)
+
 
 ## v0.7.0-rc2
 - damocles-manager
