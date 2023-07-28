@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -22,6 +23,8 @@ var log = logging.New("worker prover")
 
 var _ core.Prover = (*WorkerProver)(nil)
 
+var ErrJobRemovedManually = fmt.Errorf("job was manually removed")
+
 func GenJobID(rawInput []byte) string {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, xxhash.Sum64(rawInput))
@@ -30,7 +33,20 @@ func GenJobID(rawInput []byte) string {
 
 type R struct {
 	output *stage.WindowPoStOutput
-	err    string
+	err    error
+}
+
+type Config struct {
+	RetryFailedJobsInterval time.Duration
+	// The maximum number of attempts of the WindowPoSt job,
+	// job that exceeds the JobMaxTry number can only be re-executed by manual reset
+	JobMaxTry uint32
+	// The timeout of the WindowPoSt job's heartbeat
+	// jobs that have not sent a heartbeat for more than this time will be set to fail and retried
+	HeartbeatTimeout           time.Duration
+	CleanupExpiredJobsInterval time.Duration
+	// WindowPoSt jobs created longer than this time will be deleted
+	JobLifetime time.Duration
 }
 
 type WorkerProver struct {
@@ -76,13 +92,46 @@ func (p *WorkerProver) runNotifyJobDone(ctx context.Context) {
 			}
 			p.inflightJobsLock.Unlock()
 
-			finishedJobs, err := p.jobMgr.ListByJobIDs(ctx, core.WdPoStJobFinished, inflightJobIDs...)
+			jobs, err := p.jobMgr.ListByJobIDs(ctx, inflightJobIDs...)
 			if err != nil {
 				log.Errorf("failed to list jobs: %s", err)
 			}
 
+			// find all manually deleted jobs
+			var (
+				removed    []string
+				notRemoved map[string]struct{} = make(map[string]struct{})
+			)
+			for _, job := range jobs {
+				notRemoved[job.ID] = struct{}{}
+			}
+			for _, jobID := range inflightJobIDs {
+				if _, ok := notRemoved[jobID]; !ok {
+					removed = append(removed, jobID)
+					log.Infow("job was manually removed", "jobID", jobID)
+				}
+			}
+
 			p.inflightJobsLock.Lock()
-			for _, job := range finishedJobs {
+			// notify `pster module` that jobs have been manually deleted
+			for _, jobID := range removed {
+				chs, ok := p.inflightJobs[jobID]
+				if !ok {
+					continue
+				}
+				delete(p.inflightJobs, jobID)
+
+				for _, ch := range chs {
+					ch <- R{
+						output: nil,
+						err:    ErrJobRemovedManually,
+					}
+					close(ch)
+				}
+			}
+
+			// notify the poster module of the results of jobs
+			for _, job := range jobs {
 				chs, ok := p.inflightJobs[job.ID]
 				if !ok {
 					continue
@@ -93,9 +142,15 @@ func (p *WorkerProver) runNotifyJobDone(ctx context.Context) {
 				delete(p.inflightJobs, job.ID)
 
 				for _, ch := range chs {
+					var err error
+					if job.ErrorReason == "" {
+						err = nil
+					} else {
+						err = fmt.Errorf("error from worker: %s", job.ErrorReason)
+					}
 					ch <- R{
 						output: job.Output,
-						err:    job.ErrorReason,
+						err:    err,
 					}
 					close(ch)
 				}
@@ -146,6 +201,7 @@ func (p *WorkerProver) AggregateSealProofs(ctx context.Context, aggregateInfo co
 }
 
 func (p *WorkerProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+	randomness[31] &= 0x3f
 
 	sis := make([]core.WdPoStSectorInfo, len(sectors))
 	for i, s := range sectors {
@@ -173,9 +229,44 @@ func (p *WorkerProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint6
 	}
 	copy(input.Seed[:], randomness[:])
 
+	var output *stage.WindowPoStOutput
+	for {
+		output, err = p.doWindowPoSt(ctx, deadlineIdx, input)
+		if !errors.Is(err, ErrJobRemovedManually) {
+			break
+		}
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if faultCount := len(output.Faults); faultCount != 0 {
+		faults := make([]abi.SectorID, faultCount)
+		for fi := range output.Faults {
+			faults[fi] = abi.SectorID{
+				Miner:  minerID,
+				Number: output.Faults[fi],
+			}
+		}
+
+		return nil, faults, fmt.Errorf("got %d fault sectors", faultCount)
+	}
+
+	proofs := make([]builtin.PoStProof, len(output.Proofs))
+	for pi := range output.Proofs {
+		proofs[pi] = builtin.PoStProof{
+			PoStProof:  proofType,
+			ProofBytes: output.Proofs[pi],
+		}
+	}
+
+	return proofs, nil, nil
+}
+
+func (p *WorkerProver) doWindowPoSt(ctx context.Context, deadlineIdx uint64, input core.WdPoStInput) (output *stage.WindowPoStOutput, err error) {
 	job, err := p.jobMgr.Create(ctx, deadlineIdx, input)
 	if err != nil {
-		return nil, nil, fmt.Errorf("create wdPoSt job: %w", err)
+		return nil, fmt.Errorf("create wdPoSt job: %w", err)
 	}
 
 	ch := make(chan R, 1)
@@ -184,43 +275,18 @@ func (p *WorkerProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint6
 	p.inflightJobs[job.ID] = append(p.inflightJobs[job.ID], ch)
 	p.inflightJobsLock.Unlock()
 
-	var result R
 	select {
 	case <-ctx.Done():
 		err = fmt.Errorf("failed to generate window post before context cancellation: %w", ctx.Err())
 		return
 	case res, ok := <-ch:
 		if !ok {
-			return nil, nil, fmt.Errorf("wdPoSt result channel was closed unexpectedly")
+			return nil, fmt.Errorf("wdPoSt result channel was closed unexpectedly")
 		}
-		result = res
+		output = res.output
+		err = res.err
 	}
-
-	if result.err != "" {
-		return nil, nil, fmt.Errorf("error from worker: %s", result.err)
-	}
-
-	if faultCount := len(result.output.Faults); faultCount != 0 {
-		faults := make([]abi.SectorID, faultCount)
-		for fi := range result.output.Faults {
-			faults[fi] = abi.SectorID{
-				Miner:  minerID,
-				Number: result.output.Faults[fi],
-			}
-		}
-
-		return nil, faults, fmt.Errorf("got %d fault sectors", faultCount)
-	}
-
-	proofs := make([]builtin.PoStProof, len(result.output.Proofs))
-	for pi := range result.output.Proofs {
-		proofs[pi] = builtin.PoStProof{
-			PoStProof:  proofType,
-			ProofBytes: result.output.Proofs[pi],
-		}
-	}
-
-	return proofs, nil, nil
+	return
 }
 
 func (p *WorkerProver) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {

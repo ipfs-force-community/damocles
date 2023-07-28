@@ -126,7 +126,7 @@ impl SealingThread {
                 .update_state(|cst| cst.job.plan = plan.clone())
                 .context("update ctrl state")
                 .crit()?;
-            let mut sealer = planner::create_selaer(&plan, ctx, self).crit()?;
+            let mut sealer = planner::create_sealer(&plan, ctx, self).crit()?;
             match sealer.seal(state.as_deref())? {
                 R::SwitchPlanner(new_plan) => {
                     tracing::info!(new_plan = new_plan, "switch planner");

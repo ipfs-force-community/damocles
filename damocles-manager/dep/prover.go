@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dtynn/dix"
@@ -32,7 +33,6 @@ func ExtProver() dix.Option {
 func WorkerProver() dix.Option {
 	return dix.Options(
 		dix.Override(new(WorkerProverStore), BuildWorkerProverStore),
-		dix.Override(new(*proverworker.Config), proverworker.DefaultConfig),
 		dix.Override(new(core.WorkerWdPoStJobManager), BuildWorkerWdPoStJobManager),
 		dix.Override(new(core.WorkerWdPoStAPI), proverworker.NewWdPoStAPIImpl),
 		dix.Override(new(core.Prover), BuildWorkerProver),
@@ -92,8 +92,15 @@ func BuildWorkerProverStore(gctx GlobalContext, db UnderlyingDB) (WorkerProverSt
 	return db.OpenCollection(gctx, "prover")
 }
 
-func BuildWorkerProver(lc fx.Lifecycle, jobMgr core.WorkerWdPoStJobManager, sectorTracker core.SectorTracker, config *proverworker.Config) (core.Prover, error) {
-	p := proverworker.NewProver(jobMgr, sectorTracker, config)
+func BuildWorkerProver(lc fx.Lifecycle, jobMgr core.WorkerWdPoStJobManager, sectorTracker core.SectorTracker, scfg *modules.SafeConfig) (core.Prover, error) {
+	cfg := scfg.MustCommonConfig()
+	p := proverworker.NewProver(jobMgr, sectorTracker, &proverworker.Config{
+		RetryFailedJobsInterval:    10 * time.Second,
+		JobMaxTry:                  cfg.Proving.WorkerProver.JobMaxTry,
+		HeartbeatTimeout:           cfg.Proving.WorkerProver.HeartbeatTimeout,
+		CleanupExpiredJobsInterval: 30 * time.Minute,
+		JobLifetime:                cfg.Proving.WorkerProver.JobLifetime,
+	})
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			p.Start(ctx)
