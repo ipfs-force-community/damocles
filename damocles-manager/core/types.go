@@ -324,9 +324,12 @@ type SectorAccessStores struct {
 }
 
 type StoreBasicInfo struct {
-	Name string
-	Path string
-	Meta map[string]string
+	Name     string
+	Path     string
+	Strict   bool
+	ReadOnly bool
+	Weight   uint
+	Meta     map[string]string
 }
 
 type StoreDetailedInfo struct {

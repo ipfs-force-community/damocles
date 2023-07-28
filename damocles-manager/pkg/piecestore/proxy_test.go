@@ -20,6 +20,11 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/api/market/v1/mock"
 )
 
+var (
+	FALSE = false
+	ONE   = uint(1)
+)
+
 func setupStoreProxy(t *testing.T, resourceEndPoint string) *Proxy {
 	st, err := filestore.Open(objstore.Config{
 		Name: "mock test",

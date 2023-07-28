@@ -354,9 +354,12 @@ func (s *Sealer) StoreList(ctx context.Context) ([]core.StoreDetailedInfo, error
 
 func storeConfig2StoreBasic(ocfg *objstore.Config) core.StoreBasicInfo {
 	return core.StoreBasicInfo{
-		Name: ocfg.Name,
-		Path: ocfg.Path,
-		Meta: ocfg.Meta,
+		Name:     ocfg.Name,
+		Path:     ocfg.Path,
+		Meta:     ocfg.Meta,
+		Strict:   ocfg.GetStrict(),
+		ReadOnly: ocfg.GetReadOnly(),
+		Weight:   ocfg.GetWeight(),
 	}
 }
 

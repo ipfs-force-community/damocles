@@ -468,7 +468,7 @@ func openObjStore(cfg objstore.Config, pluginName string, loadedPlugins *manager
 }
 
 func BuildPersistedFileStoreMgr(scfg *modules.SafeConfig, globalStore CommonMetaStore, loadedPlugins *managerplugin.LoadedPlugins) (PersistedObjectStoreManager, error) {
-	persistCfg := scfg.MustCommonConfig().PersistStores
+	persistCfg := scfg.MustCommonConfig().GetPersistStores()
 
 	stores := make([]objstore.Store, 0, len(persistCfg))
 	policy := map[string]objstore.StoreSelectPolicy{}
@@ -564,7 +564,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 			Name:     pcfg.Name,
 			Path:     pcfg.Path,
 			Meta:     pcfg.Meta,
-			ReadOnly: pcfg.ReadOnly,
+			ReadOnly: &pcfg.ReadOnly,
 		}
 		// For compatibility with v0.5
 		if pcfg.PluginName == "" && pcfg.Plugin != "" {
