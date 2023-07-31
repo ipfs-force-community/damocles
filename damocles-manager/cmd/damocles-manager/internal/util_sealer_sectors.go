@@ -145,7 +145,7 @@ var utilSealerSectorsAbortCmd = &cli.Command{
 
 		defer stop()
 
-		_, err = cli.Damocles.ReportAborted(gctx, abi.SectorID{
+		_, err = cli.Sealer.ReportAborted(gctx, abi.SectorID{
 			Miner:  miner,
 			Number: abi.SectorNumber(sectorNum),
 		}, "aborted via CLI")
