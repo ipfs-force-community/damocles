@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.3
+- damocles-manager
+  - 恢复 util sealer sectors abort 命令 [#853](https://github.com/ipfs-force-community/damocles/pull/853)
+
 ## v0.7.2
 - damocles-worker
   - 修复封装任务 panic 导致 damocles-worker 进程退出的 bug [#834](https://github.com/ipfs-force-community/damocles/pull/834)
