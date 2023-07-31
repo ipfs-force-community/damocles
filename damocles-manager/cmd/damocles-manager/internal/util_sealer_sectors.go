@@ -126,7 +126,10 @@ var utilSealerSectorsAbortCmd = &cli.Command{
 		if count := cctx.Args().Len(); count < 2 {
 			return fmt.Errorf("both miner actor id & sector number are required, only %d args provided", count)
 		}
-
+		if !cctx.Bool("really-do-it") {
+			fmt.Println("If you know what you're doing, Pass --really-do-it to actually execute this action")
+			return nil
+		}
 		miner, err := ShouldActor(cctx.Args().Get(0), true)
 		if err != nil {
 			return fmt.Errorf("invalid miner actor id: %w", err)
