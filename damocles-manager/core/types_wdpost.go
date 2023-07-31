@@ -86,7 +86,9 @@ type WdPoStJobBrief struct {
 }
 
 func (j *WdPoStJobBrief) MarshalJSON() ([]byte, error) {
-	j.WdPoStJob.Input = WdPoStInput{}
+	j.WdPoStJob.Input = WdPoStInput{
+		MinerID: j.WdPoStJob.Input.MinerID,
+	}
 	j.WdPoStJob.Output = &stage.WindowPoStOutput{}
 	return json.Marshal(&j.WdPoStJob)
 }
