@@ -1,5 +1,9 @@
 # Changelog 
 
+## v0.8.0-rc2
+- damocles-manager
+  worker-prover 模块 cli 修复 MinerID 显示问题 [#850](https://github.com/ipfs-force-community/damocles/pull/850)
+
 ## v0.8.0-rc1
 - 新增 worker-prover 模块支持多机 wdpost [#483](https://github.com/ipfs-force-community/damocles/issues/483)
 - damocles-manager
