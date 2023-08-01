@@ -60,7 +60,7 @@ func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, postProofTy
 	return s.sectorProving.Provable(ctx, mid, postProofType, sectors, strict, stateCheck)
 }
 
-func (s *Sealer) SimulateWdPoSt(ctx context.Context, ddlIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
+func (s *Sealer) SimulateWdPoSt(ctx context.Context, ddlIndex, partitionIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
 	mid, err := address.IDFromAddress(maddr)
 	if err != nil {
 		return err
@@ -74,7 +74,15 @@ func (s *Sealer) SimulateWdPoSt(ctx context.Context, ddlIndex uint64, maddr addr
 		tsStart := clock.NewSystemClock().Now()
 
 		slog.Info("mock generate window post start")
-		proof, skipped, err := s.prover.GenerateWindowPoSt(tCtx, ddlIndex, abi.ActorID(mid), postProofType, sis, append(abi.PoStRandomness{}, rand...))
+		params := core.GenerateWindowPoStParams{
+			DeadlineIdx: ddlIndex,
+			MinerID:     abi.ActorID(mid),
+			ProofType:   postProofType,
+			Partitions:  []uint64{partitionIndex},
+			Sectors:     sis,
+			Randomness:  append(abi.PoStRandomness{}, rand...),
+		}
+		proof, skipped, err := s.prover.GenerateWindowPoSt(tCtx, params)
 		if err != nil {
 			slog.Warnf("generate window post failed: %v", err.Error())
 			return

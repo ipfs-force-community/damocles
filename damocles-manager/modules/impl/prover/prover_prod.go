@@ -55,10 +55,11 @@ func (prodProver) AggregateSealProofs(ctx context.Context, aggregateInfo core.Ag
 	return ffi.AggregateSealProofs(aggregateInfo, proofs)
 }
 
-func (p prodProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, minerID abi.ActorID, ppt abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+func (p prodProver) GenerateWindowPoSt(ctx context.Context, params core.GenerateWindowPoStParams) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+	minerID, proofType, sectors, randomness := params.MinerID, params.ProofType, params.Sectors, params.Randomness
 	randomness[31] &= 0x3f
 
-	privSectors, err := p.sectorTracker.PubToPrivate(ctx, minerID, ppt, sectors)
+	privSectors, err := p.sectorTracker.PubToPrivate(ctx, minerID, proofType, sectors)
 	if err != nil {
 		return nil, nil, fmt.Errorf("turn public sector infos into private: %w", err)
 	}

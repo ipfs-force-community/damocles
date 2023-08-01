@@ -83,11 +83,12 @@ func (p *Prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.Agg
 	return p.localProver.AggregateSealProofs(ctx, aggregateInfo, proofs)
 }
 
-func (p *Prover) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, []abi.SectorID, error) {
+func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWindowPoStParams) ([]builtin.PoStProof, []abi.SectorID, error) {
 
 	if p.windowProc == nil {
-		return p.localProver.GenerateWindowPoSt(ctx, deadlineIdx, minerID, proofType, sectors, randomness)
+		return p.localProver.GenerateWindowPoSt(ctx, params)
 	}
+	minerID, proofType, sectors, randomness := params.MinerID, params.ProofType, params.Sectors, params.Randomness
 
 	if len(sectors) == 0 {
 		return nil, nil, nil
