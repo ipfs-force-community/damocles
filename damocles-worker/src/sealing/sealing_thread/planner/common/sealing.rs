@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::{create_dir_all, remove_dir_all, remove_file},
+    fs::{self, create_dir_all, remove_dir_all, remove_file},
     os::unix::fs::symlink,
     path::Path,
 };
@@ -12,6 +12,7 @@ use crate::{
     rpc::sealer::{Deals, SectorID, Seed, Ticket},
     sealing::{
         failure::{Failure, IntoFailure, MapErrToFailure, MapStdErrToFailure},
+        paths,
         processor::{
             cached_filenames_for_sector, seal_commit_phase1, snap_generate_partition_proofs, snap_verify_sector_update_proof,
             tree_d_path_in_dir, AddPiecesInput, PC1Input, PC2Input, PieceInfo, SealCommitPhase1Output, SealPreCommitPhase1Output,
@@ -229,6 +230,21 @@ pub fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, Failure>
 
     cleanup_before_pc2(cache_dir.as_ref()).crit()?;
 
+    let pc2_running_file = paths::pc2_running_file(sector_id);
+    if pc2_running_file.exists() {
+        // The pc2 task will read the contents of the sealed file and modify it.
+        // If pc2 is restarted halfway, the contents of the sealed file will be modified.
+        // When the pc2 task is restarted again, the pc2 result will be wrong.
+        // So we add the .pc2_running file. If this file exists when pc2 start,
+        // it means that pc2 has been restarted before and the sealed file needs to be copied again to ensure the correctness of the sealed file.
+        fs::remove_file(sealed_file.full()).context("remove sealed file").crit()?;
+        fs::copy(task.staged_file(sector_id).full(), sealed_file.full())
+            .context("copy sealed file")
+            .crit()?;
+    } else {
+        fs::File::create(&pc2_running_file).context("create pc2 running file").crit()?;
+    }
+
     let out = task
         .sealing_ctrl
         .ctx()
@@ -242,6 +258,7 @@ pub fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, Failure>
         })
         .perm()?;
 
+    fs::remove_file(pc2_running_file).context("remove pc2 running file").crit()?;
     drop(token);
     Ok(out)
 }
