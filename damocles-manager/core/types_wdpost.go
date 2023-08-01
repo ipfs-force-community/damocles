@@ -35,6 +35,7 @@ type WdPoStJob struct {
 	ID          string `json:"Id"`
 	State       string
 	DeadlineIdx uint64
+	Partitions  []uint64
 	Input       WdPoStInput
 	Output      *stage.WindowPoStOutput
 	TryNum      uint32
@@ -106,7 +107,7 @@ type AllocateWdPoStJobSpec struct {
 type WorkerWdPoStJobManager interface {
 	All(ctx context.Context, filter func(*WdPoStJob) bool) ([]*WdPoStJob, error)
 	ListByJobIDs(ctx context.Context, jobIDs ...string) ([]*WdPoStJob, error)
-	Create(ctx context.Context, deadlineIdx uint64, input WdPoStInput) (*WdPoStJob, error)
+	Create(ctx context.Context, deadlineIdx uint64, partitions []uint64, input WdPoStInput) (*WdPoStJob, error)
 	AllocateJobs(ctx context.Context, spec AllocateWdPoStJobSpec, num uint32, workerName string) (allocatedJobs []*WdPoStAllocatedJob, err error)
 	Heartbeat(ctx context.Context, jobIDs []string, workerName string) error
 	Finish(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) error

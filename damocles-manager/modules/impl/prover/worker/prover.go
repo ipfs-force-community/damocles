@@ -198,7 +198,9 @@ func (p *Prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.Agg
 	return p.localProver.AggregateSealProofs(ctx, aggregateInfo, proofs)
 }
 
-func (p *Prover) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWindowPoStParams) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+	deadlineIdx, partitions, minerID, proofType, sectors, randomness := params.DeadlineIdx, params.Partitions, params.MinerID, params.ProofType, params.Sectors, params.Randomness
+
 	randomness[31] &= 0x3f
 
 	sis := make([]core.WdPoStSectorInfo, len(sectors))
@@ -229,7 +231,7 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, min
 
 	var output *stage.WindowPoStOutput
 	for {
-		output, err = p.doWindowPoSt(ctx, deadlineIdx, input)
+		output, err = p.doWindowPoSt(ctx, deadlineIdx, partitions, input)
 		if !errors.Is(err, ErrJobRemovedManually) {
 			break
 		}
@@ -261,8 +263,8 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, min
 	return proofs, nil, nil
 }
 
-func (p *Prover) doWindowPoSt(ctx context.Context, deadlineIdx uint64, input core.WdPoStInput) (output *stage.WindowPoStOutput, err error) {
-	job, err := p.jobMgr.Create(ctx, deadlineIdx, input)
+func (p *Prover) doWindowPoSt(ctx context.Context, deadlineIdx uint64, partitions []uint64, input core.WdPoStInput) (output *stage.WindowPoStOutput, err error) {
+	job, err := p.jobMgr.Create(ctx, deadlineIdx, partitions, input)
 	if err != nil {
 		return nil, fmt.Errorf("create wdPoSt job: %w", err)
 	}
