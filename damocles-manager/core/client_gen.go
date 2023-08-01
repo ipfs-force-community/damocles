@@ -120,7 +120,7 @@ type SealerCliAPIClient struct {
 	ImportSector             func(ctx context.Context, ws SectorWorkerState, state *SectorState, override bool) (bool, error)
 	RestoreSector            func(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
 	CheckProvable            func(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error)
-	SimulateWdPoSt           func(context.Context, uint64, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error
+	SimulateWdPoSt           func(ctx context.Context, ddlIndex, partitionIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error
 	SnapUpPreFetch           func(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error)
 	SnapUpCandidates         func(ctx context.Context, mid abi.ActorID) ([]*bitfield.BitField, error)
 	SnapUpCancelCommitment   func(ctx context.Context, sid abi.SectorID) error
@@ -166,7 +166,7 @@ var UnavailableSealerCliAPIClient = SealerCliAPIClient{
 	CheckProvable: func(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
 		panic("SealerCliAPI client unavailable")
 	},
-	SimulateWdPoSt: func(context.Context, uint64, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
+	SimulateWdPoSt: func(ctx context.Context, ddlIndex, partitionIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
 		panic("SealerCliAPI client unavailable")
 	},
 	SnapUpPreFetch: func(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error) {
@@ -269,7 +269,7 @@ type WorkerWdPoStAPIClient struct {
 	WdPoStFinishJob     func(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
 	WdPoStResetJob      func(ctx context.Context, jobID string) (Meta, error)
 	WdPoStRemoveJob     func(ctx context.Context, jobID string) (Meta, error)
-	WdPoStAllJobs       func(ctx context.Context) ([]*WdPoStJob, error)
+	WdPoStAllJobs       func(ctx context.Context) ([]WdPoStJobBrief, error)
 }
 
 var UnavailableWorkerWdPoStAPIClient = WorkerWdPoStAPIClient{
@@ -289,7 +289,7 @@ var UnavailableWorkerWdPoStAPIClient = WorkerWdPoStAPIClient{
 	WdPoStRemoveJob: func(ctx context.Context, jobID string) (Meta, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStAllJobs: func(ctx context.Context) ([]*WdPoStJob, error) {
+	WdPoStAllJobs: func(ctx context.Context) ([]WdPoStJobBrief, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
 }

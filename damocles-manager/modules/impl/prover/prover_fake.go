@@ -44,7 +44,7 @@ func (fakeProver) AggregateSealProofs(ctx context.Context, aggregateInfo core.Ag
 	return make([]byte, 32), nil
 }
 
-func (fakeProver) GenerateWindowPoSt(ctx context.Context, deadlineIdx uint64, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+func (fakeProver) GenerateWindowPoSt(ctx context.Context, params core.GenerateWindowPoStParams) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
 	return nil, nil, nil
 }
 

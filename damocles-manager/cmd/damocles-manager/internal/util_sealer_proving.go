@@ -751,7 +751,7 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			return fmt.Errorf("convert to winning post proof: %w", err)
 		}
 
-		err = api.Damocles.SimulateWdPoSt(ctx, ddlIdx, maddr, ppt, proofSectors, rand)
+		err = api.Damocles.SimulateWdPoSt(ctx, ddlIdx, pidx, maddr, ppt, proofSectors, rand)
 		if err != nil {
 			return err
 		}

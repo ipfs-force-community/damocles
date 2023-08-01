@@ -8,6 +8,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/slices"
 )
 
 func NewWdPoStAPIImpl(jobMgr core.WorkerWdPoStJobManager) core.WorkerWdPoStAPI {
@@ -53,11 +54,9 @@ func (api WdPoStAPIImpl) WdPoStAllJobs(ctx context.Context) ([]core.WdPoStJobBri
 	if err != nil {
 		return nil, err
 	}
-	ret := make([]core.WdPoStJobBrief, len(jobs))
-	for i, job := range jobs {
-		ret[i] = core.WdPoStJobBrief{
+	return slices.Map(jobs, func(job *core.WdPoStJob) core.WdPoStJobBrief {
+		return core.WdPoStJobBrief{
 			WdPoStJob: job,
 		}
-	}
-	return ret, nil
+	}), nil
 }

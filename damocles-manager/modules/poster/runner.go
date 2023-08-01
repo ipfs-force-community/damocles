@@ -30,6 +30,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/slices"
 )
 
 type runnerConstructor func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner
@@ -324,7 +325,17 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 			return false, fmt.Errorf("convert to v1_1 post proof: %w", err)
 		}
 
-		postOut, ps, err := pr.deps.prover.GenerateWindowPoSt(pr.ctx, pr.dinfo.Index, pr.mid, pp, xsinfos, append(abi.PoStRandomness{}, rand.Rand...))
+		proverParams := core.GenerateWindowPoStParams{
+			DeadlineIdx: pr.dinfo.Index,
+			MinerID:     pr.mid,
+			ProofType:   pp,
+			Partitions: slices.Map(partitions, func(p miner.PoStPartition) uint64 {
+				return p.Index
+			}),
+			Sectors:    xsinfos,
+			Randomness: append(abi.PoStRandomness{}, rand.Rand...),
+		}
+		postOut, ps, err := pr.deps.prover.GenerateWindowPoSt(pr.ctx, proverParams)
 
 		alog.Infow("computing window post", "elapsed", time.Since(tsStart))
 
