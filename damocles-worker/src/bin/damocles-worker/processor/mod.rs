@@ -12,6 +12,11 @@ use vc_processors::{
     core::ext::run_consumer,
 };
 
+#[cfg(feature = "supra-c2")]
+const C2_ABOUT: &str = "damocles-worker built-in c2 [supra c2 enabled]";
+#[cfg(not(feature = "supra-c2"))]
+const C2_ABOUT: &str = "damocles-worker built-in c2";
+
 #[derive(Subcommand)]
 pub enum ProcessorCommand {
     #[command(name=STAGE_NAME_ADD_PIECES)]
@@ -42,7 +47,7 @@ pub enum ProcessorCommand {
     },
     #[command(name=STAGE_NAME_PC2)]
     PC2,
-    #[command(name=STAGE_NAME_C2)]
+    #[command(name=STAGE_NAME_C2, about=C2_ABOUT)]
     C2,
     #[command(name=STAGE_NAME_SNAP_ENCODE)]
     SnapEncode,
