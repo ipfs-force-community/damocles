@@ -388,7 +388,7 @@ var utilWdPostListCmd = &cli.Command{
 					heartbeat = "-"
 				} else if job.FinishedAt == 0 {
 					elapsed = time.Since(time.Unix(int64(job.StartedAt), 0)).Truncate(time.Second).String()
-					heartbeat = time.Since(time.Unix(int64(job.HeartbeatAt), 0)).String()
+					heartbeat = time.Since(time.Unix(int64(job.HeartbeatAt), 0)).Truncate(time.Millisecond).String()
 				} else {
 					elapsed = fmt.Sprintf("%s(done)", time.Duration(job.FinishedAt-job.StartedAt)*time.Second)
 					heartbeat = "-"
