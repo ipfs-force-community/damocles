@@ -12,6 +12,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/strings"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/workercli"
 )
 
@@ -334,7 +335,7 @@ var utilWdPostListCmd = &cli.Command{
 		}
 		defer stopper()
 
-		var jobs []*core.WdPoStJob
+		var jobs []core.WdPoStJobBrief
 		jobs, err = a.Damocles.WdPoStAllJobs(actx)
 		if err != nil {
 			return fmt.Errorf("get wdpost jobs: %w", err)
@@ -344,9 +345,9 @@ var utilWdPostListCmd = &cli.Command{
 
 		w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		if detail {
-			_, err = w.Write([]byte("JobID\tPrefix\tMiner\tDDL\tWorker\tState\tTry\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tUpdatedAt\tError\n"))
+			_, err = w.Write([]byte("JobID\tPrefix\tMiner\tDDL\tPartitions\tWorker\tState\tTry\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tUpdatedAt\tError\n"))
 		} else {
-			_, err = w.Write([]byte("JobID\tMinerID\tDDL\tWorker\tState\tTry\tCreateAt\tElapsed\tError\n"))
+			_, err = w.Write([]byte("JobID\tMinerID\tDDL\tPartitions\tWorker\tState\tTry\tCreateAt\tElapsed\tHeartbeat\tError\n"))
 		}
 		if err != nil {
 			return err
@@ -362,11 +363,12 @@ var utilWdPostListCmd = &cli.Command{
 				continue
 			}
 			if detail {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
 					job.ID,
 					job.State,
 					job.Input.MinerID,
 					job.DeadlineIdx,
+					strings.Join(job.Partitions, ","),
 					job.WorkerName,
 					job.DisplayState(),
 					job.TryNum,
@@ -379,24 +381,30 @@ var utilWdPostListCmd = &cli.Command{
 				)
 			} else {
 				var elapsed string
+				var heartbeat string
 
 				if job.StartedAt == 0 {
 					elapsed = "-"
+					heartbeat = "-"
 				} else if job.FinishedAt == 0 {
 					elapsed = time.Since(time.Unix(int64(job.StartedAt), 0)).Truncate(time.Second).String()
+					heartbeat = time.Since(time.Unix(int64(job.HeartbeatAt), 0)).Truncate(time.Millisecond).String()
 				} else {
 					elapsed = fmt.Sprintf("%s(done)", time.Duration(job.FinishedAt-job.StartedAt)*time.Second)
+					heartbeat = "-"
 				}
 
-				fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\n",
+				fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\n",
 					job.ID,
 					job.Input.MinerID,
 					job.DeadlineIdx,
+					strings.Join(job.Partitions, ","),
 					job.WorkerName,
 					job.DisplayState(),
 					job.TryNum,
 					formatDateTime(job.CreatedAt),
 					elapsed,
+					heartbeat,
 					job.ErrorReason,
 				)
 			}

@@ -89,7 +89,7 @@ func (tm *kvJobManager) ListByJobIDs(ctx context.Context, jobIDs ...string) ([]*
 	return jobs, err
 }
 
-func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, input core.WdPoStInput) (*core.WdPoStJob, error) {
+func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, partitions []uint64, input core.WdPoStInput) (*core.WdPoStJob, error) {
 	var (
 		jobID string
 		job   core.WdPoStJob
@@ -120,6 +120,7 @@ func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, input co
 			ID:          jobID,
 			State:       string(core.WdPoStJobReadyToRun),
 			DeadlineIdx: deadlineIdx,
+			Partitions:  partitions,
 			Input:       input,
 			Output:      nil,
 			TryNum:      0,
