@@ -971,7 +971,7 @@ dependencies = [
 
 [[package]]
 name = "damocles-worker"
-version = "0.7.3"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "base64 0.13.1",

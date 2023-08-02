@@ -1,5 +1,13 @@
 # Changelog
 
+#v0.7.5
+- damocles-worker
+  - 集成 supranational C2 算法 [#861](https://github.com/ipfs-force-community/damocles/pull/861)
+
+#v0.7.4
+- damocles-manager
+  - cli: 恢复 util sectors abort 命令 [#853](https://github.com/ipfs-force-community/damocles/pull/853)
+
 ## v0.7.3
 - damocles-manager
   - 恢复 util sealer sectors abort 命令 [#853](https://github.com/ipfs-force-community/damocles/pull/853)

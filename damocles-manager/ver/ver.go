@@ -2,7 +2,7 @@ package ver
 
 import "fmt"
 
-const Version = "0.7.3"
+const Version = "0.7.5"
 
 var Commit string
 
