@@ -12,7 +12,6 @@ use crate::{
     rpc::sealer::{Deals, SectorID, Seed, Ticket},
     sealing::{
         failure::{Failure, IntoFailure, MapErrToFailure, MapStdErrToFailure},
-        paths,
         processor::{
             cached_filenames_for_sector, seal_commit_phase1, snap_generate_partition_proofs, snap_verify_sector_update_proof,
             tree_d_path_in_dir, AddPiecesInput, PC1Input, PC2Input, PieceInfo, SealCommitPhase1Output, SealPreCommitPhase1Output,
@@ -230,7 +229,8 @@ pub fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, Failure>
 
     cleanup_before_pc2(cache_dir.as_ref()).crit()?;
 
-    let pc2_running_file = paths::pc2_running_file(sector_id);
+    let pc2_running_file_entry = task.pc2_running_file(sector_id);
+    let pc2_running_file = pc2_running_file_entry.full();
     if pc2_running_file.exists() {
         // The pc2 task will read the contents of the sealed file and modify it.
         // If pc2 is restarted halfway, the contents of the sealed file will be modified.
@@ -242,7 +242,7 @@ pub fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, Failure>
             .context("copy sealed file")
             .crit()?;
     } else {
-        fs::File::create(&pc2_running_file).context("create pc2 running file").crit()?;
+        fs::File::create(pc2_running_file).context("create pc2 running file").crit()?;
     }
 
     let out = task

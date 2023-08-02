@@ -194,6 +194,10 @@ impl Task {
         Entry::dir(&self.store.data_path, paths::cache_dir(sector_id))
     }
 
+    pub fn pc2_running_file(&self, sector_id: &SectorID) -> Entry {
+        Entry::file(&self.store.data_path, paths::pc2_running_file(sector_id))
+    }
+
     pub fn sealed_file(&self, sector_id: &SectorID) -> Entry {
         Entry::file(&self.store.data_path, paths::sealed_file(sector_id))
     }
