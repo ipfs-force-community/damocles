@@ -242,7 +242,7 @@ pub fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, Failure>
             .context("copy sealed file")
             .crit()?;
     } else {
-        fs::File::create(&pc2_running_file).context("create pc2 running file").crit()?;
+        fs::File::create(pc2_running_file).context("create pc2 running file").crit()?;
     }
 
     let out = task
