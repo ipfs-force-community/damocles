@@ -274,7 +274,12 @@ func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaSto
 
 func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (messager.API, error) {
 	locker.Lock()
-	api, token := extractAPIInfo(scfg.Common.API.Messager, scfg.Common.API.Token)
+	var api, token string
+	if scfg.Common.API.Messager != nil {
+		api, token = extractAPIInfo(*scfg.Common.API.Messager, scfg.Common.API.Token)
+	} else if len(scfg.Common.API.Gateway) > 0 {
+		api, token = scfg.Common.API.Gateway[0], scfg.Common.API.Token
+	}
 	locker.Unlock()
 
 	mcli, mcloser, err := messager.New(gctx, api, token)
@@ -349,7 +354,12 @@ func buildDamoclesAPIClient(gctx GlobalContext, lc fx.Lifecycle, namespace strin
 
 func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (chain.API, error) {
 	locker.Lock()
-	api, token := extractAPIInfo(scfg.Common.API.Chain, scfg.Common.API.Token)
+	var api, token string
+	if scfg.Common.API.Chain != nil {
+		api, token = extractAPIInfo(*scfg.Common.API.Chain, scfg.Common.API.Token)
+	} else if len(scfg.Common.API.Gateway) > 0 {
+		api, token = scfg.Common.API.Gateway[0], scfg.Common.API.Token
+	}
 	locker.Unlock()
 
 	ccli, ccloser, err := chain.New(gctx, api, token)
@@ -505,7 +515,12 @@ type MarketAPIRelatedComponents struct {
 
 func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig) (market.API, error) {
 	scfg.Lock()
-	api, token := extractAPIInfo(scfg.Common.API.Market, scfg.Common.API.Token)
+	var api, token string
+	if scfg.Common.API.Market != nil {
+		api, token = extractAPIInfo(*scfg.Common.API.Market, scfg.Common.API.Token)
+	} else if len(scfg.Common.API.Gateway) > 0 {
+		api, token = scfg.Common.API.Gateway[0], scfg.Common.API.Token
+	}
 	defer scfg.Unlock()
 
 	if api == "" {
@@ -682,7 +697,12 @@ func BuildUnsealManager(
 	}
 
 	scfg.Lock()
-	addr, token := extractAPIInfo(scfg.Common.API.Market, scfg.Common.API.Token)
+	var addr, token string
+	if scfg.Common.API.Market != nil {
+		addr, token = extractAPIInfo(*scfg.Common.API.Market, scfg.Common.API.Token)
+	} else if len(scfg.Common.API.Gateway) > 0 {
+		addr, token = scfg.Common.API.Gateway[0], scfg.Common.API.Token
+	}
 	scfg.Unlock()
 
 	mgr, err := sectors.NewUnsealManager(gctx, scfg, MinerAPI, store, addr, token)

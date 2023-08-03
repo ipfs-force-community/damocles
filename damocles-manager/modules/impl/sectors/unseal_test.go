@@ -20,7 +20,8 @@ import (
 func TestUnsealManager(t *testing.T) {
 	ctx := context.Background()
 	scfg, _ := testmodules.MockSafeConfig(3, nil)
-	scfg.Config.Common.API.Market = "/dns/market/tcp/41235"
+	marketAddr := "/dns/market/tcp/41235"
+	scfg.Config.Common.API.Market = &marketAddr
 
 	minfos := map[abi.ActorID]*core.MinerInfo{}
 	for mi := range scfg.Miners {

@@ -73,9 +73,9 @@ func GetFakeAddress() MustAddress {
 const ConfigKey = "sector-manager"
 
 type CommonAPIConfig struct {
-	Chain              string
-	Messager           string
-	Market             string
+	Chain              *string
+	Messager           *string
+	Market             *string
 	Gateway            []string
 	Token              string
 	ChainEventInterval Duration
@@ -86,9 +86,9 @@ func defaultCommonAPIConfig(example bool) CommonAPIConfig {
 		ChainEventInterval: Duration(time.Minute),
 	}
 	if example {
-		cfg.Chain = "/ip4/{api_host}/tcp/{api_port}"
-		cfg.Messager = "/ip4/{api_host}/tcp/{api_port}"
-		cfg.Market = "/ip4/{api_host}/tcp/{api_port}"
+		// cfg.Chain = "/ip4/{api_host}/tcp/{api_port}"
+		// cfg.Messager = "/ip4/{api_host}/tcp/{api_port}"
+		// cfg.Market = "/ip4/{api_host}/tcp/{api_port}"
 		cfg.Gateway = []string{"/ip4/{api_host}/tcp/{api_port}"}
 		cfg.Token = "{some token}"
 	}
