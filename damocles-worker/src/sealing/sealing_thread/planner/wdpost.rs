@@ -109,7 +109,7 @@ impl Sealer for WdPostSealer {
             }
 
             if let Some(evt) = event.take() {
-                match evt {
+                match &evt {
                     WdPostEvent::Idle | WdPostEvent::Retry => {
                         let recover_interval = self.job.sealing_ctrl.config().recover_interval;
                         tracing::debug!(
@@ -120,9 +120,14 @@ impl Sealer for WdPostSealer {
                         self.job.sealing_ctrl.wait_or_interrupted(recover_interval)?;
                     }
 
-                    _ => {
-                        let state = self.planner.plan(&evt, &self.job.state).crit()?;
-                        self.planner.apply(evt, state, &mut self.job).context("event apply").crit()?;
+                    other => {
+                        let next = if let WdPostEvent::SetState(s) = other {
+                            *s
+                        } else {
+                            self.planner.plan(other, &self.job.state).crit()?
+                        };
+
+                        self.planner.apply(evt, next, &mut self.job).context("event apply").crit()?;
                     }
                 };
             };

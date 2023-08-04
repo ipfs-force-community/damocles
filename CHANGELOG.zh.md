@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.0-rc5
+- damocles-worker
+  - 修复无法手动设置 sealing 状态的 bug [#866](https://github.com/ipfs-force-community/damocles/pull/866)
+
 ## v0.8.0-rc3
 - damocles-manager
   - 恢复 util sealer sectors abort 命令 [#853](https://github.com/ipfs-force-community/damocles/pull/853)
