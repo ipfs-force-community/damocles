@@ -187,7 +187,7 @@ where
         let prev = self.job.sector.state;
 
         if let Some(evt) = event {
-            match evt {
+            match &evt {
                 Event::Idle | Event::Retry => {
                     tracing::debug!(
                         prev = ?self.job.sector.state,
@@ -200,9 +200,13 @@ where
                         .wait_or_interrupted(self.job.sealing_ctrl.config().recover_interval)?;
                 }
 
-                _ => {
-                    let state = self.planner.plan(&evt, &self.job.sector.state).crit()?;
-                    self.planner.apply(evt, state, &mut self.job).context("event apply").crit()?;
+                other => {
+                    let next = if let Event::SetState(s) = other {
+                        *s
+                    } else {
+                        self.planner.plan(other, &self.job.sector.state).crit()?
+                    };
+                    self.planner.apply(evt, next, &mut self.job).context("event apply").crit()?;
                     self.job.sector.sync().context("sync sector").crit()?;
                 }
             };
