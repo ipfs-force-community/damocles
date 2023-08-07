@@ -10,6 +10,7 @@ type WorkerThreadInfo struct {
 	Paused        bool    `json:"paused"`
 	PausedElapsed *uint64 `json:"paused_elapsed"`
 	State         string  `json:"state"`
+	Stage         *string `json:"stage"`
 	LastError     *string `json:"last_error"`
 }
 

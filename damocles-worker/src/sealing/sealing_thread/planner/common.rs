@@ -14,7 +14,7 @@ use crate::{
     rpc::sealer::{SectorFailure, SectorStateChange},
     sealing::{
         failure::{Failure, FailureContext, IntoFailure, Level, MapErrToFailure},
-        sealing_thread::{extend_lifetime, Sealer, SealingThread, R},
+        sealing_thread::{extend_lifetime, planner::JobTrait, Sealer, SealingThread, R},
     },
     store::Store,
     watchdog::Ctx,
@@ -221,6 +221,7 @@ where
             .ctrl_ctx()
             .update_state(|cst| {
                 let _ = cst.job.state.replace(self.job.sector.state.as_str().to_string());
+                let _ = cst.job.stage.replace(self.job.sector.state.stage(self.job.planner()).to_string());
             })
             .crit()?;
 

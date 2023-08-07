@@ -30,10 +30,11 @@ impl Worker for ServiceImpl {
         self.ctrls
             .iter()
             .map(|(idx, ctrl)| {
-                let (state, job_id, plan, last_error, paused_at) = ctrl
+                let (state, stage, job_id, plan, last_error, paused_at) = ctrl
                     .load_state(|cst| {
                         (
                             cst.job.state.clone(),
+                            cst.job.stage.clone(),
                             cst.job.id.to_owned(),
                             cst.job.plan.clone(),
                             cst.job.last_error.to_owned(),
@@ -58,6 +59,7 @@ impl Worker for ServiceImpl {
                     paused: paused_at.is_some(),
                     paused_elapsed: paused_at.map(|ins| ins.elapsed().as_secs()),
                     state: state.unwrap_or(String::new()),
+                    stage,
                     last_error,
                 })
             })

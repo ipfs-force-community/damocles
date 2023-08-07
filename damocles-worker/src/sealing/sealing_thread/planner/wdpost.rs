@@ -39,6 +39,14 @@ impl WdPostState {
             _ => return None,
         })
     }
+
+    pub fn stage(&self) -> &'static str {
+        match self {
+            WdPostState::Empty | WdPostState::Finished | WdPostState::Aborted => "-",
+            WdPostState::Allocated => "Generate",
+            WdPostState::Generated => "SubmitProof",
+        }
+    }
 }
 
 impl Display for WdPostState {
@@ -140,6 +148,7 @@ impl Sealer for WdPostSealer {
                 .ctrl_ctx()
                 .update_state(|cst| {
                     let _ = cst.job.state.replace(self.job.state.to_string());
+                    let _ = cst.job.stage.replace(self.job.state.stage().to_string());
                     cst.job.id = self.job.wdpost_job.as_ref().map(|t| t.id.to_owned());
                 })
                 .crit()?;
