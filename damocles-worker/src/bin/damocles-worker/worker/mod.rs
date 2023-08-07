@@ -70,13 +70,19 @@ pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
     let wcli = get_client(cmd.host.as_ref(), cmd.config.as_ref())?;
     match &cmd.subcommand {
         WorkerSubCommand::List => {
+            use tabwriter::TabWriter;
+
             let infos = block_on(wcli.worker_list()).map_err(|e| anyhow!("rpc error: {:?}", e))?;
             let out = std::io::stdout();
-            let mut hdl = out.lock();
+            let hdl = out.lock();
+
+            let mut tw = TabWriter::new(hdl);
+            let _ = tw.write_fmt(format_args!(
+                "#\tlocation\tPlan\tJobID\tPaused\tPausedElapsed\tState\tStage\tLastErr\n"
+            ));
             for wi in infos {
-                let _ = writeln!(
-                    &mut hdl,
-                    "#{}: {}; plan={}, job_id={:?}, paused={}, paused_elapsed={:?}, state={}, last_err={:?}",
+                let _ = tw.write_fmt(format_args!(
+                    "{}\t{}\t{}\t{:?}\t{}\t{:?}\t{}\t{}\t{:?}\n",
                     wi.index,
                     wi.location.display(),
                     wi.plan,
@@ -84,10 +90,11 @@ pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
                     wi.paused,
                     wi.paused_elapsed.map(Duration::from_secs),
                     wi.state.as_str(),
+                    wi.stage.as_deref().unwrap_or("-"),
                     wi.last_error
-                );
+                ));
             }
-
+            let _ = tw.flush();
             Ok(())
         }
         WorkerSubCommand::Pause { index } => {

@@ -157,11 +157,11 @@ var utilWorkerInfoCmd = &cli.Command{
 
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		defer tw.Flush()
-		_, _ = fmt.Fprintln(tw, "Index\tLoc\tPlan\tJobID\tPaused\tPausedElapsed\tState\tLastErr")
+		_, _ = fmt.Fprintln(tw, "Index\tLoc\tPlan\tJobID\tPaused\tPausedElapsed\tState\tStage\tLastErr")
 
 		for _, detail := range details {
 			_, _ = fmt.Fprintf(
-				tw, "%d\t%s\t%s\t%s\t%v\t%s\t%s\t%s\n",
+				tw, "%d\t%s\t%s\t%s\t%v\t%s\t%s\t%s\t%s\n",
 				detail.Index,
 				detail.Location,
 				detail.Plan,
@@ -169,6 +169,7 @@ var utilWorkerInfoCmd = &cli.Command{
 				detail.Paused,
 				FormatOrNull(detail.PausedElapsed, func() string { return (time.Duration(*detail.PausedElapsed) * time.Second).String() }),
 				detail.State,
+				FormatOrNull(detail.Stage, func() string { return *detail.Stage }),
 				FormatOrNull(detail.LastError, func() string { return *detail.LastError }),
 			)
 		}

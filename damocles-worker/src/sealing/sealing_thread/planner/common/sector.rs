@@ -12,6 +12,7 @@ use crate::sealing::processor::{
     SnapEncodeOutput,
 };
 use crate::sealing::sealing_thread::default_plan;
+use crate::sealing::sealing_thread::planner::{PLANNER_NAME_REBUILD, PLANNER_NAME_SNAPUP};
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
 
@@ -54,6 +55,41 @@ macro_rules! def_state {
             }
         }
     };
+}
+
+impl State {
+    pub fn stage(&self, plan: impl AsRef<str>) -> &'static str {
+        match (self, plan.as_ref()) {
+            (State::Empty, _) => "-",
+            (State::Allocated, _) => "AcquireDeals",
+            (State::DealsAcquired, _) => "AddPieces",
+            (State::PieceAdded, _) => "TreeD",
+            (State::TreeDBuilt, PLANNER_NAME_REBUILD) => "PC1",
+            (State::TreeDBuilt, _) => "AssignTicket",
+            (State::TicketAssigned, _) => "PC1",
+            (State::PC1Done, _) => "PC2",
+            (State::PC2Done, PLANNER_NAME_REBUILD) => "C1",
+            (State::PC2Done, _) => "SubmitPreCommit",
+            (State::PCSubmitted, _) => "WaitPCLanded",
+            (State::PCLanded, _) | (State::SnapProved, _) => "PersistFiles",
+            (State::Persisted, PLANNER_NAME_SNAPUP) => "SubmitSnapupProof",
+            (State::Persisted, _) => "SubmitPersisted",
+            (State::PersistanceSubmitted, _) => "WaitSeed",
+            (State::SeedAssigned, _) => "C1",
+            (State::C1Done, _) => "C2",
+            (State::C2Done, _) => "SubmitProof",
+            (State::ProofSubmitted, _) => "WaitProofLanded",
+            (State::Finished, _) => "-",
+            (State::Aborted, _) => "-",
+            (State::SnapEncoded, _) => "SnapProve",
+            (State::SealedChecked, PLANNER_NAME_REBUILD) => "PrepareForSnapup",
+            (State::SnapPieceAdded, _) => "TreeD",
+            (State::SnapTreeDBuilt, _) => "SnapEncode",
+            (State::SnapDone, _) => "PersistFiles",
+            (State::Unsealed, _) => "UploadPiece",
+            _ => "-",
+        }
+    }
 }
 
 def_state! {

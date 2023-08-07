@@ -31,6 +31,7 @@ pub struct CtrlJobState {
     pub id: Option<String>,
     pub plan: String,
     pub state: Option<String>,
+    pub stage: Option<String>,
     pub last_error: Option<String>,
 }
 

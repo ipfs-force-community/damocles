@@ -26,6 +26,9 @@ pub struct WorkerInfo {
     /// current sealing state of the worker
     pub state: String,
 
+    /// current sealing stage of the worker
+    pub stage: Option<String>,
+
     pub last_error: Option<String>,
 }
 
