@@ -77,7 +77,9 @@ pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
             let hdl = out.lock();
 
             let mut tw = TabWriter::new(hdl);
-            let _ = tw.write_fmt(format_args!("#\tlocation\tPlan\tJobID\tPaused\tPausedElapsed\tState\tStage\tLastErr\n"));
+            let _ = tw.write_fmt(format_args!(
+                "#\tlocation\tPlan\tJobID\tPaused\tPausedElapsed\tState\tStage\tLastErr\n"
+            ));
             for wi in infos {
                 let _ = tw.write_fmt(format_args!(
                     "{}\t{}\t{}\t{:?}\t{}\t{:?}\t{}\t{}\t{:?}\n",
