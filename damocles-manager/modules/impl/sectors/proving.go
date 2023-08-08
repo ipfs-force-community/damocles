@@ -86,6 +86,12 @@ func (p *Proving) SingleProvable(ctx context.Context, postProofType abi.Register
 		},
 	}
 
+	if p.singleCheckTimeout > 0 {
+		var scCancel context.CancelFunc
+		ctx, scCancel = context.WithTimeout(ctx, p.singleCheckTimeout)
+		defer scCancel()
+	}
+
 	for _, check := range checks {
 		for p, sz := range check.targets {
 			st, err := check.store.Stat(ctx, p)
@@ -143,15 +149,8 @@ func (p *Proving) SingleProvable(ctx context.Context, postProofType abi.Register
 		SealedCID:    sinfo.SealedCID,
 	}, postProofType)
 
-	scCtx := ctx
-	if p.singleCheckTimeout > 0 {
-		var scCancel context.CancelFunc
-		scCtx, scCancel = context.WithTimeout(ctx, p.singleCheckTimeout)
-		defer scCancel()
-	}
-
 	// use randUint64 % nodeNums as challenge, notice nodeNums = ssize / 32B
-	_, err = p.prover.GenerateSingleVanillaProof(scCtx, replica, []uint64{rand.Uint64() % (uint64(ssize) / 32)})
+	_, err = p.prover.GenerateSingleVanillaProof(ctx, replica, []uint64{rand.Uint64() % (uint64(ssize) / 32)})
 
 	if err != nil {
 		return fmt.Errorf("generate vanilla proof of %s failed: %w", sref.ID, err)
