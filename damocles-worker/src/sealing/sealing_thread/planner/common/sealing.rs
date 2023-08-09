@@ -333,13 +333,13 @@ pub fn snap_encode(task: &Task, sector_id: &SectorID, proof_type: &SealProof) ->
     // tree d
     tracing::debug!("trying to prepare tree_d");
     let prepared_dir = task.prepared_dir(sector_id);
-    symlink(
-        tree_d_path_in_dir(prepared_dir.as_ref()),
-        tree_d_path_in_dir(update_cache_dir.as_ref()),
-    )
-    .context("link prepared tree_d")
-    .crit()?;
-
+    let tree_d_link = tree_d_path_in_dir(update_cache_dir.as_ref());
+    if tree_d_link.exists() {
+        fs::remove_file(&tree_d_link).context("remove existing tree_d link file").crit()?;
+    }
+    symlink(tree_d_path_in_dir(prepared_dir.as_ref()), tree_d_link)
+        .context("link prepared tree_d")
+        .crit()?;
     // staged file should be already exists, do nothing
     let staged_file = task.staged_file(sector_id);
 
