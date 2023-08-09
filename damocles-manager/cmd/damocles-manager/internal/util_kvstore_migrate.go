@@ -68,12 +68,12 @@ var utilMigrateCmd = &cli.Command{
 		}
 
 		dbCfg.Driver = from
-		fromDB, err := dep.BuildKVStoreDB(*gctx, *lc, dbCfg, *home, *loadedPlugins)
+		fromDB, _, err := dep.BuildKVStoreDB(*gctx, *lc, dbCfg, *home, *loadedPlugins)
 		if err != nil {
 			return fmt.Errorf("failed to build from db: '%s', %w", dbCfg.Driver, err)
 		}
 		dbCfg.Driver = to
-		toDB, err := dep.BuildKVStoreDB(*gctx, *lc, dbCfg, *home, *loadedPlugins)
+		toDB, _, err := dep.BuildKVStoreDB(*gctx, *lc, dbCfg, *home, *loadedPlugins)
 		if err != nil {
 			return fmt.Errorf("failed to build to db: '%s', %w", dbCfg.Driver, err)
 		}

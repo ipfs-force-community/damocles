@@ -36,6 +36,7 @@ import (
 
 type (
 	UnderlyingDB                kvstore.DB
+	UnderlyingV2DB              kvstore.DB
 	OnlineMetaStore             kvstore.KVStore
 	OfflineMetaStore            kvstore.KVStore
 	PersistedObjectStoreManager objstore.Manager
@@ -140,7 +141,7 @@ func ProvidePlugins(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 	return plugins, nil
 }
 
-func BuildUnderlyingDB(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, home *homedir.Home, loadedPlugins *managerplugin.LoadedPlugins) (UnderlyingDB, error) {
+func BuildUnderlyingDB(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, home *homedir.Home, loadedPlugins *managerplugin.LoadedPlugins) (UnderlyingDB, UnderlyingV2DB, error) {
 	commonCfg := scfg.MustCommonConfig()
 
 	var dbCfg modules.DBConfig
@@ -156,20 +157,36 @@ func BuildUnderlyingDB(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeCo
 	return BuildKVStoreDB(gctx, lc, dbCfg, home, loadedPlugins)
 }
 
-func BuildKVStoreDB(gctx GlobalContext, lc fx.Lifecycle, cfg modules.DBConfig, home *homedir.Home, loadedPlugins *managerplugin.LoadedPlugins) (UnderlyingDB, error) {
+func BuildKVStoreDB(gctx GlobalContext, lc fx.Lifecycle, cfg modules.DBConfig, home *homedir.Home, loadedPlugins *managerplugin.LoadedPlugins) (UnderlyingDB, UnderlyingV2DB, error) {
 	switch cfg.Driver {
 	case "badger", "Badger":
-		return BuildKVStoreBadgerDB(lc, cfg.Badger, home)
+		badgerV2, err := BuildKVStoreBadgerV2DB(lc, cfg.Badger, home)
+		if err != nil {
+			return nil, nil, err
+		}
+		badgerV4, err := BuildKVStoreBadgerV4DB(lc, cfg.Badger, home)
+		if err != nil {
+			return nil, nil, err
+		}
+		return badgerV2, badgerV4, nil
 	case "mongo", "Mongo":
-		return BuildKVStoreMongoDB(gctx, lc, cfg.Mongo)
+		db, err := BuildKVStoreMongoDB(gctx, lc, cfg.Mongo)
+		if err != nil {
+			return nil, nil, err
+		}
+		return db, db, nil
 	case "plugin", "Plugin":
-		return BuildPluginDB(lc, cfg.Plugin, loadedPlugins)
+		db, err := BuildPluginDB(lc, cfg.Plugin, loadedPlugins)
+		if err != nil {
+			return nil, nil, err
+		}
+		return db, db, nil
 	default:
-		return nil, fmt.Errorf("unsupported db driver '%s'", cfg.Driver)
+		return nil, nil, fmt.Errorf("unsupported db driver '%s'", cfg.Driver)
 	}
 }
 
-func BuildKVStoreBadgerDB(lc fx.Lifecycle, badgerCfg *modules.KVStoreBadgerDBConfig, home *homedir.Home) (UnderlyingDB, error) {
+func BuildKVStoreBadgerV2DB(lc fx.Lifecycle, badgerCfg *modules.KVStoreBadgerDBConfig, home *homedir.Home) (*kvstore.BadgerV2DB, error) {
 	if badgerCfg == nil {
 		*badgerCfg = *modules.DefaultDBConfig().Badger
 	}
@@ -178,7 +195,31 @@ func BuildKVStoreBadgerDB(lc fx.Lifecycle, badgerCfg *modules.KVStoreBadgerDBCon
 	if baseDir == "" {
 		baseDir = home.Dir()
 	}
-	db := kvstore.OpenBadger(baseDir)
+	db := kvstore.OpenBadgerV2(baseDir)
+
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return db.Run(ctx)
+		},
+
+		OnStop: func(ctx context.Context) error {
+			return db.Close(ctx)
+		},
+	})
+
+	return db, nil
+}
+
+func BuildKVStoreBadgerV4DB(lc fx.Lifecycle, badgerCfg *modules.KVStoreBadgerDBConfig, home *homedir.Home) (*kvstore.BadgerV4DB, error) {
+	if badgerCfg == nil {
+		*badgerCfg = *modules.DefaultDBConfig().Badger
+	}
+
+	baseDir := badgerCfg.BaseDir
+	if baseDir == "" {
+		baseDir = home.Dir()
+	}
+	db := kvstore.OpenBadgerV4(baseDir)
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {

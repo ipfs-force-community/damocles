@@ -88,7 +88,7 @@ func ProvideExtProverConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.
 	return &cfg, nil
 }
 
-func BuildWorkerProverStore(gctx GlobalContext, db UnderlyingDB) (WorkerProverStore, error) {
+func BuildWorkerProverStore(gctx GlobalContext, db UnderlyingV2DB) (WorkerProverStore, error) {
 	return db.OpenCollection(gctx, "prover")
 }
 

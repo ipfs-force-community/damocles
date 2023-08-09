@@ -13,7 +13,7 @@ import (
 func BadgerKVStore(t *testing.T, collection string) kvstore.KVStore {
 	ctx := context.Background()
 	tmpdir := t.TempDir()
-	db := kvstore.OpenBadger(tmpdir)
+	db := kvstore.OpenBadgerV2(tmpdir)
 	require.NoError(t, db.Run(ctx))
 	kv, err := db.OpenCollection(ctx, collection)
 	require.NoErrorf(t, err, "open badger at %s/%s", tmpdir, collection)
