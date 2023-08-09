@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.8.0-rc6
+- damocles-manager
+  - 修复 wdpost 重复分配任务的 bug [#877](https://github.com/ipfs-force-community/damocles/pull/877)
+
+- damocles-worker
+  - 修复 resume snapup 封装线程时 treed 链接文件已存在报错的 bug [#876](https://github.com/ipfs-force-community/damocles/pull/876)
+  - 允许 pc2 任务重复运行 [#837](https://github.com/ipfs-force-community/damocles/issues/837)
+
 ## v0.8.0-rc5
 - damocles-worker
   - 修复无法手动设置 sealing 状态的 bug [#866](https://github.com/ipfs-force-community/damocles/pull/866)
