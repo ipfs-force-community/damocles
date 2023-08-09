@@ -65,6 +65,7 @@ impl State {
             (State::DealsAcquired, _) => "AddPieces",
             (State::PieceAdded, _) => "TreeD",
             (State::TreeDBuilt, PLANNER_NAME_REBUILD) => "PC1",
+            (State::TreeDBuilt, PLANNER_NAME_SNAPUP) => "SnapEncode",
             (State::TreeDBuilt, _) => "AssignTicket",
             (State::TicketAssigned, _) => "PC1",
             (State::PC1Done, _) => "PC2",
