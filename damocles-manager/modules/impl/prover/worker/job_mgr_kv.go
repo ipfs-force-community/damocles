@@ -53,6 +53,7 @@ func allStates() []core.WdPoStJobState {
 func (tm *kvJobManager) All(ctx context.Context, filter func(*core.WdPoStJob) bool) (jobs []*core.WdPoStJob, err error) {
 	jobs = make([]*core.WdPoStJob, 0)
 	err = tm.kv.ViewMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
+		jobs = jobs[:0]
 		for _, state := range allStates() {
 			ts, err := tm.filter(ctx, txn, state, math.MaxUint32, filter)
 			if err != nil {
@@ -71,6 +72,7 @@ func (tm *kvJobManager) All(ctx context.Context, filter func(*core.WdPoStJob) bo
 func (tm *kvJobManager) ListByJobIDs(ctx context.Context, jobIDs ...string) ([]*core.WdPoStJob, error) {
 	jobs := make([]*core.WdPoStJob, 0, len(jobIDs))
 	err := tm.kv.ViewMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
+		jobs = jobs[:0]
 		for _, jobID := range jobIDs {
 			for _, state := range allStates() {
 				var job core.WdPoStJob
@@ -145,6 +147,7 @@ func (tm *kvJobManager) AllocateJobs(ctx context.Context, spec core.AllocateWdPo
 	var readyToRun []*core.WdPoStJob
 	allocatedJobs = make([]*core.WdPoStAllocatedJob, 0)
 	err = tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
+		allocatedJobs = allocatedJobs[:0]
 		readyToRun, err = tm.filter(ctx, txn, core.WdPoStJobReadyToRun, n, func(t *core.WdPoStJob) bool {
 			if len(spec.AllowedMiners) > 0 && !slices.Contains(spec.AllowedMiners, t.Input.MinerID) {
 				return false
@@ -303,7 +306,7 @@ func (tm *kvJobManager) CleanupExpiredJobs(ctx context.Context, jobLifetime time
 
 	if err == nil {
 		for _, job := range shouldClean {
-			log.Infof("cleanup expired wdPoSt job: %s; job: %#v", job.ID, job)
+			log.Infof("cleanup expired wdPoSt job: %s", job.ID)
 		}
 	}
 	return err
