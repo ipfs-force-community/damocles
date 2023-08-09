@@ -36,6 +36,7 @@ func TestAllocateJobs(t *testing.T) {
 	require.NoError(t, err)
 
 	var count int = 0
+	ch := make(chan struct{}, 0)
 	go func() {
 		jobs, err := m.AllocateJobs(ctx, core.AllocateWdPoStJobSpec{
 			AllowedMiners:     []abi.ActorID{},
@@ -43,6 +44,7 @@ func TestAllocateJobs(t *testing.T) {
 		}, 1, "test2")
 		require.NoError(t, err)
 		count += len(jobs)
+		ch <- struct{}{}
 	}()
 	jobs, err := m.AllocateJobs(ctx, core.AllocateWdPoStJobSpec{
 		AllowedMiners:     []abi.ActorID{},
@@ -50,6 +52,6 @@ func TestAllocateJobs(t *testing.T) {
 	}, 1, "test1")
 	require.NoError(t, err)
 	count += len(jobs)
-
+	<-ch
 	require.Equal(t, 1, count)
 }
