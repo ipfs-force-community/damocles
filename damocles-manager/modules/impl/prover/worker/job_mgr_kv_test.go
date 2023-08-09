@@ -35,8 +35,8 @@ func TestAllocateJobs(t *testing.T) {
 
 	require.NoError(t, err)
 
-	var count int = 0
-	ch := make(chan struct{}, 0)
+	count := 0
+	ch := make(chan struct{})
 	go func() {
 		jobs, err := m.AllocateJobs(ctx, core.AllocateWdPoStJobSpec{
 			AllowedMiners:     []abi.ActorID{},
