@@ -12,7 +12,7 @@ use crate::sealing::processor::{
     SnapEncodeOutput,
 };
 use crate::sealing::sealing_thread::default_plan;
-use crate::sealing::sealing_thread::planner::{PLANNER_NAME_REBUILD, PLANNER_NAME_SNAPUP};
+use crate::sealing::sealing_thread::planner::{PLANNER_NAME_REBUILD, PLANNER_NAME_SNAPUP, PLANNER_NAME_UNSEAL};
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
 
@@ -61,6 +61,8 @@ impl State {
     pub fn stage(&self, plan: impl AsRef<str>) -> &'static str {
         match (self, plan.as_ref()) {
             (State::Empty, _) => "-",
+            (State::Allocated, PLANNER_NAME_SNAPUP) | (State::Allocated, PLANNER_NAME_REBUILD) => "AddPieces",
+            (State::Allocated, PLANNER_NAME_UNSEAL) => "Unseal",
             (State::Allocated, _) => "AcquireDeals",
             (State::DealsAcquired, _) => "AddPieces",
             (State::PieceAdded, _) => "TreeD",
