@@ -11,7 +11,6 @@ import (
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-commp-utils/zerocomm"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/builtin/v9/market"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	"github.com/ipfs/go-cid"
 
@@ -25,7 +24,6 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/piecestore"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/slices"
 )
 
 var (
@@ -195,16 +193,16 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.A
 		return nil, err
 	}
 
-	head, err := s.capi.ChainHead(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get chain head: %w", err)
-	}
-
 	pieces := core.Deals{}
 	if mcfg.Sealing.SealingEpochDuration != 0 {
+		var h *types.TipSet
+		h, err = s.capi.ChainHead(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get chain head: %w", err)
+		}
 
 		pieces, err = s.deal.Acquire(ctx, sid, spec, &core.AcquireDealsLifetime{
-			Start: head.Height() + abi.ChainEpoch(mcfg.Sealing.SealingEpochDuration),
+			Start: h.Height() + abi.ChainEpoch(mcfg.Sealing.SealingEpochDuration),
 			End:   1<<63 - 1,
 		}, core.SectorWorkerJobSealing)
 	} else {
@@ -212,26 +210,6 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.A
 	}
 	if err != nil {
 		return nil, err
-	}
-
-	if bool(state.Upgraded) {
-		maddr, err := address.NewIDAddress(uint64(sid.Miner))
-		if err != nil {
-			return nil, fmt.Errorf("invalid mienr actor id: %w", err)
-		}
-		sinfo, err := s.capi.StateSectorGetInfo(ctx, maddr, state.ID.Number, head.Key())
-		if err != nil {
-			return nil, fmt.Errorf("get sector info: %w", err)
-		}
-		pieces = slices.Filter(pieces, func(dealInfo core.DealInfo) bool {
-			allocTermMin := dealInfo.Proposal.EndEpoch - dealInfo.Proposal.StartEpoch
-			allocTermMax := slices.Min([]abi.ChainEpoch{
-				allocTermMin + market.MarketDefaultAllocationTermBuffer,
-				types.MaximumVerifiedAllocationTerm,
-			})
-			sectorLifetime := sinfo.Expiration - head.Height()
-			return sectorLifetime >= allocTermMin && sectorLifetime <= allocTermMax
-		})
 	}
 
 	success := false
