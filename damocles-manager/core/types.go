@@ -57,6 +57,8 @@ type AcquireDealsSpec struct {
 type AcquireDealsLifetime struct {
 	Start abi.ChainEpoch
 	End   abi.ChainEpoch
+	// filter by sector lifetime, for snapdeal
+	SectorExpiration *abi.ChainEpoch
 }
 
 type Ticket struct {

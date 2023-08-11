@@ -470,8 +470,9 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 	}()
 
 	pieces, err := s.deal.Acquire(ctx, candidateSector.Sector.ID, spec.Deals, &core.AcquireDealsLifetime{
-		Start: candidateSector.Public.Activation,
-		End:   candidateSector.Public.Expiration,
+		Start:            candidateSector.Public.Activation,
+		End:              candidateSector.Public.Expiration,
+		SectorExpiration: &candidateSector.Public.Expiration,
 	}, core.SectorWorkerJobSnapUp)
 	if err != nil {
 		return nil, fmt.Errorf("acquire deals: %w", err)

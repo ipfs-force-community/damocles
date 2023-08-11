@@ -68,6 +68,7 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.
 	if lifetime != nil {
 		mspec.StartEpoch = lifetime.Start
 		mspec.EndEpoch = lifetime.End
+		mspec.SectorExpiration = lifetime.SectorExpiration
 	}
 
 	dm.acquireMu.Lock()
