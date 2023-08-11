@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.0-rc7
+- damocles-manager
+  - 修复 snapdeal 订单与扇区生命周期不匹配导致无法上链的 bug [#885](https://github.com/ipfs-force-community/damocles/pull/885)
+
 ## v0.8.0-rc6
 - damocles-manager
   - 修复 wdpost 重复分配任务的 bug [#877](https://github.com/ipfs-force-community/damocles/pull/877)

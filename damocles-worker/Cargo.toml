@@ -1,6 +1,6 @@
 [package]
 name = "damocles-worker"
-version = "0.8.0-rc6"
+version = "0.8.0-rc7"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2021"
 exclude = [
