@@ -8,13 +8,15 @@ use rand::prelude::Distribution;
 use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
 
-use self::sub::{ProcessingGuard, SubProcessor};
+use self::sub::SubProcessor;
 
-use super::{Input, Processor};
+use super::{Guard, Input, Processor};
 use crate::sealing::resource::Pool;
 
 pub mod config;
 pub mod sub;
+
+pub(crate) use self::sub::ProcessingGuard;
 
 pub struct ExtProcessor<I>
 where
@@ -37,30 +39,17 @@ where
     }
 }
 
-fn try_lock<'a, I: Input>(
-    txes: impl Iterator<Item = &'a SubProcessor<I>>,
-    limit: &Pool,
-) -> Result<Vec<(ProcessingGuard, &'a SubProcessor<I>)>> {
-    let mut acquired = Vec::new();
-    for tx in txes {
-        if let Some(guard) = tx.try_lock(limit)? {
-            acquired.push((guard, tx));
-        }
-    }
-    Ok(acquired)
-}
-
-impl<I> Processor<I> for ExtProcessor<I>
+impl<I> super::LockedProcesssor<Box<dyn Processor<I>>, ProcessingGuard> for ExtProcessor<I>
 where
     I: Input,
 {
-    fn process(&self, input: I) -> Result<I::Output> {
+    fn wait(&self) -> Result<Guard<'_, Box<dyn Processor<I>>, ProcessingGuard>> {
         let size = self.subs.len();
         if size == 0 {
             return Err(anyhow!("no available sub processor"));
         }
 
-        let (_processing_guard, sub_processor) = {
+        let (processing_guard, sub_processor) = {
             let mut acquired = try_lock(self.subs.iter().filter(|s| !s.limiter.is_full()), &self.limit)?;
 
             if !acquired.is_empty() {
@@ -76,7 +65,22 @@ where
                 (chosen.lock(&self.limit)?, chosen)
             }
         };
-
-        sub_processor.producer.process(input)
+        Ok(Guard {
+            p: &sub_processor.producer,
+            inner_guard: processing_guard,
+        })
     }
+}
+
+fn try_lock<'a, I: Input>(
+    txes: impl Iterator<Item = &'a SubProcessor<I>>,
+    limit: &Pool,
+) -> Result<Vec<(ProcessingGuard, &'a SubProcessor<I>)>> {
+    let mut acquired = Vec::new();
+    for tx in txes {
+        if let Some(guard) = tx.try_lock(limit)? {
+            acquired.push((guard, tx));
+        }
+    }
+    Ok(acquired)
 }

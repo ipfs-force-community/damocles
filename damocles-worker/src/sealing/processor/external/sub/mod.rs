@@ -47,7 +47,7 @@ impl<I: Input> SubProcessor<I> {
     }
 }
 
-pub(super) struct ProcessingGuard(Vec<resource::Token>);
+pub(crate) struct ProcessingGuard(Vec<resource::Token>);
 
 pub(super) fn start_sub_processors<I: Input>(cfgs: &[config::Ext]) -> Result<Vec<SubProcessor<I>>> {
     if cfgs.is_empty() {

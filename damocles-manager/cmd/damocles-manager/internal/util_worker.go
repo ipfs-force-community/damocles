@@ -55,7 +55,7 @@ var utilWorkerListCmd = &cli.Command{
 
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		defer tw.Flush()
-		_, _ = fmt.Fprintln(tw, "Name\tDest\tVersion\tThreads\tEmpty\tPaused\tErrors\tLastPing(with ! if expired)")
+		_, _ = fmt.Fprintln(tw, "Name\tDest\tVersion\tThreads\tEmpty\tPaused\tRunning\tWaiting\tErrors\tLastPing(with ! if expired)")
 		for _, pinfo := range pinfos {
 			lastPing := time.Since(time.Unix(pinfo.LastPing, 0))
 			lastPingWarn := ""
@@ -64,13 +64,15 @@ var utilWorkerListCmd = &cli.Command{
 			}
 
 			_, _ = fmt.Fprintf(
-				tw, "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%s%s\n",
+				tw, "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%s%s\n",
 				pinfo.Info.Name,
 				pinfo.Info.Dest,
 				pinfo.Info.Version,
 				pinfo.Info.Summary.Threads,
 				pinfo.Info.Summary.Empty,
 				pinfo.Info.Summary.Paused,
+				pinfo.Info.Summary.Running,
+				pinfo.Info.Summary.Waiting,
 				pinfo.Info.Summary.Errors,
 				lastPing,
 				lastPingWarn,
@@ -157,19 +159,18 @@ var utilWorkerInfoCmd = &cli.Command{
 
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		defer tw.Flush()
-		_, _ = fmt.Fprintln(tw, "Index\tLoc\tPlan\tJobID\tPaused\tPausedElapsed\tState\tStage\tLastErr")
+		_, _ = fmt.Fprintln(tw, "Index\tLoc\tPlan\tJobID\tJobState\tJobStage\tThreadState\tLastErr")
 
 		for _, detail := range details {
 			_, _ = fmt.Fprintf(
-				tw, "%d\t%s\t%s\t%s\t%v\t%s\t%s\t%s\t%s\n",
+				tw, "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 				detail.Index,
 				detail.Location,
 				detail.Plan,
 				FormatOrNull(detail.JobID, func() string { return *detail.JobID }),
-				detail.Paused,
-				FormatOrNull(detail.PausedElapsed, func() string { return (time.Duration(*detail.PausedElapsed) * time.Second).String() }),
-				detail.State,
-				FormatOrNull(detail.Stage, func() string { return *detail.Stage }),
+				detail.JobState,
+				FormatOrNull(detail.JobStage, func() string { return *detail.JobStage }),
+				detail.ThreadState,
 				FormatOrNull(detail.LastError, func() string { return *detail.LastError }),
 			)
 		}

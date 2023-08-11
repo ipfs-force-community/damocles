@@ -21,8 +21,8 @@ mod util;
 use util::*;
 
 mod ctrl;
-pub use ctrl::Ctrl;
 use ctrl::*;
+pub use ctrl::{Ctrl, CtrlProc, SealingThreadState};
 
 pub trait Sealer {
     fn seal(&mut self, state: Option<&str>) -> Result<R, Failure>;
@@ -36,7 +36,7 @@ pub enum R {
 }
 
 #[derive(Clone)]
-pub struct SealingCtrl<'a> {
+pub(crate) struct SealingCtrl<'a> {
     ctx: &'a Ctx,
     ctrl_ctx: &'a CtrlCtx,
     sealing_config: &'a Config,
@@ -177,7 +177,7 @@ impl Module for SealingThread {
                         wait_for_resume = false;
 
                         self.ctrl_ctx.update_state(|cst| {
-                            cst.paused_at.take();
+                            cst.state = SealingThreadState::Idle;
                             cst.job.last_error.take();
                         })?;
                     },
@@ -214,7 +214,7 @@ impl Module for SealingThread {
                         wait_for_resume = true;
 
                         self.ctrl_ctx.update_state(|cst| {
-                            cst.paused_at.replace(Instant::now());
+                            cst.state = SealingThreadState::PausedAt(Instant::now());
                             if !is_interrupt {
                                 cst.job.last_error.replace(format!("{:?}", failure));
                             }

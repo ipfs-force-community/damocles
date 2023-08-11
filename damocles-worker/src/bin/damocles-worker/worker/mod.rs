@@ -1,6 +1,5 @@
 use std::fs;
 use std::net::SocketAddr;
-use std::time::Duration;
 use std::{io::Write, path::PathBuf};
 
 use anyhow::{anyhow, Context, Result};
@@ -77,20 +76,17 @@ pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
             let hdl = out.lock();
 
             let mut tw = TabWriter::new(hdl);
-            let _ = tw.write_fmt(format_args!(
-                "#\tlocation\tPlan\tJobID\tPaused\tPausedElapsed\tState\tStage\tLastErr\n"
-            ));
+            let _ = tw.write_fmt(format_args!("#\tlocation\tPlan\tJobID\tJobState\tJobStage\tThreadState\tLastErr\n"));
             for wi in infos {
                 let _ = tw.write_fmt(format_args!(
-                    "{}\t{}\t{}\t{:?}\t{}\t{:?}\t{}\t{}\t{:?}\n",
+                    "{}\t{}\t{}\t{:?}\t{}\t{}\t{}\t{:?}\n",
                     wi.index,
                     wi.location.display(),
                     wi.plan,
                     wi.job_id,
-                    wi.paused,
-                    wi.paused_elapsed.map(Duration::from_secs),
-                    wi.state.as_str(),
-                    wi.stage.as_deref().unwrap_or("-"),
+                    wi.job_state.as_str(),
+                    wi.job_stage.as_deref().unwrap_or("-"),
+                    wi.thread_state,
                     wi.last_error
                 ));
             }

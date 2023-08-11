@@ -1,8 +1,32 @@
-use std::path::PathBuf;
+use std::{fmt, path::PathBuf, time::Duration};
 
 use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
+
+/// {"type":"PausedAt","secs":123}
+/// {"type":"Idle"}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "type", content = "secs")]
+pub enum SealingThreadState {
+    Idle,
+    Paused(u64),
+    Running(u64),
+    Waiting(u64),
+}
+
+impl fmt::Display for SealingThreadState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use humantime::format_duration;
+
+        match self {
+            SealingThreadState::Idle => f.write_str("Idle"),
+            SealingThreadState::Paused(x) => f.write_fmt(format_args!("Paused({})", format_duration(Duration::from_secs(*x)))),
+            SealingThreadState::Running(x) => f.write_fmt(format_args!("Running({})", format_duration(Duration::from_secs(*x)))),
+            SealingThreadState::Waiting(x) => f.write_fmt(format_args!("Waiting({})", format_duration(Duration::from_secs(*x)))),
+        }
+    }
+}
 
 /// information about each worker thread
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -18,16 +42,13 @@ pub struct WorkerInfo {
     /// index for other control operations
     pub index: usize,
 
-    /// if the worker is paused
-    pub paused: bool,
+    pub thread_state: SealingThreadState,
 
-    pub paused_elapsed: Option<u64>,
+    /// current job state of the worker
+    pub job_state: String,
 
-    /// current sealing state of the worker
-    pub state: String,
-
-    /// current sealing stage of the worker
-    pub stage: Option<String>,
+    /// current job stage of the worker
+    pub job_stage: Option<String>,
 
     pub last_error: Option<String>,
 }

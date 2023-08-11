@@ -13,7 +13,8 @@ use reqwest::Url;
 use tokio::runtime::Builder;
 use vc_processors::builtin::processors::BuiltinProcessor;
 
-use crate::sealing::build_sealing_threads;
+use crate::sealing::processor::{Either, NoLockProcessor};
+use crate::sealing::{build_sealing_threads, CtrlProc};
 use crate::{
     config,
     infra::{
@@ -171,7 +172,7 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
 
     let ext_locks = Arc::new(create_resource_pool(&cfg.processors.ext_locks, &None));
 
-    let processors = start_processors(&cfg, &ext_locks).context("start processors")?;
+    let processors = start_processors(&cfg, ext_locks).context("start processors")?;
 
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
@@ -179,12 +180,11 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
     let global = GlobalModules {
         rpc: Arc::new(rpc_client),
         attached: Arc::new(attached_mgr),
-        processors,
+        processors: Arc::new(processors),
         limit: Arc::new(create_resource_pool(
             cfg.processors.limitation_concurrent(),
             &cfg.processors.limitation.staggered,
         )),
-        ext_locks,
         static_tree_d,
         rt: rt.clone(),
         piece_store,
@@ -285,47 +285,27 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
 
 macro_rules! construct_sub_processor {
     ($field:ident, $cfg:ident, $locks:ident) => {
-        if let Some(ext) = $cfg.processors.$field.as_ref() {
+        CtrlProc::new(if let Some(ext) = $cfg.processors.$field.as_ref() {
             let proc = processor::external::ExtProcessor::build(ext, $locks.clone())?;
-            Arc::new(proc)
+            Either::Left(proc)
         } else {
-            Arc::new(BuiltinProcessor::default())
-        }
+            Either::Right(NoLockProcessor::new(Box::<BuiltinProcessor>::default()))
+        })
     };
 }
 
-fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<GlobalProcessors> {
-    let add_pieces: processor::ArcAddPiecesProcessor = construct_sub_processor!(add_pieces, cfg, locks);
-
-    let tree_d: processor::ArcTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks);
-
-    let pc1: processor::ArcPC1Processor = construct_sub_processor!(pc1, cfg, locks);
-
-    let pc2: processor::ArcPC2Processor = construct_sub_processor!(pc2, cfg, locks);
-
-    let c2: processor::ArcC2Processor = construct_sub_processor!(c2, cfg, locks);
-
-    let snap_encode: processor::ArcSnapEncodeProcessor = construct_sub_processor!(snap_encode, cfg, locks);
-
-    let snap_prove: processor::ArcSnapProveProcessor = construct_sub_processor!(snap_prove, cfg, locks);
-
-    let transfer: processor::ArcTransferProcessor = construct_sub_processor!(transfer, cfg, locks);
-
-    let unseal: processor::ArcUnsealProcessor = construct_sub_processor!(unseal, cfg, locks);
-
-    let window_post: processor::ArcWdPostProcessor = construct_sub_processor!(window_post, cfg, locks);
-
+fn start_processors(cfg: &config::Config, locks: Arc<resource::Pool>) -> Result<GlobalProcessors> {
     Ok(GlobalProcessors {
-        add_pieces,
-        tree_d,
-        pc1,
-        pc2,
-        c2,
-        snap_encode,
-        snap_prove,
-        transfer,
-        unseal,
-        window_post,
+        add_pieces: construct_sub_processor!(add_pieces, cfg, locks),
+        tree_d: construct_sub_processor!(tree_d, cfg, locks),
+        pc1: construct_sub_processor!(pc1, cfg, locks),
+        pc2: construct_sub_processor!(pc2, cfg, locks),
+        c2: construct_sub_processor!(c2, cfg, locks),
+        snap_encode: construct_sub_processor!(snap_encode, cfg, locks),
+        snap_prove: construct_sub_processor!(snap_prove, cfg, locks),
+        transfer: construct_sub_processor!(transfer, cfg, locks),
+        unseal: construct_sub_processor!(unseal, cfg, locks),
+        window_post: construct_sub_processor!(window_post, cfg, locks),
     })
 }
 

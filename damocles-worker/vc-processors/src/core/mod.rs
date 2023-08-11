@@ -29,3 +29,15 @@ where
     /// Process the given task.
     fn process(&self, task: T) -> Result<<T as Task>::Output>;
 }
+
+impl<T: Task, P: Processor<T>> Processor<T> for Box<P> {
+    fn process(&self, task: T) -> Result<<T as Task>::Output> {
+        (**self).process(task)
+    }
+}
+
+impl<T: Task> Processor<T> for Box<dyn Processor<T>> {
+    fn process(&self, task: T) -> Result<<T as Task>::Output> {
+        (**self).process(task)
+    }
+}

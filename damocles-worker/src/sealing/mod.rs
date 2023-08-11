@@ -11,4 +11,4 @@ pub mod util;
 
 mod config;
 mod sealing_thread;
-pub(crate) use sealing_thread::build_sealing_threads;
+pub(crate) use sealing_thread::{build_sealing_threads, CtrlProc};

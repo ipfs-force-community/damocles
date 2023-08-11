@@ -339,6 +339,8 @@ pub struct WorkerInfoSummary {
     pub threads: usize,
     pub empty: usize,
     pub paused: usize,
+    pub running: usize,
+    pub waiting: usize,
     pub errors: usize,
 }
 

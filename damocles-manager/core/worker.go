@@ -1,23 +1,41 @@
 package core
 
+import (
+	"fmt"
+	"time"
+)
+
 const DefaultWorkerListenPort = 17890
 
+type SealingThreadState struct {
+	Ty   string  `json:"type"`
+	Secs *uint64 `json:"secs"`
+}
+
+func (s SealingThreadState) String() string {
+	if s.Secs == nil {
+		return s.Ty
+	}
+	return fmt.Sprintf("%s(%s)", s.Ty, time.Duration(*s.Secs)*time.Second)
+}
+
 type WorkerThreadInfo struct {
-	Index         int     `json:"index"`
-	Location      string  `json:"location"`
-	Plan          string  `json:"plan"`
-	JobID         *string `json:"job_id"`
-	Paused        bool    `json:"paused"`
-	PausedElapsed *uint64 `json:"paused_elapsed"`
-	State         string  `json:"state"`
-	Stage         *string `json:"stage"`
-	LastError     *string `json:"last_error"`
+	Index       int                `json:"index"`
+	Location    string             `json:"location"`
+	Plan        string             `json:"plan"`
+	JobID       *string            `json:"job_id"`
+	ThreadState SealingThreadState `json:"thread_state"`
+	JobState    string             `json:"job_state"`
+	JobStage    *string            `json:"job_stage"`
+	LastError   *string            `json:"last_error"`
 }
 
 type WorkerInfoSummary struct {
 	Threads uint
 	Empty   uint
 	Paused  uint
+	Running uint
+	Waiting uint
 	Errors  uint
 }
 

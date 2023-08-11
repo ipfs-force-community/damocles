@@ -11,7 +11,7 @@ use crate::sealing::processor::{
 };
 use crate::{logging::trace, metadb::MaybeDirty};
 
-pub enum Event {
+pub(crate) enum Event {
     SetState(State),
 
     // No specified tasks available from sector_manager.
