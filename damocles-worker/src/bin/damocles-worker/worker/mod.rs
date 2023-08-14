@@ -79,15 +79,15 @@ pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
             let _ = tw.write_fmt(format_args!("#\tlocation\tPlan\tJobID\tJobState\tJobStage\tThreadState\tLastErr\n"));
             for wi in infos {
                 let _ = tw.write_fmt(format_args!(
-                    "{}\t{}\t{}\t{:?}\t{}\t{}\t{}\t{:?}\n",
+                    "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
                     wi.index,
                     wi.location.display(),
                     wi.plan,
-                    wi.job_id,
+                    wi.job_id.as_deref().unwrap_or("-"),
                     wi.job_state.as_str(),
                     wi.job_stage.as_deref().unwrap_or("-"),
                     wi.thread_state,
-                    wi.last_error
+                    wi.last_error.as_deref().unwrap_or("-")
                 ));
             }
             let _ = tw.flush();

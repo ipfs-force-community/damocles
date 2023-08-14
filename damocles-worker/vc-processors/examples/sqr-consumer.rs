@@ -34,6 +34,10 @@ impl Task for Num {
 struct PowProc;
 
 impl Processor<Num> for PowProc {
+    fn name(&self) -> String {
+        "pow-d proc".to_string()
+    }
+
     fn process(&self, task: Num) -> Result<<Num as Task>::Output> {
         Ok(Num(task.0.pow(2)))
     }

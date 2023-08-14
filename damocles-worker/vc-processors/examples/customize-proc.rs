@@ -35,6 +35,10 @@ use vc_processors::{
 struct TreeDProc;
 
 impl Processor<TreeD> for TreeDProc {
+    fn name(&self) -> String {
+        "tree-d proc".to_string()
+    }
+
     fn process(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {
         info!(dir = ?task.cache_dir, "process tree_d task");
         std::thread::sleep(Duration::from_secs(3));

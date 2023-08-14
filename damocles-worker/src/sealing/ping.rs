@@ -40,7 +40,7 @@ impl Ping {
                     SealingThreadState::PausedAt(_) => {
                         sum.paused += 1;
                     }
-                    SealingThreadState::RunningAt(_) => {
+                    SealingThreadState::Running { .. } => {
                         sum.running += 1;
                     }
                     SealingThreadState::WaitAt(_) => {

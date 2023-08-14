@@ -7,10 +7,11 @@ use rand::distributions::WeightedIndex;
 use rand::prelude::Distribution;
 use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
+use vc_processors::core::Task as Input;
 
 use self::sub::SubProcessor;
 
-use super::{Guard, Input, Processor};
+use super::{Guard, Processor};
 use crate::sealing::resource::Pool;
 
 pub mod config;
@@ -39,11 +40,11 @@ where
     }
 }
 
-impl<I> super::LockedProcesssor<Box<dyn Processor<I>>, ProcessingGuard> for ExtProcessor<I>
+impl<I> super::LockedProcessor<I, Box<dyn Processor<I>>, ProcessingGuard> for ExtProcessor<I>
 where
     I: Input,
 {
-    fn wait(&self) -> Result<Guard<'_, Box<dyn Processor<I>>, ProcessingGuard>> {
+    fn wait(&self) -> Result<Guard<'_, I, Box<dyn Processor<I>>, ProcessingGuard>> {
         let size = self.subs.len();
         if size == 0 {
             return Err(anyhow!("no available sub processor"));
@@ -68,6 +69,7 @@ where
         Ok(Guard {
             p: &sub_processor.producer,
             inner_guard: processing_guard,
+            _ph: std::marker::PhantomData,
         })
     }
 }

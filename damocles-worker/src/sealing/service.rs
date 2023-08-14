@@ -58,9 +58,16 @@ impl Worker for ServiceImpl {
                     index: *idx,
                     thread_state: match sealing_thread_state {
                         sealing_thread::SealingThreadState::Idle => SealingThreadState::Idle,
-                        sealing_thread::SealingThreadState::PausedAt(x) => SealingThreadState::Paused(x.elapsed().as_secs()),
-                        sealing_thread::SealingThreadState::RunningAt(x) => SealingThreadState::Running(x.elapsed().as_secs()),
-                        sealing_thread::SealingThreadState::WaitAt(x) => SealingThreadState::Waiting(x.elapsed().as_secs()),
+                        sealing_thread::SealingThreadState::PausedAt(at) => SealingThreadState::Paused {
+                            elapsed: at.elapsed().as_secs(),
+                        },
+                        sealing_thread::SealingThreadState::Running { at, proc } => SealingThreadState::Running {
+                            elapsed: at.elapsed().as_secs(),
+                            proc,
+                        },
+                        sealing_thread::SealingThreadState::WaitAt(at) => SealingThreadState::Waiting {
+                            elapsed: at.elapsed().as_secs(),
+                        },
                     },
                     job_state: job_state.unwrap_or(String::new()),
                     job_stage,

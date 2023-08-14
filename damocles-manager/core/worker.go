@@ -8,15 +8,24 @@ import (
 const DefaultWorkerListenPort = 17890
 
 type SealingThreadState struct {
-	Ty   string  `json:"type"`
-	Secs *uint64 `json:"secs"`
+	State   string  `json:"state"`
+	Elapsed *uint64 `json:"elapsed"`
+	Proc    *string `json:"proc"`
 }
 
 func (s SealingThreadState) String() string {
-	if s.Secs == nil {
-		return s.Ty
+	if s.Elapsed == nil {
+		return s.State
 	}
-	return fmt.Sprintf("%s(%s)", s.Ty, time.Duration(*s.Secs)*time.Second)
+
+	var proc string
+	if s.Proc == nil {
+		proc = ""
+	} else {
+		proc = *s.Proc
+	}
+
+	return fmt.Sprintf("%s(%s) %s", s.State, time.Duration(*s.Elapsed)*time.Second, proc)
 }
 
 type WorkerThreadInfo struct {

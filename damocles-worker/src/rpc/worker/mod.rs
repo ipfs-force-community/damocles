@@ -4,15 +4,16 @@ use jsonrpc_core::Result;
 use jsonrpc_derive::rpc;
 use serde::{Deserialize, Serialize};
 
-/// {"type":"PausedAt","secs":123}
-/// {"type":"Idle"}
+/// {"state":"Running","elapsed":100,"proc":"xx"}
+/// {"state":"Paused","elapsed":100}
+/// {"state":"Idle"}
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type", content = "secs")]
+#[serde(tag = "state")]
 pub enum SealingThreadState {
     Idle,
-    Paused(u64),
-    Running(u64),
-    Waiting(u64),
+    Paused { elapsed: u64 },
+    Running { elapsed: u64, proc: String },
+    Waiting { elapsed: u64 },
 }
 
 impl fmt::Display for SealingThreadState {
@@ -21,9 +22,15 @@ impl fmt::Display for SealingThreadState {
 
         match self {
             SealingThreadState::Idle => f.write_str("Idle"),
-            SealingThreadState::Paused(x) => f.write_fmt(format_args!("Paused({})", format_duration(Duration::from_secs(*x)))),
-            SealingThreadState::Running(x) => f.write_fmt(format_args!("Running({})", format_duration(Duration::from_secs(*x)))),
-            SealingThreadState::Waiting(x) => f.write_fmt(format_args!("Waiting({})", format_duration(Duration::from_secs(*x)))),
+            SealingThreadState::Paused { elapsed } => {
+                f.write_fmt(format_args!("Paused({})", format_duration(Duration::from_secs(*elapsed))))
+            }
+            SealingThreadState::Running { elapsed, proc } => {
+                f.write_fmt(format_args!("Running({}) {}", format_duration(Duration::from_secs(*elapsed)), proc))
+            }
+            SealingThreadState::Waiting { elapsed } => {
+                f.write_fmt(format_args!("Waiting({})", format_duration(Duration::from_secs(*elapsed))))
+            }
         }
     }
 }

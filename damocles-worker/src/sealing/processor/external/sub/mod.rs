@@ -8,10 +8,10 @@ use crossbeam_channel::{bounded, unbounded, Sender};
 use tracing::debug;
 use vc_processors::core::{
     ext::{ProducerBuilder, Request},
-    Processor,
+    Processor, Task as Input,
 };
 
-use super::{super::Input, config};
+use super::config;
 use crate::sealing::resource::{self, Pool};
 
 const DEFAULT_CGROUP_GROUP_NAME: &str = "vc-worker";

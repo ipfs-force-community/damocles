@@ -463,6 +463,10 @@ where
     HP: Fn(&Request<T>) -> Result<()> + Send + Sync,
     HF: Fn(&Request<T>) + Send + Sync,
 {
+    fn name(&self) -> String {
+        format!("ext(pid: {})", self.child_pid())
+    }
+
     fn process(&self, task: T) -> Result<T::Output> {
         let req = Request { id: self.next_id(), task };
 
