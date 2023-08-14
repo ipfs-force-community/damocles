@@ -21,6 +21,7 @@ pub fn init() -> Result<()> {
         .add_directive("want=warn".parse()?)
         .add_directive("jsonrpc_client_transports=warn".parse()?)
         .add_directive("jsonrpc_core=warn".parse()?)
+        .add_directive("jsonrpc_http_server=warn".parse()?)
         .add_directive("hyper=warn".parse()?)
         .add_directive("mio=warn".parse()?)
         .add_directive("reqwest=warn".parse()?);
