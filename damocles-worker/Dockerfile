@@ -48,5 +48,5 @@ RUN mkdir -p /etc/OpenCL/vendors \
 
 COPY --from=build /build/target/release/damocles-worker /damocles-worker
 
-EXPOSE 17891
+EXPOSE 17890
 ENTRYPOINT ["/damocles-worker"]
