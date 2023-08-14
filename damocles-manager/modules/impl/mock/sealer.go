@@ -157,9 +157,9 @@ func (s *Sealer) RestoreSector(context.Context, abi.SectorID, bool) (core.Meta, 
 	return core.Empty, nil
 }
 
-func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.ReportStateReq) (core.Meta, error) {
+func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.ReportStateReq) (*core.SectorStateResp, error) {
 	log.Warnf("report state change for m-%d-s-%d: %#v", sid.Miner, sid.Number, req)
-	return core.Empty, nil
+	return &core.SectorStateResp{}, nil
 }
 
 func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Meta, error) {

@@ -381,6 +381,12 @@ type SectorUnsealInfo struct {
 	ErrorInfo string
 }
 
+type SectorStateResp struct {
+	ID          abi.SectorID
+	Finalized   SectorFinalized
+	AbortReason *string
+}
+
 func UnsealInfoKey(actor abi.ActorID, sectorNumber abi.SectorNumber, pieceCid cid.Cid) string {
 	return fmt.Sprintf("%d-%d-%s", actor, sectorNumber, pieceCid.String())
 }

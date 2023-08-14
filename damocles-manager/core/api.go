@@ -57,7 +57,7 @@ type SealerAPI interface {
 
 	PollProofState(context.Context, abi.SectorID) (PollProofStateResp, error)
 
-	ReportState(context.Context, abi.SectorID, ReportStateReq) (Meta, error)
+	ReportState(context.Context, abi.SectorID, ReportStateReq) (*SectorStateResp, error)
 
 	ReportFinalized(context.Context, abi.SectorID) (Meta, error)
 

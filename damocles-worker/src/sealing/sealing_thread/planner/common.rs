@@ -102,7 +102,7 @@ where
                 None
             };
 
-            if let Err(rerr) = self.job.report_state(
+            match self.job.report_state(
                 SectorStateChange {
                     prev: prev.as_str().to_owned(),
                     next: self.job.sector.state.as_str().to_owned(),
@@ -110,8 +110,17 @@ where
                 },
                 fail,
             ) {
-                tracing::error!("report state failed: {:?}", rerr);
-            };
+                Err(rerr) => {
+                    tracing::error!("report state failed: {:?}", rerr);
+                }
+                Ok(state) => {
+                    if state.finalized {
+                        tracing::warn!("cleanup aborted sector");
+                        self.job.finalize()?;
+                        return Ok(R::Done);
+                    }
+                }
+            }
 
             match handle_res {
                 Ok(Some(evt)) => {

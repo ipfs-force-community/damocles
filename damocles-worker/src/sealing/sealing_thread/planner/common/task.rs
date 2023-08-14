@@ -9,7 +9,7 @@ use crate::store::Store;
 use crate::types::SealProof;
 use crate::{
     metadb::{rocks::RocksMeta, MaybeDirty, MetaDocumentDB, PrefixedMetaDB, Saved},
-    rpc::sealer::{ReportStateReq, SectorFailure, SectorID, SectorStateChange, WorkerIdentifier},
+    rpc::sealer::{ReportStateReq, SectorFailure, SectorID, SectorStateChange, WorkerIdentifier, SectorState},
 };
 use crate::{
     rpc::sealer::SealerClient,
@@ -76,7 +76,7 @@ impl Task {
         let mut sector: Saved<Sector, _, _> = Saved::load(SECTOR_INFO_KEY, sector_meta, || {
             Sector::new(sealing_ctrl.config().plan().to_string())
         })
-        .context("load sector")?;
+            .context("load sector")?;
         sector.sync().context("init sync sector")?;
 
         let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, &s.meta));
@@ -96,13 +96,17 @@ impl Task {
         })
     }
 
-    pub fn report_state(&self, state_change: SectorStateChange, fail: Option<SectorFailure>) -> Result<(), Failure> {
+    pub fn report_state(&self, state_change: SectorStateChange, fail: Option<SectorFailure>) -> Result<SectorState, Failure> {
         let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
             Some(sid) => sid,
-            None => return Ok(()),
+            None => return Ok(SectorState {
+                id: Default::default(),
+                finalized: false,
+                abort_reason: None,
+            }),
         };
 
-        call_rpc! {
+        let sector_state = call_rpc! {
             self.sealing_ctrl.ctx().global.rpc=>report_state(
             sector_id,
             ReportStateReq {
@@ -112,7 +116,7 @@ impl Task {
             },
         )}?;
 
-        Ok(())
+        Ok(sector_state)
     }
 
     pub fn report_finalized(&self) -> Result<(), Failure> {

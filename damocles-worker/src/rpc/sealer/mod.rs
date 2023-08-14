@@ -274,6 +274,14 @@ pub struct ReportStateReq {
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
+pub struct SectorState {
+    pub id: SectorID,
+    pub finalized: bool,
+    pub abort_reason: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "PascalCase")]
 pub struct SectorStateChange {
     pub prev: String,
     pub next: String,
@@ -479,7 +487,7 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.ReportState")]
-    fn report_state(&self, id: SectorID, state: ReportStateReq) -> Result<()>;
+    fn report_state(&self, id: SectorID, state: ReportStateReq) -> Result<SectorState>;
 
     /// api definition
     #[rpc(name = "Venus.ReportFinalized")]
