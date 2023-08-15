@@ -1,5 +1,14 @@
 # Changelog
 
+#v0.8.0
+- damocles-manager
+  - snapdeal 分配订单根据扇区的过期时间筛选 [#885](https://github.com/ipfs-force-community/damocles/pull/885)
+
+- damocles-worker
+  - 移除 rpc response 日志 [#892](https://github.com/ipfs-force-community/damocles/pull/892)
+  - 修复子进程配置的环境变量无法覆盖父进程环境变量的 bug [#887](https://github.com/ipfs-force-community/damocles/pull/887)
+  - docker 暴露端口号修改 17891 -> 17890 [#890](https://github.com/ipfs-force-community/damocles/pull/890)
+
 ## v0.8.0-rc6
 - damocles-manager
   - 修复 wdpost 重复分配任务的 bug [#877](https://github.com/ipfs-force-community/damocles/pull/877)

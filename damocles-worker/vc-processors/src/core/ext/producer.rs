@@ -212,21 +212,20 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
         let ProducerBuilder {
             bin,
             args,
-            mut envs,
+            envs,
             inherit_envs,
             stable_timeout,
             hooks,
             auto_restart,
         } = self;
 
-        if inherit_envs {
-            envs.extend(vars());
-        }
-
         let cmd = move || {
             let mut cmd = Command::new(&bin);
-            cmd.args(args.clone())
-                .envs(envs.clone())
+            cmd.args(args.clone()).env_clear();
+            if inherit_envs {
+                cmd.envs(vars());
+            }
+            cmd.envs(envs.clone())
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::inherit());
