@@ -1,11 +1,13 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use crossbeam_channel::{select, TryRecvError};
 
 use crate::config::{Sealing, SealingOptional};
+use crate::limit::SealingLimit;
 use crate::logging::{error, info, warn};
 use crate::store::Location;
 use crate::watchdog::{Ctx, Module};
@@ -22,7 +24,7 @@ use util::*;
 
 mod ctrl;
 use ctrl::*;
-pub use ctrl::{Ctrl, CtrlProc, SealingThreadState};
+pub use ctrl::{Ctrl, CtrlProcessor, SealingThreadState};
 
 pub trait Sealer {
     fn seal(&mut self, state: Option<&str>) -> Result<R, Failure>;
@@ -101,8 +103,14 @@ pub struct SealingThread {
 }
 
 impl SealingThread {
-    pub fn new(idx: usize, plan: Option<String>, sealing_config: Sealing, location: Option<Location>) -> Result<(Self, Ctrl)> {
-        let (ctrl, ctrl_ctx) = new_ctrl(location.clone());
+    pub fn new(
+        idx: usize,
+        plan: Option<String>,
+        sealing_config: Sealing,
+        location: Option<Location>,
+        limit: Arc<SealingLimit>,
+    ) -> Result<(Self, Ctrl)> {
+        let (ctrl, ctrl_ctx) = new_ctrl(location.clone(), limit);
 
         Ok((
             Self {
@@ -254,6 +262,7 @@ impl Module for SealingThread {
 pub(crate) fn build_sealing_threads(
     list: &[crate::config::SealingThread],
     common: &SealingOptional,
+    limit: Arc<SealingLimit>,
 ) -> Result<Vec<(SealingThread, (usize, Ctrl))>> {
     let mut sealing_threads = Vec::new();
     let mut path_set = HashSet::new();
@@ -277,7 +286,7 @@ pub(crate) fn build_sealing_threads(
             None => None,
         };
 
-        let (sealing_thread, ctrl) = SealingThread::new(idx, plan, sealing_config, loc)?;
+        let (sealing_thread, ctrl) = SealingThread::new(idx, plan, sealing_config, loc, limit.clone())?;
         sealing_threads.push((sealing_thread, (idx, ctrl)));
     }
 

@@ -31,11 +31,7 @@ use crate::{
 use super::task::Task;
 
 pub(crate) fn add_pieces(task: &Task, deals: &Deals) -> Result<Vec<PieceInfo>, Failure> {
-    let _token = task
-        .sealing_ctrl
-        .ctrl_ctx()
-        .wait(|| task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_ADD_PIECES))
-        .crit()?;
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_ADD_PIECES).crit()?;
 
     let seal_proof_type = task.sector_proof_type()?.into();
     let staged_filepath = task.staged_file(task.sector_id()?);
@@ -90,11 +86,7 @@ pub(crate) fn build_tree_d(task: &Task, allow_static: bool) -> Result<(), Failur
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
 
-    let _token = task
-        .sealing_ctrl
-        .ctrl_ctx()
-        .wait(|| task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_TREED))
-        .crit()?;
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_TREED).crit()?;
 
     let prepared_dir = task.prepared_dir(sector_id);
     prepared_dir.prepare().perm()?;
@@ -150,11 +142,7 @@ fn cleanup_before_pc1(cache_dir: &Entry, sealed_file: &Entry) -> Result<()> {
 }
 
 pub(crate) fn pre_commit1(task: &Task) -> Result<(Ticket, SealPreCommitPhase1Output), Failure> {
-    let _token = task
-        .sealing_ctrl
-        .ctrl_ctx()
-        .wait(|| task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_PC1))
-        .crit()?;
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_PC1).crit()?;
 
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
@@ -234,11 +222,7 @@ fn cleanup_before_pc2(cache_dir: &Path) -> Result<()> {
 }
 
 pub(crate) fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, Failure> {
-    let _token = task
-        .sealing_ctrl
-        .ctrl_ctx()
-        .wait(|| task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_PC2))
-        .crit()?;
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_PC2).crit()?;
 
     let sector_id = task.sector_id()?;
 
@@ -289,11 +273,7 @@ pub(crate) fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, F
 }
 
 pub(crate) fn commit1_with_seed(task: &Task, seed: Seed) -> Result<SealCommitPhase1Output, Failure> {
-    let _token = task
-        .sealing_ctrl
-        .ctrl_ctx()
-        .wait(|| task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_C1))
-        .crit()?;
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_C1).crit()?;
 
     let sector_id = task.sector_id()?;
 
@@ -338,11 +318,7 @@ pub(crate) fn commit1_with_seed(task: &Task, seed: Seed) -> Result<SealCommitPha
 }
 
 pub(crate) fn snap_encode(task: &Task, sector_id: &SectorID, proof_type: &SealProof) -> Result<SnapEncodeOutput, Failure> {
-    let _token = task
-        .sealing_ctrl
-        .ctrl_ctx()
-        .wait(|| task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_SNAP_ENCODE))
-        .crit()?;
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_SNAP_ENCODE).crit()?;
 
     cloned_required!(piece_infos, task.sector.phases.pieces);
 
@@ -396,11 +372,7 @@ pub(crate) fn snap_encode(task: &Task, sector_id: &SectorID, proof_type: &SealPr
 }
 
 pub(crate) fn snap_prove(task: &Task) -> Result<SnapProveOutput, Failure> {
-    let _token = task
-        .sealing_ctrl
-        .ctrl_ctx()
-        .wait(|| task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_SNAP_PROVE))
-        .crit()?;
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_SNAP_PROVE).crit()?;
 
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;

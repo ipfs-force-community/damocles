@@ -15,13 +15,10 @@ use crate::{
     rpc::sealer::SealerClient,
     sealing::{
         processor::{
-            self,
-            external::{ExtProcessor, ProcessingGuard},
-            AddPiecesInput, C2Input, NoLockProcessor, PC1Input, PC2Input, SnapEncodeInput, SnapProveInput, TransferInput, TreeDInput,
-            UnsealInput, WindowPoStInput,
+            self, external::Proc as ExtProc, AddPiecesInput, C2Input, NoLockProcessor, PC1Input, PC2Input, SnapEncodeInput, SnapProveInput,
+            TransferInput, TreeDInput, UnsealInput, WindowPoStInput,
         },
-        resource::Pool,
-        CtrlProc,
+        CtrlProcessor,
     },
 };
 
@@ -47,14 +44,14 @@ pub(crate) struct GlobalModules {
     pub attached: Arc<AttachedManager>,
     pub processors: Arc<GlobalProcessors>,
     pub static_tree_d: HashMap<u64, PathBuf>,
-    pub limit: Arc<Pool>,
     pub rt: Arc<Runtime>,
     pub piece_store: Arc<dyn PieceStore>,
     pub remote_piece_store: Arc<dyn PieceStore>,
 }
 
 pub type ThreadProc<T> = NoLockProcessor<Box<dyn Processor<T>>>;
-pub(crate) type Proc<T> = CtrlProc<T, processor::Either<ExtProcessor<T>, ThreadProc<T>>, processor::Either<ProcessingGuard, ()>>;
+pub type CtrlProc<T, LP> = CtrlProcessor<T, Box<dyn Processor<T>>, LP>;
+pub(crate) type Proc<T> = CtrlProc<T, processor::Either<ExtProc<T>, ThreadProc<T>>>;
 
 pub(crate) struct GlobalProcessors {
     pub add_pieces: Proc<AddPiecesInput>,

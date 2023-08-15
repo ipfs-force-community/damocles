@@ -1,7 +1,5 @@
 //! processor abstractions & implementations for sealing
 
-use std::{fmt, marker::PhantomData, ops::Deref};
-
 use anyhow::Result;
 pub use vc_processors::{
     builtin::tasks::{
@@ -17,8 +15,12 @@ pub mod external;
 mod safe;
 pub use safe::*;
 
-pub trait LockedProcessor<T, P, G> {
-    fn wait(&self) -> Result<Guard<T, P, G>>;
+pub trait LockProcessor {
+    type Guard<'a>
+    where
+        Self: 'a;
+
+    fn lock(&self) -> Result<Self::Guard<'_>>;
 }
 
 #[derive(Debug, Clone)]
@@ -27,32 +29,35 @@ pub enum Either<L, R> {
     Right(R),
 }
 
-impl<T, P, L, R, LG, RG> LockedProcessor<T, P, Either<LG, RG>> for Either<L, R>
+impl<L, R> LockProcessor for Either<L, R>
 where
-    T: Task,
-    P: Processor<T>,
-    L: LockedProcessor<T, P, LG>,
-    R: LockedProcessor<T, P, RG>,
+    L: LockProcessor,
+    R: LockProcessor,
 {
-    fn wait(&self) -> Result<Guard<'_, T, P, Either<LG, RG>>> {
+    type Guard<'a> = Either<L::Guard<'a>, R::Guard<'a>>
+    where
+        Self: 'a;
+
+    fn lock(&self) -> Result<Self::Guard<'_>> {
         Ok(match self {
-            Either::Left(p) => {
-                let Guard { p, inner_guard, .. } = p.wait()?;
-                Guard {
-                    p,
-                    inner_guard: Either::Left(inner_guard),
-                    _ph: PhantomData,
-                }
-            }
-            Either::Right(p) => {
-                let Guard { p, inner_guard, .. } = p.wait()?;
-                Guard {
-                    p,
-                    inner_guard: Either::Right(inner_guard),
-                    _ph: PhantomData,
-                }
-            }
+            Either::Left(p) => Either::Left(p.lock()?),
+            Either::Right(p) => Either::Right(p.lock()?),
         })
+    }
+}
+
+impl<T, L, R> std::ops::Deref for Either<L, R>
+where
+    L: std::ops::Deref<Target = T>,
+    R: std::ops::Deref<Target = T>,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Either::Left(x) => x.deref(),
+            Either::Right(x) => x.deref(),
+        }
     }
 }
 
@@ -65,32 +70,10 @@ impl<P> NoLockProcessor<P> {
     }
 }
 
-impl<T: Task, P: Processor<T>> LockedProcessor<T, P, ()> for NoLockProcessor<P> {
-    fn wait(&self) -> Result<Guard<'_, T, P, ()>> {
-        Ok(Guard {
-            p: &self.0,
-            inner_guard: (),
-            _ph: PhantomData,
-        })
-    }
-}
+impl<P> LockProcessor for NoLockProcessor<P> {
+    type Guard<'a> = &'a P where P: 'a;
 
-pub struct Guard<'a, T, P, G> {
-    p: &'a P,
-    inner_guard: G,
-    _ph: PhantomData<T>,
-}
-
-impl<T, P, G> Deref for Guard<'_, T, P, G> {
-    type Target = P;
-
-    fn deref(&self) -> &Self::Target {
-        self.p
-    }
-}
-
-impl<T: Task, P: Processor<T>, G> fmt::Display for Guard<'_, T, P, G> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.p.name().as_str())
+    fn lock(&self) -> Result<&P> {
+        Ok(&self.0)
     }
 }

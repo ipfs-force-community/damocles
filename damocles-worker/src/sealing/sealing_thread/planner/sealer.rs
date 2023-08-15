@@ -388,12 +388,7 @@ impl<'t> Sealer<'t> {
     }
 
     fn handle_c1_done(&self) -> Result<Event, Failure> {
-        let _token = self
-            .task
-            .sealing_ctrl
-            .ctrl_ctx()
-            .wait(|| self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_C2))
-            .crit()?;
+        let _token = self.task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_C2).crit()?;
 
         let miner_id = self.task.sector_id()?.miner;
 

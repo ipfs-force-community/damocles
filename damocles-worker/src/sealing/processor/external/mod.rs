@@ -2,87 +2,35 @@
 
 use std::sync::Arc;
 
-use anyhow::{anyhow, Context, Result};
-use rand::distributions::WeightedIndex;
-use rand::prelude::Distribution;
-use rand::rngs::OsRng;
-use rand::seq::SliceRandom;
-use vc_processors::core::Task as Input;
+use anyhow::{anyhow, Result};
+use vc_processors::core::Task;
 
-use self::sub::SubProcessor;
+use self::{concurrent::Concurrent, ext_locks::ExtLocks, sub::SubProcessor, weight::Weight};
 
-use super::{Guard, Processor};
-use crate::sealing::resource::Pool;
+use crate::limit::SealingLimit;
 
+mod concurrent;
 pub mod config;
+mod ext_locks;
 pub mod sub;
+pub mod weight;
 
-pub(crate) use self::sub::ProcessingGuard;
+pub type Proc<T> = Weight<ExtLocks<Concurrent<SubProcessor<T>>>>;
 
-pub struct ExtProcessor<I>
-where
-    I: Input,
-{
-    limit: Arc<Pool>,
-    subs: Vec<SubProcessor<I>>,
-}
-
-impl<I> ExtProcessor<I>
-where
-    I: Input,
-{
-    pub fn build(cfg: &[config::Ext], limit: Arc<Pool>) -> Result<Self> {
-        let subs = sub::start_sub_processors(cfg).with_context(|| format!("start sub process for stage {}", I::STAGE))?;
-
-        let proc = Self { limit, subs };
-
-        Ok(proc)
+pub fn start_sub_processors<T: Task>(cfgs: &[config::Ext], limit: Arc<SealingLimit>) -> Result<Proc<T>> {
+    if cfgs.is_empty() {
+        return Err(anyhow!("no subs section found"));
     }
-}
 
-impl<I> super::LockedProcessor<I, Box<dyn Processor<I>>, ProcessingGuard> for ExtProcessor<I>
-where
-    I: Input,
-{
-    fn wait(&self) -> Result<Guard<'_, I, Box<dyn Processor<I>>, ProcessingGuard>> {
-        let size = self.subs.len();
-        if size == 0 {
-            return Err(anyhow!("no available sub processor"));
-        }
-
-        let (processing_guard, sub_processor) = {
-            let mut acquired = try_lock(self.subs.iter().filter(|s| !s.limiter.is_full()), &self.limit)?;
-
-            if !acquired.is_empty() {
-                let dist = WeightedIndex::new(acquired.iter().map(|(_, sub_process_tx)| sub_process_tx.weight))
-                    .context("invalid acquired list")?;
-
-                acquired.swap_remove(dist.sample(&mut OsRng))
-            } else {
-                let chosen = self
-                    .subs
-                    .choose_weighted(&mut OsRng, |x| x.weight)
-                    .context("no input tx from availables chosen")?;
-                (chosen.lock(&self.limit)?, chosen)
-            }
-        };
-        Ok(Guard {
-            p: &sub_processor.producer,
-            inner_guard: processing_guard,
-            _ph: std::marker::PhantomData,
-        })
+    let mut procs = Vec::with_capacity(cfgs.len());
+    for (index, sub_cfg) in cfgs.iter().enumerate() {
+        let subprocessor = SubProcessor::<T>::new(index, sub_cfg)?;
+        procs.push(ExtLocks::new(
+            Concurrent::new(subprocessor, sub_cfg.concurrent),
+            sub_cfg.locks.as_ref().cloned().unwrap_or_default(),
+            limit.clone(),
+        ));
     }
-}
 
-fn try_lock<'a, I: Input>(
-    txes: impl Iterator<Item = &'a SubProcessor<I>>,
-    limit: &Pool,
-) -> Result<Vec<(ProcessingGuard, &'a SubProcessor<I>)>> {
-    let mut acquired = Vec::new();
-    for tx in txes {
-        if let Some(guard) = tx.try_lock(limit)? {
-            acquired.push((guard, tx));
-        }
-    }
-    Ok(acquired)
+    Ok(Weight::new(procs))
 }

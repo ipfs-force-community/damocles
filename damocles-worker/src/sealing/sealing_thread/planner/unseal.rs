@@ -110,12 +110,7 @@ impl<'t> Unseal<'t> {
 
     fn unseal(&self) -> Result<Event, Failure> {
         // query token
-        let _token = self
-            .task
-            .sealing_ctrl
-            .ctrl_ctx()
-            .wait(|| self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_UNSEAL))
-            .crit()?;
+        let _token = self.task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_UNSEAL).crit()?;
 
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
@@ -202,12 +197,7 @@ impl<'t> Unseal<'t> {
     }
 
     fn upload_piece(&self) -> Result<Event, Failure> {
-        let _token = self
-            .task
-            .sealing_ctrl
-            .ctrl_ctx()
-            .wait(|| self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_TRANSFER))
-            .crit()?;
+        let _token = self.task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_TRANSFER).crit()?;
 
         let sector_id = self.task.sector_id()?;
 

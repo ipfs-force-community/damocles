@@ -229,7 +229,7 @@ pub struct Limit {
     pub staggered: Option<HashMap<String, SerdeDuration>>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SerdeDuration(#[serde(with = "humantime_serde")] pub Duration);
 
 #[derive(Debug, Default, Serialize, Deserialize)]

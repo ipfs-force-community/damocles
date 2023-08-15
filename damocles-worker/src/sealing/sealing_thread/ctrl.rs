@@ -8,11 +8,13 @@ use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver, Sender};
 use vc_processors::core::{Processor, Task};
 
-use crate::sealing::processor::LockedProcessor;
+use crate::limit::SealingLimit;
+use crate::sealing::processor::LockProcessor;
+use crate::sealing::resource::Token;
 
 use super::super::store::Location;
 
-pub fn new_ctrl(loc: Option<Location>) -> (Ctrl, CtrlCtx) {
+pub fn new_ctrl(loc: Option<Location>, limit: Arc<SealingLimit>) -> (Ctrl, CtrlCtx) {
     let (pause_tx, pause_rx) = bounded(1);
     let (resume_tx, resume_rx) = bounded(0);
     let state = Arc::new(RwLock::new(Default::default()));
@@ -28,6 +30,7 @@ pub fn new_ctrl(loc: Option<Location>) -> (Ctrl, CtrlCtx) {
             pause_rx,
             resume_rx,
             state,
+            limit,
         },
     )
 }
@@ -100,6 +103,7 @@ impl<T> Deref for DisplayWrapper<T> {
 pub struct CtrlCtx {
     pub pause_rx: Receiver<()>,
     pub resume_rx: Receiver<Option<String>>,
+    limit: Arc<SealingLimit>,
     state: Arc<RwLock<CtrlState>>,
 }
 
@@ -112,66 +116,67 @@ impl CtrlCtx {
         Ok(())
     }
 
-    pub fn wait<T, E>(&self, mut wait_fn: impl FnMut() -> Result<T, E>) -> Result<WaitGuard<DisplayWrapper<T>>, E> {
-        WaitGuard::new(self.state.clone(), || {
-            Ok(DisplayWrapper {
-                inner: wait_fn()?,
-                display: "prepare",
-            })
+    pub fn wait(&self, stage: impl AsRef<str>) -> Result<WaitGuard<Token>> {
+        self.state.write().unwrap().state = SealingThreadState::WaitAt(Instant::now());
+        let inner = self.limit.acquire_stage_limit(stage)?;
+        self.state.write().unwrap().state = SealingThreadState::Running {
+            at: Instant::now(),
+            proc: "prepare".to_string(),
+        };
+        Ok(WaitGuard {
+            inner,
+            state: self.state.clone(),
         })
     }
 }
 
 pub struct WaitGuard<T> {
-    inner_guard: T,
+    inner: T,
     state: Arc<RwLock<CtrlState>>,
-}
-
-impl<T> Deref for WaitGuard<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner_guard
-    }
-}
-
-impl<T: fmt::Display> WaitGuard<T> {
-    fn new<E>(state: Arc<RwLock<CtrlState>>, mut wait_fn: impl FnMut() -> Result<T, E>) -> Result<Self, E> {
-        state.write().unwrap().state = SealingThreadState::WaitAt(Instant::now());
-        let inner_guard = wait_fn()?;
-        state.write().unwrap().state = SealingThreadState::Running {
-            at: Instant::now(),
-            proc: inner_guard.to_string(),
-        };
-        Ok(Self { inner_guard, state })
-    }
 }
 
 impl<T> Drop for WaitGuard<T> {
     fn drop(&mut self) {
-        self.state.write().unwrap().state = SealingThreadState::Idle;
+        match self.state.read().unwrap().state {
+            SealingThreadState::Idle => {}
+            _ => {
+                self.state.write().unwrap().state = SealingThreadState::Idle;
+            }
+        }
     }
 }
 
-pub struct CtrlProcessor<T, LP, IP, G> {
-    inner: LP,
-    _pd: PhantomData<(T, IP, G)>,
+impl<T> std::ops::Deref for WaitGuard<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
-impl<T, LP, IP, G> CtrlProcessor<T, LP, IP, G>
+pub struct CtrlProcessor<T, P, LP> {
+    inner: LP,
+    _pd: PhantomData<(T, P)>,
+}
+
+impl<'a, T, P, LP> CtrlProcessor<T, P, LP>
 where
     T: Task,
-    LP: LockedProcessor<T, IP, G>,
-    IP: Processor<T>,
+    P: Processor<T>,
+    LP: LockProcessor + 'a,
+    LP::Guard<'a>: Deref<Target = P>,
 {
     pub fn new(inner: LP) -> Self {
         Self { inner, _pd: PhantomData }
     }
 
-    pub fn process(&self, ctx: &CtrlCtx, task: T) -> Result<<T as vc_processors::core::Task>::Output> {
-        let guard = WaitGuard::new(ctx.state.clone(), move || self.inner.wait())?;
+    pub fn process(&'a self, ctx: &CtrlCtx, task: T) -> Result<<T as vc_processors::core::Task>::Output> {
+        ctx.state.write().unwrap().state = SealingThreadState::WaitAt(Instant::now());
+        let guard = self.inner.lock()?;
+        ctx.state.write().unwrap().state = SealingThreadState::Running {
+            at: Instant::now(),
+            proc: guard.name(),
+        };
         guard.process(task)
     }
 }
-
-pub type CtrlProc<T, LP, G> = CtrlProcessor<T, LP, Box<dyn Processor<T>>, G>;

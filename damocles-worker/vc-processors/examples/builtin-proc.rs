@@ -84,27 +84,9 @@ fn main() -> Result<()> {
 }
 
 fn run_main() -> Result<()> {
-    // act as a simple concurrent & rate limiter
-    let (limit_tx, limit_rx) = bounded(1);
-
-    std::thread::spawn(move || loop {
-        std::thread::sleep(Duration::from_secs(5));
-        if limit_rx.try_recv().is_ok() {
-            info!("re-fill one token");
-        }
-    });
-
     let _span = warn_span!("parent", pid = std::process::id()).entered();
-    let producer = ProducerBuilder::<_, _>::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
+    let producer = ProducerBuilder::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
         .stable_timeout(Duration::from_secs(5))
-        .hook_prepare(move |_: &Request<TreeD>| -> Result<()> {
-            let _ = limit_tx.send(());
-            info!("token acquired");
-            Ok(())
-        })
-        .hook_finalize(move |_: &Request<TreeD>| {
-            info!("do nothing");
-        })
         .spawn::<TreeD>()
         .context("build producer")?;
 

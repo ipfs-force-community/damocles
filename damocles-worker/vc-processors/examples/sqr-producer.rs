@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, warn, warn_span};
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, EnvFilter};
 use vc_processors::core::{
-    ext::{run_consumer, BoxedFinalizeHook, BoxedPrepareHook, ProducerBuilder},
+    ext::{run_consumer, ProducerBuilder},
     Processor, Task,
 };
 
@@ -88,13 +88,10 @@ fn main() -> Result<()> {
 
 fn run_main() -> Result<()> {
     let _span = warn_span!("parent", pid = std::process::id()).entered();
-    let producer = ProducerBuilder::<BoxedPrepareHook<Num>, BoxedFinalizeHook<Num>>::new(
-        current_exe().context("get current exe")?,
-        vec!["sub".to_owned()],
-    )
-    .stable_timeout(Duration::from_secs(5))
-    .spawn::<Num>()
-    .context("build producer")?;
+    let producer = ProducerBuilder::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
+        .stable_timeout(Duration::from_secs(5))
+        .spawn::<Num>()
+        .context("build producer")?;
 
     info!(child = producer.child_pid(), "producer start");
 

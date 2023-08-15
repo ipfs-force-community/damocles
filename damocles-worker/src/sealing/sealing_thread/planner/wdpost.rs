@@ -351,12 +351,7 @@ impl WdPost<'_> {
     }
 
     fn generate(&self) -> Result<WdPostEvent, Failure> {
-        let _token = self
-            .job
-            .sealing_ctrl
-            .ctrl_ctx()
-            .wait(|| self.job.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_WINDOW_POST))
-            .crit()?;
+        let _token = self.job.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_WINDOW_POST).crit()?;
 
         let wdpost_job = self.job.wdpost_job.as_ref().context("wdpost info not found").abort()?;
 
