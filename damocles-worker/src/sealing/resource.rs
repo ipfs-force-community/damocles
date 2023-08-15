@@ -167,7 +167,7 @@ impl Pool {
                 "add limitation"
             );
 
-            let concurrent_limit_opt = limit_item.concurrent.map(|concurrent| ConcurrentLimit::new(concurrent));
+            let concurrent_limit_opt = limit_item.concurrent.map(ConcurrentLimit::new);
             let staggered_limit_opt = limit_item.staggered_interval.and_then(|interval| {
                 if interval < Self::MIN_STAGGERED_INTERVAL {
                     warn!(staggered_interval = ?interval, "staggered interval must be greater than or equal to {:?}", Self::MIN_STAGGERED_INTERVAL);

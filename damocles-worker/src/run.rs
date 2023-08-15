@@ -169,7 +169,7 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
 
     let remote_piece_store = Arc::new(remote_piece_store);
 
-    let processors = start_processors(&cfg, limit.clone()).context("start processors")?;
+    let processors = start_processors(&cfg, limit).context("start processors")?;
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
     let rt = Arc::new(runtime);
