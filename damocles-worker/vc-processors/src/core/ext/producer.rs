@@ -124,24 +124,18 @@ fn dump_to_file(child_pid: u32, dir: impl AsRef<Path>, data: &[u8]) -> Result<Pa
     Ok(path)
 }
 
-pub struct Hooks<P, F> {
-    pub prepare: Option<P>,
-    pub finalize: Option<F>,
-}
-
 /// Builder for Producer
-pub struct ProducerBuilder<HP, HF> {
+pub struct ProducerBuilder {
     bin: PathBuf,
     args: Vec<String>,
     envs: HashMap<String, String>,
 
     inherit_envs: bool,
     stable_timeout: Option<Duration>,
-    hooks: Hooks<HP, HF>,
     auto_restart: bool,
 }
 
-impl<HP, HF> ProducerBuilder<HP, HF> {
+impl ProducerBuilder {
     /// Construct a new builder with the given binary path & args.
     pub fn new(bin: PathBuf, args: Vec<String>) -> Self {
         ProducerBuilder {
@@ -150,10 +144,6 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
             envs: HashMap::new(),
             inherit_envs: true,
             stable_timeout: None,
-            hooks: Hooks {
-                prepare: None,
-                finalize: None,
-            },
             auto_restart: false,
         }
     }
@@ -183,18 +173,6 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
         self.env(crate::sys::numa::ENV_NUMA_PREFERRED.to_string(), node.to_string())
     }
 
-    /// Set a prepare hook, which will be called before the Producer send the task to the child.
-    pub fn hook_prepare(mut self, f: HP) -> Self {
-        self.hooks.prepare.replace(f);
-        self
-    }
-
-    /// Set a finalize hook, which will be called before the Processor::process returns.
-    pub fn hook_finalize(mut self, f: HF) -> Self {
-        self.hooks.finalize.replace(f);
-        self
-    }
-
     /// Set auto restart for child process
     pub fn auto_restart(mut self, auto_restart: bool) -> Self {
         self.auto_restart = auto_restart;
@@ -208,14 +186,13 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
     }
 
     /// Build a Producer with the given options.
-    pub fn spawn<T: Task>(self) -> Result<Producer<T, HP, HF>> {
+    pub fn spawn<T: Task>(self) -> Result<Producer<T>> {
         let ProducerBuilder {
             bin,
             args,
             envs,
             inherit_envs,
             stable_timeout,
-            hooks,
             auto_restart,
         } = self;
 
@@ -240,7 +217,6 @@ impl<HP, HF> ProducerBuilder<HP, HF> {
         let producer = Producer {
             next_id: AtomicU64::new(1),
             inner: producer_inner.clone(),
-            hooks,
             in_flight_requests: in_flight_requests.clone(),
         };
 
@@ -318,14 +294,13 @@ fn wait_for_stable(stage: &'static str, stdout: ChildStdout, mut stable_timeout:
 
 /// Producer sends tasks to the child, and waits for the responses.
 /// It impl Processor.
-pub struct Producer<T: Task, HP, HF> {
+pub struct Producer<T: Task> {
     next_id: AtomicU64,
     inner: Arc<Mutex<ProducerInner>>,
-    hooks: Hooks<HP, HF>,
     in_flight_requests: InflightRequests<T::Output>,
 }
 
-impl<T, HP, HF> Producer<T, HP, HF>
+impl<T> Producer<T>
 where
     T: Task,
 {
@@ -451,30 +426,16 @@ impl<T> Clone for InflightRequests<T> {
     }
 }
 
-/// Could be use to avoid type annotations problem
-pub type BoxedPrepareHook<T> = Box<dyn Fn(&Request<T>) -> Result<()> + Send + Sync>;
-
-/// Could be use to avoid type annotations problem
-pub type BoxedFinalizeHook<T> = Box<dyn Fn(&Request<T>) + Send + Sync>;
-
-impl<T, HP, HF> Processor<T> for Producer<T, HP, HF>
+impl<T> Processor<T> for Producer<T>
 where
     T: Task,
-    HP: Fn(&Request<T>) -> Result<()> + Send + Sync,
-    HF: Fn(&Request<T>) + Send + Sync,
 {
+    fn name(&self) -> String {
+        format!("ext(pid: {})", self.child_pid())
+    }
+
     fn process(&self, task: T) -> Result<T::Output> {
         let req = Request { id: self.next_id(), task };
-
-        if let Some(p) = self.hooks.prepare.as_ref() {
-            p(&req).context("prepare task")?;
-        };
-
-        let _defer = Defer(true, || {
-            if let Some(f) = self.hooks.finalize.as_ref() {
-                f(&req);
-            }
-        });
 
         let rx = self.in_flight_requests.sent(req.id);
         if let Err(e) = self.send(&req) {
@@ -489,16 +450,6 @@ where
         }
         debug!("request done: {}", req.id);
         output.output.take().context("output field lost")
-    }
-}
-
-struct Defer<F: FnMut()>(bool, F);
-
-impl<F: FnMut()> Drop for Defer<F> {
-    fn drop(&mut self) {
-        if self.0 {
-            (self.1)();
-        }
     }
 }
 

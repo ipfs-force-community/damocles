@@ -12,6 +12,7 @@ pub(crate) mod signal;
 pub(crate) mod types;
 pub(crate) mod watchdog;
 
+mod limit;
 mod run;
 mod util;
 mod version;

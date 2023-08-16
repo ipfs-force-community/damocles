@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::select;
 
-use super::sealing_thread::Ctrl;
+use super::sealing_thread::{Ctrl, SealingThreadState};
 
 use crate::block_on;
 use crate::logging::{debug, warn};
@@ -35,8 +35,17 @@ impl Ping {
                     sum.errors += 1;
                 }
 
-                if cst.paused_at.is_some() {
-                    sum.paused += 1;
+                match cst.state {
+                    SealingThreadState::Idle => {}
+                    SealingThreadState::PausedAt(_) => {
+                        sum.paused += 1;
+                    }
+                    SealingThreadState::Running { .. } => {
+                        sum.running += 1;
+                    }
+                    SealingThreadState::WaitAt(_) => {
+                        sum.waiting += 1;
+                    }
                 }
             })
             .with_context(|| format!("load state from ctrl for sealing thread {}", idx))?;

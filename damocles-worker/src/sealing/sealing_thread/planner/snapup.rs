@@ -20,7 +20,7 @@ use crate::sealing::processor::{
 };
 
 #[derive(Default)]
-pub struct SnapUpPlanner;
+pub(crate) struct SnapUpPlanner;
 
 impl PlannerTrait for SnapUpPlanner {
     type Job = Task;
@@ -262,7 +262,7 @@ impl<'t> SnapUp<'t> {
             .global
             .processors
             .transfer
-            .process(transfer)
+            .process(self.task.sealing_ctrl.ctrl_ctx(), transfer)
             .context("link snapup sector files")
             .perm()?;
 

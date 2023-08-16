@@ -85,7 +85,7 @@ pub enum WdPostEvent {
     Finish,
 }
 
-pub struct WdPostSealer {
+pub(crate) struct WdPostSealer {
     job: WdPostJob,
     planner: WdPostPlanner,
     retry: u32,
@@ -351,7 +351,7 @@ impl WdPost<'_> {
     }
 
     fn generate(&self) -> Result<WdPostEvent, Failure> {
-        let _token = self.job.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_WINDOW_POST).crit()?;
+        let _token = self.job.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_WINDOW_POST).crit()?;
 
         let wdpost_job = self.job.wdpost_job.as_ref().context("wdpost info not found").abort()?;
 
@@ -426,7 +426,14 @@ impl WdPost<'_> {
             replicas: replica,
             seed: wdpost_job.input.seed,
         };
-        let res = self.job.sealing_ctrl.ctx().global.processors.window_post.process(post_in);
+        let res = self
+            .job
+            .sealing_ctrl
+            .ctx()
+            .global
+            .processors
+            .window_post
+            .process(self.job.sealing_ctrl.ctrl_ctx(), post_in);
         if let Err(e) = &res {
             tracing::error!(err=?e, job_id=wdpost_job.id,"wdpost error");
         }

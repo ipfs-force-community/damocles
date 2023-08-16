@@ -140,10 +140,10 @@ pub struct Pool {
 }
 
 #[derive(Debug)]
-pub struct LimitItem<'a> {
-    pub name: &'a str,
-    pub concurrent: Option<&'a usize>,
-    pub staggered_interval: Option<&'a Duration>,
+pub struct LimitItem {
+    pub name: String,
+    pub concurrent: Option<usize>,
+    pub staggered_interval: Option<Duration>,
 }
 
 impl Pool {
@@ -152,32 +152,32 @@ impl Pool {
     #[cfg(test)]
     const MIN_STAGGERED_INTERVAL: Duration = Duration::from_millis(1);
 
-    /// construct a pool with given name-size mapping
-    pub fn new<'a, I: Iterator<Item = LimitItem<'a>>>(iter: I) -> Self {
-        let mut pool = HashMap::new();
+    pub fn empty() -> Self {
+        Self { pool: HashMap::new() }
+    }
 
+    /// extend resources
+    pub fn extend<I: Iterator<Item = LimitItem>>(&mut self, iter: I) {
         for limit_item in iter {
             debug!(
                 target: LOG_TARGET,
                 name = limit_item.name,
                 concurrent = limit_item.concurrent,
-                staggered_time_interval = limit_item.staggered_interval.cloned().unwrap_or_default().as_secs_f32(),
+                staggered_time_interval = limit_item.staggered_interval.unwrap_or_default().as_secs_f32(),
                 "add limitation"
             );
 
-            let concurrent_limit_opt = limit_item.concurrent.map(|concurrent| ConcurrentLimit::new(*concurrent));
+            let concurrent_limit_opt = limit_item.concurrent.map(ConcurrentLimit::new);
             let staggered_limit_opt = limit_item.staggered_interval.and_then(|interval| {
-                if interval < &Self::MIN_STAGGERED_INTERVAL {
+                if interval < Self::MIN_STAGGERED_INTERVAL {
                     warn!(staggered_interval = ?interval, "staggered interval must be greater than or equal to {:?}", Self::MIN_STAGGERED_INTERVAL);
                     None
                 } else {
                     Some(StaggeredLimit::new(1, interval.to_owned()))
                 }
             });
-            pool.insert(limit_item.name.to_string(), (concurrent_limit_opt, staggered_limit_opt));
+            self.pool.insert(limit_item.name, (concurrent_limit_opt, staggered_limit_opt));
         }
-
-        Pool { pool }
     }
 
     /// acquires a token for the named resource
@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn test_acquire_without_limit() {
         // time::pause();
-        let pool = Pool::new(vec![].into_iter());
+        let pool = Pool::empty();
 
         let mut now = Instant::now();
         let token1 = pool.acquire("pc1").unwrap();
@@ -292,11 +292,12 @@ mod tests {
     #[test]
     fn test_acquire_both_concurrent_limit_and_staggered_limit() {
         let staggered_interval = ms(10);
-        let pool = Pool::new(
+        let mut pool = Pool::empty();
+        pool.extend(
             (vec![LimitItem {
-                name: "pc1",
-                concurrent: Some(&2),
-                staggered_interval: Some(&staggered_interval),
+                name: "pc1".to_string(),
+                concurrent: Some(2),
+                staggered_interval: Some(staggered_interval),
             }])
             .into_iter(),
         );
@@ -322,10 +323,11 @@ mod tests {
 
     #[test]
     fn test_acquire_only_concurrent_limit() {
-        let pool = Pool::new(
+        let mut pool = Pool::empty();
+        pool.extend(
             (vec![LimitItem {
-                name: "pc1",
-                concurrent: Some(&3),
+                name: "pc1".to_string(),
+                concurrent: Some(3),
                 staggered_interval: None,
             }])
             .into_iter(),
@@ -361,11 +363,12 @@ mod tests {
     #[test]
     fn test_acquire_only_staggered_limit() {
         let staggered_interval = ms(10);
-        let pool = Pool::new(
+        let mut pool = Pool::empty();
+        pool.extend(
             (vec![LimitItem {
-                name: "pc1",
+                name: "pc1".to_string(),
                 concurrent: None,
-                staggered_interval: Some(&staggered_interval),
+                staggered_interval: Some(staggered_interval),
             }])
             .into_iter(),
         );
@@ -401,11 +404,12 @@ mod tests {
     #[test]
     fn test_a_task_done_acquire() {
         let staggered_interval = ms(10);
-        let pool = Pool::new(
+        let mut pool = Pool::empty();
+        pool.extend(
             (vec![LimitItem {
-                name: "pc1",
+                name: "pc1".to_string(),
                 concurrent: None,
-                staggered_interval: Some(&staggered_interval),
+                staggered_interval: Some(staggered_interval),
             }])
             .into_iter(),
         );
@@ -436,10 +440,11 @@ mod tests {
 
     #[test]
     fn test_try_acquire() {
-        let pool = Pool::new(
+        let mut pool = Pool::empty();
+        pool.extend(
             (vec![LimitItem {
-                name: "pc1",
-                concurrent: Some(&1),
+                name: "pc1".to_string(),
+                concurrent: Some(1),
                 staggered_interval: None,
             }])
             .into_iter(),

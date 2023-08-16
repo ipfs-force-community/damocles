@@ -30,8 +30,8 @@ use crate::{
 
 use super::task::Task;
 
-pub fn add_pieces(task: &Task, deals: &Deals) -> Result<Vec<PieceInfo>, Failure> {
-    let _token = task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_ADD_PIECES).crit()?;
+pub(crate) fn add_pieces(task: &Task, deals: &Deals) -> Result<Vec<PieceInfo>, Failure> {
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_ADD_PIECES).crit()?;
 
     let seal_proof_type = task.sector_proof_type()?.into();
     let staged_filepath = task.staged_file(task.sector_id()?);
@@ -69,21 +69,24 @@ pub fn add_pieces(task: &Task, deals: &Deals) -> Result<Vec<PieceInfo>, Failure>
         .global
         .processors
         .add_pieces
-        .process(AddPiecesInput {
-            seal_proof_type,
-            pieces,
-            staged_filepath: staged_filepath.into(),
-        })
+        .process(
+            task.sealing_ctrl.ctrl_ctx(),
+            AddPiecesInput {
+                seal_proof_type,
+                pieces,
+                staged_filepath: staged_filepath.into(),
+            },
+        )
         .context("add pieces")
         .perm()
 }
 
 // build tree_d inside `prepare_dir` if necessary
-pub fn build_tree_d(task: &Task, allow_static: bool) -> Result<(), Failure> {
+pub(crate) fn build_tree_d(task: &Task, allow_static: bool) -> Result<(), Failure> {
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
 
-    let token = task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_TREED).crit()?;
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_TREED).crit()?;
 
     let prepared_dir = task.prepared_dir(sector_id);
     prepared_dir.prepare().perm()?;
@@ -110,14 +113,16 @@ pub fn build_tree_d(task: &Task, allow_static: bool) -> Result<(), Failure> {
         .global
         .processors
         .tree_d
-        .process(TreeDInput {
-            registered_proof: (*proof_type).into(),
-            staged_file: staged_file.into(),
-            cache_dir: prepared_dir.into(),
-        })
+        .process(
+            task.sealing_ctrl.ctrl_ctx(),
+            TreeDInput {
+                registered_proof: (*proof_type).into(),
+                staged_file: staged_file.into(),
+                cache_dir: prepared_dir.into(),
+            },
+        )
         .perm()?;
 
-    drop(token);
     Ok(())
 }
 
@@ -136,8 +141,8 @@ fn cleanup_before_pc1(cache_dir: &Entry, sealed_file: &Entry) -> Result<()> {
     Ok(())
 }
 
-pub fn pre_commit1(task: &Task) -> Result<(Ticket, SealPreCommitPhase1Output), Failure> {
-    let token = task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_PC1).crit()?;
+pub(crate) fn pre_commit1(task: &Task) -> Result<(Ticket, SealPreCommitPhase1Output), Failure> {
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_PC1).crit()?;
 
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
@@ -178,19 +183,21 @@ pub fn pre_commit1(task: &Task) -> Result<(Ticket, SealPreCommitPhase1Output), F
         .global
         .processors
         .pc1
-        .process(PC1Input {
-            registered_proof: (*proof_type).into(),
-            cache_path: cache_dir.into(),
-            in_path: staged_file.into(),
-            out_path: sealed_file.into(),
-            prover_id: prove_input.0,
-            sector_id: prove_input.1,
-            ticket: ticket.ticket.0,
-            piece_infos,
-        })
+        .process(
+            task.sealing_ctrl.ctrl_ctx(),
+            PC1Input {
+                registered_proof: (*proof_type).into(),
+                cache_path: cache_dir.into(),
+                in_path: staged_file.into(),
+                out_path: sealed_file.into(),
+                prover_id: prove_input.0,
+                sector_id: prove_input.1,
+                ticket: ticket.ticket.0,
+                piece_infos,
+            },
+        )
         .perm()?;
 
-    drop(token);
     Ok((ticket, out))
 }
 
@@ -214,8 +221,8 @@ fn cleanup_before_pc2(cache_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, Failure> {
-    let token = task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_PC2).crit()?;
+pub(crate) fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, Failure> {
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_PC2).crit()?;
 
     let sector_id = task.sector_id()?;
 
@@ -251,20 +258,22 @@ pub fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, Failure>
         .global
         .processors
         .pc2
-        .process(PC2Input {
-            pc1out,
-            cache_dir: cache_dir.into(),
-            sealed_file: sealed_file.into(),
-        })
+        .process(
+            task.sealing_ctrl.ctrl_ctx(),
+            PC2Input {
+                pc1out,
+                cache_dir: cache_dir.into(),
+                sealed_file: sealed_file.into(),
+            },
+        )
         .perm()?;
 
     fs::remove_file(pc2_running_file).context("remove pc2 running file").crit()?;
-    drop(token);
     Ok(out)
 }
 
-pub fn commit1_with_seed(task: &Task, seed: Seed) -> Result<SealCommitPhase1Output, Failure> {
-    let token = task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_C1).crit()?;
+pub(crate) fn commit1_with_seed(task: &Task, seed: Seed) -> Result<SealCommitPhase1Output, Failure> {
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_C1).crit()?;
 
     let sector_id = task.sector_id()?;
 
@@ -305,12 +314,11 @@ pub fn commit1_with_seed(task: &Task, seed: Seed) -> Result<SealCommitPhase1Outp
     )
     .perm()?;
 
-    drop(token);
     Ok(out)
 }
 
-pub fn snap_encode(task: &Task, sector_id: &SectorID, proof_type: &SealProof) -> Result<SnapEncodeOutput, Failure> {
-    let _token = task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_SNAP_ENCODE).crit()?;
+pub(crate) fn snap_encode(task: &Task, sector_id: &SectorID, proof_type: &SealProof) -> Result<SnapEncodeOutput, Failure> {
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_SNAP_ENCODE).crit()?;
 
     cloned_required!(piece_infos, task.sector.phases.pieces);
 
@@ -348,20 +356,23 @@ pub fn snap_encode(task: &Task, sector_id: &SectorID, proof_type: &SealProof) ->
         .global
         .processors
         .snap_encode
-        .process(SnapEncodeInput {
-            registered_proof: proof_type.into(),
-            new_replica_path: update_file.into(),
-            new_cache_path: update_cache_dir.into(),
-            sector_path: sealed_file.into(),
-            sector_cache_path: cache_dir.into(),
-            staged_data_path: staged_file.into(),
-            piece_infos,
-        })
+        .process(
+            task.sealing_ctrl.ctrl_ctx(),
+            SnapEncodeInput {
+                registered_proof: proof_type.into(),
+                new_replica_path: update_file.into(),
+                new_cache_path: update_cache_dir.into(),
+                sector_path: sealed_file.into(),
+                sector_cache_path: cache_dir.into(),
+                staged_data_path: staged_file.into(),
+                piece_infos,
+            },
+        )
         .perm()
 }
 
-pub fn snap_prove(task: &Task) -> Result<SnapProveOutput, Failure> {
-    let _token = task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_SNAP_PROVE).crit()?;
+pub(crate) fn snap_prove(task: &Task) -> Result<SnapProveOutput, Failure> {
+    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_SNAP_PROVE).crit()?;
 
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
@@ -391,13 +402,16 @@ pub fn snap_prove(task: &Task) -> Result<SnapProveOutput, Failure> {
         .global
         .processors
         .snap_prove
-        .process(SnapProveInput {
-            registered_proof: (*proof_type).into(),
-            vannilla_proofs: vannilla_proofs.into_iter().map(|b| b.0).collect(),
-            comm_r_old,
-            comm_r_new: encode_out.comm_r_new,
-            comm_d_new: encode_out.comm_d_new,
-        })
+        .process(
+            task.sealing_ctrl.ctrl_ctx(),
+            SnapProveInput {
+                registered_proof: (*proof_type).into(),
+                vannilla_proofs: vannilla_proofs.into_iter().map(|b| b.0).collect(),
+                comm_r_old,
+                comm_r_new: encode_out.comm_r_new,
+                comm_d_new: encode_out.comm_d_new,
+            },
+        )
         .perm()?;
 
     let verified =
@@ -412,7 +426,7 @@ pub fn snap_prove(task: &Task) -> Result<SnapProveOutput, Failure> {
 
 // acquire a persist store for sector files, copy the files and return the instance name of the
 // acquired store
-pub fn persist_sector_files(task: &Task, cache_dir: Entry, sealed_file: Entry) -> Result<String, Failure> {
+pub(crate) fn persist_sector_files(task: &Task, cache_dir: Entry, sealed_file: Entry) -> Result<String, Failure> {
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
     let sector_size = proof_type.sector_size();
@@ -506,14 +520,14 @@ pub fn persist_sector_files(task: &Task, cache_dir: Entry, sealed_file: Entry) -
         .global
         .processors
         .transfer
-        .process(transfer)
+        .process(task.sealing_ctrl.ctrl_ctx(), transfer)
         .context("transfer persist sector files")
         .perm()?;
 
     Ok(ins_name)
 }
 
-pub fn submit_persisted(task: &Task, is_upgrade: bool) -> Result<(), Failure> {
+pub(crate) fn submit_persisted(task: &Task, is_upgrade: bool) -> Result<(), Failure> {
     let sector_id = task.sector_id()?;
 
     field_required! {

@@ -26,6 +26,28 @@ pub trait Processor<T: Task>
 where
     Self: Send + Sync,
 {
+    /// Gets the Processor's name
+    fn name(&self) -> String;
     /// Process the given task.
     fn process(&self, task: T) -> Result<<T as Task>::Output>;
+}
+
+impl<T: Task, P: Processor<T>> Processor<T> for Box<P> {
+    fn name(&self) -> String {
+        (**self).name()
+    }
+
+    fn process(&self, task: T) -> Result<<T as Task>::Output> {
+        (**self).process(task)
+    }
+}
+
+impl<T: Task> Processor<T> for Box<dyn Processor<T>> {
+    fn name(&self) -> String {
+        (**self).name()
+    }
+
+    fn process(&self, task: T) -> Result<<T as Task>::Output> {
+        (**self).process(task)
+    }
 }

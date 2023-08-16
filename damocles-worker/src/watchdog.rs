@@ -6,6 +6,7 @@ use std::thread;
 use anyhow::{anyhow, Result};
 use crossbeam_channel::{bounded, Receiver, Select, Sender};
 use tokio::runtime::Runtime;
+use vc_processors::core::Processor;
 
 use crate::{
     config::Config,
@@ -14,10 +15,10 @@ use crate::{
     rpc::sealer::SealerClient,
     sealing::{
         processor::{
-            ArcAddPiecesProcessor, ArcC2Processor, ArcPC1Processor, ArcPC2Processor, ArcSnapEncodeProcessor, ArcSnapProveProcessor,
-            ArcTransferProcessor, ArcTreeDProcessor, ArcUnsealProcessor, ArcWdPostProcessor,
+            self, external::Proc as ExtProc, AddPiecesInput, C2Input, NoLockProcessor, PC1Input, PC2Input, SnapEncodeInput, SnapProveInput,
+            TransferInput, TreeDInput, UnsealInput, WindowPoStInput,
         },
-        resource::Pool,
+        CtrlProcessor,
     },
 };
 
@@ -29,7 +30,7 @@ pub fn dones() -> (Sender<()>, Receiver<()>) {
 pub type Done = Receiver<()>;
 
 #[derive(Clone)]
-pub struct Ctx {
+pub(crate) struct Ctx {
     pub done: Done,
     pub cfg: Arc<Config>,
     pub instance: String,
@@ -38,30 +39,31 @@ pub struct Ctx {
 }
 
 #[derive(Clone)]
-pub struct GlobalModules {
+pub(crate) struct GlobalModules {
     pub rpc: Arc<SealerClient>,
     pub attached: Arc<AttachedManager>,
-    pub processors: GlobalProcessors,
+    pub processors: Arc<GlobalProcessors>,
     pub static_tree_d: HashMap<u64, PathBuf>,
-    pub limit: Arc<Pool>,
-    pub ext_locks: Arc<Pool>,
     pub rt: Arc<Runtime>,
     pub piece_store: Arc<dyn PieceStore>,
     pub remote_piece_store: Arc<dyn PieceStore>,
 }
 
-#[derive(Clone)]
-pub struct GlobalProcessors {
-    pub add_pieces: ArcAddPiecesProcessor,
-    pub tree_d: ArcTreeDProcessor,
-    pub pc1: ArcPC1Processor,
-    pub pc2: ArcPC2Processor,
-    pub c2: ArcC2Processor,
-    pub snap_encode: ArcSnapEncodeProcessor,
-    pub snap_prove: ArcSnapProveProcessor,
-    pub transfer: ArcTransferProcessor,
-    pub unseal: ArcUnsealProcessor,
-    pub window_post: ArcWdPostProcessor,
+pub type ThreadProc<T> = NoLockProcessor<Box<dyn Processor<T>>>;
+pub type CtrlProc<T, LP> = CtrlProcessor<T, Box<dyn Processor<T>>, LP>;
+pub(crate) type Proc<T> = CtrlProc<T, processor::Either<ExtProc<T>, ThreadProc<T>>>;
+
+pub(crate) struct GlobalProcessors {
+    pub add_pieces: Proc<AddPiecesInput>,
+    pub tree_d: Proc<TreeDInput>,
+    pub pc1: Proc<PC1Input>,
+    pub pc2: Proc<PC2Input>,
+    pub c2: Proc<C2Input>,
+    pub snap_encode: Proc<SnapEncodeInput>,
+    pub snap_prove: Proc<SnapProveInput>,
+    pub transfer: Proc<TransferInput>,
+    pub unseal: Proc<UnsealInput>,
+    pub window_post: Proc<WindowPoStInput>,
 }
 
 impl Module for Box<dyn Module> {
@@ -78,13 +80,13 @@ impl Module for Box<dyn Module> {
     }
 }
 
-pub trait Module: Send {
+pub(crate) trait Module: Send {
     fn id(&self) -> String;
     fn run(&mut self, ctx: Ctx) -> Result<()>;
     fn should_wait(&self) -> bool;
 }
 
-pub struct WatchDog {
+pub(crate) struct WatchDog {
     pub ctx: Ctx,
     done_ctrl: Option<Sender<()>>,
     modules: Vec<(String, bool, thread::JoinHandle<()>, Receiver<Result<()>>)>,

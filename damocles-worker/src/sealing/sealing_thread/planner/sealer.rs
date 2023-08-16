@@ -14,7 +14,7 @@ use crate::sealing::failure::*;
 use crate::sealing::processor::{clear_cache, C2Input};
 
 #[derive(Default)]
-pub struct SealerPlanner;
+pub(crate) struct SealerPlanner;
 
 impl PlannerTrait for SealerPlanner {
     type Job = Task;
@@ -388,7 +388,7 @@ impl<'t> Sealer<'t> {
     }
 
     fn handle_c1_done(&self) -> Result<Event, Failure> {
-        let token = self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_C2).crit()?;
+        let _token = self.task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_C2).crit()?;
 
         let miner_id = self.task.sector_id()?.miner;
 
@@ -411,15 +411,17 @@ impl<'t> Sealer<'t> {
             .global
             .processors
             .c2
-            .process(C2Input {
-                c1out,
-                prover_id,
-                sector_id,
-                miner_id,
-            })
+            .process(
+                self.task.sealing_ctrl.ctrl_ctx(),
+                C2Input {
+                    c1out,
+                    prover_id,
+                    sector_id,
+                    miner_id,
+                },
+            )
             .perm()?;
 
-        drop(token);
         Ok(Event::C2(out))
     }
 

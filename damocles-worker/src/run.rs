@@ -13,7 +13,9 @@ use reqwest::Url;
 use tokio::runtime::Builder;
 use vc_processors::builtin::processors::BuiltinProcessor;
 
+use crate::limit::{SealingLimit, SealingLimitBuilder};
 use crate::sealing::build_sealing_threads;
+use crate::sealing::processor::{Either, NoLockProcessor};
 use crate::{
     config,
     infra::{
@@ -22,15 +24,11 @@ use crate::{
     },
     logging::{info, warn},
     rpc::sealer::SealerClient,
-    sealing::{
-        ping, processor,
-        resource::{self, LimitItem},
-        service,
-    },
+    sealing::{ping, processor, resource::LimitItem, service},
     signal::Signal,
     types::SealProof,
     util::net::{local_interface_ip, rpc_addr},
-    watchdog::{GlobalModules, GlobalProcessors, WatchDog},
+    watchdog::{CtrlProc, GlobalModules, GlobalProcessors, WatchDog},
 };
 
 /// start a normal damocles-worker daemon
@@ -118,7 +116,9 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
 
     let attached_mgr = AttachedManager::init(attached).context("init attached manager")?;
 
-    let sealing_threads = build_sealing_threads(&cfg.sealing_thread, &cfg.sealing).context("build sealing thread")?;
+    let limit = Arc::new(build_limit(&cfg));
+
+    let sealing_threads = build_sealing_threads(&cfg.sealing_thread, &cfg.sealing, limit.clone()).context("build sealing thread")?;
 
     let socket_addrs = Url::parse(&dial_addr)
         .with_context(|| format!("invalid url: {}", dial_addr))?
@@ -169,22 +169,14 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
 
     let remote_piece_store = Arc::new(remote_piece_store);
 
-    let ext_locks = Arc::new(create_resource_pool(&cfg.processors.ext_locks, &None));
-
-    let processors = start_processors(&cfg, &ext_locks).context("start processors")?;
-
+    let processors = start_processors(&cfg, limit).context("start processors")?;
     let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
     let rt = Arc::new(runtime);
     let global = GlobalModules {
         rpc: Arc::new(rpc_client),
         attached: Arc::new(attached_mgr),
-        processors,
-        limit: Arc::new(create_resource_pool(
-            cfg.processors.limitation_concurrent(),
-            &cfg.processors.limitation.staggered,
-        )),
-        ext_locks,
+        processors: Arc::new(processors),
         static_tree_d,
         rt: rt.clone(),
         piece_store,
@@ -221,26 +213,32 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
     Ok(())
 }
 
-fn create_resource_pool(
-    concurrent_limit_opt: &Option<HashMap<String, usize>>,
-    staggered_limit_opt: &Option<HashMap<String, config::SerdeDuration>>,
-) -> resource::Pool {
-    resource::Pool::new(merge_limit_config(concurrent_limit_opt, staggered_limit_opt))
+fn build_limit(cfg: &config::Config) -> SealingLimit {
+    let mut limit_builder = SealingLimitBuilder::new();
+    if let Some(ext_locks) = &cfg.processors.ext_locks {
+        limit_builder.extend_ext_locks_limit(ext_locks.clone().into_iter());
+    }
+    limit_builder.extend_stage_limits(merge_limit_config(
+        cfg.processors.limitation_concurrent().clone(),
+        cfg.processors.limitation.staggered.clone(),
+    ));
+
+    limit_builder.build()
 }
 
 #[inline]
-fn merge_limit_config<'a>(
-    concurrent_limit_opt: &'a Option<HashMap<String, usize>>,
-    staggered_limit_opt: &'a Option<HashMap<String, config::SerdeDuration>>,
-) -> impl Iterator<Item = LimitItem<'a>> {
+fn merge_limit_config(
+    concurrent_limit_opt: Option<HashMap<String, usize>>,
+    staggered_limit_opt: Option<HashMap<String, config::SerdeDuration>>,
+) -> impl Iterator<Item = LimitItem> {
     let concurrent_map_len = concurrent_limit_opt.as_ref().map(|x| x.len()).unwrap_or(0);
     let staggered_map_len = staggered_limit_opt.as_ref().map(|x| x.len()).unwrap_or(0);
-    let mut limits: HashMap<&str, LimitItem<'_>> = HashMap::with_capacity(concurrent_map_len.max(staggered_map_len));
+    let mut limits: HashMap<String, LimitItem> = HashMap::with_capacity(concurrent_map_len.max(staggered_map_len));
 
     if let Some(concurrent_limit) = concurrent_limit_opt {
         for (name, concurrent) in concurrent_limit {
             limits.insert(
-                name,
+                name.clone(),
                 LimitItem {
                     name,
                     concurrent: Some(concurrent),
@@ -253,12 +251,12 @@ fn merge_limit_config<'a>(
     if let Some(staggered_limit) = staggered_limit_opt {
         for (name, interval) in staggered_limit {
             limits
-                .entry(name)
-                .and_modify(|limit_item| limit_item.staggered_interval = Some(&interval.0))
+                .entry(name.clone())
+                .and_modify(|limit_item| limit_item.staggered_interval = Some(interval.0))
                 .or_insert_with(|| LimitItem {
                     name,
                     concurrent: None,
-                    staggered_interval: Some(&interval.0),
+                    staggered_interval: Some(interval.0),
                 });
         }
     }
@@ -284,48 +282,28 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
 }
 
 macro_rules! construct_sub_processor {
-    ($field:ident, $cfg:ident, $locks:ident) => {
-        if let Some(ext) = $cfg.processors.$field.as_ref() {
-            let proc = processor::external::ExtProcessor::build(ext, $locks.clone())?;
-            Arc::new(proc)
+    ($field:ident, $cfg:ident, $limit:ident) => {
+        CtrlProc::new(if let Some(ext) = $cfg.processors.$field.as_ref() {
+            let proc = processor::external::start_sub_processors(ext, $limit.clone())?;
+            Either::Left(proc)
         } else {
-            Arc::new(BuiltinProcessor::default())
-        }
+            Either::Right(NoLockProcessor::new(Box::<BuiltinProcessor>::default()))
+        })
     };
 }
 
-fn start_processors(cfg: &config::Config, locks: &Arc<resource::Pool>) -> Result<GlobalProcessors> {
-    let add_pieces: processor::ArcAddPiecesProcessor = construct_sub_processor!(add_pieces, cfg, locks);
-
-    let tree_d: processor::ArcTreeDProcessor = construct_sub_processor!(tree_d, cfg, locks);
-
-    let pc1: processor::ArcPC1Processor = construct_sub_processor!(pc1, cfg, locks);
-
-    let pc2: processor::ArcPC2Processor = construct_sub_processor!(pc2, cfg, locks);
-
-    let c2: processor::ArcC2Processor = construct_sub_processor!(c2, cfg, locks);
-
-    let snap_encode: processor::ArcSnapEncodeProcessor = construct_sub_processor!(snap_encode, cfg, locks);
-
-    let snap_prove: processor::ArcSnapProveProcessor = construct_sub_processor!(snap_prove, cfg, locks);
-
-    let transfer: processor::ArcTransferProcessor = construct_sub_processor!(transfer, cfg, locks);
-
-    let unseal: processor::ArcUnsealProcessor = construct_sub_processor!(unseal, cfg, locks);
-
-    let window_post: processor::ArcWdPostProcessor = construct_sub_processor!(window_post, cfg, locks);
-
+fn start_processors(cfg: &config::Config, limit: Arc<SealingLimit>) -> Result<GlobalProcessors> {
     Ok(GlobalProcessors {
-        add_pieces,
-        tree_d,
-        pc1,
-        pc2,
-        c2,
-        snap_encode,
-        snap_prove,
-        transfer,
-        unseal,
-        window_post,
+        add_pieces: construct_sub_processor!(add_pieces, cfg, limit),
+        tree_d: construct_sub_processor!(tree_d, cfg, limit),
+        pc1: construct_sub_processor!(pc1, cfg, limit),
+        pc2: construct_sub_processor!(pc2, cfg, limit),
+        c2: construct_sub_processor!(c2, cfg, limit),
+        snap_encode: construct_sub_processor!(snap_encode, cfg, limit),
+        snap_prove: construct_sub_processor!(snap_prove, cfg, limit),
+        transfer: construct_sub_processor!(transfer, cfg, limit),
+        unseal: construct_sub_processor!(unseal, cfg, limit),
+        window_post: construct_sub_processor!(window_post, cfg, limit),
     })
 }
 
@@ -398,20 +376,20 @@ mod tests {
                     .map(|(name, dur)| (name.to_string(), SerdeDuration(parse_duration(dur).unwrap())))
                     .collect()
             });
-            let merged = merge_limit_config(&concurrent_limit_map_opt, &staggered_limit_map_opt);
+            let merged = merge_limit_config(concurrent_limit_map_opt.clone(), staggered_limit_map_opt.clone());
 
             let mut expect = result
                 .iter()
                 .map(|x| LimitItem {
-                    name: x.0,
-                    concurrent: x.1.as_ref(),
-                    staggered_interval: x.2.as_ref(),
+                    name: x.0.to_string(),
+                    concurrent: x.1,
+                    staggered_interval: x.2,
                 })
                 .collect::<Vec<_>>();
             let mut actual = merged.collect::<Vec<_>>();
 
-            expect.sort_by(|x, y| x.name.cmp(y.name));
-            actual.sort_by(|x, y| x.name.cmp(y.name));
+            expect.sort_by(|x, y| x.name.cmp(&y.name));
+            actual.sort_by(|x, y| x.name.cmp(&y.name));
 
             assert_eq!(
                 format!("{:?}", actual),

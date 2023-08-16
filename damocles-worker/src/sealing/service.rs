@@ -6,10 +6,10 @@ use crossbeam_channel::select;
 use jsonrpc_core::{Error, IoHandler, Result};
 use jsonrpc_http_server::ServerBuilder;
 
-use super::sealing_thread::Ctrl;
+use super::sealing_thread::{self, Ctrl};
 
 use crate::logging::{error, info};
-use crate::rpc::worker::{Worker, WorkerInfo};
+use crate::rpc::worker::{SealingThreadState, Worker, WorkerInfo};
 use crate::watchdog::{Ctx, Module};
 
 struct ServiceImpl {
@@ -29,8 +29,8 @@ impl Worker for ServiceImpl {
     fn worker_list(&self) -> Result<Vec<WorkerInfo>> {
         self.ctrls
             .iter()
-            .map(|(idx, ctrl)| {
-                let (state, stage, job_id, plan, last_error, paused_at) = ctrl
+            .map(|(idx, ctrl)| -> std::result::Result<WorkerInfo, Error> {
+                let (job_state, job_stage, job_id, plan, last_error, sealing_thread_state) = ctrl
                     .load_state(|cst| {
                         (
                             cst.job.state.clone(),
@@ -38,7 +38,7 @@ impl Worker for ServiceImpl {
                             cst.job.id.to_owned(),
                             cst.job.plan.clone(),
                             cst.job.last_error.to_owned(),
-                            cst.paused_at.to_owned(),
+                            cst.state.clone(),
                         )
                     })
                     .map_err(|e| {
@@ -56,10 +56,21 @@ impl Worker for ServiceImpl {
                     plan,
                     job_id,
                     index: *idx,
-                    paused: paused_at.is_some(),
-                    paused_elapsed: paused_at.map(|ins| ins.elapsed().as_secs()),
-                    state: state.unwrap_or(String::new()),
-                    stage,
+                    thread_state: match sealing_thread_state {
+                        sealing_thread::SealingThreadState::Idle => SealingThreadState::Idle,
+                        sealing_thread::SealingThreadState::PausedAt(at) => SealingThreadState::Paused {
+                            elapsed: at.elapsed().as_secs(),
+                        },
+                        sealing_thread::SealingThreadState::Running { at, proc } => SealingThreadState::Running {
+                            elapsed: at.elapsed().as_secs(),
+                            proc,
+                        },
+                        sealing_thread::SealingThreadState::WaitAt(at) => SealingThreadState::Waiting {
+                            elapsed: at.elapsed().as_secs(),
+                        },
+                    },
+                    job_state: job_state.unwrap_or(String::new()),
+                    job_stage,
                     last_error,
                 })
             })

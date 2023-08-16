@@ -8,7 +8,7 @@ pub(crate) mod task;
 use std::{pin::Pin, str::FromStr};
 
 use anyhow::{Context, Result};
-pub use sealing::*;
+pub(crate) use sealing::*;
 
 use crate::{
     rpc::sealer::{SectorFailure, SectorStateChange},
@@ -24,7 +24,7 @@ use self::{event::Event, sector::State, task::Task};
 
 use super::PlannerTrait;
 
-pub struct CommonSealer<P> {
+pub(crate) struct CommonSealer<P> {
     job: Task,
     planner: P,
     _store: Pin<Box<Store>>,
@@ -220,6 +220,7 @@ where
             .sealing_ctrl
             .ctrl_ctx()
             .update_state(|cst| {
+                cst.job.id = self.job.sector.base.as_ref().map(|x| x.allocated.id.to_string());
                 let _ = cst.job.state.replace(self.job.sector.state.as_str().to_string());
                 let _ = cst.job.stage.replace(self.job.sector.state.stage(self.job.planner()).to_string());
             })

@@ -25,7 +25,7 @@ use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, EnvFilter};
 use vc_processors::{
     builtin::tasks::TreeD,
     core::{
-        ext::{run_consumer, ProducerBuilder, Request},
+        ext::{run_consumer, ProducerBuilder},
         Processor, Task,
     },
     fil_proofs::RegisteredSealProof,
@@ -35,6 +35,10 @@ use vc_processors::{
 struct TreeDProc;
 
 impl Processor<TreeD> for TreeDProc {
+    fn name(&self) -> String {
+        "tree-d proc".to_string()
+    }
+
     fn process(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {
         info!(dir = ?task.cache_dir, "process tree_d task");
         std::thread::sleep(Duration::from_secs(3));
@@ -63,15 +67,8 @@ fn main() -> Result<()> {
 
 fn run_main() -> Result<()> {
     let _span = warn_span!("parent", pid = std::process::id()).entered();
-    let producer = ProducerBuilder::<_, _>::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
+    let producer = ProducerBuilder::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
         .stable_timeout(Duration::from_secs(5))
-        .hook_prepare(move |_: &Request<TreeD>| -> Result<()> {
-            info!("token acquired");
-            Ok(())
-        })
-        .hook_finalize(move |_: &Request<TreeD>| {
-            info!("do nothing");
-        })
         .spawn::<TreeD>()
         .context("build producer")?;
 

@@ -24,7 +24,7 @@ use vc_processors::{
 use crate::sealing::processor::{TransferInput, TransferItem, TransferRoute, TransferStoreInfo};
 
 #[derive(Default)]
-pub struct UnsealPlanner;
+pub(crate) struct UnsealPlanner;
 
 impl PlannerTrait for UnsealPlanner {
     type Job = Task;
@@ -110,7 +110,7 @@ impl<'t> Unseal<'t> {
 
     fn unseal(&self) -> Result<Event, Failure> {
         // query token
-        let _token = self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_UNSEAL).crit()?;
+        let _token = self.task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_UNSEAL).crit()?;
 
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
@@ -170,18 +170,21 @@ impl<'t> Unseal<'t> {
             .global
             .processors
             .unseal
-            .process(UnsealInput {
-                registered_proof: (*proof_type).into(),
-                prover_id,
-                sector_id,
-                comm_d: unseal_info.comm_d,
-                ticket: ticket.ticket.0,
-                cache_dir: cache_path,
-                sealed_file: sealed_path,
-                unsealed_output: piece_file.into(),
-                offset: UnpaddedByteIndex(unseal_info.offset),
-                num_bytes: UnpaddedBytesAmount(unseal_info.size),
-            })
+            .process(
+                self.task.sealing_ctrl.ctrl_ctx(),
+                UnsealInput {
+                    registered_proof: (*proof_type).into(),
+                    prover_id,
+                    sector_id,
+                    comm_d: unseal_info.comm_d,
+                    ticket: ticket.ticket.0,
+                    cache_dir: cache_path,
+                    sealed_file: sealed_path,
+                    unsealed_output: piece_file.into(),
+                    offset: UnpaddedByteIndex(unseal_info.offset),
+                    num_bytes: UnpaddedBytesAmount(unseal_info.size),
+                },
+            )
             .perm()?;
 
         debug!(
@@ -194,7 +197,7 @@ impl<'t> Unseal<'t> {
     }
 
     fn upload_piece(&self) -> Result<Event, Failure> {
-        let _token = self.task.sealing_ctrl.ctx().global.limit.acquire(STAGE_NAME_TRANSFER).crit()?;
+        let _token = self.task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_TRANSFER).crit()?;
 
         let sector_id = self.task.sector_id()?;
 
@@ -334,7 +337,7 @@ impl<'t> Unseal<'t> {
                                 .global
                                 .processors
                                 .transfer
-                                .process(transfer)
+                                .process(self.task.sealing_ctrl.ctrl_ctx(), transfer)
                                 .context("link unseal sector files")
                                 .perm()?;
                         }

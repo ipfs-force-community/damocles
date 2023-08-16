@@ -10,7 +10,7 @@ use crate::rpc::sealer::{AllocateSectorSpec, Seed};
 use crate::sealing::failure::*;
 
 #[derive(Default)]
-pub struct RebuildPlanner;
+pub(crate) struct RebuildPlanner;
 
 impl PlannerTrait for RebuildPlanner {
     type Job = Task;

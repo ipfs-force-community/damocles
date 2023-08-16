@@ -27,7 +27,7 @@ const SECTOR_INFO_KEY: &str = "info";
 const SECTOR_META_PREFIX: &str = "meta";
 const SECTOR_TRACE_PREFIX: &str = "trace";
 
-pub struct Task {
+pub(crate) struct Task {
     pub sector: Saved<Sector, &'static str, PrefixedMetaDB<&'static RocksMeta>>,
     _trace: Vec<Trace>,
 
