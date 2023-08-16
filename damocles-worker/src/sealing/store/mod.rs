@@ -1,6 +1,6 @@
 //! definition of the sealing store
 
-use std::fs::{create_dir_all, read_dir, remove_dir_all};
+use std::fs::{create_dir, create_dir_all, read_dir, remove_dir_all};
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
@@ -73,12 +73,21 @@ pub struct Store {
 
 impl Store {
     /// initialize the store at given location
-    pub fn init<P: AsRef<Path>>(loc: P) -> Result<Location> {
+    pub fn init<P: AsRef<Path>>(loc: P, create_parents: bool) -> Result<Location> {
         let location = Location(loc.as_ref().to_owned());
-        create_dir_all(&location)?;
+
+        if create_parents {
+            create_dir_all(&location)?;
+        } else {
+            create_dir(&location)?;
+        }
 
         let data_path = location.data_path();
-        create_dir_all(data_path)?;
+        if create_parents {
+            create_dir_all(data_path)?;
+        } else {
+            create_dir(data_path)?;
+        }
 
         let _holder = PlaceHolder::init(loc)?;
 
