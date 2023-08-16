@@ -137,12 +137,7 @@ pub struct WaitGuard<T> {
 
 impl<T> Drop for WaitGuard<T> {
     fn drop(&mut self) {
-        match self.state.read().unwrap().state {
-            SealingThreadState::Idle => {}
-            _ => {
-                self.state.write().unwrap().state = SealingThreadState::Idle;
-            }
-        }
+        self.state.write().unwrap().state = SealingThreadState::Idle;
     }
 }
 
@@ -177,6 +172,8 @@ where
             at: Instant::now(),
             proc: guard.name(),
         };
-        guard.process(task)
+        let res = guard.process(task);
+        ctx.state.write().unwrap().state = SealingThreadState::Idle;
+        res
     }
 }

@@ -27,7 +27,7 @@ pub struct BuiltinProcessor;
 
 impl Processor<AddPieces> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin AddPieces".to_string()
     }
 
     fn process(&self, task: AddPieces) -> Result<<AddPieces as Task>::Output> {
@@ -62,7 +62,7 @@ impl Processor<AddPieces> for BuiltinProcessor {
 
 impl Processor<TreeD> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin TreeD".to_string()
     }
 
     fn process(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {
@@ -72,7 +72,7 @@ impl Processor<TreeD> for BuiltinProcessor {
 
 impl Processor<PC1> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin PC1".to_string()
     }
 
     fn process(&self, task: PC1) -> Result<<PC1 as Task>::Output> {
@@ -91,7 +91,7 @@ impl Processor<PC1> for BuiltinProcessor {
 
 impl Processor<PC2> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin PC2".to_string()
     }
 
     fn process(&self, task: PC2) -> Result<<PC2 as Task>::Output> {
@@ -101,7 +101,7 @@ impl Processor<PC2> for BuiltinProcessor {
 
 impl Processor<C2> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin C2".to_string()
     }
 
     fn process(&self, task: C2) -> Result<<C2 as Task>::Output> {
@@ -111,7 +111,7 @@ impl Processor<C2> for BuiltinProcessor {
 
 impl Processor<SnapEncode> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin SnapEncode".to_string()
     }
 
     fn process(&self, task: SnapEncode) -> Result<<SnapEncode as Task>::Output> {
@@ -129,7 +129,7 @@ impl Processor<SnapEncode> for BuiltinProcessor {
 
 impl Processor<SnapProve> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin SnapProve".to_string()
     }
 
     fn process(&self, task: SnapProve) -> Result<<SnapProve as Task>::Output> {
@@ -145,7 +145,7 @@ impl Processor<SnapProve> for BuiltinProcessor {
 
 impl Processor<Transfer> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin Transfer".to_string()
     }
 
     fn process(&self, task: Transfer) -> Result<<Transfer as Task>::Output> {
@@ -157,7 +157,7 @@ impl Processor<Transfer> for BuiltinProcessor {
 
 impl Processor<WindowPoSt> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin WindowPoSt".to_string()
     }
 
     fn process(&self, task: WindowPoSt) -> Result<<WindowPoSt as Task>::Output> {
@@ -188,7 +188,7 @@ impl Processor<WindowPoSt> for BuiltinProcessor {
 
 impl Processor<WinningPoSt> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin WinningPoSt".to_string()
     }
 
     fn process(&self, task: WinningPoSt) -> Result<<WinningPoSt as Task>::Output> {
@@ -207,7 +207,7 @@ impl Processor<WinningPoSt> for BuiltinProcessor {
 
 impl Processor<Unseal> for BuiltinProcessor {
     fn name(&self) -> String {
-        "builtin".to_string()
+        "builtin Unseal".to_string()
     }
 
     fn process(&self, task: Unseal) -> Result<<Unseal as Task>::Output> {
