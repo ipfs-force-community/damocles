@@ -9,7 +9,7 @@ use crossbeam_channel::{select, TryRecvError};
 use crate::config::{Sealing, SealingOptional};
 use crate::limit::SealingLimit;
 use crate::logging::{error, info, warn};
-use crate::store::Location;
+use crate::store::{Location, Store};
 use crate::watchdog::{Ctx, Module};
 
 use super::config::{merge_sealing_fields, Config};
@@ -273,7 +273,14 @@ pub(crate) fn build_sealing_threads(
 
         let loc = match &scfg.location {
             Some(loc) => {
-                let store_path = PathBuf::from(loc)
+                let store_path = PathBuf::from(loc);
+
+                if !store_path.exists() {
+                    Store::init(&store_path, false).with_context(|| format!("init store path: {}", store_path.display()))?;
+                    info!(loc = ?store_path, "store initialized");
+                }
+
+                let store_path = store_path
                     .canonicalize()
                     .with_context(|| format!("canonicalize store path {}", loc))?;
                 if path_set.contains(&store_path) {
@@ -281,6 +288,7 @@ pub(crate) fn build_sealing_threads(
                     continue;
                 }
                 path_set.insert(store_path.clone());
+
                 Some(Location::new(store_path))
             }
             None => None,

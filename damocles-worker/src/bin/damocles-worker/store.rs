@@ -59,7 +59,7 @@ pub(crate) fn run(cmd: &StoreCommand) -> Result<()> {
     match cmd {
         StoreCommand::SealingInit { location } => {
             for loc in location {
-                match Store::init(loc) {
+                match Store::init(loc, true) {
                     Ok(l) => info!(loc = ?l, "store initialized"),
                     Err(e) => error!(
                         loc = ?loc.display(),
