@@ -7,6 +7,7 @@ pub const PLANNER_NAME_REBUILD: &str = "rebuild";
 pub const PLANNER_NAME_UNSEAL: &str = "unseal";
 pub const PLANNER_NAME_WDPOST: &str = "wdpost";
 
+mod batch;
 mod common;
 mod rebuild;
 mod sealer;
