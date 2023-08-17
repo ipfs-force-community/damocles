@@ -12,6 +12,10 @@ use super::TransferRoute;
 mod tests;
 
 pub fn do_transfer(route: &TransferRoute) -> Result<()> {
+    do_transfer_inner(route, false)
+}
+
+pub fn do_transfer_inner(route: &TransferRoute, disable_link: bool) -> Result<()> {
     if route.src.uri.is_relative() {
         return Err(anyhow!("src path is relative"));
     }
@@ -39,10 +43,12 @@ pub fn do_transfer(route: &TransferRoute) -> Result<()> {
         }
     }
 
-    if let Some(true) = route.opt.as_ref().map(|opt| opt.allow_link) {
-        link_entry(&route.src.uri, &route.dest.uri).context("link entry")?;
-        info!(src=?&route.src.uri, dest=?&route.dest.uri, "entry linked");
-        return Ok(());
+    if !disable_link {
+        if let Some(true) = route.opt.as_ref().map(|opt| opt.allow_link) {
+            link_entry(&route.src.uri, &route.dest.uri).context("link entry")?;
+            info!(src=?&route.src.uri, dest=?&route.dest.uri, "entry linked");
+            return Ok(());
+        }
     }
 
     if src_is_dir {
