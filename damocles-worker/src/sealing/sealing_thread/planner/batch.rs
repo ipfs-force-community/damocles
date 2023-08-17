@@ -123,21 +123,24 @@ impl BatchSealer<'_> {
     }
 
     pub fn acquire_deals(&self, index: usize) -> Result<Event, Failure> {
+        let disable_cc = self.job.sealing_ctrl.config().disable_cc;
+
         if !self.job.sealing_ctrl.config().enable_deals {
-            return Ok(if self.job.sealing_ctrl.config().disable_cc {
+            return Ok(if disable_cc {
                 Event::Idle
             } else {
-                Event::AcquireDeals { index, deals: None }
+                Event::AcquireDeals {
+                    index: self.job.sectors.len(),
+                    deals: None,
+                }
             });
         }
-        let disable_cc = self.job.sealing_ctrl.config().disable_cc;
         let spec = AcquireDealsSpec {
             max_deals: self.job.sealing_ctrl.config().max_deals,
             min_used_space: self.job.sealing_ctrl.config().min_deal_space.map(|b| b.get_bytes() as usize),
         };
 
-        let sector = self.job.sectors.get_mut(index)?;
-
+        let sector = self.job.sectors.get_mut(index).context("sector index out of bounds").crit()?;
         let sector_id = sector.base.context("sector base required").crit()?.allocated.id;
 
         let deals = call_rpc! {
@@ -150,16 +153,22 @@ impl BatchSealer<'_> {
         let deals_count = deals.as_ref().map(|d| d.len()).unwrap_or(0);
 
         tracing::debug!(count = deals_count, "pieces acquired");
-        if disable_cc || deals_count > 0 {
-            sector.deals = deals;
-        }
+        Ok(if disable_cc || deals_count > 0 {
+            Event::AcquireDeals { index, deals }
+        } else {
+            Event::Idle
+        })
+    }
 
-        // Ok(if disable_cc || deals_count > 0 {
-        //     Event::AcquireDeals(deals)
-        // } else {
-        //     Event::Idle
-        // })
+    fn pc1(&self) -> Result<Event, Failure> {
+        todo!()
+    }
 
+    fn pc2(&self) -> Result<Event, Failure> {
+        todo!()
+    }
+
+    fn wait_seed(&self) -> Result<Event, Failure> {
         todo!()
     }
 }
