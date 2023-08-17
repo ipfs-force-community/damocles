@@ -381,12 +381,20 @@ func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (core.Pol
 }
 
 func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.ReportStateReq) (*core.SectorStateResp, error) {
-	if err := s.state.Update(ctx, sid, core.WorkerOnline, &req); err != nil {
-		return nil, sectorStateErr(err)
-	}
 	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
-		return nil, sectorStateErr(err)
+		if !errors.Is(err, kvstore.ErrKeyNotFound) {
+			return nil, sectorStateErr(err)
+		}
+
+		state, err = s.state.Load(ctx, sid, core.WorkerOffline)
+		if nil != err {
+			return nil, sectorStateErr(err)
+		}
+	} else {
+		if err := s.state.Update(ctx, sid, core.WorkerOnline, &req); err != nil {
+			return nil, sectorStateErr(err)
+		}
 	}
 
 	return &core.SectorStateResp{
