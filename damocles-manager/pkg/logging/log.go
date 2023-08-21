@@ -21,7 +21,6 @@ func Setup() {
 		_ = logging.SetLogLevel("*", "INFO")
 		_ = logging.SetLogLevel("dix", "INFO")
 		_ = logging.SetLogLevel("badger", "INFO")
-		_ = logging.SetLogLevel("kv", "INFO")
 		_ = logging.SetLogLevel("rpc", "INFO")
 
 		// copy from lotus
@@ -33,6 +32,9 @@ func Setup() {
 		_ = logging.SetLogLevel("stores", "DEBUG")
 		_ = logging.SetLogLevel("nat", "INFO")
 	}
+
+	// Always mute kv log
+	_ = logging.SetLogLevel("kv", "INFO")
 }
 
 func SetupForSub(system ...string) {
