@@ -26,7 +26,7 @@ type SealerAPIClient struct {
 	WaitSeed              func(context.Context, abi.SectorID) (WaitSeedResp, error)
 	SubmitProof           func(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error)
 	PollProofState        func(context.Context, abi.SectorID) (PollProofStateResp, error)
-	ReportState           func(context.Context, abi.SectorID, ReportStateReq) (Meta, error)
+	ReportState           func(context.Context, abi.SectorID, ReportStateReq) (*SectorStateResp, error)
 	ReportFinalized       func(context.Context, abi.SectorID) (Meta, error)
 	ReportAborted         func(context.Context, abi.SectorID, string) (Meta, error)
 	AllocateSanpUpSector  func(ctx context.Context, spec AllocateSnapUpSpec) (*AllocatedSnapUpSector, error)
@@ -72,7 +72,7 @@ var UnavailableSealerAPIClient = SealerAPIClient{
 	PollProofState: func(context.Context, abi.SectorID) (PollProofStateResp, error) {
 		panic("SealerAPI client unavailable")
 	},
-	ReportState: func(context.Context, abi.SectorID, ReportStateReq) (Meta, error) {
+	ReportState: func(context.Context, abi.SectorID, ReportStateReq) (*SectorStateResp, error) {
 		panic("SealerAPI client unavailable")
 	},
 	ReportFinalized: func(context.Context, abi.SectorID) (Meta, error) {

@@ -16,13 +16,17 @@ use super::config::{merge_sealing_fields, Config};
 use super::failure::*;
 
 mod planner;
+
 pub use planner::default_plan;
+
 pub mod entry;
 #[macro_use]
 mod util;
+
 use util::*;
 
 mod ctrl;
+
 use ctrl::*;
 pub use ctrl::{Ctrl, CtrlProcessor, SealingThreadState};
 

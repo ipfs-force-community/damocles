@@ -1,4 +1,5 @@
 #![deny(missing_docs)]
+#![allow(unused_imports)]
 //! damocles-worker is used to seal sectors based on local resources
 
 pub(crate) mod config;

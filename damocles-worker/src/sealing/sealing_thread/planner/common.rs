@@ -7,9 +7,10 @@ pub(crate) mod task;
 
 use std::{pin::Pin, str::FromStr};
 
-use anyhow::{Context, Result};
-pub(crate) use sealing::*;
+use anyhow::{anyhow, Context, Result};
+pub use sealing::*;
 
+use crate::sealing::failure::TaskAborted;
 use crate::{
     rpc::sealer::{SectorFailure, SectorStateChange},
     sealing::{
@@ -102,7 +103,7 @@ where
                 None
             };
 
-            if let Err(rerr) = self.job.report_state(
+            match self.job.report_state(
                 SectorStateChange {
                     prev: prev.as_str().to_owned(),
                     next: self.job.sector.state.as_str().to_owned(),
@@ -110,8 +111,20 @@ where
                 },
                 fail,
             ) {
-                tracing::error!("report state failed: {:?}", rerr);
-            };
+                Err(rerr) => {
+                    tracing::error!("report state failed: {:?}", rerr);
+                }
+                Ok(state) => {
+                    if state.finalized {
+                        tracing::warn!("cleanup aborted sector");
+                        self.job.finalize()?;
+                        match state.abort_reason {
+                            None => return Err(TaskAborted.into()),
+                            Some(reason) => return Err(Failure(Level::Abort, anyhow!(reason))),
+                        }
+                    }
+                }
+            }
 
             match handle_res {
                 Ok(Some(evt)) => {
