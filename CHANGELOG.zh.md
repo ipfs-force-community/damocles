@@ -1,6 +1,10 @@
 # Changelog
 
-#v0.8.0
+## v0.8.1
+- damocles-worker
+  - 修复 pc1 设置 cpuset 无效的 bug [#904](https://github.com/ipfs-force-community/damocles/pull/904)
+
+## v0.8.0
 - damocles-manager
   - snapdeal 分配订单根据扇区的过期时间筛选 [#885](https://github.com/ipfs-force-community/damocles/pull/885)
 
