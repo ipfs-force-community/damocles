@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"github.com/filecoin-project/go-state-types/abi"
@@ -34,12 +35,13 @@ var utilTestTestCmd = &cli.Command{
 		}
 
 		for i := 0; i < 10; i++ {
-			tk, err := rand.GetTicket(actx, ts.Key(), ts.Height(), abi.ActorID(4040))
+			tk, err := rand.GetTicket(actx, ts.Key(), ts.Height()-abi.ChainEpoch(i), abi.ActorID(4040))
 			if err != nil {
 				panic(err)
 			}
 
-			fmt.Printf("%s: %s\n", tk.Ticket, tk.Epoch)
+			fmt.Printf("%s: %s\n", hex.EncodeToString(tk.Ticket), tk.Epoch)
+
 		}
 		return nil
 	},
