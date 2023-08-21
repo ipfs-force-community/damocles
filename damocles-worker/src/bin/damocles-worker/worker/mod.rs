@@ -87,7 +87,7 @@ pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
                     wi.job_state.as_str(),
                     wi.job_stage.as_deref().unwrap_or("-"),
                     wi.thread_state,
-                    wi.last_error.as_deref().unwrap_or("-")
+                    wi.last_error.as_deref().unwrap_or("-").escape_debug()
                 ));
             }
             let _ = tw.flush();

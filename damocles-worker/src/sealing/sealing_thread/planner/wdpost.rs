@@ -458,7 +458,7 @@ impl WdPost<'_> {
 
         let (out, error_reason) = match result {
             Ok(out) => (Some(out.clone()), String::new()),
-            Err(err) => (None, err.to_string()),
+            Err(err) => (None, err.escape_debug().to_string()),
         };
 
         call_rpc!(self.job.sealing_ctrl.ctx().global.rpc => wdpost_finish(job_id, out, error_reason,))?;
