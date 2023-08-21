@@ -25,6 +25,7 @@ type DealManager interface {
 type CommitmentManager interface {
 	SubmitPreCommit(context.Context, abi.SectorID, PreCommitInfo, bool) (SubmitPreCommitResp, error)
 	PreCommitState(context.Context, abi.SectorID) (PollPreCommitStateResp, error)
+	// PreCommitStateBatch(ctx context.Context, minerID abi.ActorID, numbers []abi.SectorNumber) (map[abi.SectorNumber]PollPreCommitStateResp, error)
 
 	SubmitProof(context.Context, abi.SectorID, ProofInfo, bool) (SubmitProofResp, error)
 	ProofState(context.Context, abi.SectorID) (PollProofStateResp, error)
