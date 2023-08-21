@@ -40,8 +40,14 @@ var utilTestTestCmd = &cli.Command{
 				panic(err)
 			}
 
-			fmt.Printf("%s: %s\n", hex.EncodeToString(tk.Ticket), tk.Epoch)
+			fmt.Printf("ticket: %s, %s\n", hex.EncodeToString(tk.Ticket), tk.Epoch)
 
+			seed, err := rand.GetSeed(actx, ts.Key(), ts.Height()-abi.ChainEpoch(i), abi.ActorID(4040))
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Printf("seed: %s, %s\n", hex.EncodeToString(seed.Seed), seed.Epoch)
 		}
 		fmt.Println()
 		for i := 0; i < 10; i++ {
@@ -50,8 +56,14 @@ var utilTestTestCmd = &cli.Command{
 				panic(err)
 			}
 
-			fmt.Printf("%s: %s\n", hex.EncodeToString(tk.Ticket), tk.Epoch)
+			fmt.Printf("ticket: %s, %s\n", hex.EncodeToString(tk.Ticket), tk.Epoch)
 
+			seed, err := rand.GetSeed(actx, ts.Key(), ts.Height()-abi.ChainEpoch(i), abi.ActorID(4040))
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Printf("seed: %s, %s\n", hex.EncodeToString(seed.Seed), seed.Epoch)
 		}
 		return nil
 	},
