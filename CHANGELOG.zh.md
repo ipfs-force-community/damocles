@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.2
+- damocles-worker
+  - transfer 外部执行器支持禁用软链接 [#901](https://github.com/ipfs-force-community/damocles/pull/901)
+
 ## v0.8.1
 - damocles-worker
   - 修复 pc1 设置 cpuset 无效的 bug [#904](https://github.com/ipfs-force-community/damocles/pull/904)
