@@ -202,10 +202,6 @@ impl TransferProcessor {
 }
 
 impl Processor<Transfer> for TransferProcessor {
-    fn name(&self) -> String {
-        "builtin Transfer".to_string()
-    }
-
     fn process(&self, task: Transfer) -> Result<<Transfer as Task>::Output> {
         task.routes
             .into_iter()
