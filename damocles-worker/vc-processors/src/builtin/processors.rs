@@ -189,3 +189,24 @@ impl Processor<Unseal> for BuiltinProcessor {
         )
     }
 }
+
+#[derive(Copy, Clone, Default, Debug)]
+pub struct TransferProcessor {
+    disable_link: bool,
+}
+
+impl TransferProcessor {
+    pub fn new(disable_link: bool) -> Self {
+        Self { disable_link }
+    }
+}
+
+impl Processor<Transfer> for TransferProcessor {
+    fn process(&self, task: Transfer) -> Result<<Transfer as Task>::Output> {
+        task.routes
+            .into_iter()
+            .try_for_each(|route| transfer::do_transfer_inner(&route, self.disable_link))?;
+
+        Ok(true)
+    }
+}

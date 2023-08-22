@@ -2,14 +2,14 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 use vc_processors::{
     builtin::{
-        processors::BuiltinProcessor,
+        processors::{BuiltinProcessor, TransferProcessor},
         tasks::{
             AddPieces, SnapEncode, SnapProve, Transfer, TreeD, WindowPoSt, WinningPoSt, C2, PC1, PC2, STAGE_NAME_ADD_PIECES, STAGE_NAME_C2,
             STAGE_NAME_PC1, STAGE_NAME_PC2, STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE, STAGE_NAME_TRANSFER, STAGE_NAME_TREED,
             STAGE_NAME_WINDOW_POST, STAGE_NAME_WINNING_POST,
         },
     },
-    core::ext::run_consumer,
+    core::ext::{run_consumer, run_consumer_with_proc},
 };
 
 #[derive(Subcommand)]
@@ -49,7 +49,10 @@ pub enum ProcessorCommand {
     #[command(name=STAGE_NAME_SNAP_PROVE)]
     SnapProve,
     #[command(name=STAGE_NAME_TRANSFER)]
-    Transfer,
+    Transfer {
+        #[arg(long, alias = "disable_link", env = "DISABLE_LINK")]
+        disable_link: bool,
+    },
     #[command(name=STAGE_NAME_WINDOW_POST)]
     WindowPoSt,
     #[command(name=STAGE_NAME_WINNING_POST)]
@@ -84,7 +87,10 @@ pub(crate) fn run(cmd: &ProcessorCommand) -> Result<()> {
         ProcessorCommand::C2 => run_consumer::<C2, BuiltinProcessor>(),
         ProcessorCommand::SnapEncode => run_consumer::<SnapEncode, BuiltinProcessor>(),
         ProcessorCommand::SnapProve => run_consumer::<SnapProve, BuiltinProcessor>(),
-        ProcessorCommand::Transfer => run_consumer::<Transfer, BuiltinProcessor>(),
+        ProcessorCommand::Transfer { disable_link } => {
+            tracing::debug!(disable_link = disable_link);
+            run_consumer_with_proc::<Transfer, _>(TransferProcessor::new(*disable_link))
+        }
         ProcessorCommand::WindowPoSt => run_consumer::<WindowPoSt, BuiltinProcessor>(),
         ProcessorCommand::WinningPoSt => run_consumer::<WinningPoSt, BuiltinProcessor>(),
     }
