@@ -3,7 +3,7 @@ use crossbeam_channel::{bounded, unbounded, Receiver, Sender};
 
 use crate::sealing::processor::LockProcessor;
 
-use super::weight::{TryLockProcessor, Weighted};
+use super::load::TryLockProcessor;
 
 pub struct Guard<G> {
     inner: G,
@@ -43,31 +43,25 @@ impl<P> Concurrent<P> {
 impl<P: LockProcessor> LockProcessor for Concurrent<P> {
     type Guard<'a> = Guard<P::Guard<'a>> where P: 'a;
 
-    fn lock(&self) -> Result<Self::Guard<'_>> {
-        let inner = self.inner.lock()?;
-        self.limit_tx.send(())?;
-        Ok(Guard {
+    fn lock(&self) -> Self::Guard<'_> {
+        let inner = self.inner.lock();
+        self.limit_tx.send(()).expect("limit channel never disconnect");
+        Guard {
             inner,
             limit_rx: self.limit_rx.clone(),
-        })
+        }
     }
 }
 
 impl<P: TryLockProcessor> TryLockProcessor for Concurrent<P> {
-    fn try_lock(&self) -> Result<Option<Self::Guard<'_>>> {
-        let inner = match self.inner.try_lock()? {
+    fn try_lock(&self) -> Option<Self::Guard<'_>> {
+        let inner = match self.inner.try_lock() {
             Some(inner) => inner,
-            None => return Ok(None),
+            None => return None,
         };
-        Ok(self.limit_tx.try_send(()).ok().map(|_| Guard {
+        self.limit_tx.try_send(()).ok().map(|_| Guard {
             inner,
             limit_rx: self.limit_rx.clone(),
-        }))
-    }
-}
-
-impl<P: Weighted> Weighted for Concurrent<P> {
-    fn weight(&self) -> u16 {
-        self.inner.weight()
+        })
     }
 }
