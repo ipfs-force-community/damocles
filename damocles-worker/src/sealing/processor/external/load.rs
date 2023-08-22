@@ -40,7 +40,6 @@ where
             .filter_map(|p| {
                 p.try_lock().map(|guard| {
                     let cap = p.max_concurrent().checked_sub(p.load()).unwrap_or(0);
-                    tracing::debug!("cap: {}", cap);
                     (guard, cap)
                 })
             })
@@ -50,7 +49,7 @@ where
             return self.inner.first().expect("no processors").lock();
         }
 
-        tracing::debug!("acquired: {:?}", acquired.iter().map(|(_, cap)| *cap).collect::<Vec<_>>());
+        tracing::trace!("acquired: {:?}", acquired.iter().map(|(_, cap)| *cap).collect::<Vec<_>>());
 
         let (mut selected, mut max_cap) = acquired.pop().unwrap();
 
@@ -60,7 +59,7 @@ where
                 max_cap = cap;
             }
         }
-        tracing::debug!("selected: {}", max_cap);
+        tracing::trace!("selected: {}", max_cap);
 
         selected
     }

@@ -11,7 +11,6 @@ use crate::sealing::processor::LockProcessor;
 const DEFAULT_CGROUP_GROUP_NAME: &str = "vc-worker";
 
 pub struct SubProcessor<I: Input> {
-    weight: u16,
     producer: Box<dyn Processor<I>>,
 }
 
@@ -61,7 +60,6 @@ impl<I: Input> SubProcessor<I> {
         let producer = builder.spawn::<I>().context("build ext producer")?;
 
         Ok(Self {
-            weight: sub_cfg.weight,
             producer: Box::new(producer),
         })
     }
