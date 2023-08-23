@@ -39,7 +39,7 @@ where
             .iter()
             .filter_map(|p| {
                 p.try_lock().map(|guard| {
-                    let cap = p.max_concurrent().checked_sub(p.load()).unwrap_or(0);
+                    let cap = p.max_concurrent().saturating_sub(p.load());
                     (guard, cap)
                 })
             })
