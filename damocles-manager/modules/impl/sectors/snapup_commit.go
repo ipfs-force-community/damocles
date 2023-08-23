@@ -625,7 +625,7 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 			errwg.Go(func() error {
 				delErr := store.Del(h.committer.ctx, uri)
 				if delErr == nil {
-					log.Debugf("CC data cleaned: %s", uri)
+					log.Debugf("CC data cleaned: %s, store: %s", uri, storeInstance)
 					return nil
 				}
 
