@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    ops::Add,
+    time::{Duration, Instant},
+};
 
 use anyhow::{anyhow, Context, Result};
 
@@ -65,6 +68,11 @@ pub enum State {
     Aborted,
 }
 
+enum MaybeSeed {
+    Got(Seed),
+    DelayTo(Instant),
+}
+
 pub enum Event {
     SetState(State),
     // No specified tasks available from sector_manager.
@@ -74,7 +82,7 @@ pub enum Event {
     SubmitPC { index: usize },
     ReSubmitPC { index: usize },
     CheckPC { index: usize },
-    AssignSeed { index: usize, seed: Seed, delay_to: Instant },
+    AssignSeed { index: usize, maybe_seed: MaybeSeed },
 }
 
 #[derive(Default)]
@@ -263,30 +271,30 @@ impl BatchSealer<'_> {
 
     fn wait_seed(&self, index: usize) -> Result<Event, Failure> {
         let sector = self.job.sectors.get(index).context("sector index out of bounds").crit()?;
-        let sector_id = sector.base.context("sector base required").crit()?.allocated.id;
-        let (seed, ) = loop {
-            let wait = call_rpc! {
-                self.job.rpc()=>wait_seed(sector_id, )
-            }?;
+        let sector_id = sector.base.as_ref().context("sector base required").crit()?.allocated.id.clone();
+        let wait = call_rpc! {
+            self.job.rpc()=>wait_seed(sector_id, )
+        }?;
 
-            if let Some(seed) = wait.seed {
-                break seed;
-            };
-
-            if !wait.should_wait || wait.delay == 0 {
-                return Err(anyhow!("invalid empty wait_seed response").temp());
+        let maybe_seed = match wait.seed {
+            Some(seed) => MaybeSeed::Got(seed),
+            None => {
+                if !wait.should_wait || wait.delay == 0 {
+                    return Err(anyhow!("invalid empty wait_seed response").temp());
+                }
+                MaybeSeed::DelayTo(Instant::now().add(Duration::from_micros(wait.delay)))
             }
-
-            let delay = Duration::from_secs(wait.delay);
-
-            // tracing::debug!(?delay, "waiting for next round of polling seed");
-            // self.job.sealing_ctrl.wait_or_interrupted(delay)?;
         };
 
-        Ok(Event::AssignSeed {
-            index,
+        Ok(Event::AssignSeed { index, maybe_seed })
+    }
+
+    fn commit1(&self) -> Result<Event, Failure> {
+        cloned_required! {
             seed,
-            delay_to: Instant::now().checked_add(delay.),
-        })
+            self.task.sector.phases.seed
+        }
+
+        common::commit1_with_seed(self.task, seed).map(Event::C1)
     }
 }
