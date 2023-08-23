@@ -7,7 +7,7 @@ use crate::{
     sealing::{processor::LockProcessor, resource},
 };
 
-use super::weight::{TryLockProcessor, Weighted};
+use super::load::TryLockProcessor;
 
 pub struct Guard<G> {
     inner: G,
@@ -37,38 +37,32 @@ impl<P> ExtLocks<P> {
 impl<P: LockProcessor> LockProcessor for ExtLocks<P> {
     type Guard<'a> = Guard<P::Guard<'a>> where P: 'a;
 
-    fn lock(&self) -> Result<Self::Guard<'_>> {
-        let inner = self.inner.lock()?;
+    fn lock(&self) -> Self::Guard<'_> {
+        let inner = self.inner.lock();
         let mut tokens = Vec::new();
         for lock_name in &self.locks {
             tracing::debug!(name = lock_name.as_str(), "acquiring ext lock");
-            tokens.push(self.limit.acquire_ext_lock(lock_name)?)
+            tokens.push(self.limit.acquire_ext_lock(lock_name).expect("acquire ext lock must ok"))
         }
-        Ok(Guard { inner, _tokens: tokens })
+        Guard { inner, _tokens: tokens }
     }
 }
 
 impl<P: TryLockProcessor> TryLockProcessor for ExtLocks<P> {
-    fn try_lock(&self) -> Result<Option<Self::Guard<'_>>> {
-        let inner = match self.inner.try_lock()? {
+    fn try_lock(&self) -> Option<Self::Guard<'_>> {
+        let inner = match self.inner.try_lock() {
             Some(inner) => inner,
-            None => return Ok(None),
+            None => return None,
         };
 
         let mut tokens = Vec::new();
         for lock_name in &self.locks {
             tracing::debug!(name = lock_name.as_str(), "acquiring ext lock");
-            match self.limit.try_acquire_ext_lock(lock_name)? {
+            match self.limit.try_acquire_ext_lock(lock_name).expect("try acquire ext lock must ok") {
                 Some(t) => tokens.push(t),
-                None => return Ok(None),
+                None => return None,
             }
         }
-        Ok(Some(Guard { inner, _tokens: tokens }))
-    }
-}
-
-impl<P: Weighted> Weighted for ExtLocks<P> {
-    fn weight(&self) -> u16 {
-        self.inner.weight()
+        Some(Guard { inner, _tokens: tokens })
     }
 }

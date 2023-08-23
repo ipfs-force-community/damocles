@@ -5,16 +5,12 @@ use std::{env::current_exe, path::PathBuf};
 use anyhow::{Context, Ok, Result};
 use vc_processors::core::{ext::ProducerBuilder, Processor, Task as Input};
 
-use super::{
-    config,
-    weight::{TryLockProcessor, Weighted},
-};
+use super::{config, load::TryLockProcessor};
 use crate::sealing::processor::LockProcessor;
 
 const DEFAULT_CGROUP_GROUP_NAME: &str = "vc-worker";
 
 pub struct SubProcessor<I: Input> {
-    weight: u16,
     producer: Box<dyn Processor<I>>,
 }
 
@@ -64,7 +60,6 @@ impl<I: Input> SubProcessor<I> {
         let producer = builder.spawn::<I>().context("build ext producer")?;
 
         Ok(Self {
-            weight: sub_cfg.weight,
             producer: Box::new(producer),
         })
     }
@@ -75,19 +70,13 @@ impl<I: Input> LockProcessor for SubProcessor<I> {
     where
         Self: 'a;
 
-    fn lock(&self) -> Result<Self::Guard<'_>> {
-        Ok(&self.producer)
+    fn lock(&self) -> Self::Guard<'_> {
+        &self.producer
     }
 }
 
 impl<I: Input> TryLockProcessor for SubProcessor<I> {
-    fn try_lock(&self) -> Result<Option<Self::Guard<'_>>> {
-        Ok(Some(&self.producer))
-    }
-}
-
-impl<I: Input> Weighted for SubProcessor<I> {
-    fn weight(&self) -> u16 {
-        self.weight
+    fn try_lock(&self) -> Option<Self::Guard<'_>> {
+        Some(&self.producer)
     }
 }

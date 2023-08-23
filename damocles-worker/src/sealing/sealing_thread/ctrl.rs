@@ -167,7 +167,7 @@ where
 
     pub fn process(&'a self, ctx: &CtrlCtx, task: T) -> Result<<T as vc_processors::core::Task>::Output> {
         ctx.state.write().unwrap().state = SealingThreadState::WaitAt(Instant::now());
-        let guard = self.inner.lock()?;
+        let guard = self.inner.lock();
         ctx.state.write().unwrap().state = SealingThreadState::Running {
             at: Instant::now(),
             proc: guard.name(),

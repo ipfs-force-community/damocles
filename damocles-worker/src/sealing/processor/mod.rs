@@ -20,7 +20,7 @@ pub trait LockProcessor {
     where
         Self: 'a;
 
-    fn lock(&self) -> Result<Self::Guard<'_>>;
+    fn lock(&self) -> Self::Guard<'_>;
 }
 
 #[derive(Debug, Clone)]
@@ -38,11 +38,11 @@ where
     where
         Self: 'a;
 
-    fn lock(&self) -> Result<Self::Guard<'_>> {
-        Ok(match self {
-            Either::Left(p) => Either::Left(p.lock()?),
-            Either::Right(p) => Either::Right(p.lock()?),
-        })
+    fn lock(&self) -> Self::Guard<'_> {
+        match self {
+            Either::Left(p) => Either::Left(p.lock()),
+            Either::Right(p) => Either::Right(p.lock()),
+        }
     }
 }
 
@@ -73,7 +73,7 @@ impl<P> NoLockProcessor<P> {
 impl<P> LockProcessor for NoLockProcessor<P> {
     type Guard<'a> = &'a P where P: 'a;
 
-    fn lock(&self) -> Result<&P> {
-        Ok(&self.0)
+    fn lock(&self) -> &P {
+        &self.0
     }
 }
