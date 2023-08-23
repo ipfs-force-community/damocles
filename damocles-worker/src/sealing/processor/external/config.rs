@@ -46,7 +46,7 @@ pub struct Ext {
     #[serde(default = "default_auto_restart")]
     pub auto_restart: bool,
 
-    /// Whether to inherit the environment variables of the worker daemon process
+    /// Whether to inherit the environment variables from the worker daemon process
     #[serde(default = "default_inherit_envs")]
     pub inherit_envs: bool,
 }
