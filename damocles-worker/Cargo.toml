@@ -96,6 +96,7 @@ tempfile = "3.3"
 [features]
 default = ["vc-processors/builtin", "vc-processors/ext-producer"]
 cuda = ["vc-processors/fil-proofs-cuda"]
+supra-c2 = ["bellperson/supra-c2"]
 
 [patch.crates-io]
 filecoin-hashers = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-hashers", branch = "force/master_v14.0.0" }
@@ -106,3 +107,7 @@ storage-proofs-core = { git = "https://github.com/ipfs-force-community/rust-fil-
 storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v14.0.0" }
 storage-proofs-post = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-post", branch = "force/master_v14.0.0" }
 storage-proofs-update = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-update", branch = "force/master_v14.0.0" }
+
+bellperson = { git = "https://github.com/ipfs-force-community/bellperson.git", branch = "v0.24.1-supra-c2" }
+sppark = { git = "https://github.com/supranational/sppark.git", rev = "3ea4eb3" }
+blst = { git = "https://github.com/supranational/blst.git", rev = "dce883b" }
