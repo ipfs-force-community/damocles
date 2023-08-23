@@ -261,6 +261,28 @@ func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (core.Ticke
 	return ticket, nil
 }
 
+func (s *Sealer) AssignTicketBatch(ctx context.Context, minerID abi.ActorID, sectorIDs []abi.SectorNumber) (core.Ticket, error) {
+	ts, err := s.capi.ChainHead(ctx)
+	if err != nil {
+		return core.Ticket{}, err
+	}
+	ticketEpoch := ts.Height() - policy.SealRandomnessLookback
+	ticket, err := s.rand.GetTicket(ctx, ts.Key(), ticketEpoch, minerID)
+	if err != nil {
+		return core.Ticket{}, err
+	}
+
+	for _, sid := range sectorIDs {
+		if err := s.state.Update(ctx, abi.SectorID{
+			Miner:  minerID,
+			Number: sid,
+		}, core.WorkerOnline, &ticket); err != nil {
+			return core.Ticket{}, sectorStateErr(err)
+		}
+	}
+	return ticket, nil
+}
+
 func (s *Sealer) SubmitPreCommit(ctx context.Context, sector core.AllocatedSector, info core.PreCommitOnChainInfo, hardReset bool) (core.SubmitPreCommitResp, error) {
 	pinfo, err := info.IntoPreCommitInfo()
 	if err != nil {

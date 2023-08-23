@@ -41,6 +41,7 @@ type SealerAPI interface {
 	AcquireDeals(context.Context, abi.SectorID, AcquireDealsSpec) (Deals, error)
 
 	AssignTicket(context.Context, abi.SectorID) (Ticket, error)
+	AssignTicketBatch(ctx context.Context, minerID abi.ActorID, sectorIDs []abi.SectorNumber) (Ticket, error)
 
 	SubmitPreCommit(context.Context, AllocatedSector, PreCommitOnChainInfo, bool) (SubmitPreCommitResp, error)
 
