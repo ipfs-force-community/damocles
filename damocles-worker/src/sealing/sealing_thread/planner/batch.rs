@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::{
     ops::Add,
     time::{Duration, Instant},
@@ -8,8 +9,8 @@ use anyhow::{anyhow, Context, Result};
 use crate::{
     metadb::{rocks::RocksMeta, MetaDocumentDB, PrefixedMetaDB, Saved},
     rpc::sealer::{
-        AcquireDealsSpec, AllocateSectorSpec, AllocatedSector, Deals, OnChainState, PreCommitOnChainInfo, SealerClient, Seed, SubmitResult,
-        WorkerIdentifier,
+        AcquireDealsSpec, AllocateSectorSpec, AllocatedSector, Deals, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SealerClient,
+        Seed, SubmitResult, Ticket, WorkerIdentifier,
     },
     sealing::{
         failure::{Failure, IntoFailure, MapErrToFailure},
@@ -18,13 +19,14 @@ use crate::{
     store::Store,
 };
 
-use super::{
-    common::sector::{Sector, Trace},
-    JobTrait, PlannerTrait,
-};
+use self::sectors::{Sector, Sectors};
+
+use super::{common::sector::Trace, JobTrait, PlannerTrait};
+
+mod sectors;
 
 pub(crate) struct Job {
-    pub sectors: Saved<Vec<Sector>, &'static str, PrefixedMetaDB<&'static RocksMeta>>,
+    pub sectors: Saved<Sectors, &'static str, PrefixedMetaDB<&'static RocksMeta>>,
     _trace: Vec<Trace>,
 
     pub sealing_ctrl: SealingCtrl<'static>,
@@ -38,6 +40,13 @@ impl Job {
     pub fn rpc(&self) -> &SealerClient {
         self.sealing_ctrl.ctx.global.rpc.as_ref()
     }
+
+    pub fn sector(&self, index: usize) -> Result<&Sector> {
+        self.sectors
+            .sectors
+            .get(index)
+            .with_context(|| format!("sector index out of bounds: {}", index))
+    }
 }
 
 impl JobTrait for Job {
@@ -47,6 +56,7 @@ impl JobTrait for Job {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum State {
     Empty,
     Allocated,
@@ -57,7 +67,7 @@ pub enum State {
     PC1Done,
     PC2Done,
     PCSubmitted { index: usize },
-    PCLanded,
+    PCLanded { index: usize },
     Persisted,
     PersistanceSubmitted,
     SeedAssigned,
@@ -79,14 +89,20 @@ pub enum Event {
     Idle,
     Allocate(Vec<AllocatedSector>),
     AcquireDeals { index: usize, deals: Option<Deals> },
+    AssignTicket(Ticket),
     SubmitPC { index: usize },
     ReSubmitPC { index: usize },
     CheckPC { index: usize },
     AssignSeed { index: usize, maybe_seed: MaybeSeed },
+    SubmitProof { index: usize },
+    ReSubmitProof { index: usize },
+    Finish,
 }
 
 #[derive(Default)]
-pub(crate) struct BatchPlanner;
+pub(crate) struct BatchPlanner {
+    batch_size: usize,
+}
 
 impl PlannerTrait for BatchPlanner {
     type Job = Job;
@@ -102,7 +118,35 @@ impl PlannerTrait for BatchPlanner {
     }
 
     fn exec(&self, job: &mut Self::Job) -> Result<Option<Self::Event>, Failure> {
-        todo!()
+        let state = job.sectors.state;
+        let inner = BatchSealer { job };
+
+        let batch_size = job.sectors.batch_size;
+        match state {
+            State::Empty => inner.allocate(),
+            State::Allocated => inner.acquire_deals(0),
+            State::DealsAcquired { index } if index < batch_size => inner.acquire_deals(index + 1),
+            State::DealsAcquired { .. } => inner.add_pieces(),
+            State::PieceAdded => inner.build_tree_d(),
+            State::TreeDBuilt => inner.assign_ticket(),
+            State::TicketAssigned => inner.pc1(),
+            State::PC1Done => inner.pc2(),
+            State::PC2Done => inner.submit_pre_commit(0),
+            State::PCSubmitted { index } if index < batch_size => inner.submit_pre_commit(index + 1),
+            State::PCSubmitted { .. } => inner.check_pre_commit_state(0),
+            State::PCLanded { index } => {
+                
+            }
+            State::Persisted => todo!(),
+            State::PersistanceSubmitted => todo!(),
+            State::SeedAssigned => todo!(),
+            State::C1Done => todo!(),
+            State::C2Done => todo!(),
+            State::ProofSubmitted => todo!(),
+            State::Finished => todo!(),
+            State::Aborted => todo!(),
+        }
+        .map(Some)
     }
 
     fn apply(&self, event: Self::Event, state: Self::State, job: &mut Self::Job) -> Result<()> {
@@ -111,7 +155,6 @@ impl PlannerTrait for BatchPlanner {
 }
 
 struct BatchSealer<'a> {
-    batch_size: u32,
     job: &'a mut Job,
 }
 
@@ -122,7 +165,7 @@ impl BatchSealer<'_> {
                 allowed_miners: Some(self.job.sealing_ctrl.config().allowed_miners.clone()),
                 allowed_proof_types: Some(self.job.sealing_ctrl.config().allowed_proof_types.clone()),
                 },
-                self.batch_size,
+                self.job.sectors.batch_size as u32,
             )
         };
 
@@ -179,6 +222,33 @@ impl BatchSealer<'_> {
         })
     }
 
+    fn add_pieces(&self) -> Result<Event, Failure> {
+        todo!()
+    }
+
+    fn build_tree_d(&self) -> Result<Event, Failure> {
+        todo!()
+    }
+
+    fn assign_ticket(&self) -> Result<Event, Failure> {
+        let sector = self.job.sector(0).crit()?;
+        let sector_id = sector.base.context("sector base required").crit()?.allocated.id.clone();
+
+        let ticket = match &sector.phases.ticket {
+            // Use the existing ticket when rebuilding sectors
+            Some(ticket) => ticket.clone(),
+            None => {
+                let ticket = call_rpc! {
+                    self.job.rpc() => assign_ticket(sector_id,)
+                }?;
+                tracing::debug!(ticket = ?ticket.ticket.0, epoch = ticket.epoch, "ticket assigned from sector-manager");
+                ticket
+            }
+        };
+
+        Ok(Event::AssignTicket(ticket))
+    }
+
     fn pc1(&self) -> Result<Event, Failure> {
         todo!()
     }
@@ -188,7 +258,7 @@ impl BatchSealer<'_> {
     }
 
     fn submit_pre_commit(&self, index: usize) -> Result<Event, Failure> {
-        let sector = self.job.sectors.get(index).context("sector index out of bounds").crit()?;
+        let sector = self.job.sector(index).crit()?;
 
         let (sector_id, comm_r, comm_d, ticket) =
             if let (Some(base), Some(pc2out), Some(ticket)) = (&sector.base, &sector.phases.pc2out, sector.phases.ticket.clone()) {
@@ -223,7 +293,7 @@ impl BatchSealer<'_> {
     }
 
     fn check_pre_commit_state(&self, index: usize) -> Result<Event, Failure> {
-        let sector = self.job.sectors.get(index).context("sector index out of bounds").crit()?;
+        let sector = self.job.sector(index).crit()?;
         let sector_id = sector.base.as_ref().map(|b| &b.allocated.id).context("context").crit()?;
 
         loop {
@@ -270,8 +340,9 @@ impl BatchSealer<'_> {
     }
 
     fn wait_seed(&self, index: usize) -> Result<Event, Failure> {
-        let sector = self.job.sectors.get(index).context("sector index out of bounds").crit()?;
+        let sector = self.job.sector(index).crit()?;
         let sector_id = sector.base.as_ref().context("sector base required").crit()?.allocated.id.clone();
+
         let wait = call_rpc! {
             self.job.rpc()=>wait_seed(sector_id, )
         }?;
@@ -290,11 +361,93 @@ impl BatchSealer<'_> {
     }
 
     fn commit1(&self) -> Result<Event, Failure> {
-        cloned_required! {
-            seed,
-            self.task.sector.phases.seed
+        // cloned_required! {
+        //     seed,
+        //     self.task.sector.phases.seed
+        // }
+
+        // common::commit1_with_seed(self.task, seed).map(Event::C1)
+        todo!()
+    }
+
+    fn commit2(&self) -> Result<Event, Failure> {
+        todo!()
+    }
+
+    fn submit_proof(&self, index: usize) -> Result<Event, Failure> {
+        let sector = self.job.sectors.get(index).context("sector index out of bounds").crit()?;
+        let sector_id = sector.base.as_ref().context("sector base required").crit()?.allocated.id.clone();
+
+        let proof = sector.phases.c2out.clone().context("c2out required").crit()?;
+
+        let info = ProofOnChainInfo { proof: proof.proof.into() };
+
+        let res = call_rpc! {
+            self.job.rpc()=>submit_proof(sector_id, info, sector.phases.c2_re_submit,)
+        }?;
+
+        // TODO: submit reset correctly
+        match res.res {
+            SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitProof { index }),
+
+            SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
+
+            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort()),
+
+            SubmitResult::FilesMissed => Err(anyhow!("FilesMissed is not handled currently: {:?}", res.desc).perm()),
+        }
+    }
+
+    fn check_proof_state(&self, index: usize) -> Result<Event, Failure> {
+        let sector = self.job.sector(index).crit()?;
+        let sector_id = sector.base.as_ref().context("sector base required").crit()?.allocated.id.clone();
+
+        if !self.job.sealing_ctrl.config().ignore_proof_check {
+            loop {
+                let state = call_rpc! {
+                    self.job.rpc() => poll_proof_state(sector_id.clone(),)
+                }?;
+
+                match state.state {
+                    OnChainState::Landed => break,
+                    OnChainState::NotFound => return Err(anyhow!("proof on-chain info not found").perm()),
+
+                    OnChainState::Failed => {
+                        tracing::warn!("proof on-chain info failed: {:?}", state.desc);
+                        // TODO: make it configurable
+                        self.job.sealing_ctrl.wait_or_interrupted(Duration::from_secs(30))?;
+                        return Ok(Event::ReSubmitProof { index });
+                    }
+
+                    OnChainState::PermFailed => return Err(anyhow!("proof on-chain info permanent failed: {:?}", state.desc).perm()),
+
+                    OnChainState::ShouldAbort => return Err(anyhow!("sector will not get on-chain: {:?}", state.desc).abort()),
+
+                    OnChainState::Pending | OnChainState::Packed => {}
+                }
+
+                tracing::debug!(
+                    state = ?state.state,
+                    interval = ?self.job.sealing_ctrl.config().rpc_polling_interval,
+                    "waiting for next round of polling proof state",
+                );
+
+                self.job
+                    .sealing_ctrl
+                    .wait_or_interrupted(self.job.sealing_ctrl.config().rpc_polling_interval)?;
+            }
         }
 
-        common::commit1_with_seed(self.task, seed).map(Event::C1)
+        // let cache_dir = self.job.cache_dir(sector_id);
+        // let sector_size = allocated.proof_type.sector_size();
+
+        // we should be careful here, use failure as temporary
+        // clear_cache(sector_size, cache_dir.as_ref()).temp()?;
+        // debug!(
+        //     dir = ?&cache_dir,
+        //     "clean up unnecessary cached files"
+        // );
+
+        Ok(Event::Finish)
     }
 }
