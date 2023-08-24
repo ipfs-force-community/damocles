@@ -30,7 +30,7 @@ impl<I: Input> SubProcessor<I> {
             .unwrap_or_else(|| vec!["processor".to_owned(), I::STAGE.to_owned()]);
 
         let mut builder = ProducerBuilder::new(bin, args)
-            .inherit_envs(true)
+            .inherit_envs(sub_cfg.inherit_envs)
             .stable_timeout(sub_cfg.stable_wait)
             .auto_restart(sub_cfg.auto_restart);
 
