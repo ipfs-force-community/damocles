@@ -9,6 +9,7 @@ require (
 	github.com/dgraph-io/badger/v2 v2.2007.3
 	github.com/docker/go-units v0.5.0
 	github.com/dtynn/dix v0.1.2
+	github.com/etherlabsio/healthcheck/v2 v2.0.0
 	github.com/fatih/color v1.13.0
 	github.com/filecoin-project/filecoin-ffi v0.30.4-0.20200910194244-f640612a1a1f
 	github.com/filecoin-project/go-address v1.1.0

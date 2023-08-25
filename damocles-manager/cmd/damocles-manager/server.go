@@ -6,9 +6,9 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/filecoin-project/go-jsonrpc"
-
 	"github.com/dtynn/dix"
+	"github.com/etherlabsio/healthcheck/v2"
+	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/metrics"
 	"github.com/ipfs-force-community/damocles/damocles-manager/metrics/proxy"
@@ -158,5 +158,6 @@ func buildRPCServer(apiService *APIService, opts ...jsonrpc.ServerOption) (*http
 
 	// metrics
 	http.Handle("/metrics", metrics.Exporter())
+	http.Handle("/healthcheck", healthcheck.Handler())
 	return http.DefaultServeMux, nil
 }
