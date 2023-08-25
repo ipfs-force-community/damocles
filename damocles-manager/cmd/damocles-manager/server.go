@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/etherlabsio/healthcheck/v2"
 	"net"
 	"net/http"
 
@@ -158,5 +159,6 @@ func buildRPCServer(apiService *APIService, opts ...jsonrpc.ServerOption) (*http
 
 	// metrics
 	http.Handle("/metrics", metrics.Exporter())
+	http.Handle("/healthcheck", healthcheck.Handler())
 	return http.DefaultServeMux, nil
 }
