@@ -3,13 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/etherlabsio/healthcheck/v2"
 	"net"
 	"net/http"
 
-	"github.com/filecoin-project/go-jsonrpc"
-
 	"github.com/dtynn/dix"
+	"github.com/etherlabsio/healthcheck/v2"
+	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/metrics"
 	"github.com/ipfs-force-community/damocles/damocles-manager/metrics/proxy"
