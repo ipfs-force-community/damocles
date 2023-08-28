@@ -63,7 +63,7 @@ pub enum State {
     Allocated,
     DealsAcquired { index: usize },
     PieceAdded { index: usize },
-    TreeDBuilt,
+    TreeDBuilt { index: usize },
     TicketAssigned,
     PC1Done,
     PC2Done,
@@ -93,6 +93,7 @@ pub enum Event {
     Allocate(Vec<AllocatedSector>),
     AcquireDeals { index: usize, deals: Option<Deals> },
     AddPiece { index: usize, pieces: Vec<PieceInfo> },
+    BuildTreeD { index: usize },
     AssignTicket(Ticket),
     SubmitPC { index: usize },
     ReSubmitPC { index: usize },
@@ -139,8 +140,7 @@ impl Event {
             // Self::AddPiece(pieces) => {
             //     replace!(s.phases.pieces, pieces);
             // }
-
-            // Self::BuildTreeD => {}
+            Self::BuildTreeD { index } => {}
             Self::AssignTicket(ticket) => {
                 for sector in &mut s.sectors {
                     sector.phases.ticket.replace(ticket.clone());
