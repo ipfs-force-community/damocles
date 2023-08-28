@@ -10,8 +10,8 @@ use anyhow::{anyhow, Context, Result};
 use crate::{
     metadb::{rocks::RocksMeta, MaybeDirty, MetaDocumentDB, PrefixedMetaDB, Saved},
     rpc::sealer::{
-        AcquireDealsSpec, AllocateSectorSpec, AllocatedSector, Deals, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SealerClient,
-        Seed, SubmitResult, Ticket, WorkerIdentifier,
+        AcquireDealsSpec, AllocateSectorSpec, AllocatedSector, Deals, OnChainState, PieceInfo, PreCommitOnChainInfo, ProofOnChainInfo,
+        SealerClient, Seed, SubmitResult, Ticket, WorkerIdentifier,
     },
     sealing::{
         failure::{Failure, IntoFailure, MapErrToFailure, TaskAborted},
@@ -62,7 +62,7 @@ pub enum State {
     Empty,
     Allocated,
     DealsAcquired { index: usize },
-    PieceAdded,
+    PieceAdded { index: usize },
     TreeDBuilt,
     TicketAssigned,
     PC1Done,
@@ -92,6 +92,7 @@ pub enum Event {
     Idle,
     Allocate(Vec<AllocatedSector>),
     AcquireDeals { index: usize, deals: Option<Deals> },
+    AddPiece { index: usize, pieces: Vec<PieceInfo> },
     AssignTicket(Ticket),
     SubmitPC { index: usize },
     ReSubmitPC { index: usize },
@@ -224,10 +225,9 @@ impl PlannerTrait for BatchPlanner {
             (State::Allocated, Event::AcquireDeals { index, .. }) | (State::DealsAcquired { .. }, Event::AcquireDeals { index, .. }) => {
                 State::DealsAcquired { index: *index }
             }
-            (State::DealsAcquired { index }, Event::Ad) => {
-                State::DealsAcquired { index: *index }
-            }
-            
+            (State::DealsAcquired { .. }, Event::AddPiece { index, .. }) => State::PieceAdded { index: *index },
+
+            (State::DealsAcquired { .. }, Event::AddPiece { index, .. }) => State::PieceAdded { index: *index },
 
             _ => {
                 return Err(anyhow::anyhow!("unexpected state and event {:?} {:?}", st, evt));
@@ -245,8 +245,9 @@ impl PlannerTrait for BatchPlanner {
             State::Empty => inner.allocate(),
             State::Allocated => inner.acquire_deals(0),
             State::DealsAcquired { index } if index < batch_size - 1 => inner.acquire_deals(index + 1),
-            State::DealsAcquired { .. } => inner.add_pieces(),
-            State::PieceAdded => inner.build_tree_d(),
+            State::DealsAcquired { .. } => inner.add_pieces(0),
+            State::PieceAdded { index } if index < batch_size - 1 => inner.build_tree_d(),
+            State::PieceAdded { .. } => inner.build_tree_d(),
             State::TreeDBuilt => inner.assign_ticket(),
             State::TicketAssigned => inner.pc1(),
             State::PC1Done => inner.pc2(),
@@ -345,7 +346,7 @@ impl BatchSealer<'_> {
         })
     }
 
-    fn add_pieces(&self) -> Result<Event, Failure> {
+    fn add_pieces(&self, index: usize) -> Result<Event, Failure> {
         todo!()
     }
 
