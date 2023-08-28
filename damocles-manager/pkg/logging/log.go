@@ -19,22 +19,28 @@ var (
 func Setup() {
 	if _, set := os.LookupEnv("GOLOG_LOG_LEVEL"); !set {
 		_ = logging.SetLogLevel("*", "INFO")
-		_ = logging.SetLogLevel("dix", "INFO")
-		_ = logging.SetLogLevel("badger", "INFO")
-
-		// copy from lotus
-		_ = logging.SetLogLevel("dht", "ERROR")
-		_ = logging.SetLogLevel("swarm2", "WARN")
-		_ = logging.SetLogLevel("bitswap", "WARN")
-		_ = logging.SetLogLevel("connmgr", "WARN")
-		_ = logging.SetLogLevel("advmgr", "DEBUG")
-		_ = logging.SetLogLevel("stores", "DEBUG")
-		_ = logging.SetLogLevel("nat", "INFO")
 	}
 
-	// Always mute kv & rpc log
-	_ = logging.SetLogLevel("kv", "INFO")
-	_ = logging.SetLogLevel("rpc", "INFO")
+	SetLogLevelIfNotSet("dix", "INFO")
+	SetLogLevelIfNotSet("kv", "INFO")
+	SetLogLevelIfNotSet("rpc", "INFO")
+	SetLogLevelIfNotSet("badger", "INFO")
+
+	// copy from lotus
+	SetLogLevelIfNotSet("dht", "ERROR")
+	SetLogLevelIfNotSet("swarm2", "WARN")
+	SetLogLevelIfNotSet("bitswap", "WARN")
+	SetLogLevelIfNotSet("connmgr", "WARN")
+	SetLogLevelIfNotSet("advmgr", "DEBUG")
+	SetLogLevelIfNotSet("stores", "DEBUG")
+	SetLogLevelIfNotSet("nat", "INFO")
+}
+
+func SetLogLevelIfNotSet(name, level string) {
+	_, ok := logging.GetConfig().SubsystemLevels[name]
+	if !ok {
+		logging.SetLogLevel(name, level)
+	}
 }
 
 func SetupForSub(system ...string) {
