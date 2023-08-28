@@ -3,18 +3,19 @@ use std::{
     ops::Add,
     time::{Duration, Instant},
 };
+use vc_processors::fil_proofs::{to_prover_id, SectorId};
 
 use anyhow::{anyhow, Context, Result};
 
 use crate::{
-    metadb::{rocks::RocksMeta, MetaDocumentDB, PrefixedMetaDB, Saved},
+    metadb::{rocks::RocksMeta, MaybeDirty, MetaDocumentDB, PrefixedMetaDB, Saved},
     rpc::sealer::{
         AcquireDealsSpec, AllocateSectorSpec, AllocatedSector, Deals, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SealerClient,
         Seed, SubmitResult, Ticket, WorkerIdentifier,
     },
     sealing::{
-        failure::{Failure, IntoFailure, MapErrToFailure},
-        sealing_thread::{util::call_rpc, SealingCtrl},
+        failure::{Failure, IntoFailure, MapErrToFailure, TaskAborted},
+        sealing_thread::{planner::batch::sectors::Base, util::call_rpc, SealingCtrl},
     },
     store::Store,
 };
@@ -56,7 +57,7 @@ impl JobTrait for Job {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub enum State {
     Empty,
     Allocated,
@@ -68,21 +69,23 @@ pub enum State {
     PC2Done,
     PCSubmitted { index: usize },
     PCLanded { index: usize },
-    Persisted,
-    PersistanceSubmitted,
-    SeedAssigned,
+    Persisted { index: usize },
+    PersistanceSubmitted { index: usize },
+    SeedAssigned { index: usize, max_delay_to: u64 },
     C1Done,
     C2Done,
-    ProofSubmitted,
-    Finished,
+    ProofSubmitted { index: usize },
+    Finished { index: usize },
     Aborted,
 }
 
-enum MaybeSeed {
+#[derive(Debug)]
+pub enum MaybeSeed {
     Got(Seed),
     DelayTo(Instant),
 }
 
+#[derive(Debug)]
 pub enum Event {
     SetState(State),
     // No specified tasks available from sector_manager.
@@ -93,10 +96,112 @@ pub enum Event {
     SubmitPC { index: usize },
     ReSubmitPC { index: usize },
     CheckPC { index: usize },
+    Persist { instance: String, index: usize },
+    SubmitPersistance { index: usize },
     AssignSeed { index: usize, maybe_seed: MaybeSeed },
     SubmitProof { index: usize },
     ReSubmitProof { index: usize },
-    Finish,
+    Finish { index: usize },
+}
+
+impl Event {
+    fn apply(self, state: State, job: &mut Job) -> Result<()> {
+        let next = if let Event::SetState(s) = &self { s.clone() } else { state };
+
+        if next == job.sectors.state {
+            return Err(anyhow!("state unchanged, may enter an infinite loop"));
+        }
+
+        self.apply_changes(job.sectors.inner_mut());
+        // task.sector.update_state(next);
+
+        Ok(())
+    }
+
+    fn apply_changes(self, s: &mut MaybeDirty<Sectors>) {
+        match self {
+            Self::Allocate(sectors) => {
+                for (allocated, sector) in sectors.into_iter().zip(s.sectors.iter_mut()) {
+                    let prover_id = to_prover_id(allocated.id.miner);
+                    let sector_id = SectorId::from(allocated.id.number);
+
+                    let base = Base {
+                        allocated,
+                        prove_input: (prover_id, sector_id),
+                    };
+                    sector.base.replace(base);
+                }
+            }
+
+            Self::AcquireDeals { index, deals } => {}
+
+            // Self::AddPiece(pieces) => {
+            //     replace!(s.phases.pieces, pieces);
+            // }
+
+            // Self::BuildTreeD => {}
+            Self::AssignTicket(ticket) => {
+                for sector in &mut s.sectors {
+                    sector.phases.ticket.replace(ticket.clone());
+                }
+            }
+
+            // Self::PC1(ticket, out) => {
+            //     if s.phases.ticket.as_ref() != Some(&ticket) {
+            //         replace!(s.phases.ticket, ticket);
+            //     }
+            //     replace!(s.phases.pc1out, out);
+            // }
+
+            // Self::PC2(out) => {
+            //     replace!(s.phases.pc2out, out);
+            // }
+            Self::Persist { instance, index } => {
+                if let Some(sector) = s.sectors.get_mut(index) {
+                    sector.phases.persist_instance.replace(instance);
+                }
+            }
+
+            Self::AssignSeed { index, maybe_seed } => {
+                if let (Some(sector), MaybeSeed::Got(seed)) = (s.sectors.get_mut(index), maybe_seed) {
+                    sector.phases.seed.replace(seed);
+                }
+            }
+
+            // Self::C1(out) => {
+            //     replace!(s.phases.c1out, out);
+            // }
+
+            // Self::C2(out) => {
+            //     replace!(s.phases.c2out, out);
+            // }
+            Self::SubmitPC { index } => {
+                if let Some(sector) = s.sectors.get_mut(index) {
+                    sector.phases.pc2_re_submit = false
+                }
+            }
+
+            Self::ReSubmitPC { index } => {
+                if let Some(sector) = s.sectors.get_mut(index) {
+                    sector.phases.pc2_re_submit = true
+                }
+            }
+
+            Self::SubmitProof { index } => {
+                if let Some(sector) = s.sectors.get_mut(index) {
+                    sector.phases.c2_re_submit = false
+                }
+            }
+
+            Self::ReSubmitProof { index } => {
+                if let Some(sector) = s.sectors.get_mut(index) {
+                    sector.phases.c2_re_submit = true
+                }
+            }
+
+            _ => {}
+        };
+    }
 }
 
 #[derive(Default)]
@@ -114,37 +219,55 @@ impl PlannerTrait for BatchPlanner {
     }
 
     fn plan(&self, evt: &Self::Event, st: &Self::State) -> Result<Self::State> {
-        todo!()
+        Ok(match (st, evt) {
+            (State::Empty, Event::Allocate { .. }) => State::Allocated,
+            (State::Allocated, Event::AcquireDeals { index, .. }) | (State::DealsAcquired { .. }, Event::AcquireDeals { index, .. }) => {
+                State::DealsAcquired { index: *index }
+            }
+            (State::DealsAcquired { index }, Event::Ad) => {
+                State::DealsAcquired { index: *index }
+            }
+            
+
+            _ => {
+                return Err(anyhow::anyhow!("unexpected state and event {:?} {:?}", st, evt));
+            }
+        })
     }
 
     fn exec(&self, job: &mut Self::Job) -> Result<Option<Self::Event>, Failure> {
-        let state = job.sectors.state;
+        let state = job.sectors.state.clone();
+        let batch_size = job.sectors.batch_size;
+
         let inner = BatchSealer { job };
 
-        let batch_size = job.sectors.batch_size;
         match state {
             State::Empty => inner.allocate(),
             State::Allocated => inner.acquire_deals(0),
-            State::DealsAcquired { index } if index < batch_size => inner.acquire_deals(index + 1),
+            State::DealsAcquired { index } if index < batch_size - 1 => inner.acquire_deals(index + 1),
             State::DealsAcquired { .. } => inner.add_pieces(),
             State::PieceAdded => inner.build_tree_d(),
             State::TreeDBuilt => inner.assign_ticket(),
             State::TicketAssigned => inner.pc1(),
             State::PC1Done => inner.pc2(),
             State::PC2Done => inner.submit_pre_commit(0),
-            State::PCSubmitted { index } if index < batch_size => inner.submit_pre_commit(index + 1),
+            State::PCSubmitted { index } if index < batch_size - 1 => inner.submit_pre_commit(index + 1),
             State::PCSubmitted { .. } => inner.check_pre_commit_state(0),
-            State::PCLanded { index } => {
-                
-            }
-            State::Persisted => todo!(),
-            State::PersistanceSubmitted => todo!(),
-            State::SeedAssigned => todo!(),
-            State::C1Done => todo!(),
-            State::C2Done => todo!(),
-            State::ProofSubmitted => todo!(),
-            State::Finished => todo!(),
-            State::Aborted => todo!(),
+            State::PCLanded { index } if index < batch_size - 1 => inner.check_pre_commit_state(index + 1),
+            State::PCLanded { .. } => inner.persist_sector_files(0),
+            State::Persisted { index } if index < batch_size - 1 => inner.persist_sector_files(index),
+            State::Persisted { .. } => inner.submit_persisted(0),
+            State::PersistanceSubmitted { index } if index < batch_size - 1 => inner.submit_persisted(index + 1),
+            State::PersistanceSubmitted { .. } => inner.wait_seed(0),
+            State::SeedAssigned { index, max_delay_to } if index < batch_size - 1 => inner.wait_seed(index + 1),
+            State::SeedAssigned { .. } => inner.commit1(),
+            State::C1Done => inner.commit2(),
+            State::C2Done => inner.submit_proof(0),
+            State::ProofSubmitted { index } if index < batch_size - 1 => inner.submit_proof(index + 1),
+            State::ProofSubmitted { .. } => inner.check_proof_state(0),
+            State::Finished { index } if index < batch_size - 1 => inner.check_proof_state(index + 1),
+            State::Finished { .. } => return Ok(None),
+            State::Aborted => return Err(TaskAborted.into()),
         }
         .map(Some)
     }
@@ -192,7 +315,7 @@ impl BatchSealer<'_> {
                 Event::Idle
             } else {
                 Event::AcquireDeals {
-                    index: self.job.sectors.len(),
+                    index: self.job.sectors.sectors.len(),
                     deals: None,
                 }
             });
@@ -202,7 +325,7 @@ impl BatchSealer<'_> {
             min_used_space: self.job.sealing_ctrl.config().min_deal_space.map(|b| b.get_bytes() as usize),
         };
 
-        let sector = self.job.sectors.get(index).context("sector index out of bounds").crit()?;
+        let sector = self.job.sector(index).crit()?;
         let sector_id = sector.base.as_ref().context("sector base required").crit()?.allocated.id.clone();
 
         let deals = call_rpc! {
@@ -232,7 +355,7 @@ impl BatchSealer<'_> {
 
     fn assign_ticket(&self) -> Result<Event, Failure> {
         let sector = self.job.sector(0).crit()?;
-        let sector_id = sector.base.context("sector base required").crit()?.allocated.id.clone();
+        let sector_id = sector.base.as_ref().context("sector base required").crit()?.allocated.id.clone();
 
         let ticket = match &sector.phases.ticket {
             // Use the existing ticket when rebuilding sectors
@@ -339,6 +462,28 @@ impl BatchSealer<'_> {
         todo!()
     }
 
+    fn submit_persisted(&self, index: usize) -> Result<Event, Failure> {
+        let sector = self.job.sector(index).crit()?;
+
+        let sector_id = sector.base.as_ref().context("sector base required").crit()?.allocated.id.clone();
+        let persist_instance = sector
+            .phases
+            .persist_instance
+            .clone()
+            .context("sector persist instance required")
+            .crit()?;
+
+        let checked = call_rpc! {
+            self.job.rpc() => submit_persisted_ex(sector_id.clone(), persist_instance, false,)
+        }?;
+
+        if checked {
+            Ok(Event::SubmitPersistance { index })
+        } else {
+            Err(anyhow!("sector files are persisted but unavailable for sealer")).perm()
+        }
+    }
+
     fn wait_seed(&self, index: usize) -> Result<Event, Failure> {
         let sector = self.job.sector(index).crit()?;
         let sector_id = sector.base.as_ref().context("sector base required").crit()?.allocated.id.clone();
@@ -375,7 +520,7 @@ impl BatchSealer<'_> {
     }
 
     fn submit_proof(&self, index: usize) -> Result<Event, Failure> {
-        let sector = self.job.sectors.get(index).context("sector index out of bounds").crit()?;
+        let sector = self.job.sector(index).crit()?;
         let sector_id = sector.base.as_ref().context("sector base required").crit()?.allocated.id.clone();
 
         let proof = sector.phases.c2out.clone().context("c2out required").crit()?;
@@ -448,6 +593,6 @@ impl BatchSealer<'_> {
         //     "clean up unnecessary cached files"
         // );
 
-        Ok(Event::Finish)
+        Ok(Event::Finish { index })
     }
 }
