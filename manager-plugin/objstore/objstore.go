@@ -76,7 +76,7 @@ type InstanceInfo struct {
 type Store interface {
 	// Type returns the type of this store, just for display.
 	Type() string
-	// Type returns the version of this store, just for display.
+	// Version returns the version of this store, just for display.
 	Version() string
 	Instance(context.Context) string
 	// InstanceConfig returns the configuration of this store.
@@ -88,18 +88,22 @@ type Store interface {
 	Get(ctx context.Context, fullPath string) (io.ReadCloser, error)
 	// Del removes the file corresponding to given path from this store
 	Del(ctx context.Context, fullPath string) error
-	// Stat returns a Stat describing the named file
+	// Stat returns a Stat describing the file corresponding to given path
 	Stat(ctx context.Context, fullPath string) (Stat, error)
 	// Put copies from src to dstPath until either EOF is reached
-	// on src or an error occurs. It returns the number of bytes
-	// copied.
+	// on src or an error occurs.
+	// It returns the number of bytes copied.
 	Put(ctx context.Context, dstFullPath string, src io.Reader) (int64, error)
 
-	// FullPath returns the full path of the given path.
+	// FullPath returns the full path of the given relative path.
 	//
-	// Example:
 	// ```go
-	// assert(FullPath(context.TODO(), "cache/s-t04040-1001") == "/depends_on_your_store/cache/s-t04040-1001")
+	// assert(FullPath(context.TODO(), "cache/s-t04040-1001") == "depends_on_your_store/cache/s-t04040-1001")
 	// ```
-	FullPath(ctx context.Context, path string) string
+	//
+	// Example(for filesystem):
+	// ```go
+	// assert(FullPath(context.TODO(), "cache/s-t04040-1001") == "/path/to/your_store_dir/cache/s-t04040-1001")
+	// ```
+	FullPath(ctx context.Context, relPath string) string
 }
