@@ -3,7 +3,7 @@ use std::{
     ops::Add,
     time::{Duration, Instant},
 };
-use vc_processors::fil_proofs::{to_prover_id, SectorId};
+use vc_processors::fil_proofs::{to_prover_id, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId};
 
 use anyhow::{anyhow, Context, Result};
 
@@ -95,6 +95,8 @@ pub enum Event {
     AddPiece { index: usize, pieces: Vec<PieceInfo> },
     BuildTreeD { index: usize },
     AssignTicket(Ticket),
+    PC1(Ticket, SealPreCommitPhase1Output),
+    PC2(SealPreCommitPhase2Output),
     SubmitPC { index: usize },
     ReSubmitPC { index: usize },
     CheckPC { index: usize },
@@ -225,9 +227,23 @@ impl PlannerTrait for BatchPlanner {
             (State::Allocated, Event::AcquireDeals { index, .. }) | (State::DealsAcquired { .. }, Event::AcquireDeals { index, .. }) => {
                 State::DealsAcquired { index: *index }
             }
-            (State::DealsAcquired { .. }, Event::AddPiece { index, .. }) => State::PieceAdded { index: *index },
+            (State::DealsAcquired { .. }, Event::AddPiece { index, .. }) | (State::PieceAdded { .. }, Event::AddPiece { index, .. }) => {
+                State::PieceAdded { index: *index }
+            }
+            (State::PieceAdded { .. }, Event::BuildTreeD { index }) | (State::TreeDBuilt { .. }, Event::BuildTreeD { index }) => {
+                State::TreeDBuilt { index: *index }
+            }
+            (State::TreeDBuilt { .. }, Event::AssignTicket { .. }) => State::TicketAssigned,
+            (State::TicketAssigned { .. }, Event::PC1(..)) => State::PC1Done,
+            (State::PC1Done, Event::PC2(..)) => State::PC2Done,
+            (State::PC2Done, Event::SubmitPC { index }) | (State::PCSubmitted { .. }, Event::SubmitPC { index }) => {
+                State::PCSubmitted { index: *index }
+            }
 
-            (State::DealsAcquired { .. }, Event::AddPiece { index, .. }) => State::PieceAdded { index: *index },
+            (State::PCSubmitted { index })
+            // (State::PC2Done, Event::SubmitPC { index }) | (State::PCSubmitted { .. }, Event::SubmitPC { index }) => {
+            //     State::PCSubmitted { index: *index }
+            // }
 
             _ => {
                 return Err(anyhow::anyhow!("unexpected state and event {:?} {:?}", st, evt));
@@ -248,7 +264,7 @@ impl PlannerTrait for BatchPlanner {
             State::DealsAcquired { .. } => inner.add_pieces(0),
             State::PieceAdded { index } if index < batch_size - 1 => inner.build_tree_d(),
             State::PieceAdded { .. } => inner.build_tree_d(),
-            State::TreeDBuilt => inner.assign_ticket(),
+            State::TreeDBuilt { .. } => inner.assign_ticket(),
             State::TicketAssigned => inner.pc1(),
             State::PC1Done => inner.pc2(),
             State::PC2Done => inner.submit_pre_commit(0),
