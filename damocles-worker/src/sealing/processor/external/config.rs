@@ -53,7 +53,7 @@ pub struct Ext {
 
 #[inline]
 fn default_inherit_envs() -> bool {
-    false
+    true
 }
 
 #[inline]
