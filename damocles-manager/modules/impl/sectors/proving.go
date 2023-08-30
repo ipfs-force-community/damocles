@@ -99,7 +99,7 @@ func (p *Proving) SingleProvable(ctx context.Context, postProofType abi.Register
 				return fmt.Errorf("stat object %s for %s: %w", p, check.title, err)
 			}
 
-			if sz != 0 {
+			if sz != 0 && strict {
 				if st.Size != int64(ssize)*sz {
 					return fmt.Errorf("%s for %s with wrong size (got %d, expect %d)", p, check.title, st.Size, int64(ssize)*sz)
 				}
