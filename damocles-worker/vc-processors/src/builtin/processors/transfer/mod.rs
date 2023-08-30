@@ -21,7 +21,7 @@ pub fn do_transfer_inner(route: &TransferRoute, disable_link: bool) -> Result<()
     }
 
     if !route.src.uri.exists() {
-        return Err(anyhow!("src path not exists"));
+        return Err(anyhow!("src path not exists: {}", route.src.uri.display()));
     }
 
     let src_is_dir = route.src.uri.is_dir();
