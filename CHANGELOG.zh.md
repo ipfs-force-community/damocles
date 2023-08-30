@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.3
+  - damocles-manager
+    - 生成 windowpost 任务和封装提交扇区文件事，非严格模式不再检查扇区文件大小，只检查文件是否存在 [#924](https://github.com/ipfs-force-community/damocles/pull/924)
+
 ## v0.8.2
 - damocles-worker
   - transfer 外部执行器支持禁用软链接 [#901](https://github.com/ipfs-force-community/damocles/pull/901)
