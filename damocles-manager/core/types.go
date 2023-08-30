@@ -382,7 +382,7 @@ type SectorUnsealInfo struct {
 }
 
 type SectorStateResp struct {
-	ID          abi.SectorID
+	ID          abi.SectorID `json:"Id"`
 	Finalized   SectorFinalized
 	AbortReason *string
 }
