@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::{
-    ops::Add,
-    time::{Duration, Instant},
+use std::time::Duration;
+use vc_processors::fil_proofs::{
+    to_prover_id, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
 };
-use vc_processors::fil_proofs::{to_prover_id, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId};
 
 use anyhow::{anyhow, Context, Result};
 
@@ -71,18 +70,12 @@ pub enum State {
     PCLanded { index: usize },
     Persisted { index: usize },
     PersistanceSubmitted { index: usize },
-    SeedAssigned { index: usize, max_delay_to: u64 },
+    SeedAssigned { index: usize },
     C1Done,
-    C2Done,
+    C2Done { index: usize },
     ProofSubmitted { index: usize },
     Finished { index: usize },
     Aborted,
-}
-
-#[derive(Debug)]
-pub enum MaybeSeed {
-    Got(Seed),
-    DelayTo(Instant),
 }
 
 #[derive(Debug)]
@@ -95,14 +88,16 @@ pub enum Event {
     AddPiece { index: usize, pieces: Vec<PieceInfo> },
     BuildTreeD { index: usize },
     AssignTicket(Ticket),
-    PC1(Ticket, SealPreCommitPhase1Output),
-    PC2(SealPreCommitPhase2Output),
+    PC1(Ticket, Vec<SealPreCommitPhase1Output>),
+    PC2(Vec<SealPreCommitPhase2Output>),
     SubmitPC { index: usize },
     ReSubmitPC { index: usize },
     CheckPC { index: usize },
     Persist { instance: String, index: usize },
     SubmitPersistance { index: usize },
-    AssignSeed { index: usize, maybe_seed: MaybeSeed },
+    AssignSeed { index: usize, seed: Seed },
+    C1(Vec<SealCommitPhase1Output>),
+    C2 { index: usize, out: SealCommitPhase2Output },
     SubmitProof { index: usize },
     ReSubmitProof { index: usize },
     Finish { index: usize },
@@ -137,12 +132,16 @@ impl Event {
                 }
             }
 
-            Self::AcquireDeals { index, deals } => {}
+            Self::AcquireDeals { index, deals } => {
+                if let Some(sector) = s.sectors.get_mut(index) {
+                    sector.deals = deals;
+                }
+            }
 
             // Self::AddPiece(pieces) => {
             //     replace!(s.phases.pieces, pieces);
             // }
-            Self::BuildTreeD { index } => {}
+            Self::BuildTreeD { .. } => {}
             Self::AssignTicket(ticket) => {
                 for sector in &mut s.sectors {
                     sector.phases.ticket.replace(ticket.clone());
@@ -165,19 +164,24 @@ impl Event {
                 }
             }
 
-            Self::AssignSeed { index, maybe_seed } => {
-                if let (Some(sector), MaybeSeed::Got(seed)) = (s.sectors.get_mut(index), maybe_seed) {
+            Self::AssignSeed { index, seed } => {
+                if let Some(sector) = s.sectors.get_mut(index) {
                     sector.phases.seed.replace(seed);
                 }
             }
 
-            // Self::C1(out) => {
-            //     replace!(s.phases.c1out, out);
-            // }
+            Self::C1(out) => {
+                for (sector, c1out) in s.sectors.iter_mut().zip(out) {
+                    sector.phases.c1out.replace(c1out);
+                }
+            }
 
-            // Self::C2(out) => {
-            //     replace!(s.phases.c2out, out);
-            // }
+            Self::C2 { index, out } => {
+                if let Some(sector) = s.sectors.get_mut(index) {
+                    sector.phases.c2out.replace(out);
+                }
+            }
+
             Self::SubmitPC { index } => {
                 if let Some(sector) = s.sectors.get_mut(index) {
                     sector.phases.pc2_re_submit = false
@@ -239,12 +243,41 @@ impl PlannerTrait for BatchPlanner {
             (State::PC2Done, Event::SubmitPC { index }) | (State::PCSubmitted { .. }, Event::SubmitPC { index }) => {
                 State::PCSubmitted { index: *index }
             }
+            (State::PCSubmitted { .. }, Event::CheckPC { index }) | (State::PCLanded { .. }, Event::CheckPC { index }) => {
+                State::PCLanded { index: *index }
+            }
+            (State::PCSubmitted { .. }, Event::ReSubmitPC { index }) => {
+                if *index > 0 {
+                    State::PCSubmitted { index: index - 1 }
+                } else {
+                    State::PC2Done
+                }
+            }
+            (State::PCLanded { .. }, Event::Persist { index, .. }) | (State::Persisted { .. }, Event::SubmitPersistance { index, .. }) => {
+                State::Persisted { index: *index }
+            }
+            (State::PersistanceSubmitted { .. }, Event::AssignSeed { index, .. })
+            | (State::SeedAssigned { .. }, Event::AssignSeed { index, .. }) => State::SeedAssigned { index: *index },
 
-            (State::PCSubmitted { index })
-            // (State::PC2Done, Event::SubmitPC { index }) | (State::PCSubmitted { .. }, Event::SubmitPC { index }) => {
-            //     State::PCSubmitted { index: *index }
-            // }
-
+            (State::SeedAssigned { .. }, Event::C1(_)) => State::C1Done,
+            (State::C1Done { .. }, Event::C2 { index, .. }) | (State::C2Done { .. }, Event::C2 { index, .. }) => {
+                State::C2Done { index: *index }
+            }
+            (State::C2Done { .. }, Event::SubmitProof { index }) | (State::ProofSubmitted { .. }, Event::SubmitProof { index }) => {
+                State::ProofSubmitted { index: *index }
+            }
+            (State::ProofSubmitted { .. }, Event::ReSubmitProof { index }) => {
+                if *index > 0 {
+                    State::ProofSubmitted { index: index - 1 }
+                } else {
+                    State::C2Done {
+                        index: self.batch_size - 1,
+                    }
+                }
+            }
+            (State::ProofSubmitted { .. }, Event::Finish { index }) | (State::Finished { .. }, Event::Finish { index }) => {
+                State::Finished { index: *index }
+            }
             _ => {
                 return Err(anyhow::anyhow!("unexpected state and event {:?} {:?}", st, evt));
             }
@@ -276,10 +309,11 @@ impl PlannerTrait for BatchPlanner {
             State::Persisted { .. } => inner.submit_persisted(0),
             State::PersistanceSubmitted { index } if index < batch_size - 1 => inner.submit_persisted(index + 1),
             State::PersistanceSubmitted { .. } => inner.wait_seed(0),
-            State::SeedAssigned { index, max_delay_to } if index < batch_size - 1 => inner.wait_seed(index + 1),
+            State::SeedAssigned { index } if index < batch_size - 1 => inner.wait_seed(index + 1),
             State::SeedAssigned { .. } => inner.commit1(),
-            State::C1Done => inner.commit2(),
-            State::C2Done => inner.submit_proof(0),
+            State::C1Done => inner.commit2(0),
+            State::C2Done { index } if index < batch_size - 1 => inner.commit2(index),
+            State::C2Done { .. } => inner.submit_proof(0),
             State::ProofSubmitted { index } if index < batch_size - 1 => inner.submit_proof(index + 1),
             State::ProofSubmitted { .. } => inner.check_proof_state(0),
             State::Finished { index } if index < batch_size - 1 => inner.check_proof_state(index + 1),
@@ -476,7 +510,22 @@ impl BatchSealer<'_> {
     }
 
     fn persist_sector_files(&self, index: usize) -> Result<Event, Failure> {
-        todo!()
+        let sector_id = self.job.sector_id()?;
+
+        field_required! {
+            instance,
+            task.sector.phases.persist_instance.as_ref().cloned()
+        }
+
+        let checked = call_rpc! {
+            self.job.rpc() => submit_persisted_ex(sector_id.clone(), instance, is_upgrade,)
+        }?;
+
+        if checked {
+            Ok(())
+        } else {
+            Err(anyhow!("sector files are persisted but unavailable for sealer")).perm()
+        }
     }
 
     fn submit_persisted(&self, index: usize) -> Result<Event, Failure> {
@@ -505,21 +554,27 @@ impl BatchSealer<'_> {
         let sector = self.job.sector(index).crit()?;
         let sector_id = sector.base.as_ref().context("sector base required").crit()?.allocated.id.clone();
 
-        let wait = call_rpc! {
-            self.job.rpc()=>wait_seed(sector_id, )
-        }?;
+        let seed = loop {
+            let wait = call_rpc! {
+                self.job.rpc()=>wait_seed(sector_id.clone(), )
+            }?;
 
-        let maybe_seed = match wait.seed {
-            Some(seed) => MaybeSeed::Got(seed),
-            None => {
-                if !wait.should_wait || wait.delay == 0 {
-                    return Err(anyhow!("invalid empty wait_seed response").temp());
-                }
-                MaybeSeed::DelayTo(Instant::now().add(Duration::from_micros(wait.delay)))
+            if let Some(seed) = wait.seed {
+                break seed;
+            };
+
+            if !wait.should_wait || wait.delay == 0 {
+                return Err(anyhow!("invalid empty wait_seed response").temp());
             }
+
+            let delay = Duration::from_secs(wait.delay);
+
+            tracing::debug!(?delay, "waiting for next round of polling seed");
+
+            self.job.sealing_ctrl.wait_or_interrupted(delay)?;
         };
 
-        Ok(Event::AssignSeed { index, maybe_seed })
+        Ok(Event::AssignSeed { index, seed })
     }
 
     fn commit1(&self) -> Result<Event, Failure> {
@@ -532,7 +587,7 @@ impl BatchSealer<'_> {
         todo!()
     }
 
-    fn commit2(&self) -> Result<Event, Failure> {
+    fn commit2(&self, index: usize) -> Result<Event, Failure> {
         todo!()
     }
 

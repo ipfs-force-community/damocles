@@ -639,7 +639,7 @@ pub(crate) fn submit_persisted(
     }
 
     let checked = call_rpc! {
-        task.rpc() => submit_persisted_ex(sector_id.clone(), instance,is_upgrade,)
+        task.rpc() => submit_persisted_ex(sector_id.clone(), instance, is_upgrade,)
     }?;
 
     if checked {
