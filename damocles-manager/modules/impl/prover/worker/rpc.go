@@ -55,8 +55,14 @@ func (api WdPoStAPIImpl) WdPoStAllJobs(ctx context.Context) ([]core.WdPoStJobBri
 		return nil, err
 	}
 	return slices.Map(jobs, func(job *core.WdPoStJob) core.WdPoStJobBrief {
+		faults := 0
+		if job.Output != nil {
+			faults = len(job.Output.Faults)
+		}
 		return core.WdPoStJobBrief{
 			WdPoStJob: job,
+			Sectors:   uint32(len(job.Input.Sectors)),
+			Faults:    uint32(faults),
 		}
 	}), nil
 }
