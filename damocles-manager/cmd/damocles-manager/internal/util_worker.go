@@ -347,9 +347,9 @@ var utilWdPostListCmd = &cli.Command{
 
 		w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		if detail {
-			_, err = w.Write([]byte("JobID\tPrefix\tMiner\tDDL\tPartitions\tWorker\tState\tTry\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tUpdatedAt\tError\n"))
+			_, err = w.Write([]byte("JobID\tPrefix\tMiner\tDDL\tPartitions\tSectors\tWorker\tState\tTry\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tUpdatedAt\tError\n"))
 		} else {
-			_, err = w.Write([]byte("JobID\tMinerID\tDDL\tPartitions\tWorker\tState\tTry\tCreateAt\tElapsed\tHeartbeat\tError\n"))
+			_, err = w.Write([]byte("JobID\tMinerID\tDDL\tPartitions\tSectors\tWorker\tState\tTry\tCreateAt\tElapsed\tHeartbeat\tError\n"))
 		}
 		if err != nil {
 			return err
@@ -365,12 +365,13 @@ var utilWdPostListCmd = &cli.Command{
 				continue
 			}
 			if detail {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
 					job.ID,
 					job.State,
 					job.Input.MinerID,
 					job.DeadlineIdx,
 					strings.Join(job.Partitions, ","),
+					job.Sectors,
 					job.WorkerName,
 					job.DisplayState(),
 					job.TryNum,
@@ -396,11 +397,12 @@ var utilWdPostListCmd = &cli.Command{
 					heartbeat = "-"
 				}
 
-				fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\n",
+				fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%s\n",
 					job.ID,
 					job.Input.MinerID,
 					job.DeadlineIdx,
 					strings.Join(job.Partitions, ","),
+					job.Sectors,
 					job.WorkerName,
 					job.DisplayState(),
 					job.TryNum,
