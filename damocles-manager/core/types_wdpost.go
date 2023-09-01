@@ -98,7 +98,16 @@ func (j *WdPoStJobBrief) MarshalJSON() ([]byte, error) {
 		MinerID: j.WdPoStJob.Input.MinerID,
 	}
 	j.WdPoStJob.Output = &stage.WindowPoStOutput{}
-	return json.Marshal(&j.WdPoStJob)
+
+	return json.Marshal(struct {
+		*WdPoStJob
+		Sectors uint32
+		Faults  uint32
+	}{
+		WdPoStJob: j.WdPoStJob,
+		Sectors:   j.Sectors,
+		Faults:    j.Faults,
+	})
 }
 
 type WdPoStAllocatedJob struct {
