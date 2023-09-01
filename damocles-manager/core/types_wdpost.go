@@ -84,9 +84,8 @@ func (j *WdPoStJobBrief) DisplayState() string {
 		if j.Succeed() {
 			if j.Faults == 0 {
 				return "Succeed"
-			} else {
-				return fmt.Sprintf("Faults(%d)", j.Faults)
 			}
+			return fmt.Sprintf("Faults(%d)", j.Faults)
 		}
 		return "Failed"
 	}
