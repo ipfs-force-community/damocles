@@ -71,7 +71,7 @@ test-all: $(BUILD_DEPS)
 check-all: check-lint check-go-mod
 
 check-lint: $(BUILD_DEPS)
-	golangci-lint run
+	golangci-lint run -c .golangci.yml
 
 check-go-mod:
 	$(GO) mod tidy
