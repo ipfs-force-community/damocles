@@ -12,10 +12,10 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/slices"
 )
 
-func NewWdPoStAPIImpl(jobMgr core.WorkerWdPoStJobManager, cfg modules.WorkerProverConfig) core.WorkerWdPoStAPI {
+func NewWdPoStAPIImpl(jobMgr core.WorkerWdPoStJobManager, cfg *modules.SafeConfig) core.WorkerWdPoStAPI {
 	return &WdPoStAPIImpl{
 		jobMgr: jobMgr,
-		cfg:    cfg,
+		cfg:    *cfg.MustCommonConfig().Proving.WorkerProver,
 	}
 }
 
