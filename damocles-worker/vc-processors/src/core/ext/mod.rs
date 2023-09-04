@@ -10,7 +10,9 @@ mod producer;
 pub use producer::{dump_error_resp_env, Producer, ProducerBuilder};
 
 mod consumer;
-pub use consumer::{run as run_consumer, run_with_processor as run_consumer_with_proc};
+pub use consumer::{
+    run as run_consumer, run_with_processor as run_consumer_with_proc,
+};
 
 /// Request contains the required data to be sent to the consumer.
 #[derive(Clone, Debug, Serialize, Deserialize)]

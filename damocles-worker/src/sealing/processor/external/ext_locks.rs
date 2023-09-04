@@ -30,7 +30,11 @@ pub struct ExtLocks<P> {
 
 impl<P> ExtLocks<P> {
     pub fn new(inner: P, locks: Vec<String>, limit: Arc<SealingLimit>) -> Self {
-        Self { inner, locks, limit }
+        Self {
+            inner,
+            locks,
+            limit,
+        }
     }
 }
 
@@ -42,9 +46,16 @@ impl<P: LockProcessor> LockProcessor for ExtLocks<P> {
         let mut tokens = Vec::new();
         for lock_name in &self.locks {
             tracing::debug!(name = lock_name.as_str(), "acquiring ext lock");
-            tokens.push(self.limit.acquire_ext_lock(lock_name).expect("acquire ext lock must ok"))
+            tokens.push(
+                self.limit
+                    .acquire_ext_lock(lock_name)
+                    .expect("acquire ext lock must ok"),
+            )
         }
-        Guard { inner, _tokens: tokens }
+        Guard {
+            inner,
+            _tokens: tokens,
+        }
     }
 }
 
@@ -58,11 +69,18 @@ impl<P: TryLockProcessor> TryLockProcessor for ExtLocks<P> {
         let mut tokens = Vec::new();
         for lock_name in &self.locks {
             tracing::debug!(name = lock_name.as_str(), "acquiring ext lock");
-            match self.limit.try_acquire_ext_lock(lock_name).expect("try acquire ext lock must ok") {
+            match self
+                .limit
+                .try_acquire_ext_lock(lock_name)
+                .expect("try acquire ext lock must ok")
+            {
                 Some(t) => tokens.push(t),
                 None => return None,
             }
         }
-        Some(Guard { inner, _tokens: tokens })
+        Some(Guard {
+            inner,
+            _tokens: tokens,
+        })
     }
 }

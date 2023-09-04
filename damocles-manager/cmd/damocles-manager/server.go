@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/dtynn/dix"
 	"github.com/etherlabsio/healthcheck/v2"
@@ -113,6 +114,7 @@ func serveAPI(ctx context.Context, stopper dix.StopFunc, apiService *APIService,
 		BaseContext: func(net.Listener) context.Context {
 			return ctx
 		},
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	errCh := make(chan error, 1)

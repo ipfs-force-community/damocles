@@ -114,7 +114,13 @@ impl PlannerTrait for RebuildPlanner {
                 return Err(TaskAborted.into());
             }
 
-            other => return Err(anyhow!("unexpected state {:?} in rebuild planner", other).abort()),
+            other => {
+                return Err(anyhow!(
+                    "unexpected state {:?} in rebuild planner",
+                    other
+                )
+                .abort())
+            }
         }
         .map(Some)
     }
@@ -162,9 +168,14 @@ impl<'t> Rebuild<'t> {
 
     fn add_pieces_for_sealing(&self) -> Result<Event, Failure> {
         // if this is a snapup sector, then the deals should be used later
-        let maybe_deals = if self.is_snapup() { None } else { self.task.sector.deals.as_ref() };
+        let maybe_deals = if self.is_snapup() {
+            None
+        } else {
+            self.task.sector.deals.as_ref()
+        };
 
-        let pieces = common::add_pieces(self.task, maybe_deals.unwrap_or(&Vec::new()))?;
+        let pieces =
+            common::add_pieces(self.task, maybe_deals.unwrap_or(&Vec::new()))?;
 
         Ok(Event::AddPiece(pieces))
     }
@@ -215,7 +226,8 @@ impl<'t> Rebuild<'t> {
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
 
-        common::snap_encode(self.task, sector_id, proof_type).map(Event::SnapEncode)
+        common::snap_encode(self.task, sector_id, proof_type)
+            .map(Event::SnapEncode)
     }
 
     fn snap_prove(&self) -> Result<Event, Failure> {
@@ -226,15 +238,23 @@ impl<'t> Rebuild<'t> {
         let sector_id = self.task.sector_id()?;
 
         let (cache_dir, sealed_file) = if self.is_snapup() {
-            (self.task.update_cache_dir(sector_id), self.task.update_file(sector_id))
+            (
+                self.task.update_cache_dir(sector_id),
+                self.task.update_file(sector_id),
+            )
         } else {
-            (self.task.cache_dir(sector_id), self.task.sealed_file(sector_id))
+            (
+                self.task.cache_dir(sector_id),
+                self.task.sealed_file(sector_id),
+            )
         };
 
-        common::persist_sector_files(self.task, cache_dir, sealed_file).map(Event::Persist)
+        common::persist_sector_files(self.task, cache_dir, sealed_file)
+            .map(Event::Persist)
     }
 
     fn submit_persist(&self) -> Result<Event, Failure> {
-        common::submit_persisted(self.task, self.is_snapup()).map(|_| Event::SubmitPersistance)
+        common::submit_persisted(self.task, self.is_snapup())
+            .map(|_| Event::SubmitPersistance)
     }
 }

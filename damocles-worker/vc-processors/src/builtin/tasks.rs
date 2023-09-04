@@ -9,9 +9,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::Task;
 use crate::fil_proofs::{
-    ActorID, ChallengeSeed, Commitment, PieceInfo, ProverId, RegisteredPoStProof, RegisteredSealProof, RegisteredUpdateProof,
-    SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId, SnapEncodeOutput,
-    SnapProveOutput, SnarkProof, Ticket,
+    ActorID, ChallengeSeed, Commitment, PieceInfo, ProverId,
+    RegisteredPoStProof, RegisteredSealProof, RegisteredUpdateProof,
+    SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output,
+    SealPreCommitPhase2Output, SectorId, SnapEncodeOutput, SnapProveOutput,
+    SnarkProof, Ticket,
 };
 
 /// name str for add_pieces

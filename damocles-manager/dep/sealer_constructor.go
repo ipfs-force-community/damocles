@@ -382,7 +382,7 @@ func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config,
 	return ccli, nil
 }
 
-func BuildMinerAPI(gctx GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.SafeConfig) (core.MinerAPI, error) {
+func BuildMinerAPI(_ GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modules.SafeConfig) (core.MinerAPI, error) {
 	mapi := chain.NewMinerAPI(capi, scfg)
 
 	lc.Append(fx.Hook{

@@ -77,4 +77,4 @@ check-go-mod:
 	$(GO) mod tidy
 
 dev-env:
-	$(GO) install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
+	$(GO) install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2

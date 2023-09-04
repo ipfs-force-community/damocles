@@ -20,9 +20,13 @@ mod ext_locks;
 mod load;
 mod sub;
 
-pub type Proc<T> = WorkloadSelector<Workload<ExtLocks<Concurrent<SubProcessor<T>>>>>;
+pub type Proc<T> =
+    WorkloadSelector<Workload<ExtLocks<Concurrent<SubProcessor<T>>>>>;
 
-pub fn start_sub_processors<T: Task>(cfgs: &[config::Ext], limit: Arc<SealingLimit>) -> Result<Proc<T>> {
+pub fn start_sub_processors<T: Task>(
+    cfgs: &[config::Ext],
+    limit: Arc<SealingLimit>,
+) -> Result<Proc<T>> {
     if cfgs.is_empty() {
         return Err(anyhow!("no subs section found"));
     }

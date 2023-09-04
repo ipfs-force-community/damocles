@@ -17,7 +17,11 @@ impl RocksMeta {
 }
 
 impl MetaDB for RocksMeta {
-    fn set<K: AsRef<str>, V: AsRef<[u8]>>(&self, key: K, value: V) -> Result<()> {
+    fn set<K: AsRef<str>, V: AsRef<[u8]>>(
+        &self,
+        key: K,
+        value: V,
+    ) -> Result<()> {
         self.inner.put(key.as_ref().as_bytes(), value)?;
         Ok(())
     }

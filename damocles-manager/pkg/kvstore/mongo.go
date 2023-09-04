@@ -209,7 +209,7 @@ func (m *MongoIter) Key() Key {
 	return m.data.RawKey
 }
 
-func (m *MongoIter) View(ctx context.Context, f func(Val) error) error {
+func (m *MongoIter) View(_ context.Context, f func(Val) error) error {
 	if m.data == nil {
 		return fmt.Errorf("wrong usage of View, should call next first")
 	}

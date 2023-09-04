@@ -18,10 +18,9 @@ struct ServiceImpl {
 
 impl ServiceImpl {
     fn get_ctrl(&self, index: usize) -> Result<&Ctrl> {
-        self.ctrls
-            .get(index)
-            .map(|item| &item.1)
-            .ok_or_else(|| Error::invalid_params(format!("worker #{} not found", index)))
+        self.ctrls.get(index).map(|item| &item.1).ok_or_else(|| {
+            Error::invalid_params(format!("worker #{} not found", index))
+        })
     }
 }
 
@@ -30,7 +29,14 @@ impl Worker for ServiceImpl {
         self.ctrls
             .iter()
             .map(|(idx, ctrl)| -> std::result::Result<WorkerInfo, Error> {
-                let (job_state, job_stage, job_id, plan, last_error, sealing_thread_state) = ctrl
+                let (
+                    job_state,
+                    job_stage,
+                    job_id,
+                    plan,
+                    last_error,
+                    sealing_thread_state,
+                ) = ctrl
                     .load_state(|cst| {
                         (
                             cst.job.state.clone(),
@@ -57,17 +63,26 @@ impl Worker for ServiceImpl {
                     job_id,
                     index: *idx,
                     thread_state: match sealing_thread_state {
-                        sealing_thread::SealingThreadState::Idle => SealingThreadState::Idle,
-                        sealing_thread::SealingThreadState::PausedAt(at) => SealingThreadState::Paused {
-                            elapsed: at.elapsed().as_secs(),
-                        },
-                        sealing_thread::SealingThreadState::Running { at, proc } => SealingThreadState::Running {
+                        sealing_thread::SealingThreadState::Idle => {
+                            SealingThreadState::Idle
+                        }
+                        sealing_thread::SealingThreadState::PausedAt(at) => {
+                            SealingThreadState::Paused {
+                                elapsed: at.elapsed().as_secs(),
+                            }
+                        }
+                        sealing_thread::SealingThreadState::Running {
+                            at,
+                            proc,
+                        } => SealingThreadState::Running {
                             elapsed: at.elapsed().as_secs(),
                             proc,
                         },
-                        sealing_thread::SealingThreadState::WaitAt(at) => SealingThreadState::Waiting {
-                            elapsed: at.elapsed().as_secs(),
-                        },
+                        sealing_thread::SealingThreadState::WaitAt(at) => {
+                            SealingThreadState::Waiting {
+                                elapsed: at.elapsed().as_secs(),
+                            }
+                        }
                     },
                     job_state: job_state.unwrap_or(String::new()),
                     job_stage,
@@ -96,11 +111,18 @@ impl Worker for ServiceImpl {
         }
     }
 
-    fn worker_resume(&self, index: usize, set_to: Option<String>) -> Result<bool> {
+    fn worker_resume(
+        &self,
+        index: usize,
+        set_to: Option<String>,
+    ) -> Result<bool> {
         let ctrl = self.get_ctrl(index)?;
 
         let state = set_to
-            .map(|s| s.parse().map_err(|e| Error::invalid_params(format!("{:?}", e))))
+            .map(|s| {
+                s.parse()
+                    .map_err(|e| Error::invalid_params(format!("{:?}", e)))
+            })
             .transpose()?;
 
         select! {
@@ -126,7 +148,9 @@ impl Worker for ServiceImpl {
             || value.contains('\0')
             || std::panic::catch_unwind(|| env::set_var(name, value)).is_err()
         {
-            return Err(Error::invalid_params("invalid environment variable name or value"));
+            return Err(Error::invalid_params(
+                "invalid environment variable name or value",
+            ));
         }
         Ok(())
     }
@@ -134,8 +158,13 @@ impl Worker for ServiceImpl {
     fn worker_remove_env(&self, name: String) -> Result<()> {
         // Avoid panic of remove_var function
         // See: https://doc.rust-lang.org/std/env/fn.remove_var.html#panics
-        if name.is_empty() || name.contains(['=', '\0']) || std::panic::catch_unwind(|| env::remove_var(name)).is_err() {
-            return Err(Error::invalid_params("invalid environment variable name"));
+        if name.is_empty()
+            || name.contains(['=', '\0'])
+            || std::panic::catch_unwind(|| env::remove_var(name)).is_err()
+        {
+            return Err(Error::invalid_params(
+                "invalid environment variable name",
+            ));
         }
         Ok(())
     }
@@ -167,7 +196,9 @@ impl Module for Service {
     fn run(&mut self, ctx: Ctx) -> anyhow::Result<()> {
         let addr = ctx.cfg.worker_server_listen_addr()?;
 
-        let srv_impl = ServiceImpl { ctrls: self.ctrls.clone() };
+        let srv_impl = ServiceImpl {
+            ctrls: self.ctrls.clone(),
+        };
 
         let mut io = IoHandler::new();
         io.extend_with(srv_impl.to_delegate());

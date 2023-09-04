@@ -775,7 +775,7 @@ func (c *CommitmentMgrImpl) TerminateState(ctx context.Context, sid abi.SectorID
 	return sector.TerminateInfo, nil
 }
 
-func (c *CommitmentMgrImpl) handleMessage(ctx context.Context, mid abi.ActorID, msg *messager.Message, mlog *logging.ZapLogger) (core.OnChainState, *string) {
+func (c *CommitmentMgrImpl) handleMessage(_ context.Context, mid abi.ActorID, msg *messager.Message, mlog *logging.ZapLogger) (core.OnChainState, *string) {
 	mlog = mlog.With("msg-cid", msg.ID, "msg-state", messager.MessageStateToString(msg.State))
 	if msg.SignedCid != nil {
 		mlog = mlog.With("msg-signed-cid", msg.SignedCid.String())

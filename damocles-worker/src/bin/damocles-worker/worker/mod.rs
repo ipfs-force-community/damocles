@@ -71,12 +71,15 @@ pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
         WorkerSubCommand::List => {
             use tabwriter::TabWriter;
 
-            let infos = block_on(wcli.worker_list()).map_err(|e| anyhow!("rpc error: {:?}", e))?;
+            let infos = block_on(wcli.worker_list())
+                .map_err(|e| anyhow!("rpc error: {:?}", e))?;
             let out = std::io::stdout();
             let hdl = out.lock();
 
             let mut tw = TabWriter::new(hdl);
-            let _ = tw.write_fmt(format_args!("#\tlocation\tPlan\tJobID\tJobState\tJobStage\tThreadState\tLastErr\n"));
+            let _ = tw.write_fmt(format_args!(
+                "#\tlocation\tPlan\tJobID\tJobState\tJobStage\tThreadState\tLastErr\n"
+            ));
             for wi in infos {
                 let _ = tw.write_fmt(format_args!(
                     "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
@@ -94,43 +97,71 @@ pub(crate) fn run(cmd: &WorkerCommand) -> Result<()> {
             Ok(())
         }
         WorkerSubCommand::Pause { index } => {
-            let done = block_on(wcli.worker_pause(*index)).map_err(|e| anyhow!("rpc error: {:?}", e))?;
+            let done = block_on(wcli.worker_pause(*index))
+                .map_err(|e| anyhow!("rpc error: {:?}", e))?;
             info!(done, "#{} worker pause", index);
             Ok(())
         }
         WorkerSubCommand::Resume { index, state } => {
-            let done = block_on(wcli.worker_resume(*index, state.clone())).map_err(|e| anyhow!("rpc error: {:?}", e))?;
+            let done = block_on(wcli.worker_resume(*index, state.clone()))
+                .map_err(|e| anyhow!("rpc error: {:?}", e))?;
             info!(done, ?state, "#{} worker resume", index);
             Ok(())
         }
-        WorkerSubCommand::EnableDump { child_pid, dump_dir } => {
+        WorkerSubCommand::EnableDump {
+            child_pid,
+            dump_dir,
+        } => {
             if !dump_dir.is_dir() {
-                return Err(anyhow!("'{}' is not a directory", dump_dir.display()));
+                return Err(anyhow!(
+                    "'{}' is not a directory",
+                    dump_dir.display()
+                ));
             }
             let dump_dir = fs::canonicalize(dump_dir)?;
-            let env_name = vc_processors::core::ext::dump_error_resp_env(*child_pid);
+            let env_name =
+                vc_processors::core::ext::dump_error_resp_env(*child_pid);
 
-            block_on(wcli.worker_set_env(env_name, dump_dir.to_string_lossy().to_string())).map_err(|rpc_err| match rpc_err {
-                RpcError::JsonRpcError(e) if e.code == ErrorCode::InvalidParams => anyhow!(e.message),
+            block_on(wcli.worker_set_env(
+                env_name,
+                dump_dir.to_string_lossy().to_string(),
+            ))
+            .map_err(|rpc_err| match rpc_err {
+                RpcError::JsonRpcError(e)
+                    if e.code == ErrorCode::InvalidParams =>
+                {
+                    anyhow!(e.message)
+                }
                 _ => anyhow!("rpc error: {:?}", rpc_err),
             })
         }
         WorkerSubCommand::DisableDump { child_pid } => {
-            let env_name = vc_processors::core::ext::dump_error_resp_env(*child_pid);
+            let env_name =
+                vc_processors::core::ext::dump_error_resp_env(*child_pid);
 
-            block_on(wcli.worker_remove_env(env_name)).map_err(|rpc_err| match rpc_err {
-                RpcError::JsonRpcError(e) if e.code == ErrorCode::InvalidParams => anyhow!(e.message),
-                _ => anyhow!("rpc error: {:?}", rpc_err),
+            block_on(wcli.worker_remove_env(env_name)).map_err(|rpc_err| {
+                match rpc_err {
+                    RpcError::JsonRpcError(e)
+                        if e.code == ErrorCode::InvalidParams =>
+                    {
+                        anyhow!(e.message)
+                    }
+                    _ => anyhow!("rpc error: {:?}", rpc_err),
+                }
             })
         }
     }
 }
 
-fn get_client(host: Option<&SocketAddr>, config: Option<&PathBuf>) -> Result<WorkerClient> {
+fn get_client(
+    host: Option<&SocketAddr>,
+    config: Option<&PathBuf>,
+) -> Result<WorkerClient> {
     let host = match (host, config) {
         (None, None) => {
             let h = format!("{}:{}", LOCAL_HOST, DEFAULT_WORKER_SERVER_PORT);
-            h.parse().with_context(|| format!("parse connect address: {}", h))?
+            h.parse()
+                .with_context(|| format!("parse connect address: {}", h))?
         }
         (Some(host), None) => *host,
         (None, Some(config)) | (Some(_), Some(config)) => {

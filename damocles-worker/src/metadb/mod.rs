@@ -36,7 +36,8 @@ impl<M: MetaDB> MetaDocumentDB<M> {
         K: AsRef<str>,
         T: for<'a> Deserialize<'a>,
     {
-        self.0.view(key, |b: &[u8]| from_slice(b).map_err(Error::new))
+        self.0
+            .view(key, |b: &[u8]| from_slice(b).map_err(Error::new))
     }
 
     pub fn remove<K: AsRef<str>>(&self, key: K) -> Result<()> {
@@ -45,7 +46,11 @@ impl<M: MetaDB> MetaDocumentDB<M> {
 }
 
 pub trait MetaDB {
-    fn set<K: AsRef<str>, V: AsRef<[u8]>>(&self, key: K, value: V) -> Result<()>;
+    fn set<K: AsRef<str>, V: AsRef<[u8]>>(
+        &self,
+        key: K,
+        value: V,
+    ) -> Result<()>;
 
     fn has<K: AsRef<str>>(&self, key: K) -> Result<bool>;
 
@@ -61,7 +66,11 @@ pub trait MetaDB {
 }
 
 impl<T: MetaDB> MetaDB for &T {
-    fn set<K: AsRef<str>, V: AsRef<[u8]>>(&self, key: K, value: V) -> Result<()> {
+    fn set<K: AsRef<str>, V: AsRef<[u8]>>(
+        &self,
+        key: K,
+        value: V,
+    ) -> Result<()> {
         (*self).set(key, value)
     }
 
@@ -100,7 +109,11 @@ impl<DB: MetaDB> PrefixedMetaDB<DB> {
 }
 
 impl<DB: MetaDB> MetaDB for PrefixedMetaDB<DB> {
-    fn set<K: AsRef<str>, V: AsRef<[u8]>>(&self, key: K, value: V) -> Result<()> {
+    fn set<K: AsRef<str>, V: AsRef<[u8]>>(
+        &self,
+        key: K,
+        value: V,
+    ) -> Result<()> {
         self.inner.set(self.key(key), value)
     }
 
@@ -129,11 +142,17 @@ pub struct MaybeDirty<T> {
 
 impl<T> MaybeDirty<T> {
     pub fn new(inner: T) -> Self {
-        Self { inner, is_dirty: false }
+        Self {
+            inner,
+            is_dirty: false,
+        }
     }
 
     pub fn new_dirty(inner: T) -> Self {
-        Self { inner, is_dirty: true }
+        Self {
+            inner,
+            is_dirty: true,
+        }
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -184,7 +203,11 @@ where
     K: AsRef<str>,
     DB: MetaDB,
 {
-    pub fn load(key: K, db: DB, mut default: impl FnMut() -> T) -> anyhow::Result<Self>
+    pub fn load(
+        key: K,
+        db: DB,
+        mut default: impl FnMut() -> T,
+    ) -> anyhow::Result<Self>
     where
         T: for<'a> Deserialize<'a>,
     {
@@ -208,7 +231,10 @@ where
         Ok(())
     }
 
-    pub fn delete(&mut self, mut default: impl FnMut() -> T) -> anyhow::Result<()> {
+    pub fn delete(
+        &mut self,
+        mut default: impl FnMut() -> T,
+    ) -> anyhow::Result<()> {
         self.db.remove(&self.key)?;
         *self.data = default();
         self.data.sync();

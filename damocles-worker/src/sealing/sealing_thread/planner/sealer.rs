@@ -9,7 +9,10 @@ use super::{
     plan, PlannerTrait, PLANNER_NAME_SEALER,
 };
 use crate::logging::{debug, warn};
-use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo, ProofOnChainInfo, SubmitResult};
+use crate::rpc::sealer::{
+    AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo,
+    ProofOnChainInfo, SubmitResult,
+};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{clear_cache, C2Input};
 
@@ -142,7 +145,13 @@ impl PlannerTrait for SealerPlanner {
                 return Err(TaskAborted.into());
             }
 
-            other => return Err(anyhow!("unexpected state {:?} in sealer planner", other).abort()),
+            other => {
+                return Err(anyhow!(
+                    "unexpected state {:?} in sealer planner",
+                    other
+                )
+                .abort())
+            }
         }
         .map(Some)
     }
@@ -213,15 +222,20 @@ impl<'t> Sealer<'t> {
 
         debug!(count = deals_count, "pieces acquired");
 
-        Ok(if !self.task.sealing_ctrl.config().disable_cc || deals_count > 0 {
-            Event::AcquireDeals(deals)
-        } else {
-            Event::Idle
-        })
+        Ok(
+            if !self.task.sealing_ctrl.config().disable_cc || deals_count > 0 {
+                Event::AcquireDeals(deals)
+            } else {
+                Event::Idle
+            },
+        )
     }
 
     fn handle_deals_acquired(&self) -> Result<Event, Failure> {
-        let pieces = common::add_pieces(self.task, self.task.sector.deals.as_ref().unwrap_or(&Vec::new()))?;
+        let pieces = common::add_pieces(
+            self.task,
+            self.task.sector.deals.as_ref().unwrap_or(&Vec::new()),
+        )?;
 
         Ok(Event::AddPiece(pieces))
     }
@@ -286,13 +300,23 @@ impl<'t> Sealer<'t> {
 
         // TODO: handle submit reset correctly
         match res.res {
-            SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitPC),
+            SubmitResult::Accepted | SubmitResult::DuplicateSubmit => {
+                Ok(Event::SubmitPC)
+            }
 
-            SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
+            SubmitResult::MismatchedSubmission => {
+                Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm())
+            }
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort()),
+            SubmitResult::Rejected => {
+                Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort())
+            }
 
-            SubmitResult::FilesMissed => Err(anyhow!("FilesMissed should not happen for pc2 submission: {:?}", res.desc).perm()),
+            SubmitResult::FilesMissed => Err(anyhow!(
+                "FilesMissed should not happen for pc2 submission: {:?}",
+                res.desc
+            )
+            .perm()),
         }
     }
 
@@ -306,18 +330,36 @@ impl<'t> Sealer<'t> {
 
             match state.state {
                 OnChainState::Landed => break 'POLL,
-                OnChainState::NotFound => return Err(anyhow!("pre commit on-chain info not found").perm()),
+                OnChainState::NotFound => {
+                    return Err(
+                        anyhow!("pre commit on-chain info not found").perm()
+                    )
+                }
 
                 OnChainState::Failed => {
                     warn!("pre commit on-chain info failed: {:?}", state.desc);
                     // TODO: make it configurable
-                    self.task.sealing_ctrl.wait_or_interrupted(Duration::from_secs(30))?;
+                    self.task
+                        .sealing_ctrl
+                        .wait_or_interrupted(Duration::from_secs(30))?;
                     return Ok(Event::ReSubmitPC);
                 }
 
-                OnChainState::PermFailed => return Err(anyhow!("pre commit on-chain info permanent failed: {:?}", state.desc).perm()),
+                OnChainState::PermFailed => {
+                    return Err(anyhow!(
+                        "pre commit on-chain info permanent failed: {:?}",
+                        state.desc
+                    )
+                    .perm())
+                }
 
-                OnChainState::ShouldAbort => return Err(anyhow!("pre commit info will not get on-chain: {:?}", state.desc).abort()),
+                OnChainState::ShouldAbort => {
+                    return Err(anyhow!(
+                        "pre commit info will not get on-chain: {:?}",
+                        state.desc
+                    )
+                    .abort())
+                }
 
                 OnChainState::Pending | OnChainState::Packed => {}
             }
@@ -328,9 +370,9 @@ impl<'t> Sealer<'t> {
                 "waiting for next round of polling pre commit state",
             );
 
-            self.task
-                .sealing_ctrl
-                .wait_or_interrupted(self.task.sealing_ctrl.config().rpc_polling_interval)?;
+            self.task.sealing_ctrl.wait_or_interrupted(
+                self.task.sealing_ctrl.config().rpc_polling_interval,
+            )?;
         }
 
         debug!("pre commit landed");
@@ -343,13 +385,15 @@ impl<'t> Sealer<'t> {
         let cache_dir = self.task.cache_dir(sector_id);
         let sealed_file = self.task.sealed_file(sector_id);
 
-        let ins_name = common::persist_sector_files(self.task, cache_dir, sealed_file)?;
+        let ins_name =
+            common::persist_sector_files(self.task, cache_dir, sealed_file)?;
 
         Ok(Event::Persist(ins_name))
     }
 
     fn handle_persisted(&self) -> Result<Event, Failure> {
-        common::submit_persisted(self.task, false).map(|_| Event::SubmitPersistance)
+        common::submit_persisted(self.task, false)
+            .map(|_| Event::SubmitPersistance)
     }
 
     fn handle_persistance_submitted(&self) -> Result<Event, Failure> {
@@ -388,7 +432,12 @@ impl<'t> Sealer<'t> {
     }
 
     fn handle_c1_done(&self) -> Result<Event, Failure> {
-        let _token = self.task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_C2).crit()?;
+        let _token = self
+            .task
+            .sealing_ctrl
+            .ctrl_ctx()
+            .wait(STAGE_NAME_C2)
+            .crit()?;
 
         let miner_id = self.task.sector_id()?.miner;
 
@@ -433,7 +482,9 @@ impl<'t> Sealer<'t> {
             self.task.sector.phases.c2out
         }
 
-        let info = ProofOnChainInfo { proof: proof.proof.into() };
+        let info = ProofOnChainInfo {
+            proof: proof.proof.into(),
+        };
 
         let res = call_rpc! {
             self.task.rpc()=>submit_proof(sector_id, info, self.task.sector.phases.c2_re_submit,)
@@ -441,13 +492,23 @@ impl<'t> Sealer<'t> {
 
         // TODO: submit reset correctly
         match res.res {
-            SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::SubmitProof),
+            SubmitResult::Accepted | SubmitResult::DuplicateSubmit => {
+                Ok(Event::SubmitProof)
+            }
 
-            SubmitResult::MismatchedSubmission => Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm()),
+            SubmitResult::MismatchedSubmission => {
+                Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm())
+            }
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort()),
+            SubmitResult::Rejected => {
+                Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort())
+            }
 
-            SubmitResult::FilesMissed => Err(anyhow!("FilesMissed is not handled currently: {:?}", res.desc).perm()),
+            SubmitResult::FilesMissed => Err(anyhow!(
+                "FilesMissed is not handled currently: {:?}",
+                res.desc
+            )
+            .perm()),
         }
     }
 
@@ -467,18 +528,36 @@ impl<'t> Sealer<'t> {
 
                 match state.state {
                     OnChainState::Landed => break 'POLL,
-                    OnChainState::NotFound => return Err(anyhow!("proof on-chain info not found").perm()),
+                    OnChainState::NotFound => {
+                        return Err(
+                            anyhow!("proof on-chain info not found").perm()
+                        )
+                    }
 
                     OnChainState::Failed => {
                         warn!("proof on-chain info failed: {:?}", state.desc);
                         // TODO: make it configurable
-                        self.task.sealing_ctrl.wait_or_interrupted(Duration::from_secs(30))?;
+                        self.task
+                            .sealing_ctrl
+                            .wait_or_interrupted(Duration::from_secs(30))?;
                         return Ok(Event::ReSubmitProof);
                     }
 
-                    OnChainState::PermFailed => return Err(anyhow!("proof on-chain info permanent failed: {:?}", state.desc).perm()),
+                    OnChainState::PermFailed => {
+                        return Err(anyhow!(
+                            "proof on-chain info permanent failed: {:?}",
+                            state.desc
+                        )
+                        .perm())
+                    }
 
-                    OnChainState::ShouldAbort => return Err(anyhow!("sector will not get on-chain: {:?}", state.desc).abort()),
+                    OnChainState::ShouldAbort => {
+                        return Err(anyhow!(
+                            "sector will not get on-chain: {:?}",
+                            state.desc
+                        )
+                        .abort())
+                    }
 
                     OnChainState::Pending | OnChainState::Packed => {}
                 }
@@ -489,9 +568,9 @@ impl<'t> Sealer<'t> {
                     "waiting for next round of polling proof state",
                 );
 
-                self.task
-                    .sealing_ctrl
-                    .wait_or_interrupted(self.task.sealing_ctrl.config().rpc_polling_interval)?;
+                self.task.sealing_ctrl.wait_or_interrupted(
+                    self.task.sealing_ctrl.config().rpc_polling_interval,
+                )?;
             }
         }
 

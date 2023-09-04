@@ -35,7 +35,10 @@ extern "C" {
     /// Sets a specified bit in a bit mask to 1.
     /// Nothing is done if n is greater than the size of the bitmask (and no error is returned).
     /// The value of bmp is always returned.
-    fn numa_bitmask_setbit(bmp: *mut NumaBitmask, n: c_uint) -> *mut NumaBitmask;
+    fn numa_bitmask_setbit(
+        bmp: *mut NumaBitmask,
+        n: c_uint,
+    ) -> *mut NumaBitmask;
 
     /// Binds the current task and its children to the nodes specified in nodemask.
     /// They will only run on the CPUs of the specified nodes and only be able to allocate memory from them.

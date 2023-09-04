@@ -66,6 +66,6 @@ func (a *apiBStore) AllKeysChan(_ context.Context) (<-chan cid.Cid, error) {
 }
 
 // HashOnRead implements Blockstore.HashOnRead.
-func (a *apiBStore) HashOnRead(enabled bool) {}
+func (a *apiBStore) HashOnRead(bool) {}
 
 var _ blockstore.Blockstore = &apiBStore{}

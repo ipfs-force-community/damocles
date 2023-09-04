@@ -7,7 +7,10 @@ use std::path::{Path, PathBuf};
 use std::{fmt, io};
 
 use anyhow::{Context, Result};
-use filecoin_proofs::{get_base_tree_leafs, get_base_tree_size, DefaultBinaryTree, DefaultPieceHasher, StoreConfig, BINARY_ARITY};
+use filecoin_proofs::{
+    get_base_tree_leafs, get_base_tree_size, DefaultBinaryTree,
+    DefaultPieceHasher, StoreConfig, BINARY_ARITY,
+};
 use filecoin_proofs_api::post;
 use filecoin_proofs_api::seal;
 use forest_address::Address;
@@ -21,13 +24,20 @@ use storage_proofs_core::{
 
 // re-exported
 pub use filecoin_proofs_api::{
-    seal::{clear_cache, Labels, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output},
-    update::{
-        empty_sector_update_encode_into, generate_empty_sector_update_proof_with_vanilla, generate_partition_proofs,
-        verify_empty_sector_update_proof, verify_partition_proofs,
+    seal::{
+        clear_cache, Labels, SealCommitPhase1Output, SealCommitPhase2Output,
+        SealPreCommitPhase1Output, SealPreCommitPhase2Output,
     },
-    ChallengeSeed, Commitment, PaddedBytesAmount, PartitionProofBytes, PieceInfo, PrivateReplicaInfo, ProverId, RegisteredPoStProof,
-    RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket, UnpaddedByteIndex, UnpaddedBytesAmount,
+    update::{
+        empty_sector_update_encode_into,
+        generate_empty_sector_update_proof_with_vanilla,
+        generate_partition_proofs, verify_empty_sector_update_proof,
+        verify_partition_proofs,
+    },
+    ChallengeSeed, Commitment, PaddedBytesAmount, PartitionProofBytes,
+    PieceInfo, PrivateReplicaInfo, ProverId, RegisteredPoStProof,
+    RegisteredSealProof, RegisteredUpdateProof, SectorId, Ticket,
+    UnpaddedByteIndex, UnpaddedBytesAmount,
 };
 
 /// Identifier for Actors.
@@ -51,15 +61,16 @@ impl fmt::Display for PanicError {
 macro_rules! safe_call {
     ($ex:expr) => {{
         let hook = std::panic::take_hook();
-        let res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || $ex)) {
+        let res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+            move || $ex,
+        )) {
             Ok(r) => r,
             Err(p) => {
                 let error_msg = match p.downcast_ref::<&str>() {
                     Some(message) => message.to_string(),
-                    None => p
-                        .downcast_ref::<String>()
-                        .cloned()
-                        .unwrap_or_else(|| format!("non-str unwind err: {:?}", p)),
+                    None => p.downcast_ref::<String>().cloned().unwrap_or_else(
+                        || format!("non-str unwind err: {:?}", p),
+                    ),
                 };
 
                 Err(crate::fil_proofs::PanicError { message: error_msg }.into())
@@ -300,7 +311,11 @@ impl AsRef<[u8]> for Bytes {
     }
 }
 
-pub fn create_tree_d(registered_proof: RegisteredSealProof, in_path: Option<PathBuf>, cache_path: PathBuf) -> Result<()> {
+pub fn create_tree_d(
+    registered_proof: RegisteredSealProof,
+    in_path: Option<PathBuf>,
+    cache_path: PathBuf,
+) -> Result<()> {
     safe_call! {
         create_tree_d_inner(
             registered_proof,
@@ -310,7 +325,11 @@ pub fn create_tree_d(registered_proof: RegisteredSealProof, in_path: Option<Path
     }
 }
 
-fn create_tree_d_inner(registered_proof: RegisteredSealProof, in_path: Option<PathBuf>, cache_path: PathBuf) -> Result<()> {
+fn create_tree_d_inner(
+    registered_proof: RegisteredSealProof,
+    in_path: Option<PathBuf>,
+    cache_path: PathBuf,
+) -> Result<()> {
     let sector_size = registered_proof.sector_size();
     let tree_size = get_base_tree_size::<DefaultBinaryTree>(sector_size)?;
     let tree_leafs = get_base_tree_leafs::<DefaultBinaryTree>(tree_size)?;
@@ -322,7 +341,11 @@ fn create_tree_d_inner(registered_proof: RegisteredSealProof, in_path: Option<Pa
                 .open(&p)
                 .with_context(|| format!("open staged file {:?}", p))?;
 
-            let mapped = unsafe { MmapOptions::new().map(&f).with_context(|| format!("mmap staged file: {:?}", p))? };
+            let mapped = unsafe {
+                MmapOptions::new()
+                    .map(&f)
+                    .with_context(|| format!("mmap staged file: {:?}", p))?
+            };
 
             Bytes::Mmap(mapped)
         }
@@ -336,21 +359,32 @@ fn create_tree_d_inner(registered_proof: RegisteredSealProof, in_path: Option<Pa
         default_rows_to_discard(tree_leafs, BINARY_ARITY),
     );
 
-    create_base_merkle_tree::<BinaryMerkleTree<DefaultPieceHasher>>(Some(cfg), tree_leafs, data.as_ref())?;
+    create_base_merkle_tree::<BinaryMerkleTree<DefaultPieceHasher>>(
+        Some(cfg),
+        tree_leafs,
+        data.as_ref(),
+    )?;
 
     Ok(())
 }
 
-pub fn cached_filenames_for_sector(registered_proof: RegisteredSealProof) -> Vec<PathBuf> {
+pub fn cached_filenames_for_sector(
+    registered_proof: RegisteredSealProof,
+) -> Vec<PathBuf> {
     use RegisteredSealProof::*;
     let mut trees = match registered_proof {
-        StackedDrg2KiBV1 | StackedDrg8MiBV1 | StackedDrg512MiBV1 | StackedDrg2KiBV1_1 | StackedDrg8MiBV1_1 | StackedDrg512MiBV1_1 => {
+        StackedDrg2KiBV1 | StackedDrg8MiBV1 | StackedDrg512MiBV1
+        | StackedDrg2KiBV1_1 | StackedDrg8MiBV1_1 | StackedDrg512MiBV1_1 => {
             vec!["sc-02-data-tree-r-last.dat".into()]
         }
 
-        StackedDrg32GiBV1 | StackedDrg32GiBV1_1 => (0..8).map(|idx| format!("sc-02-data-tree-r-last-{}.dat", idx).into()).collect(),
+        StackedDrg32GiBV1 | StackedDrg32GiBV1_1 => (0..8)
+            .map(|idx| format!("sc-02-data-tree-r-last-{}.dat", idx).into())
+            .collect(),
 
-        StackedDrg64GiBV1 | StackedDrg64GiBV1_1 => (0..16).map(|idx| format!("sc-02-data-tree-r-last-{}.dat", idx).into()).collect(),
+        StackedDrg64GiBV1 | StackedDrg64GiBV1_1 => (0..16)
+            .map(|idx| format!("sc-02-data-tree-r-last-{}.dat", idx).into())
+            .collect(),
     };
 
     trees.push("p_aux".into());
@@ -362,7 +396,8 @@ pub fn cached_filenames_for_sector(registered_proof: RegisteredSealProof) -> Vec
 pub fn to_prover_id(miner_id: ActorID) -> ProverId {
     let mut prover_id: ProverId = Default::default();
     let actor_addr_payload = Address::new_id(miner_id).payload_bytes();
-    prover_id[..actor_addr_payload.len()].copy_from_slice(actor_addr_payload.as_ref());
+    prover_id[..actor_addr_payload.len()]
+        .copy_from_slice(actor_addr_payload.as_ref());
     prover_id
 }
 

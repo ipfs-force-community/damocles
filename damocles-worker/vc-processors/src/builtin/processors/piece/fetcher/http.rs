@@ -15,7 +15,8 @@ pub fn fetcher_ref() -> &'static PieceHttpFetcher {
 }
 
 lazy_static! {
-    static ref PIECE_HTTP_FETCHER: PieceHttpFetcher = PieceHttpFetcher::from_env().unwrap();
+    static ref PIECE_HTTP_FETCHER: PieceHttpFetcher =
+        PieceHttpFetcher::from_env().unwrap();
 }
 
 /// A piece fetcher for the http file
@@ -31,7 +32,11 @@ impl<U: IntoUrl> PieceFetcher<U> for PieceHttpFetcher {
 
     fn open(&self, u: U) -> Result<Self::Read, Self::Err> {
         let u = u.into_url()?;
-        let mut resp = self.client.get(u.clone()).send().context("request piece url")?;
+        let mut resp = self
+            .client
+            .get(u.clone())
+            .send()
+            .context("request piece url")?;
 
         let mut status_code = resp.status();
         if status_code.is_redirection() {
@@ -39,14 +44,22 @@ impl<U: IntoUrl> PieceFetcher<U> for PieceHttpFetcher {
                 .headers()
                 .get(header::LOCATION)
                 .context("redirect location not found")
-                .and_then(|val| val.to_str().context("convert redirect location to str"))
-                .and_then(|location| u.join(location).context("join redirect url"))?;
+                .and_then(|val| {
+                    val.to_str().context("convert redirect location to str")
+                })
+                .and_then(|location| {
+                    u.join(location).context("join redirect url")
+                })?;
 
             let mut req = self.redirect_client.get(redirect_url);
             if let Some(token) = self.token.as_ref() {
                 req = req.header(
                     header::AUTHORIZATION,
-                    format!("{} {}", Self::HEADER_AUTHORIZATION_BEARER_PREFIX, token),
+                    format!(
+                        "{} {}",
+                        Self::HEADER_AUTHORIZATION_BEARER_PREFIX,
+                        token
+                    ),
                 )
             };
             resp = req.send().context("request to redirected location")?;
@@ -54,7 +67,11 @@ impl<U: IntoUrl> PieceFetcher<U> for PieceHttpFetcher {
         }
 
         if !status_code.is_success() {
-            return Err(anyhow!("get resource {} failed invalid status code {}", resp.url(), status_code));
+            return Err(anyhow!(
+                "get resource {} failed invalid status code {}",
+                resp.url(),
+                status_code
+            ));
         }
 
         Ok(resp)
@@ -71,7 +88,9 @@ impl PieceHttpFetcher {
     }
 
     fn new(token: Option<String>) -> anyhow::Result<Self> {
-        fn build_http_client(policy: redirect::Policy) -> reqwest::Result<Client> {
+        fn build_http_client(
+            policy: redirect::Policy,
+        ) -> reqwest::Result<Client> {
             ClientBuilder::new()
                 .redirect(policy) // handle redirect ourselves
                 .tcp_keepalive(Duration::from_secs(120))
@@ -81,8 +100,10 @@ impl PieceHttpFetcher {
                 .build()
         }
 
-        let client = build_http_client(redirect::Policy::none()).context("build http client")?;
-        let redirect_client = build_http_client(redirect::Policy::default()).context("build redirect http client")?;
+        let client = build_http_client(redirect::Policy::none())
+            .context("build http client")?;
+        let redirect_client = build_http_client(redirect::Policy::default())
+            .context("build redirect http client")?;
         Ok(Self {
             client,
             redirect_client,

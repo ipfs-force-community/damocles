@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use vc_processors::b64serde::{BytesArray32, BytesVec};
 use vc_processors::builtin::tasks::WindowPoStOutput;
-use vc_processors::fil_proofs::{Commitment, PaddedBytesAmount, RegisteredPoStProof, SectorId};
+use vc_processors::fil_proofs::{
+    Commitment, PaddedBytesAmount, RegisteredPoStProof, SectorId,
+};
 
 /// type alias for BytesArray32
 pub type Randomness = BytesArray32;
@@ -443,15 +445,26 @@ pub struct AllocatedWdPoStJob {
 pub trait Sealer {
     /// api definition
     #[rpc(name = "Venus.AllocateSector")]
-    fn allocate_sector(&self, spec: AllocateSectorSpec) -> Result<Option<AllocatedSector>>;
+    fn allocate_sector(
+        &self,
+        spec: AllocateSectorSpec,
+    ) -> Result<Option<AllocatedSector>>;
 
     /// api definition
     #[rpc(name = "Venus.AllocateSectorsBatch")]
-    fn allocate_sectors_batch(&self, spec: AllocateSectorSpec, count: u32) -> Result<Vec<AllocatedSector>>;
+    fn allocate_sectors_batch(
+        &self,
+        spec: AllocateSectorSpec,
+        count: u32,
+    ) -> Result<Vec<AllocatedSector>>;
 
     /// api definition
     #[rpc(name = "Venus.AcquireDeals")]
-    fn acquire_deals(&self, id: SectorID, spec: AcquireDealsSpec) -> Result<Option<Deals>>;
+    fn acquire_deals(
+        &self,
+        id: SectorID,
+        spec: AcquireDealsSpec,
+    ) -> Result<Option<Deals>>;
 
     /// api definition
     #[rpc(name = "Venus.AssignTicket")]
@@ -459,11 +472,19 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.SubmitPreCommit")]
-    fn submit_pre_commit(&self, sector: AllocatedSector, info: PreCommitOnChainInfo, reset: bool) -> Result<SubmitPreCommitResp>;
+    fn submit_pre_commit(
+        &self,
+        sector: AllocatedSector,
+        info: PreCommitOnChainInfo,
+        reset: bool,
+    ) -> Result<SubmitPreCommitResp>;
 
     /// api definition
     #[rpc(name = "Venus.PollPreCommitState")]
-    fn poll_pre_commit_state(&self, id: SectorID) -> Result<PollPreCommitStateResp>;
+    fn poll_pre_commit_state(
+        &self,
+        id: SectorID,
+    ) -> Result<PollPreCommitStateResp>;
 
     ///// api definition
     // #[rpc(name = "Venus.SubmitPersisted")]
@@ -471,7 +492,12 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.SubmitPersistedEx")]
-    fn submit_persisted_ex(&self, id: SectorID, instance: String, is_upgrade: bool) -> Result<bool>;
+    fn submit_persisted_ex(
+        &self,
+        id: SectorID,
+        instance: String,
+        is_upgrade: bool,
+    ) -> Result<bool>;
 
     /// api definition
     #[rpc(name = "Venus.WaitSeed")]
@@ -479,7 +505,12 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.SubmitProof")]
-    fn submit_proof(&self, id: SectorID, proof: ProofOnChainInfo, reset: bool) -> Result<SubmitProofResp>;
+    fn submit_proof(
+        &self,
+        id: SectorID,
+        proof: ProofOnChainInfo,
+        reset: bool,
+    ) -> Result<SubmitProofResp>;
 
     /// api definition
     #[rpc(name = "Venus.PollProofState")]
@@ -487,7 +518,11 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.ReportState")]
-    fn report_state(&self, id: SectorID, state: ReportStateReq) -> Result<SectorState>;
+    fn report_state(
+        &self,
+        id: SectorID,
+        state: ReportStateReq,
+    ) -> Result<SectorState>;
 
     /// api definition
     #[rpc(name = "Venus.ReportFinalized")]
@@ -500,41 +535,85 @@ pub trait Sealer {
     // snap up
     /// api definition
     #[rpc(name = "Venus.AllocateSanpUpSector")]
-    fn allocate_snapup_sector(&self, spec: AllocateSnapUpSpec) -> Result<Option<AllocatedSnapUpSector>>;
+    fn allocate_snapup_sector(
+        &self,
+        spec: AllocateSnapUpSpec,
+    ) -> Result<Option<AllocatedSnapUpSector>>;
 
     /// api definition
     #[rpc(name = "Venus.SubmitSnapUpProof")]
-    fn submit_snapup_proof(&self, id: SectorID, snapup_info: SnapUpOnChainInfo) -> Result<SubmitSnapUpProofResp>;
+    fn submit_snapup_proof(
+        &self,
+        id: SectorID,
+        snapup_info: SnapUpOnChainInfo,
+    ) -> Result<SubmitSnapUpProofResp>;
 
     #[rpc(name = "Venus.WorkerPing")]
     fn worker_ping(&self, winfo: WorkerInfo) -> Result<()>;
 
     #[rpc(name = "Venus.StoreReserveSpace")]
-    fn store_reserve_space(&self, id: SectorID, size: u64, candidates: Vec<String>) -> Result<Option<StoreBasicInfo>>;
+    fn store_reserve_space(
+        &self,
+        id: SectorID,
+        size: u64,
+        candidates: Vec<String>,
+    ) -> Result<Option<StoreBasicInfo>>;
 
     #[rpc(name = "Venus.StoreBasicInfo")]
-    fn store_basic_info(&self, instance_name: String) -> Result<Option<StoreBasicInfo>>;
+    fn store_basic_info(
+        &self,
+        instance_name: String,
+    ) -> Result<Option<StoreBasicInfo>>;
 
     // rebuild
     #[rpc(name = "Venus.AllocateRebuildSector")]
-    fn allocate_rebuild_sector(&self, spec: AllocateSectorSpec) -> Result<Option<SectorRebuildInfo>>;
+    fn allocate_rebuild_sector(
+        &self,
+        spec: AllocateSectorSpec,
+    ) -> Result<Option<SectorRebuildInfo>>;
 
     // unseal
     #[rpc(name = "Venus.AllocateUnsealSector")]
-    fn allocate_unseal_sector(&self, spec: AllocateSectorSpec) -> Result<Option<SectorUnsealInfo>>;
+    fn allocate_unseal_sector(
+        &self,
+        spec: AllocateSectorSpec,
+    ) -> Result<Option<SectorUnsealInfo>>;
 
     #[rpc(name = "Venus.AchieveUnsealSector")]
-    fn achieve_unseal_sector(&self, id: SectorID, piece_cid: CidJson, error: String) -> Result<()>;
+    fn achieve_unseal_sector(
+        &self,
+        id: SectorID,
+        piece_cid: CidJson,
+        error: String,
+    ) -> Result<()>;
 
     #[rpc(name = "Venus.AcquireUnsealDest")]
-    fn acquire_unseal_dest(&self, id: SectorID, piece_cid: CidJson) -> Result<Vec<String>>;
+    fn acquire_unseal_dest(
+        &self,
+        id: SectorID,
+        piece_cid: CidJson,
+    ) -> Result<Vec<String>>;
 
     #[rpc(name = "Venus.WdPoStAllocateJobs")]
-    fn allocate_wdpost_job(&self, spec: AllocatePoStSpec, num: u32, worker_name: String) -> Result<Vec<AllocatedWdPoStJob>>;
+    fn allocate_wdpost_job(
+        &self,
+        spec: AllocatePoStSpec,
+        num: u32,
+        worker_name: String,
+    ) -> Result<Vec<AllocatedWdPoStJob>>;
 
     #[rpc(name = "Venus.WdPoStHeartbeatJobs")]
-    fn wdpost_heartbeat(&self, job_ids: Vec<String>, worker_name: String) -> Result<()>;
+    fn wdpost_heartbeat(
+        &self,
+        job_ids: Vec<String>,
+        worker_name: String,
+    ) -> Result<()>;
 
     #[rpc(name = "Venus.WdPoStFinishJob")]
-    fn wdpost_finish(&self, job_id: String, output: Option<WindowPoStOutput>, error_reason: String) -> Result<()>;
+    fn wdpost_finish(
+        &self,
+        job_id: String,
+        output: Option<WindowPoStOutput>,
+        error_reason: String,
+    ) -> Result<()>;
 }

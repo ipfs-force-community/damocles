@@ -3,7 +3,9 @@
 use std::{collections::HashMap, time::Duration};
 
 use anyhow::{anyhow, Error, Result};
-use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender, TryRecvError, TrySendError};
+use crossbeam_channel::{
+    bounded, Receiver, RecvTimeoutError, Sender, TryRecvError, TrySendError,
+};
 
 use crate::logging::{debug, warn};
 
@@ -85,7 +87,9 @@ impl StaggeredLimit {
                 loop {
                     match task_done_rx.recv_timeout(interval) {
                         Ok(_) | Err(RecvTimeoutError::Timeout) => send_token()?,
-                        Err(RecvTimeoutError::Disconnected) => return Err(TryRecvError::Disconnected),
+                        Err(RecvTimeoutError::Disconnected) => {
+                            return Err(TryRecvError::Disconnected)
+                        }
                     }
                 }
             })();
@@ -94,7 +98,10 @@ impl StaggeredLimit {
             }
         });
 
-        Self { token_tx, task_done_tx }
+        Self {
+            token_tx,
+            task_done_tx,
+        }
     }
 
     fn acquire(&self) -> Result<StaggeredToken> {
@@ -153,7 +160,9 @@ impl Pool {
     const MIN_STAGGERED_INTERVAL: Duration = Duration::from_millis(1);
 
     pub fn empty() -> Self {
-        Self { pool: HashMap::new() }
+        Self {
+            pool: HashMap::new(),
+        }
     }
 
     /// extend resources
@@ -167,7 +176,8 @@ impl Pool {
                 "add limitation"
             );
 
-            let concurrent_limit_opt = limit_item.concurrent.map(ConcurrentLimit::new);
+            let concurrent_limit_opt =
+                limit_item.concurrent.map(ConcurrentLimit::new);
             let staggered_limit_opt = limit_item.staggered_interval.and_then(|interval| {
                 if interval < Self::MIN_STAGGERED_INTERVAL {
                     warn!(staggered_interval = ?interval, "staggered interval must be greater than or equal to {:?}", Self::MIN_STAGGERED_INTERVAL);
@@ -176,7 +186,10 @@ impl Pool {
                     Some(StaggeredLimit::new(1, interval.to_owned()))
                 }
             });
-            self.pool.insert(limit_item.name, (concurrent_limit_opt, staggered_limit_opt));
+            self.pool.insert(
+                limit_item.name,
+                (concurrent_limit_opt, staggered_limit_opt),
+            );
         }
     }
 
@@ -318,7 +331,11 @@ mod tests {
         now = Instant::now();
         timeout(ms(5), move || drop(token1));
         let _token3 = pool.acquire("pc1").unwrap();
-        assert_elapsed!(now, ms(5), "concurrent is only 2 so must wait for the `token1` to be dropped");
+        assert_elapsed!(
+            now,
+            ms(5),
+            "concurrent is only 2 so must wait for the `token1` to be dropped"
+        );
     }
 
     #[test]
@@ -348,7 +365,11 @@ mod tests {
         now = Instant::now();
         timeout(ms(20), move || drop(token1));
         let token4 = pool.acquire("pc1").unwrap();
-        assert_elapsed!(now, ms(20), "concurrent is only 3 so must wait for the `token1` to be dropped");
+        assert_elapsed!(
+            now,
+            ms(20),
+            "concurrent is only 3 so must wait for the `token1` to be dropped"
+        );
 
         drop(token2);
         drop(token3);
@@ -398,7 +419,11 @@ mod tests {
         now = Instant::now();
         drop(token1);
         let _token4 = pool.acquire("pc1").unwrap();
-        assert_elapsed!(now, ms(0), "since task1 has completed (token1 dropped), it should not be blocked");
+        assert_elapsed!(
+            now,
+            ms(0),
+            "since task1 has completed (token1 dropped), it should not be blocked"
+        );
     }
 
     #[test]
@@ -451,9 +476,15 @@ mod tests {
         );
         let token1 = pool.try_acquire("pc1").unwrap();
         assert!(token1.is_some(), "first try_acquire should not block");
-        assert!(pool.try_acquire("pc1").unwrap().is_none(), "second acquire should block");
+        assert!(
+            pool.try_acquire("pc1").unwrap().is_none(),
+            "second acquire should block"
+        );
         drop(token1);
-        assert!(pool.try_acquire("pc1").unwrap().is_some(), "should not block");
+        assert!(
+            pool.try_acquire("pc1").unwrap().is_some(),
+            "should not block"
+        );
     }
 
     fn ms(n: u64) -> Duration {

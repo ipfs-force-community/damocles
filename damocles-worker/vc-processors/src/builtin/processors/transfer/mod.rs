@@ -15,13 +15,19 @@ pub fn do_transfer(route: &TransferRoute) -> Result<()> {
     do_transfer_inner(route, false)
 }
 
-pub fn do_transfer_inner(route: &TransferRoute, disable_link: bool) -> Result<()> {
+pub fn do_transfer_inner(
+    route: &TransferRoute,
+    disable_link: bool,
+) -> Result<()> {
     if route.src.uri.is_relative() {
         return Err(anyhow!("src path is relative"));
     }
 
     if !route.src.uri.exists() {
-        return Err(anyhow!("src path not exists: {}", route.src.uri.display()));
+        return Err(anyhow!(
+            "src path not exists: {}",
+            route.src.uri.display()
+        ));
     }
 
     let src_is_dir = route.src.uri.is_dir();
@@ -33,7 +39,10 @@ pub fn do_transfer_inner(route: &TransferRoute, disable_link: bool) -> Result<()
     if route.dest.uri.exists() {
         let dest_is_dir = route.dest.uri.is_dir();
         if src_is_dir != dest_is_dir {
-            return Err(anyhow!("dest entry type is different with src, is_dir={}", src_is_dir));
+            return Err(anyhow!(
+                "dest entry type is different with src, is_dir={}",
+                src_is_dir
+            ));
         }
 
         if dest_is_dir {
@@ -45,18 +54,29 @@ pub fn do_transfer_inner(route: &TransferRoute, disable_link: bool) -> Result<()
 
     if !disable_link {
         if let Some(true) = route.opt.as_ref().map(|opt| opt.allow_link) {
-            link_entry(&route.src.uri, &route.dest.uri).context("link entry")?;
+            link_entry(&route.src.uri, &route.dest.uri)
+                .context("link entry")?;
             info!(src=?&route.src.uri, dest=?&route.dest.uri, "entry linked");
             return Ok(());
         }
     }
 
     if src_is_dir {
-        copy_dir(&route.src.uri, &route.dest.uri).with_context(|| format!("transfer dir {:?} to {:?}", &route.src.uri, &route.dest.uri))?;
+        copy_dir(&route.src.uri, &route.dest.uri).with_context(|| {
+            format!(
+                "transfer dir {:?} to {:?}",
+                &route.src.uri, &route.dest.uri
+            )
+        })?;
         info!(src=?&route.src.uri, dest=?&route.dest.uri, "dir copied");
     } else {
-        let size = copy_file(&route.src.uri, &route.dest.uri)
-            .with_context(|| format!("transfer file {:?} to {:?}", &route.src.uri, &route.dest.uri))?;
+        let size =
+            copy_file(&route.src.uri, &route.dest.uri).with_context(|| {
+                format!(
+                    "transfer file {:?} to {:?}",
+                    &route.src.uri, &route.dest.uri
+                )
+            })?;
         info!(src=?&route.src.uri, dest=?&route.dest.uri, size, "file copied");
     }
 
@@ -65,7 +85,8 @@ pub fn do_transfer_inner(route: &TransferRoute, disable_link: bool) -> Result<()
 
 fn ensure_dest_parent(dest: &Path) -> Result<()> {
     if let Some(parent) = dest.parent() {
-        create_dir_all(parent).with_context(|| format!("ensure dest parent for {:?}", dest))?;
+        create_dir_all(parent)
+            .with_context(|| format!("ensure dest parent for {:?}", dest))?;
     }
 
     Ok(())
@@ -79,7 +100,10 @@ fn link_entry(src: &Path, dest: &Path) -> Result<()> {
 
 fn copy_file(src: &Path, dest: &Path) -> Result<u64> {
     ensure_dest_parent(dest)?;
-    let mut r = OpenOptions::new().read(true).open(src).context("open src file")?;
+    let mut r = OpenOptions::new()
+        .read(true)
+        .open(src)
+        .context("open src file")?;
     let mut f = OpenOptions::new()
         .read(true)
         .write(true)
@@ -102,9 +126,13 @@ fn copy_dir(src: &Path, dest: &Path) -> Result<()> {
 
         let target = dest.join(rel_path);
         if full_path.is_dir() {
-            copy_dir(&full_path, &target).with_context(|| format!("copy dir inside {:?} to {:?}", full_path, dest))?;
+            copy_dir(&full_path, &target).with_context(|| {
+                format!("copy dir inside {:?} to {:?}", full_path, dest)
+            })?;
         } else {
-            copy_file(&full_path, &target).with_context(|| format!("copy file inside {:?} to {:?}", full_path, dest))?;
+            copy_file(&full_path, &target).with_context(|| {
+                format!("copy file inside {:?} to {:?}", full_path, dest)
+            })?;
         }
     }
 

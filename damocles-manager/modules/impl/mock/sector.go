@@ -26,7 +26,7 @@ type sectorMgr struct {
 	sectorNum uint64
 }
 
-func (s *sectorMgr) Allocate(ctx context.Context, spec core.AllocateSectorSpec, count uint32) ([]*core.AllocatedSector, error) {
+func (s *sectorMgr) Allocate(_ context.Context, spec core.AllocateSectorSpec, count uint32) ([]*core.AllocatedSector, error) {
 	allowedMiners := spec.AllowedMiners
 	allowedProofTypes := spec.AllowedProofTypes
 	if count == 0 {

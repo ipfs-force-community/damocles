@@ -20,23 +20,34 @@ pub fn rpc_addr(raw: &str, ver: u32) -> Result<String> {
         Err(e) => e,
     };
 
-    let url_err = match Url::parse(raw).context("try to parse url").and_then(|url| {
-        Ok(format_rpc_addr(
-            url.scheme(),
-            url.host_str().context("url host is required")?,
-            url.port(),
-            ver,
-        ))
-    }) {
-        Ok(addr) => return Ok(addr),
-        Err(e) => e,
-    };
+    let url_err =
+        match Url::parse(raw).context("try to parse url").and_then(|url| {
+            Ok(format_rpc_addr(
+                url.scheme(),
+                url.host_str().context("url host is required")?,
+                url.port(),
+                ver,
+            ))
+        }) {
+            Ok(addr) => return Ok(addr),
+            Err(e) => e,
+        };
 
-    Err(anyhow!("parse rpc addr: `{}`\n1. {:?}\n\n2. {:?}", raw, multiaddr_err, url_err))
+    Err(anyhow!(
+        "parse rpc addr: `{}`\n1. {:?}\n\n2. {:?}",
+        raw,
+        multiaddr_err,
+        url_err
+    ))
 }
 
 #[inline]
-fn format_rpc_addr(scheme: &str, host: &str, port: Option<u16>, ver: u32) -> String {
+fn format_rpc_addr(
+    scheme: &str,
+    host: &str,
+    port: Option<u16>,
+    ver: u32,
+) -> String {
     match port {
         Some(p) => {
             format!("{}://{}:{}/rpc/v{}", scheme, host, p, ver)
@@ -106,24 +117,54 @@ mod tests {
                 "http://2001:db8:3333:4444:5555:6666:7777:8888:1789/rpc/v0",
             ),
             ("/dns/127.0.0.1/tcp/1789", 0, "http://127.0.0.1:1789/rpc/v0"),
-            ("/dns4/hello.com/tcp/1789", 0, "http://hello.com:1789/rpc/v0"),
-            ("/dns6/hello.com/tcp/1789", 0, "http://hello.com:1789/rpc/v0"),
+            (
+                "/dns4/hello.com/tcp/1789",
+                0,
+                "http://hello.com:1789/rpc/v0",
+            ),
+            (
+                "/dns6/hello.com/tcp/1789",
+                0,
+                "http://hello.com:1789/rpc/v0",
+            ),
             ("http://hello.com:1789", 0, "http://hello.com:1789/rpc/v0"),
-            ("/ip4/127.0.0.1/tcp/17890", 1, "http://127.0.0.1:17890/rpc/v1"),
+            (
+                "/ip4/127.0.0.1/tcp/17890",
+                1,
+                "http://127.0.0.1:17890/rpc/v1",
+            ),
             (
                 "/ip6/2001:db8:3333:4444:5555:6666:7777:8888/tcp/17890",
                 1,
                 "http://2001:db8:3333:4444:5555:6666:7777:8888:17890/rpc/v1",
             ),
-            ("/dns/127.0.0.1/tcp/17890", 1, "http://127.0.0.1:17890/rpc/v1"),
-            ("/dns4/hello.com/tcp/17890", 1, "http://hello.com:17890/rpc/v1"),
-            ("/dns6/hello.com/tcp/17890", 1, "http://hello.com:17890/rpc/v1"),
+            (
+                "/dns/127.0.0.1/tcp/17890",
+                1,
+                "http://127.0.0.1:17890/rpc/v1",
+            ),
+            (
+                "/dns4/hello.com/tcp/17890",
+                1,
+                "http://hello.com:17890/rpc/v1",
+            ),
+            (
+                "/dns6/hello.com/tcp/17890",
+                1,
+                "http://hello.com:17890/rpc/v1",
+            ),
             ("http://hello.com:17890", 1, "http://hello.com:17890/rpc/v1"),
         ];
 
         for (raw, ver, expected) in cases {
             let actual = super::rpc_addr(raw, ver).expect("never fail");
-            assert_eq!(actual, expected.to_string(), "testing for `raw: {}, ver: {}`", raw, ver);
+            assert_eq!(
+                actual,
+                expected.to_string(),
+                "testing for `raw: {}, ver: {}`",
+                raw,
+                ver
+            );
         }
     }
 }

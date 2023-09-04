@@ -6,17 +6,23 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
-use vc_processors::builtin::tasks::{Piece, PieceFile, STAGE_NAME_ADD_PIECES, STAGE_NAME_TREED};
+use vc_processors::builtin::tasks::{
+    Piece, PieceFile, STAGE_NAME_ADD_PIECES, STAGE_NAME_TREED,
+};
 
 use crate::{
     rpc::sealer::{Deals, SectorID, Seed, Ticket},
     sealing::{
         failure::{Failure, IntoFailure, MapErrToFailure, MapStdErrToFailure},
         processor::{
-            cached_filenames_for_sector, seal_commit_phase1, snap_generate_partition_proofs, snap_verify_sector_update_proof,
-            tree_d_path_in_dir, AddPiecesInput, PC1Input, PC2Input, PieceInfo, SealCommitPhase1Output, SealPreCommitPhase1Output,
-            SealPreCommitPhase2Output, SnapEncodeInput, SnapEncodeOutput, SnapProveInput, SnapProveOutput, TransferInput, TransferItem,
-            TransferRoute, TransferStoreInfo, TreeDInput, UnpaddedBytesAmount, STAGE_NAME_C1, STAGE_NAME_PC1, STAGE_NAME_PC2,
+            cached_filenames_for_sector, seal_commit_phase1,
+            snap_generate_partition_proofs, snap_verify_sector_update_proof,
+            tree_d_path_in_dir, AddPiecesInput, PC1Input, PC2Input, PieceInfo,
+            SealCommitPhase1Output, SealPreCommitPhase1Output,
+            SealPreCommitPhase2Output, SnapEncodeInput, SnapEncodeOutput,
+            SnapProveInput, SnapProveOutput, TransferInput, TransferItem,
+            TransferRoute, TransferStoreInfo, TreeDInput, UnpaddedBytesAmount,
+            STAGE_NAME_C1, STAGE_NAME_PC1, STAGE_NAME_PC2,
             STAGE_NAME_SNAP_ENCODE, STAGE_NAME_SNAP_PROVE,
         },
         sealing_thread::{
@@ -30,15 +36,27 @@ use crate::{
 
 use super::task::Task;
 
-pub(crate) fn add_pieces(task: &Task, deals: &Deals) -> Result<Vec<PieceInfo>, Failure> {
-    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_ADD_PIECES).crit()?;
+pub(crate) fn add_pieces(
+    task: &Task,
+    deals: &Deals,
+) -> Result<Vec<PieceInfo>, Failure> {
+    let _token = task
+        .sealing_ctrl
+        .ctrl_ctx()
+        .wait(STAGE_NAME_ADD_PIECES)
+        .crit()?;
 
     let seal_proof_type = task.sector_proof_type()?.into();
     let staged_filepath = task.staged_file(task.sector_id()?);
     if staged_filepath.full().exists() {
-        remove_file(&staged_filepath).context("remove the existing staged file").perm()?;
+        remove_file(&staged_filepath)
+            .context("remove the existing staged file")
+            .perm()?;
     } else {
-        staged_filepath.prepare().context("prepare staged file").perm()?;
+        staged_filepath
+            .prepare()
+            .context("prepare staged file")
+            .perm()?;
     }
 
     let piece_store = task.sealing_ctrl.ctx().global.piece_store.as_ref();
@@ -82,7 +100,10 @@ pub(crate) fn add_pieces(task: &Task, deals: &Deals) -> Result<Vec<PieceInfo>, F
 }
 
 // build tree_d inside `prepare_dir` if necessary
-pub(crate) fn build_tree_d(task: &Task, allow_static: bool) -> Result<(), Failure> {
+pub(crate) fn build_tree_d(
+    task: &Task,
+    allow_static: bool,
+) -> Result<(), Failure> {
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
 
@@ -94,14 +115,28 @@ pub(crate) fn build_tree_d(task: &Task, allow_static: bool) -> Result<(), Failur
     let tree_d_path = tree_d_path_in_dir(prepared_dir.as_ref());
     if tree_d_path.exists() {
         remove_file(&tree_d_path)
-            .with_context(|| format!("cleanup preprared tree d file {:?}", tree_d_path))
+            .with_context(|| {
+                format!("cleanup preprared tree d file {:?}", tree_d_path)
+            })
             .crit()?;
     }
 
     // pledge sector
-    if allow_static && task.sector.deals.as_ref().map(|d| d.len()).unwrap_or(0) == 0 {
-        if let Some(static_tree_path) = task.sealing_ctrl.ctx().global.static_tree_d.get(&proof_type.sector_size()) {
-            symlink(static_tree_path, tree_d_path_in_dir(prepared_dir.as_ref())).crit()?;
+    if allow_static
+        && task.sector.deals.as_ref().map(|d| d.len()).unwrap_or(0) == 0
+    {
+        if let Some(static_tree_path) = task
+            .sealing_ctrl
+            .ctx()
+            .global
+            .static_tree_d
+            .get(&proof_type.sector_size())
+        {
+            symlink(
+                static_tree_path,
+                tree_d_path_in_dir(prepared_dir.as_ref()),
+            )
+            .crit()?;
             return Ok(());
         }
     }
@@ -141,7 +176,9 @@ fn cleanup_before_pc1(cache_dir: &Entry, sealed_file: &Entry) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn pre_commit1(task: &Task) -> Result<(Ticket, SealPreCommitPhase1Output), Failure> {
+pub(crate) fn pre_commit1(
+    task: &Task,
+) -> Result<(Ticket, SealPreCommitPhase1Output), Failure> {
     let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_PC1).crit()?;
 
     let sector_id = task.sector_id()?;
@@ -169,8 +206,14 @@ pub(crate) fn pre_commit1(task: &Task) -> Result<(Ticket, SealPreCommitPhase1Out
     let sealed_file = task.sealed_file(sector_id);
     let prepared_dir = task.prepared_dir(sector_id);
 
-    cleanup_before_pc1(&cache_dir, &sealed_file).context("cleanup before pc1").crit()?;
-    symlink(tree_d_path_in_dir(prepared_dir.as_ref()), tree_d_path_in_dir(cache_dir.as_ref())).crit()?;
+    cleanup_before_pc1(&cache_dir, &sealed_file)
+        .context("cleanup before pc1")
+        .crit()?;
+    symlink(
+        tree_d_path_in_dir(prepared_dir.as_ref()),
+        tree_d_path_in_dir(cache_dir.as_ref()),
+    )
+    .crit()?;
 
     field_required! {
         prove_input,
@@ -206,14 +249,18 @@ fn cleanup_before_pc2(cache_dir: &Path) -> Result<()> {
         let entry = entry_res?;
         let fname = entry.file_name();
         if let Some(fname_str) = fname.to_str() {
-            let should = fname_str == "p_aux" || fname_str == "t_aux" || fname_str.contains("tree-c") || fname_str.contains("tree-r-last");
+            let should = fname_str == "p_aux"
+                || fname_str == "t_aux"
+                || fname_str.contains("tree-c")
+                || fname_str.contains("tree-r-last");
 
             if !should {
                 continue;
             }
 
             let p = entry.path();
-            remove_file(&p).with_context(|| format!("remove cached file {:?}", p))?;
+            remove_file(&p)
+                .with_context(|| format!("remove cached file {:?}", p))?;
             tracing::debug!("remove cached file {:?} before pc2", p);
         }
     }
@@ -221,7 +268,9 @@ fn cleanup_before_pc2(cache_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, Failure> {
+pub(crate) fn pre_commit2(
+    task: &'_ Task,
+) -> Result<SealPreCommitPhase2Output, Failure> {
     let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_PC2).crit()?;
 
     let sector_id = task.sector_id()?;
@@ -244,12 +293,16 @@ pub(crate) fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, F
         // When the pc2 task is restarted again, the pc2 result will be wrong.
         // So we add the .pc2_running file. If this file exists when pc2 start,
         // it means that pc2 has been restarted before and the sealed file needs to be copied again to ensure the correctness of the sealed file.
-        fs::remove_file(sealed_file.full()).context("remove sealed file").crit()?;
+        fs::remove_file(sealed_file.full())
+            .context("remove sealed file")
+            .crit()?;
         fs::copy(task.staged_file(sector_id).full(), sealed_file.full())
             .context("copy sealed file")
             .crit()?;
     } else {
-        fs::File::create(pc2_running_file).context("create pc2 running file").crit()?;
+        fs::File::create(pc2_running_file)
+            .context("create pc2 running file")
+            .crit()?;
     }
 
     let out = task
@@ -268,11 +321,16 @@ pub(crate) fn pre_commit2(task: &'_ Task) -> Result<SealPreCommitPhase2Output, F
         )
         .perm()?;
 
-    fs::remove_file(pc2_running_file).context("remove pc2 running file").crit()?;
+    fs::remove_file(pc2_running_file)
+        .context("remove pc2 running file")
+        .crit()?;
     Ok(out)
 }
 
-pub(crate) fn commit1_with_seed(task: &Task, seed: Seed) -> Result<SealCommitPhase1Output, Failure> {
+pub(crate) fn commit1_with_seed(
+    task: &Task,
+    seed: Seed,
+) -> Result<SealCommitPhase1Output, Failure> {
     let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_C1).crit()?;
 
     let sector_id = task.sector_id()?;
@@ -317,8 +375,16 @@ pub(crate) fn commit1_with_seed(task: &Task, seed: Seed) -> Result<SealCommitPha
     Ok(out)
 }
 
-pub(crate) fn snap_encode(task: &Task, sector_id: &SectorID, proof_type: &SealProof) -> Result<SnapEncodeOutput, Failure> {
-    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_SNAP_ENCODE).crit()?;
+pub(crate) fn snap_encode(
+    task: &Task,
+    sector_id: &SectorID,
+    proof_type: &SealProof,
+) -> Result<SnapEncodeOutput, Failure> {
+    let _token = task
+        .sealing_ctrl
+        .ctrl_ctx()
+        .wait(STAGE_NAME_SNAP_ENCODE)
+        .crit()?;
 
     cloned_required!(piece_infos, task.sector.phases.pieces);
 
@@ -331,19 +397,26 @@ pub(crate) fn snap_encode(task: &Task, sector_id: &SectorID, proof_type: &SealPr
     tracing::debug!(path=?update_file.full(),  "trying to init update file");
     {
         let file = update_file.init_file().perm()?;
-        file.set_len(proof_type.sector_size()).context("fallocate for update file").perm()?;
+        file.set_len(proof_type.sector_size())
+            .context("fallocate for update file")
+            .perm()?;
     }
 
     let update_cache_dir = task.update_cache_dir(sector_id);
     tracing::debug!(path=?update_cache_dir.full(),  "trying to init update cache dir");
-    update_cache_dir.prepare().context("prepare update cache dir").perm()?;
+    update_cache_dir
+        .prepare()
+        .context("prepare update cache dir")
+        .perm()?;
 
     // tree d
     tracing::debug!("trying to prepare tree_d");
     let prepared_dir = task.prepared_dir(sector_id);
     let tree_d_link = tree_d_path_in_dir(update_cache_dir.as_ref());
     if tree_d_link.exists() {
-        fs::remove_file(&tree_d_link).context("remove existing tree_d link file").crit()?;
+        fs::remove_file(&tree_d_link)
+            .context("remove existing tree_d link file")
+            .crit()?;
     }
     symlink(tree_d_path_in_dir(prepared_dir.as_ref()), tree_d_link)
         .context("link prepared tree_d")
@@ -372,12 +445,19 @@ pub(crate) fn snap_encode(task: &Task, sector_id: &SectorID, proof_type: &SealPr
 }
 
 pub(crate) fn snap_prove(task: &Task) -> Result<SnapProveOutput, Failure> {
-    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_SNAP_PROVE).crit()?;
+    let _token = task
+        .sealing_ctrl
+        .ctrl_ctx()
+        .wait(STAGE_NAME_SNAP_PROVE)
+        .crit()?;
 
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
     field_required!(encode_out, task.sector.phases.snap_encode_out.as_ref());
-    field_required!(comm_r_old, task.sector.finalized.as_ref().map(|f| f.public.comm_r));
+    field_required!(
+        comm_r_old,
+        task.sector.finalized.as_ref().map(|f| f.public.comm_r)
+    );
 
     let sealed_file = task.sealed_file(sector_id);
     let cached_dir = task.cache_dir(sector_id);
@@ -406,7 +486,10 @@ pub(crate) fn snap_prove(task: &Task) -> Result<SnapProveOutput, Failure> {
             task.sealing_ctrl.ctrl_ctx(),
             SnapProveInput {
                 registered_proof: (*proof_type).into(),
-                vannilla_proofs: vannilla_proofs.into_iter().map(|b| b.0).collect(),
+                vannilla_proofs: vannilla_proofs
+                    .into_iter()
+                    .map(|b| b.0)
+                    .collect(),
                 comm_r_old,
                 comm_r_new: encode_out.comm_r_new,
                 comm_d_new: encode_out.comm_d_new,
@@ -414,8 +497,14 @@ pub(crate) fn snap_prove(task: &Task) -> Result<SnapProveOutput, Failure> {
         )
         .perm()?;
 
-    let verified =
-        snap_verify_sector_update_proof(proof_type.into(), &proof, comm_r_old, encode_out.comm_r_new, encode_out.comm_d_new).perm()?;
+    let verified = snap_verify_sector_update_proof(
+        proof_type.into(),
+        &proof,
+        comm_r_old,
+        encode_out.comm_r_new,
+        encode_out.comm_d_new,
+    )
+    .perm()?;
 
     if !verified {
         return Err(anyhow!("generated an invalid update proof").perm());
@@ -426,7 +515,11 @@ pub(crate) fn snap_prove(task: &Task) -> Result<SnapProveOutput, Failure> {
 
 // acquire a persist store for sector files, copy the files and return the instance name of the
 // acquired store
-pub(crate) fn persist_sector_files(task: &Task, cache_dir: Entry, sealed_file: Entry) -> Result<String, Failure> {
+pub(crate) fn persist_sector_files(
+    task: &Task,
+    cache_dir: Entry,
+    sealed_file: Entry,
+) -> Result<String, Failure> {
     let sector_id = task.sector_id()?;
     let proof_type = task.sector_proof_type()?;
     let sector_size = proof_type.sector_size();
@@ -439,9 +532,15 @@ pub(crate) fn persist_sector_files(task: &Task, cache_dir: Entry, sealed_file: E
         sector_size + sector_size / 50
     };
 
-    let candidates = task.sealing_ctrl.ctx().global.attached.available_instances();
+    let candidates = task
+        .sealing_ctrl
+        .ctx()
+        .global
+        .attached
+        .available_instances();
     if candidates.is_empty() {
-        return Err(anyhow!("no available local persist store candidate")).perm();
+        return Err(anyhow!("no available local persist store candidate"))
+            .perm();
     }
 
     let ins_info = loop {
@@ -459,8 +558,9 @@ pub(crate) fn persist_sector_files(task: &Task, cache_dir: Entry, sealed_file: E
             candidates=?candidates,
             "no persist store selected, wait for next polling"
         );
-        task.sealing_ctrl
-            .wait_or_interrupted(task.sealing_ctrl.config().rpc_polling_interval)?;
+        task.sealing_ctrl.wait_or_interrupted(
+            task.sealing_ctrl.config().rpc_polling_interval,
+        )?;
     };
 
     let persist_store = task
@@ -527,7 +627,10 @@ pub(crate) fn persist_sector_files(task: &Task, cache_dir: Entry, sealed_file: E
     Ok(ins_name)
 }
 
-pub(crate) fn submit_persisted(task: &Task, is_upgrade: bool) -> Result<(), Failure> {
+pub(crate) fn submit_persisted(
+    task: &Task,
+    is_upgrade: bool,
+) -> Result<(), Failure> {
     let sector_id = task.sector_id()?;
 
     field_required! {
@@ -542,6 +645,9 @@ pub(crate) fn submit_persisted(task: &Task, is_upgrade: bool) -> Result<(), Fail
     if checked {
         Ok(())
     } else {
-        Err(anyhow!("sector files are persisted but unavailable for sealer")).perm()
+        Err(anyhow!(
+            "sector files are persisted but unavailable for sealer"
+        ))
+        .perm()
     }
 }

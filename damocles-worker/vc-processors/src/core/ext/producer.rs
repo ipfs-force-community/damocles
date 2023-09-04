@@ -25,23 +25,37 @@ pub fn dump_error_resp_env(pid: u32) -> String {
     format!("DUMP_ERR_RESP_{}", pid)
 }
 
-fn start_response_handler<T: Task>(child_pid: u32, stdout: ChildStdout, in_flight_requests: InflightRequests<T::Output>) -> Result<()> {
+fn start_response_handler<T: Task>(
+    child_pid: u32,
+    stdout: ChildStdout,
+    in_flight_requests: InflightRequests<T::Output>,
+) -> Result<()> {
     let mut reader = BufReader::new(stdout);
     let mut line_buf = String::new();
 
     loop {
         line_buf.clear();
 
-        let size = reader.read_line(&mut line_buf).context("read line from stdout")?;
+        let size = reader
+            .read_line(&mut line_buf)
+            .context("read line from stdout")?;
         if size == 0 {
             error!("child exited");
-            return Err(io::Error::new(io::ErrorKind::BrokenPipe, "child process exit").into());
+            return Err(io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "child process exit",
+            )
+            .into());
         }
 
         let resp: Response<T::Output> = match from_str(line_buf.as_str()) {
             Ok(r) => r,
             Err(_) => {
-                dump(&DumpType::from_env(child_pid), child_pid, line_buf.as_str());
+                dump(
+                    &DumpType::from_env(child_pid),
+                    child_pid,
+                    line_buf.as_str(),
+                );
                 continue;
             }
         };
@@ -79,37 +93,51 @@ fn dump(dt: &DumpType, child_pid: u32, data: &str) {
             return data.to_string();
         }
 
-        let trunc_len = (0..TRUNCATE_SIZE + 1).rposition(|index| data.is_char_boundary(index)).unwrap_or(0);
+        let trunc_len = (0..TRUNCATE_SIZE + 1)
+            .rposition(|index| data.is_char_boundary(index))
+            .unwrap_or(0);
         format!("{}...", &data[..trunc_len])
     }
 
     match dt {
         DumpType::ToLog => {
-            error!(child_pid = child_pid, "failed to unmarshal response string: '{}'.", truncate(data));
+            error!(
+                child_pid = child_pid,
+                "failed to unmarshal response string: '{}'.",
+                truncate(data)
+            );
         }
-        DumpType::ToFile(dir) => match dump_to_file(child_pid, dir, data.as_bytes()) {
-            Ok(dump_file_path) => {
-                error!(
+        DumpType::ToFile(dir) => {
+            match dump_to_file(child_pid, dir, data.as_bytes()) {
+                Ok(dump_file_path) => {
+                    error!(
                     child_pid = child_pid,
                     "failed to unmarshal response string. dump file '{}' generated.",
                     dump_file_path.display()
                 )
-            }
-            Err(e) => {
-                error!(
+                }
+                Err(e) => {
+                    error!(
                     child_pid = child_pid,
                     "failed to unmarshal response string; failed to generate dump file: '{}'.", e
                 );
+                }
             }
-        },
+        }
     }
 }
 
-fn dump_to_file(child_pid: u32, dir: impl AsRef<Path>, data: &[u8]) -> Result<PathBuf> {
+fn dump_to_file(
+    child_pid: u32,
+    dir: impl AsRef<Path>,
+    data: &[u8],
+) -> Result<PathBuf> {
     #[inline]
     fn ensure_dir(dir: &Path) -> Result<()> {
         if !dir.exists() {
-            fs::create_dir_all(dir).with_context(|| format!("create directory '{}' for dump files", dir.display()))?;
+            fs::create_dir_all(dir).with_context(|| {
+                format!("create directory '{}' for dump files", dir.display())
+            })?;
         } else if !dir.is_dir() {
             return Err(anyhow!("'{}' is not directory", dir.display()));
         }
@@ -118,7 +146,11 @@ fn dump_to_file(child_pid: u32, dir: impl AsRef<Path>, data: &[u8]) -> Result<Pa
 
     let dir = dir.as_ref();
     ensure_dir(dir)?;
-    let filename = format!("ext-processor-err-resp-{}-{}.json", child_pid, Uuid::new_v4().as_simple());
+    let filename = format!(
+        "ext-processor-err-resp-{}-{}.json",
+        child_pid,
+        Uuid::new_v4().as_simple()
+    );
     let path = dir.join(filename);
     fs::write(&path, data)?;
     Ok(path)
@@ -170,7 +202,10 @@ impl ProducerBuilder {
     /// Set if the child has a preferred numa node.
     #[cfg(feature = "numa")]
     pub fn numa_preferred(self, node: std::os::raw::c_int) -> Self {
-        self.env(crate::sys::numa::ENV_NUMA_PREFERRED.to_string(), node.to_string())
+        self.env(
+            crate::sys::numa::ENV_NUMA_PREFERRED.to_string(),
+            node.to_string(),
+        )
     }
 
     /// Set auto restart for child process
@@ -181,8 +216,14 @@ impl ProducerBuilder {
 
     /// Set cpuset for child process
     pub fn cpuset<S: Into<String>>(mut self, cgname: S, cpuset: S) -> Self {
-        self = self.env(crate::sys::cgroup::ENV_CGROUP_NAME.to_string(), cgname.into());
-        self.env(crate::sys::cgroup::ENV_CGROUP_CPUSET.to_string(), cpuset.into())
+        self = self.env(
+            crate::sys::cgroup::ENV_CGROUP_NAME.to_string(),
+            cgname.into(),
+        );
+        self.env(
+            crate::sys::cgroup::ENV_CGROUP_CPUSET.to_string(),
+            cpuset.into(),
+        )
     }
 
     /// Build a Producer with the given options.
@@ -209,7 +250,9 @@ impl ProducerBuilder {
             cmd
         };
 
-        let (producer_inner, mut child_stdout) = ProducerInner::new(cmd(), T::STAGE, stable_timeout).context("create producer inner")?;
+        let (producer_inner, mut child_stdout) =
+            ProducerInner::new(cmd(), T::STAGE, stable_timeout)
+                .context("create producer inner")?;
         let child_pid = producer_inner.child_id();
         let producer_inner = Arc::new(Mutex::new(producer_inner));
         let in_flight_requests = InflightRequests::new();
@@ -222,15 +265,20 @@ impl ProducerBuilder {
 
         thread::spawn(move || {
             loop {
-                if let Err(e) =
-                    start_response_handler::<T>(child_pid, child_stdout, in_flight_requests.clone()).context("start response handler")
+                if let Err(e) = start_response_handler::<T>(
+                    child_pid,
+                    child_stdout,
+                    in_flight_requests.clone(),
+                )
+                .context("start response handler")
                 {
                     error!(err=?e, "failed to start response handler. pid: {}", child_pid);
                 }
 
                 // child process exist
                 // cancel all in flight requests
-                in_flight_requests.cancel_all(format!("child process exited: {}", T::STAGE));
+                in_flight_requests
+                    .cancel_all(format!("child process exited: {}", T::STAGE));
 
                 if !auto_restart {
                     break;
@@ -254,20 +302,31 @@ impl ProducerBuilder {
     }
 }
 
-fn wait_for_stable(stage: &'static str, stdout: ChildStdout, mut stable_timeout: Option<Duration>) -> Result<ChildStdout> {
-    fn inner(res_tx: Sender<Result<()>>, stage: &'static str, stdout: ChildStdout) -> thread::JoinHandle<ChildStdout> {
+fn wait_for_stable(
+    stage: &'static str,
+    stdout: ChildStdout,
+    mut stable_timeout: Option<Duration>,
+) -> Result<ChildStdout> {
+    fn inner(
+        res_tx: Sender<Result<()>>,
+        stage: &'static str,
+        stdout: ChildStdout,
+    ) -> thread::JoinHandle<ChildStdout> {
         std::thread::spawn(move || {
             let expected = ready_msg(stage);
             let mut line = String::with_capacity(expected.len() + 1);
 
             let mut buf = BufReader::new(stdout);
-            let res = buf.read_line(&mut line).map_err(|e| e.into()).and_then(|_| {
-                if line.as_str().trim() == expected.as_str() {
-                    Ok(())
-                } else {
-                    Err(anyhow!("unexpected first line: {}", line))
-                }
-            });
+            let res =
+                buf.read_line(&mut line)
+                    .map_err(|e| e.into())
+                    .and_then(|_| {
+                        if line.as_str().trim() == expected.as_str() {
+                            Ok(())
+                        } else {
+                            Err(anyhow!("unexpected first line: {}", line))
+                        }
+                    });
 
             let _ = res_tx.send(res);
             buf.into_inner()
@@ -326,8 +385,13 @@ struct ProducerInner {
 }
 
 impl ProducerInner {
-    fn new(cmd: Command, stage: &'static str, stable_timeout: Option<Duration>) -> Result<(Self, ChildStdout)> {
-        let (child, child_stdin, child_stdout) = Self::create_child_and_wait_it(cmd, stage, stable_timeout)?;
+    fn new(
+        cmd: Command,
+        stage: &'static str,
+        stable_timeout: Option<Duration>,
+    ) -> Result<(Self, ChildStdout)> {
+        let (child, child_stdin, child_stdout) =
+            Self::create_child_and_wait_it(cmd, stage, stable_timeout)?;
         Ok((Self { child, child_stdin }, child_stdout))
     }
 
@@ -336,16 +400,25 @@ impl ProducerInner {
     }
 
     fn write_data(&mut self, data: String) -> Result<()> {
-        writeln!(self.child_stdin, "{}", data).context("write request data to child process")?;
-        self.child_stdin.flush().context("flush data to child process")
+        writeln!(self.child_stdin, "{}", data)
+            .context("write request data to child process")?;
+        self.child_stdin
+            .flush()
+            .context("flush data to child process")
     }
 
     /// restart_child restarts the child process
-    fn restart_child(&mut self, cmd: Command, stage: &'static str, stable_timeout: Option<Duration>) -> Result<ChildStdout> {
+    fn restart_child(
+        &mut self,
+        cmd: Command,
+        stage: &'static str,
+        stable_timeout: Option<Duration>,
+    ) -> Result<ChildStdout> {
         info!("restart the child process: {:?}", cmd);
         self.kill_child();
 
-        let (child, child_stdin, child_stdout) = Self::create_child_and_wait_it(cmd, stage, stable_timeout)?;
+        let (child, child_stdin, child_stdout) =
+            Self::create_child_and_wait_it(cmd, stage, stable_timeout)?;
         self.child = child;
         self.child_stdin = child_stdin;
 
@@ -359,8 +432,10 @@ impl ProducerInner {
     ) -> Result<(Child, ChildStdin, ChildStdout)> {
         let mut child = cmd.spawn().context("spawn child process")?;
         let child_stdin = child.stdin.take().context("child stdin lost")?;
-        let mut child_stdout = child.stdout.take().context("child stdout lost")?;
-        child_stdout = wait_for_stable(stage, child_stdout, stable_timeout).context("wait for child process stable")?;
+        let mut child_stdout =
+            child.stdout.take().context("child stdout lost")?;
+        child_stdout = wait_for_stable(stage, child_stdout, stable_timeout)
+            .context("wait for child process stable")?;
         Ok((child, child_stdin, child_stdout))
     }
 
@@ -435,7 +510,10 @@ where
     }
 
     fn process(&self, task: T) -> Result<T::Output> {
-        let req = Request { id: self.next_id(), task };
+        let req = Request {
+            id: self.next_id(),
+            task,
+        };
 
         let rx = self.in_flight_requests.sent(req.id);
         if let Err(e) = self.send(&req) {
@@ -444,7 +522,8 @@ where
         }
 
         debug!("wait request: {}", req.id);
-        let mut output = rx.recv().map_err(|_| anyhow!("output channel broken"))?;
+        let mut output =
+            rx.recv().map_err(|_| anyhow!("output channel broken"))?;
         if let Some(err_msg) = output.err_msg.take() {
             return Err(anyhow!(err_msg));
         }
@@ -467,7 +546,10 @@ mod tests {
     fn test_dump_to_log() {
         let cases = vec![
             ("abcdefg".to_string(), format!("'{}'", "abcdefg")),
-            ("一二三四五123".to_string(), format!("'{}'", "一二三四五123")),
+            (
+                "一二三四五123".to_string(),
+                format!("'{}'", "一二三四五123"),
+            ),
             ("a".repeat(100), format!("'{}'", "a".repeat(100))),
             ("a".repeat(101), format!("'{}...'", "a".repeat(100))),
             ("a".repeat(200), format!("'{}...'", "a".repeat(100))),
@@ -500,7 +582,8 @@ mod tests {
         let tmpdir = tempdir().expect("couldn't create temp dir");
         let not_exist_dir = tmpdir.path().join("test");
 
-        let dumpfile = dump_to_file(1, &not_exist_dir, "hello world".as_bytes());
+        let dumpfile =
+            dump_to_file(1, &not_exist_dir, "hello world".as_bytes());
         assert!(dumpfile.is_ok(), "dump_to_file: {:?}", dumpfile.err());
         let dumpfile = dumpfile.unwrap();
         assert_eq!(not_exist_dir, dumpfile.parent().unwrap());

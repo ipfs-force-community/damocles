@@ -27,16 +27,31 @@ impl FileStore {
     }
 
     /// open the file store at given path
-    pub fn open<P: AsRef<Path>>(p: P, ins: Option<String>, readonly: bool) -> Result<Self> {
-        let dir_path = p.as_ref().canonicalize().context("canonicalize dir path")?;
-        if !dir_path.metadata().context("read dir metadata").map(|meta| meta.is_dir())? {
+    pub fn open<P: AsRef<Path>>(
+        p: P,
+        ins: Option<String>,
+        readonly: bool,
+    ) -> Result<Self> {
+        let dir_path =
+            p.as_ref().canonicalize().context("canonicalize dir path")?;
+        if !dir_path
+            .metadata()
+            .context("read dir metadata")
+            .map(|meta| meta.is_dir())?
+        {
             return Err(anyhow!("base path of the file store should a dir"));
         };
 
-        let instance = match ins.or_else(|| dir_path.to_str().map(|s| s.to_owned())) {
-            Some(i) => i,
-            None => return Err(anyhow!("dir path {:?} may contain invalid utf8 chars", dir_path)),
-        };
+        let instance =
+            match ins.or_else(|| dir_path.to_str().map(|s| s.to_owned())) {
+                Some(i) => i,
+                None => {
+                    return Err(anyhow!(
+                        "dir path {:?} may contain invalid utf8 chars",
+                        dir_path
+                    ))
+                }
+            };
 
         Ok(FileStore {
             sep: MAIN_SEPARATOR.to_string(),
@@ -96,10 +111,24 @@ mod tests {
 
     #[test]
     fn test_store_uri() {
-        let fs = FileStore::open("/tmp/", Some("test_store".to_string()), false).unwrap();
-        assert_eq!(fs.uri(Path::new("a/b")).unwrap(), PathBuf::from("/tmp/a/b"));
-        assert_eq!(fs.uri(Path::new("/a/b")).unwrap(), PathBuf::from("/tmp/a/b"));
-        assert_eq!(fs.uri(Path::new("a/b/")).unwrap(), PathBuf::from("/tmp/a/b"));
-        assert_eq!(fs.uri(Path::new("/a/b/")).unwrap(), PathBuf::from("/tmp/a/b"));
+        let fs =
+            FileStore::open("/tmp/", Some("test_store".to_string()), false)
+                .unwrap();
+        assert_eq!(
+            fs.uri(Path::new("a/b")).unwrap(),
+            PathBuf::from("/tmp/a/b")
+        );
+        assert_eq!(
+            fs.uri(Path::new("/a/b")).unwrap(),
+            PathBuf::from("/tmp/a/b")
+        );
+        assert_eq!(
+            fs.uri(Path::new("a/b/")).unwrap(),
+            PathBuf::from("/tmp/a/b")
+        );
+        assert_eq!(
+            fs.uri(Path::new("/a/b/")).unwrap(),
+            PathBuf::from("/tmp/a/b")
+        );
     }
 }

@@ -30,11 +30,11 @@ type mockRunner struct {
 	aborted  uint32
 }
 
-func (m *mockRunner) start(pcfg *modules.MinerPoStConfig, ts *types.TipSet) {
+func (m *mockRunner) start(_ *modules.MinerPoStConfig, _ *types.TipSet) {
 	atomic.AddUint32(&m.started, 1)
 }
 
-func (m *mockRunner) submit(pcfg *modules.MinerPoStConfig, ts *types.TipSet) {
+func (m *mockRunner) submit(_ *modules.MinerPoStConfig, _ *types.TipSet) {
 	atomic.AddUint32(&m.submited, 1)
 }
 

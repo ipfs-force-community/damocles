@@ -78,7 +78,10 @@ impl<'a> SealingCtrl<'a> {
         }
     }
 
-    pub fn wait_or_interrupted(&self, duration: Duration) -> Result<(), Failure> {
+    pub fn wait_or_interrupted(
+        &self,
+        duration: Duration,
+    ) -> Result<(), Failure> {
         select! {
             recv(self.ctx.done) -> _done_res => {
                 Err(Interrupt.into())
@@ -119,7 +122,11 @@ impl SealingThread {
         Ok((
             Self {
                 idx,
-                config: Config::new(sealing_config, plan, location.as_ref().map(|x| x.hot_config_path()))?,
+                config: Config::new(
+                    sealing_config,
+                    plan,
+                    location.as_ref().map(|x| x.hot_config_path()),
+                )?,
                 location,
                 ctrl_ctx,
             },
@@ -127,7 +134,11 @@ impl SealingThread {
         ))
     }
 
-    fn seal_one(&mut self, ctx: &Ctx, state: Option<String>) -> Result<(), Failure> {
+    fn seal_one(
+        &mut self,
+        ctx: &Ctx,
+        state: Option<String>,
+    ) -> Result<(), Failure> {
         self.config
             .reload_if_needed(|_, _| Ok(true))
             .context("reload sealing thread hot config")
@@ -144,7 +155,9 @@ impl SealingThread {
                     tracing::info!(new_plan = new_plan, "switch planner");
                     plan = new_plan;
                 }
-                R::Wait(dur) => self.sealing_ctrl(ctx).wait_or_interrupted(dur)?,
+                R::Wait(dur) => {
+                    self.sealing_ctrl(ctx).wait_or_interrupted(dur)?
+                }
                 R::Done => return Ok(()),
             }
         }
@@ -226,9 +239,12 @@ impl Module for SealingThread {
                         wait_for_resume = true;
 
                         self.ctrl_ctx.update_state(|cst| {
-                            cst.state = SealingThreadState::PausedAt(Instant::now());
+                            cst.state =
+                                SealingThreadState::PausedAt(Instant::now());
                             if !is_interrupt {
-                                cst.job.last_error.replace(format!("{:?}", failure));
+                                cst.job
+                                    .last_error
+                                    .replace(format!("{:?}", failure));
                             }
                         })?;
                         continue 'SEAL_LOOP;
@@ -272,7 +288,8 @@ pub(crate) fn build_sealing_threads(
     let mut path_set = HashSet::new();
 
     for (idx, scfg) in list.iter().enumerate() {
-        let sealing_config = customized_sealing_config(common, scfg.inner.sealing.as_ref());
+        let sealing_config =
+            customized_sealing_config(common, scfg.inner.sealing.as_ref());
         let plan = scfg.inner.plan.as_ref().cloned();
 
         let loc = match &scfg.location {
@@ -280,13 +297,16 @@ pub(crate) fn build_sealing_threads(
                 let store_path = PathBuf::from(loc);
 
                 if !store_path.exists() {
-                    Store::init(&store_path, false).with_context(|| format!("init store path: {}", store_path.display()))?;
+                    Store::init(&store_path, false).with_context(|| {
+                        format!("init store path: {}", store_path.display())
+                    })?;
                     info!(loc = ?store_path, "store initialized");
                 }
 
-                let store_path = store_path
-                    .canonicalize()
-                    .with_context(|| format!("canonicalize store path {}", loc))?;
+                let store_path =
+                    store_path.canonicalize().with_context(|| {
+                        format!("canonicalize store path {}", loc)
+                    })?;
                 if path_set.contains(&store_path) {
                     tracing::warn!(path = ?store_path, "store already loaded");
                     continue;
@@ -298,14 +318,18 @@ pub(crate) fn build_sealing_threads(
             None => None,
         };
 
-        let (sealing_thread, ctrl) = SealingThread::new(idx, plan, sealing_config, loc, limit.clone())?;
+        let (sealing_thread, ctrl) =
+            SealingThread::new(idx, plan, sealing_config, loc, limit.clone())?;
         sealing_threads.push((sealing_thread, (idx, ctrl)));
     }
 
     Ok(sealing_threads)
 }
 
-fn customized_sealing_config(common: &SealingOptional, customized: Option<&SealingOptional>) -> Sealing {
+fn customized_sealing_config(
+    common: &SealingOptional,
+    customized: Option<&SealingOptional>,
+) -> Sealing {
     let default_sealing = Sealing::default();
     let common_sealing = merge_sealing_fields(default_sealing, common.clone());
     if let Some(customized) = customized.cloned() {

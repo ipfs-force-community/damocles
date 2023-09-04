@@ -4,10 +4,13 @@ use anyhow::{anyhow, Result};
 
 use super::sector::{Base, Finalized, Sector, State, UnsealInput};
 use super::task::Task;
-use crate::rpc::sealer::{AllocatedSector, Deals, SectorRebuildInfo, SectorUnsealInfo, Seed, Ticket};
+use crate::rpc::sealer::{
+    AllocatedSector, Deals, SectorRebuildInfo, SectorUnsealInfo, Seed, Ticket,
+};
 use crate::sealing::processor::{
-    to_prover_id, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output,
-    SectorId, SnapEncodeOutput,
+    to_prover_id, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output,
+    SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
+    SnapEncodeOutput,
 };
 use crate::{logging::trace, metadb::MaybeDirty};
 
@@ -170,7 +173,11 @@ macro_rules! mem_replace {
 
 impl Event {
     pub fn apply(self, state: State, task: &mut Task) -> Result<()> {
-        let next = if let Event::SetState(s) = self { s } else { state };
+        let next = if let Event::SetState(s) = self {
+            s
+        } else {
+            state
+        };
 
         if next == task.sector.state {
             return Err(anyhow!("state unchanged, may enter an infinite loop"));

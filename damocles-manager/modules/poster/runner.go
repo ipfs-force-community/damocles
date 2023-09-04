@@ -165,7 +165,7 @@ func (pr *postRunner) submitPoSts(pcfg *modules.MinerPoStConfig, ts *types.TipSe
 	}
 }
 
-func (pr *postRunner) submitSinglePost(slog *logging.ZapLogger, pcfg *modules.MinerPoStConfig, proof *miner.SubmitWindowedPoStParams) {
+func (pr *postRunner) submitSinglePost(slog *logging.ZapLogger, _ *modules.MinerPoStConfig, proof *miner.SubmitWindowedPoStParams) {
 	// to avoid being cancelled by proving period detection, use context.Background here
 	uid, resCh, err := pr.publishMessage(stbuiltin.MethodsMiner.SubmitWindowedPoSt, proof, false)
 	if err != nil {

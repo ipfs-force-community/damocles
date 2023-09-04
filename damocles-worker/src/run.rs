@@ -19,8 +19,13 @@ use crate::sealing::processor::{Either, NoLockProcessor};
 use crate::{
     config,
     infra::{
-        objstore::{attached::AttachedManager, filestore::FileStore, ObjectStore},
-        piecestore::{local::LocalPieceStore, remote::RemotePieceStore, ComposePieceStore, EmptyPieceStore, PieceStore},
+        objstore::{
+            attached::AttachedManager, filestore::FileStore, ObjectStore,
+        },
+        piecestore::{
+            local::LocalPieceStore, remote::RemotePieceStore,
+            ComposePieceStore, EmptyPieceStore, PieceStore,
+        },
     },
     logging::{info, warn},
     rpc::sealer::SealerClient,
@@ -33,9 +38,14 @@ use crate::{
 
 /// start a normal damocles-worker daemon
 pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
-    let runtime = Builder::new_multi_thread().enable_all().build().context("construct runtime")?;
+    let runtime = Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("construct runtime")?;
 
-    let mut cfg = config::Config::load(&cfg_path).with_context(|| format!("load from config file {}", cfg_path.as_ref().display()))?;
+    let mut cfg = config::Config::load(&cfg_path).with_context(|| {
+        format!("load from config file {}", cfg_path.as_ref().display())
+    })?;
     match cfg.render() {
         Ok(s) => info!("config loaded\n {}", s),
         Err(e) => warn!(err=?e, "unable to render config"),
@@ -63,7 +73,9 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
                 remote_cfg.name.clone(),
                 remote_cfg.readonly.unwrap_or(false),
             )
-            .with_context(|| format!("open remote filestore {}", remote_cfg.location))?,
+            .with_context(|| {
+                format!("open remote filestore {}", remote_cfg.location)
+            })?,
         );
 
         if !remote_store.readonly() {
@@ -76,8 +88,14 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
     if let Some(attach_cfgs) = cfg.attached.as_ref() {
         for (sidx, scfg) in attach_cfgs.iter().enumerate() {
             let attached_store = Box::new(
-                FileStore::open(scfg.location.clone(), scfg.name.clone(), scfg.readonly.unwrap_or(false))
-                    .with_context(|| format!("open attached filestore #{}", sidx))?,
+                FileStore::open(
+                    scfg.location.clone(),
+                    scfg.name.clone(),
+                    scfg.readonly.unwrap_or(false),
+                )
+                .with_context(|| {
+                    format!("open attached filestore #{}", sidx)
+                })?,
             );
 
             if !attached_store.readonly() {
@@ -102,7 +120,12 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
         if runtime
             .block_on(async { rpc_client.store_basic_info(ins_name).await })
             .map_err(|e| anyhow!("rpc error: {:?}", e))
-            .with_context(|| format!("request for store basic info of instance {}", st.instance()))?
+            .with_context(|| {
+                format!(
+                    "request for store basic info of instance {}",
+                    st.instance()
+                )
+            })?
             .is_none()
         {
             return Err(anyhow!(
@@ -112,21 +135,33 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
         }
     }
 
-    info!("{} stores attached, {} writable", attached.len(), attached_writable);
+    info!(
+        "{} stores attached, {} writable",
+        attached.len(),
+        attached_writable
+    );
 
-    let attached_mgr = AttachedManager::init(attached).context("init attached manager")?;
+    let attached_mgr =
+        AttachedManager::init(attached).context("init attached manager")?;
 
     let limit = Arc::new(build_limit(&cfg));
 
-    let sealing_threads = build_sealing_threads(&cfg.sealing_thread, &cfg.sealing, limit.clone()).context("build sealing thread")?;
+    let sealing_threads =
+        build_sealing_threads(&cfg.sealing_thread, &cfg.sealing, limit.clone())
+            .context("build sealing thread")?;
 
     let socket_addrs = Url::parse(&dial_addr)
         .with_context(|| format!("invalid url: {}", dial_addr))?
         .socket_addrs(|| None)
-        .with_context(|| format!("attempt to resolve a url's host and port: {}", dial_addr))?;
-    let local_ip = local_interface_ip(socket_addrs.as_slice()).context("get local ip")?;
+        .with_context(|| {
+            format!("attempt to resolve a url's host and port: {}", dial_addr)
+        })?;
+    let local_ip =
+        local_interface_ip(socket_addrs.as_slice()).context("get local ip")?;
 
-    let instance = if let Some(name) = cfg.worker.as_ref().and_then(|s| s.name.as_ref()).cloned() {
+    let instance = if let Some(name) =
+        cfg.worker.as_ref().and_then(|s| s.name.as_ref()).cloned()
+    {
         name
     } else {
         format!("{}", local_ip)
@@ -152,25 +187,29 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
         .map(|u| u.origin().ascii_serialization())
         .context("parse rpc url origin")?;
 
-    let remote_piece_store = RemotePieceStore::new(&rpc_origin).context("build proxy piece store")?;
-    let piece_store: Arc<dyn PieceStore> = if cfg.sealing.enable_deals.unwrap_or(false) {
-        let local_pieces_dirs = cfg.worker_local_pieces_dirs();
-        if !local_pieces_dirs.is_empty() {
-            Arc::new(ComposePieceStore::new(
-                LocalPieceStore::new(local_pieces_dirs),
-                remote_piece_store.clone(),
-            ))
+    let remote_piece_store = RemotePieceStore::new(&rpc_origin)
+        .context("build proxy piece store")?;
+    let piece_store: Arc<dyn PieceStore> =
+        if cfg.sealing.enable_deals.unwrap_or(false) {
+            let local_pieces_dirs = cfg.worker_local_pieces_dirs();
+            if !local_pieces_dirs.is_empty() {
+                Arc::new(ComposePieceStore::new(
+                    LocalPieceStore::new(local_pieces_dirs),
+                    remote_piece_store.clone(),
+                ))
+            } else {
+                Arc::new(remote_piece_store.clone())
+            }
         } else {
-            Arc::new(remote_piece_store.clone())
-        }
-    } else {
-        Arc::new(EmptyPieceStore)
-    };
+            Arc::new(EmptyPieceStore)
+        };
 
     let remote_piece_store = Arc::new(remote_piece_store);
 
-    let processors = start_processors(&cfg, limit).context("start processors")?;
-    let static_tree_d = construct_static_tree_d(&cfg).context("check static tree-d files")?;
+    let processors =
+        start_processors(&cfg, limit).context("start processors")?;
+    let static_tree_d =
+        construct_static_tree_d(&cfg).context("check static tree-d files")?;
 
     let rt = Arc::new(runtime);
     let global = GlobalModules {
@@ -198,7 +237,8 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
     let worker_server = service::Service::new(sealing_thread_ctrls.clone());
     dog.start_module(worker_server);
 
-    let worker_ping = ping::Ping::new(worker_ping_interval, sealing_thread_ctrls);
+    let worker_ping =
+        ping::Ping::new(worker_ping_interval, sealing_thread_ctrls);
     dog.start_module(worker_ping);
 
     dog.start_module(Signal);
@@ -216,7 +256,7 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
 fn build_limit(cfg: &config::Config) -> SealingLimit {
     let mut limit_builder = SealingLimitBuilder::new();
     if let Some(ext_locks) = &cfg.processors.ext_locks {
-        limit_builder.extend_ext_locks_limit(ext_locks.clone().into_iter());
+        limit_builder.extend_ext_locks_limit(ext_locks.clone());
     }
     limit_builder.extend_stage_limits(merge_limit_config(
         cfg.processors.limitation_concurrent().clone(),
@@ -231,9 +271,12 @@ fn merge_limit_config(
     concurrent_limit_opt: Option<HashMap<String, usize>>,
     staggered_limit_opt: Option<HashMap<String, config::SerdeDuration>>,
 ) -> impl Iterator<Item = LimitItem> {
-    let concurrent_map_len = concurrent_limit_opt.as_ref().map(|x| x.len()).unwrap_or(0);
-    let staggered_map_len = staggered_limit_opt.as_ref().map(|x| x.len()).unwrap_or(0);
-    let mut limits: HashMap<String, LimitItem> = HashMap::with_capacity(concurrent_map_len.max(staggered_map_len));
+    let concurrent_map_len =
+        concurrent_limit_opt.as_ref().map(|x| x.len()).unwrap_or(0);
+    let staggered_map_len =
+        staggered_limit_opt.as_ref().map(|x| x.len()).unwrap_or(0);
+    let mut limits: HashMap<String, LimitItem> =
+        HashMap::with_capacity(concurrent_map_len.max(staggered_map_len));
 
     if let Some(concurrent_limit) = concurrent_limit_opt {
         for (name, concurrent) in concurrent_limit {
@@ -252,7 +295,9 @@ fn merge_limit_config(
         for (name, interval) in staggered_limit {
             limits
                 .entry(name.clone())
-                .and_modify(|limit_item| limit_item.staggered_interval = Some(interval.0))
+                .and_modify(|limit_item| {
+                    limit_item.staggered_interval = Some(interval.0)
+                })
                 .or_insert_with(|| LimitItem {
                     name,
                     concurrent: None,
@@ -263,16 +308,22 @@ fn merge_limit_config(
     limits.into_values()
 }
 
-fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>> {
+fn construct_static_tree_d(
+    cfg: &config::Config,
+) -> Result<HashMap<u64, PathBuf>> {
     let mut trees = HashMap::new();
     if let Some(c) = cfg.processors.static_tree_d.as_ref() {
         for (k, v) in c {
-            let b = Byte::from_str(k).with_context(|| format!("invalid bytes string {}", k))?;
+            let b = Byte::from_str(k)
+                .with_context(|| format!("invalid bytes string {}", k))?;
             let size = b.get_bytes() as u64;
-            SealProof::try_from(size).with_context(|| format!("invalid sector size {}", k))?;
+            SealProof::try_from(size)
+                .with_context(|| format!("invalid sector size {}", k))?;
             let tree_path = PathBuf::from(v.to_owned())
                 .canonicalize()
-                .with_context(|| format!("invalid tree_d path {} for sector size {}", v, k))?;
+                .with_context(|| {
+                    format!("invalid tree_d path {} for sector size {}", v, k)
+                })?;
 
             trees.insert(size, tree_path);
         }
@@ -284,15 +335,21 @@ fn construct_static_tree_d(cfg: &config::Config) -> Result<HashMap<u64, PathBuf>
 macro_rules! construct_sub_processor {
     ($field:ident, $cfg:ident, $limit:ident) => {
         CtrlProc::new(if let Some(ext) = $cfg.processors.$field.as_ref() {
-            let proc = processor::external::start_sub_processors(ext, $limit.clone())?;
+            let proc =
+                processor::external::start_sub_processors(ext, $limit.clone())?;
             Either::Left(proc)
         } else {
-            Either::Right(NoLockProcessor::new(Box::<BuiltinProcessor>::default()))
+            Either::Right(NoLockProcessor::new(
+                Box::<BuiltinProcessor>::default(),
+            ))
         })
     };
 }
 
-fn start_processors(cfg: &config::Config, limit: Arc<SealingLimit>) -> Result<GlobalProcessors> {
+fn start_processors(
+    cfg: &config::Config,
+    limit: Arc<SealingLimit>,
+) -> Result<GlobalProcessors> {
     Ok(GlobalProcessors {
         add_pieces: construct_sub_processor!(add_pieces, cfg, limit),
         tree_d: construct_sub_processor!(tree_d, cfg, limit),
@@ -315,9 +372,16 @@ fn compatible_for_piece_token(cfg: &mut config::Config) {
             Some(add_piece_cfgs) => add_piece_cfgs.iter_mut().for_each(|cfg| {
                 cfg.envs
                     .get_or_insert_with(|| HashMap::with_capacity(1))
-                    .insert(PieceHttpFetcher::ENV_KEY_PIECE_FETCHER_TOKEN.to_string(), token.clone());
+                    .insert(
+                        PieceHttpFetcher::ENV_KEY_PIECE_FETCHER_TOKEN
+                            .to_string(),
+                        token.clone(),
+                    );
             }),
-            None => env::set_var(PieceHttpFetcher::ENV_KEY_PIECE_FETCHER_TOKEN, token),
+            None => env::set_var(
+                PieceHttpFetcher::ENV_KEY_PIECE_FETCHER_TOKEN,
+                token,
+            ),
         }
     }
 }
@@ -351,7 +415,10 @@ mod tests {
             (
                 Some(vec![("pc2", 20)]),
                 Some(vec![("pc1", "1s")]),
-                vec![("pc1", None, Some(parse_duration("1s").unwrap())), ("pc2", Some(20), None)],
+                vec![
+                    ("pc1", None, Some(parse_duration("1s").unwrap())),
+                    ("pc2", Some(20), None),
+                ],
             ),
             (
                 None,
@@ -370,13 +437,25 @@ mod tests {
         ];
 
         for (concurrent_limit, staggered_limit, result) in cases {
-            let concurrent_limit_map_opt = concurrent_limit.map(|x| x.into_iter().map(|(name, x)| (name.to_string(), x)).collect());
-            let staggered_limit_map_opt = staggered_limit.map(|x| {
+            let concurrent_limit_map_opt = concurrent_limit.map(|x| {
                 x.into_iter()
-                    .map(|(name, dur)| (name.to_string(), SerdeDuration(parse_duration(dur).unwrap())))
+                    .map(|(name, x)| (name.to_string(), x))
                     .collect()
             });
-            let merged = merge_limit_config(concurrent_limit_map_opt.clone(), staggered_limit_map_opt.clone());
+            let staggered_limit_map_opt = staggered_limit.map(|x| {
+                x.into_iter()
+                    .map(|(name, dur)| {
+                        (
+                            name.to_string(),
+                            SerdeDuration(parse_duration(dur).unwrap()),
+                        )
+                    })
+                    .collect()
+            });
+            let merged = merge_limit_config(
+                concurrent_limit_map_opt.clone(),
+                staggered_limit_map_opt.clone(),
+            );
 
             let mut expect = result
                 .iter()

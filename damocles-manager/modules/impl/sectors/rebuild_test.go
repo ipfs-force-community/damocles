@@ -19,7 +19,7 @@ type mockMinerAPI struct {
 	infos map[abi.ActorID]*core.MinerInfo
 }
 
-func (m *mockMinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
+func (m *mockMinerAPI) GetInfo(_ context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
 	minfo, ok := m.infos[mid]
 	if !ok {
 		return nil, fmt.Errorf("not found")
@@ -28,7 +28,7 @@ func (m *mockMinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.Mine
 	return minfo, nil
 }
 
-func (m *mockMinerAPI) GetMinerConfig(ctx context.Context, mid abi.ActorID) (*modules.MinerConfig, error) {
+func (m *mockMinerAPI) GetMinerConfig(_ context.Context, _ abi.ActorID) (*modules.MinerConfig, error) {
 	return nil, fmt.Errorf("not impl")
 }
 

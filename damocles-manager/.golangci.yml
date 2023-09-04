@@ -14,9 +14,6 @@ linters:
     - gosec
     - unconvert
     - staticcheck
-    - varcheck
-    - structcheck
-    - deadcode
     - exportloopref
 
 # We don't want to skip builtin/

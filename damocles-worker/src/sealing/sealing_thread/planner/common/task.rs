@@ -8,8 +8,13 @@ use crate::sealing::paths;
 use crate::store::Store;
 use crate::types::SealProof;
 use crate::{
-    metadb::{rocks::RocksMeta, MaybeDirty, MetaDocumentDB, PrefixedMetaDB, Saved},
-    rpc::sealer::{ReportStateReq, SectorFailure, SectorID, SectorState, SectorStateChange, WorkerIdentifier},
+    metadb::{
+        rocks::RocksMeta, MaybeDirty, MetaDocumentDB, PrefixedMetaDB, Saved,
+    },
+    rpc::sealer::{
+        ReportStateReq, SectorFailure, SectorID, SectorState,
+        SectorStateChange, WorkerIdentifier,
+    },
 };
 use crate::{
     rpc::sealer::SealerClient,
@@ -70,16 +75,23 @@ impl JobTrait for Task {
 }
 
 impl Task {
-    pub fn build(sealing_ctrl: SealingCtrl<'static>, s: &'static Store) -> Result<Self> {
+    pub fn build(
+        sealing_ctrl: SealingCtrl<'static>,
+        s: &'static Store,
+    ) -> Result<Self> {
         let sector_meta = PrefixedMetaDB::wrap(SECTOR_META_PREFIX, &s.meta);
 
-        let mut sector: Saved<Sector, _, _> = Saved::load(SECTOR_INFO_KEY, sector_meta, || {
-            Sector::new(sealing_ctrl.config().plan().to_string())
-        })
-        .context("load sector")?;
+        let mut sector: Saved<Sector, _, _> =
+            Saved::load(SECTOR_INFO_KEY, sector_meta, || {
+                Sector::new(sealing_ctrl.config().plan().to_string())
+            })
+            .context("load sector")?;
         sector.sync().context("init sync sector")?;
 
-        let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(SECTOR_TRACE_PREFIX, &s.meta));
+        let trace_meta = MetaDocumentDB::wrap(PrefixedMetaDB::wrap(
+            SECTOR_TRACE_PREFIX,
+            &s.meta,
+        ));
         let instance = sealing_ctrl.ctx().instance.clone();
 
         Ok(Task {
@@ -96,8 +108,17 @@ impl Task {
         })
     }
 
-    pub fn report_state(&self, state_change: SectorStateChange, fail: Option<SectorFailure>) -> Result<SectorState, Failure> {
-        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
+    pub fn report_state(
+        &self,
+        state_change: SectorStateChange,
+        fail: Option<SectorFailure>,
+    ) -> Result<SectorState, Failure> {
+        let sector_id = match self
+            .sector
+            .base
+            .as_ref()
+            .map(|base| base.allocated.id.clone())
+        {
             Some(sid) => sid,
             None => {
                 return Ok(SectorState {
@@ -122,7 +143,12 @@ impl Task {
     }
 
     pub fn report_finalized(&self) -> Result<(), Failure> {
-        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
+        let sector_id = match self
+            .sector
+            .base
+            .as_ref()
+            .map(|base| base.allocated.id.clone())
+        {
             Some(sid) => sid,
             None => return Ok(()),
         };
@@ -135,7 +161,12 @@ impl Task {
     }
 
     pub fn report_aborted(&self, reason: String) -> Result<(), Failure> {
-        let sector_id = match self.sector.base.as_ref().map(|base| base.allocated.id.clone()) {
+        let sector_id = match self
+            .sector
+            .base
+            .as_ref()
+            .map(|base| base.allocated.id.clone())
+        {
             Some(sid) => sid,
             None => return Ok(()),
         };
@@ -159,7 +190,11 @@ impl Task {
         }
 
         self.sync(|s| {
-            tracing::warn!(retry = s.retry, "temp error occurred: {:?}", temp_err);
+            tracing::warn!(
+                retry = s.retry,
+                "temp error occurred: {:?}",
+                temp_err
+            );
 
             s.retry += 1;
 
@@ -171,11 +206,15 @@ impl Task {
             "wait before recovering"
         );
 
-        self.sealing_ctrl.wait_or_interrupted(self.sealing_ctrl.config().recover_interval)?;
+        self.sealing_ctrl
+            .wait_or_interrupted(self.sealing_ctrl.config().recover_interval)?;
         Ok(())
     }
 
-    fn sync<F: FnOnce(&mut MaybeDirty<Sector>) -> Result<()>>(&mut self, modify_fn: F) -> Result<(), Failure> {
+    fn sync<F: FnOnce(&mut MaybeDirty<Sector>) -> Result<()>>(
+        &mut self,
+        modify_fn: F,
+    ) -> Result<(), Failure> {
         modify_fn(self.sector.inner_mut()).crit()?;
         self.sector.sync().context("sync sector").crit()
     }
@@ -183,7 +222,9 @@ impl Task {
     pub fn finalize(&mut self) -> Result<(), Failure> {
         self.store.cleanup().context("cleanup store").crit()?;
         self.sector
-            .delete(|| Sector::new(self.sealing_ctrl.config().plan().to_string()))
+            .delete(|| {
+                Sector::new(self.sealing_ctrl.config().plan().to_string())
+            })
             .context("remove sector")
             .crit()
     }
@@ -193,7 +234,10 @@ impl Task {
     }
 
     pub fn prepared_dir(&self, sector_id: &SectorID) -> Entry {
-        Entry::dir(&self.store.data_path, PathBuf::from("prepared").join(self.sector_path(sector_id)))
+        Entry::dir(
+            &self.store.data_path,
+            PathBuf::from("prepared").join(self.sector_path(sector_id)),
+        )
     }
 
     pub fn cache_dir(&self, sector_id: &SectorID) -> Entry {
@@ -209,11 +253,17 @@ impl Task {
     }
 
     pub fn staged_file(&self, sector_id: &SectorID) -> Entry {
-        Entry::file(&self.store.data_path, PathBuf::from("unsealed").join(self.sector_path(sector_id)))
+        Entry::file(
+            &self.store.data_path,
+            PathBuf::from("unsealed").join(self.sector_path(sector_id)),
+        )
     }
 
     pub fn piece_file(&self, piece_cid: &CidJson) -> Entry {
-        Entry::file(&self.store.data_path, PathBuf::from("unsealed").join(format!("{}", piece_cid.0)))
+        Entry::file(
+            &self.store.data_path,
+            PathBuf::from("unsealed").join(format!("{}", piece_cid.0)),
+        )
     }
 
     pub fn update_file(&self, sector_id: &SectorID) -> Entry {

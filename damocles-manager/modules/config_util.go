@@ -154,7 +154,7 @@ func ParseFIL(raw string) (FIL, error) {
 		return FIL{}, fmt.Errorf("number string length too large: %d", len(s))
 	}
 
-	r, ok := new(mbig.Rat).SetString(s)
+	r, ok := new(mbig.Rat).SetString(s) //nolint:gosec
 	if !ok {
 		return FIL{}, fmt.Errorf("failed to parse %q as a decimal number", raw)
 	}

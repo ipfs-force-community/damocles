@@ -60,7 +60,7 @@ func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, postProofTy
 	return s.sectorProving.Provable(ctx, mid, postProofType, sectors, strict, stateCheck)
 }
 
-func (s *Sealer) SimulateWdPoSt(ctx context.Context, ddlIndex, partitionIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
+func (s *Sealer) SimulateWdPoSt(_ context.Context, ddlIndex, partitionIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
 	mid, err := address.IDFromAddress(maddr)
 	if err != nil {
 		return err
@@ -327,9 +327,9 @@ func (s *Sealer) StoreList(ctx context.Context) ([]core.StoreDetailedInfo, error
 	}
 
 	details := make([]core.StoreDetailedInfo, 0, len(infos))
-	for _, info := range infos {
-		reservedBy := make([]core.ReservedItem, 0, len(info.Reserved.Reserved))
-		for _, res := range info.Reserved.Reserved {
+	for i := range infos {
+		reservedBy := make([]core.ReservedItem, 0, len(infos[i].Reserved.Reserved))
+		for _, res := range infos[i].Reserved.Reserved {
 			reservedBy = append(reservedBy, res)
 		}
 		sort.Slice(reservedBy, func(i, j int) bool {
@@ -341,13 +341,13 @@ func (s *Sealer) StoreList(ctx context.Context) ([]core.StoreDetailedInfo, error
 		})
 
 		details = append(details, core.StoreDetailedInfo{
-			StoreBasicInfo: storeConfig2StoreBasic(&info.Instance.Config),
-			Type:           info.Instance.Type,
-			Total:          info.Instance.Total,
-			Free:           info.Instance.Free,
-			Used:           info.Instance.Used,
-			UsedPercent:    info.Instance.UsedPercent,
-			Reserved:       info.Reserved.ReservedSize,
+			StoreBasicInfo: storeConfig2StoreBasic(&infos[i].Instance.Config),
+			Type:           infos[i].Instance.Type,
+			Total:          infos[i].Instance.Total,
+			Free:           infos[i].Instance.Free,
+			Used:           infos[i].Instance.Used,
+			UsedPercent:    infos[i].Instance.UsedPercent,
+			Reserved:       infos[i].Reserved.ReservedSize,
 			ReservedBy:     reservedBy,
 		})
 	}
@@ -615,6 +615,6 @@ func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid
 	return stream, nil
 }
 
-func (s *Sealer) Version(ctx context.Context) (string, error) {
+func (s *Sealer) Version(_ context.Context) (string, error) {
 	return ver.VersionStr(), nil
 }

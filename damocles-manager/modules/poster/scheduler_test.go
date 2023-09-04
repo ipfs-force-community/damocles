@@ -13,12 +13,10 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+var r = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 func randomDeadline() *dline.Info {
-	periodStart := miner.WPoStProvingPeriod + abi.ChainEpoch(rand.Intn(int(10*miner.WPoStProvingPeriod)))
+	periodStart := miner.WPoStProvingPeriod + abi.ChainEpoch(r.Intn(int(10*miner.WPoStProvingPeriod)))
 	index := uint64(rand.Intn(int(miner.WPoStPeriodDeadlines)))
 
 	return deadlineAt(periodStart, index)

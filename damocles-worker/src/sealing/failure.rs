@@ -23,8 +23,12 @@ pub struct Failure(pub Level, pub Error);
 impl std::fmt::Debug for Failure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.0 {
-            Level::Temporary => f.write_str(&format!("temporary: {:?}", self.1)),
-            Level::Permanent => f.write_str(&format!("permanent: {:?}", self.1)),
+            Level::Temporary => {
+                f.write_str(&format!("temporary: {:?}", self.1))
+            }
+            Level::Permanent => {
+                f.write_str(&format!("permanent: {:?}", self.1))
+            }
             Level::Abort => f.write_str(&format!("abort: {:?}", self.1)),
             Level::Critical => f.write_str(&format!("critical: {:?}", self.1)),
         }

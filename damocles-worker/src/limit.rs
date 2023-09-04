@@ -8,7 +8,9 @@ pub struct SealingLimitBuilder {
 
 impl SealingLimitBuilder {
     pub fn new() -> Self {
-        Self { pool: Pool::empty() }
+        Self {
+            pool: Pool::empty(),
+        }
     }
 
     pub fn build(self) -> SealingLimit {
@@ -20,10 +22,12 @@ impl SealingLimitBuilder {
         I: IntoIterator<Item = (K, usize)>,
         K: AsRef<str>,
     {
-        self.pool.extend(limits.into_iter().map(|(limit_key, num)| LimitItem {
-            name: ext_lock_limit_key(limit_key),
-            concurrent: Some(num),
-            staggered_interval: None,
+        self.pool.extend(limits.into_iter().map(|(limit_key, num)| {
+            LimitItem {
+                name: ext_lock_limit_key(limit_key),
+                concurrent: Some(num),
+                staggered_interval: None,
+            }
         }));
         self
     }
@@ -50,7 +54,10 @@ impl SealingLimit {
         self.pool.acquire(ext_lock_limit_key(name))
     }
 
-    pub fn try_acquire_ext_lock<K: AsRef<str>>(&self, name: K) -> Result<Option<Token>> {
+    pub fn try_acquire_ext_lock<K: AsRef<str>>(
+        &self,
+        name: K,
+    ) -> Result<Option<Token>> {
         self.pool.try_acquire(ext_lock_limit_key(name))
     }
 
@@ -59,7 +66,10 @@ impl SealingLimit {
     }
 
     #[allow(dead_code)]
-    pub fn try_acquire_stage_limit<K: AsRef<str>>(&self, name: K) -> Result<Option<Token>> {
+    pub fn try_acquire_stage_limit<K: AsRef<str>>(
+        &self,
+        name: K,
+    ) -> Result<Option<Token>> {
         self.pool.try_acquire(stage_limit_key(name))
     }
 }

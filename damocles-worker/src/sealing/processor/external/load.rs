@@ -49,7 +49,10 @@ where
             return self.inner.first().expect("no processors").lock();
         }
 
-        tracing::trace!("acquired: {:?}", acquired.iter().map(|(_, cap)| *cap).collect::<Vec<_>>());
+        tracing::trace!(
+            "acquired: {:?}",
+            acquired.iter().map(|(_, cap)| *cap).collect::<Vec<_>>()
+        );
 
         let (mut selected, mut max_cap) = acquired.pop().unwrap();
 
@@ -103,7 +106,9 @@ impl<P: LockProcessor> LockProcessor for Workload<P> {
 
 impl<P: TryLockProcessor> TryLockProcessor for Workload<P> {
     fn try_lock(&self) -> Option<Self::Guard<'_>> {
-        self.inner.try_lock().map(|inner| Guard::new(inner, self.load.clone()))
+        self.inner
+            .try_lock()
+            .map(|inner| Guard::new(inner, self.load.clone()))
     }
 }
 

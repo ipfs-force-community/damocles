@@ -2450,7 +2450,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		}
 
 		// get sector id
-		sectorID := abi.SectorID{}
+		sectorID := abi.SectorID{} //nolint:all
 		// todo: rm sectorState when we can get deal by dealID
 		var sectorState *core.SectorState
 		if cctx.IsSet("actor") && cctx.IsSet("sector") {

@@ -131,7 +131,7 @@ func (sc *SnapUpCommitter) Commit(ctx context.Context, sid abi.SectorID) error {
 	return nil
 }
 
-func (sc *SnapUpCommitter) CancelCommitment(ctx context.Context, sid abi.SectorID) {
+func (sc *SnapUpCommitter) CancelCommitment(_ context.Context, sid abi.SectorID) {
 	sc.jobsMu.Lock()
 	defer sc.jobsMu.Unlock()
 

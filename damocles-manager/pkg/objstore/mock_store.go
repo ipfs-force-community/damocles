@@ -56,13 +56,13 @@ func (ms *MockStore) InstanceInfo(context.Context) (InstanceInfo, error) {
 	}, nil
 }
 
-func (ms *MockStore) InstanceConfig(ctx context.Context) Config {
+func (ms *MockStore) InstanceConfig(context.Context) Config {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	return ms.cfg
 }
 
-func (ms *MockStore) Get(ctx context.Context, p string) (io.ReadCloser, error) {
+func (ms *MockStore) Get(_ context.Context, p string) (io.ReadCloser, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
@@ -80,7 +80,7 @@ func (ms *MockStore) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 	return io.NopCloser(r), nil
 }
 
-func (ms *MockStore) Del(ctx context.Context, p string) error {
+func (ms *MockStore) Del(_ context.Context, p string) error {
 	if ms.cfg.GetReadOnly() {
 		return ErrReadOnlyStore
 	}
@@ -99,7 +99,7 @@ func (ms *MockStore) Del(ctx context.Context, p string) error {
 	return nil
 }
 
-func (ms *MockStore) Stat(ctx context.Context, p string) (Stat, error) {
+func (ms *MockStore) Stat(_ context.Context, p string) (Stat, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
@@ -113,7 +113,7 @@ func (ms *MockStore) Stat(ctx context.Context, p string) (Stat, error) {
 	}, nil
 }
 
-func (ms *MockStore) Put(ctx context.Context, p string, r io.Reader) (int64, error) {
+func (ms *MockStore) Put(_ context.Context, p string, r io.Reader) (int64, error) {
 	if ms.cfg.GetReadOnly() {
 		return 0, ErrReadOnlyStore
 	}
@@ -144,6 +144,6 @@ func (ms *MockStore) Put(ctx context.Context, p string, r io.Reader) (int64, err
 	return written, nil
 }
 
-func (ms *MockStore) FullPath(ctx context.Context, p string) string {
+func (ms *MockStore) FullPath(_ context.Context, p string) string {
 	return p
 }

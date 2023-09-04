@@ -8,7 +8,9 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 use jsonrpc_core::ErrorCode;
 use jsonrpc_core_client::RpcError;
 use tokio::runtime::Handle;
-use vc_processors::builtin::tasks::{PoStReplicaInfo, WindowPoSt, WindowPoStOutput, STAGE_NAME_WINDOW_POST};
+use vc_processors::builtin::tasks::{
+    PoStReplicaInfo, WindowPoSt, WindowPoStOutput, STAGE_NAME_WINDOW_POST,
+};
 
 use crate::logging::warn;
 use crate::rpc::sealer::{AllocatePoStSpec, AllocatedWdPoStJob, SectorID};
@@ -42,7 +44,9 @@ impl WdPostState {
 
     pub fn stage(&self) -> &'static str {
         match self {
-            WdPostState::Empty | WdPostState::Finished | WdPostState::Aborted => "-",
+            WdPostState::Empty
+            | WdPostState::Finished
+            | WdPostState::Aborted => "-",
             WdPostState::Allocated => "Generate",
             WdPostState::Generated => "SubmitProof",
         }
@@ -103,7 +107,9 @@ impl WdPostSealer {
 
 impl Sealer for WdPostSealer {
     fn seal(&mut self, state: Option<&str>) -> Result<R, Failure> {
-        let mut event = state.and_then(WdPostState::from_str).map(WdPostEvent::SetState);
+        let mut event = state
+            .and_then(WdPostState::from_str)
+            .map(WdPostEvent::SetState);
         if let (true, Some(s)) = (event.is_none(), state) {
             tracing::error!("unknown state: {}", s);
         }
@@ -119,13 +125,16 @@ impl Sealer for WdPostSealer {
             if let Some(evt) = event.take() {
                 match &evt {
                     WdPostEvent::Idle | WdPostEvent::Retry => {
-                        let recover_interval = self.job.sealing_ctrl.config().recover_interval;
+                        let recover_interval =
+                            self.job.sealing_ctrl.config().recover_interval;
                         tracing::debug!(
                             sleep = ?recover_interval,
                             "Event::{:?} captured", evt
                         );
 
-                        self.job.sealing_ctrl.wait_or_interrupted(recover_interval)?;
+                        self.job
+                            .sealing_ctrl
+                            .wait_or_interrupted(recover_interval)?;
                     }
 
                     other => {
@@ -135,7 +144,10 @@ impl Sealer for WdPostSealer {
                             self.planner.plan(other, &self.job.state).crit()?
                         };
 
-                        self.planner.apply(evt, next, &mut self.job).context("event apply").crit()?;
+                        self.planner
+                            .apply(evt, next, &mut self.job)
+                            .context("event apply")
+                            .crit()?;
                     }
                 };
             };
@@ -148,8 +160,12 @@ impl Sealer for WdPostSealer {
                 .ctrl_ctx()
                 .update_state(|cst| {
                     let _ = cst.job.state.replace(self.job.state.to_string());
-                    let _ = cst.job.stage.replace(self.job.state.stage().to_string());
-                    cst.job.id = self.job.wdpost_job.as_ref().map(|t| t.id.to_owned());
+                    let _ = cst
+                        .job
+                        .stage
+                        .replace(self.job.state.stage().to_string());
+                    cst.job.id =
+                        self.job.wdpost_job.as_ref().map(|t| t.id.to_owned());
                 })
                 .crit()?;
 
@@ -163,21 +179,26 @@ impl Sealer for WdPostSealer {
                 }
                 Ok(None) => return Ok(R::Done),
                 Err(Failure(Level::Temporary, terr)) => {
-                    if self.retry >= self.job.sealing_ctrl.config().max_retries {
+                    if self.retry >= self.job.sealing_ctrl.config().max_retries
+                    {
                         // reset retry times;
                         self.retry = 0;
                         return Err(terr.abort());
                     }
-                    tracing::warn!(retry = self.retry, "temp error occurred: {:?}", terr);
+                    tracing::warn!(
+                        retry = self.retry,
+                        "temp error occurred: {:?}",
+                        terr
+                    );
                     self.retry += 1;
                     tracing::info!(
                         interval = ?self.job.sealing_ctrl.config().recover_interval,
                         "wait before recovering"
                     );
 
-                    self.job
-                        .sealing_ctrl
-                        .wait_or_interrupted(self.job.sealing_ctrl.config().recover_interval)?;
+                    self.job.sealing_ctrl.wait_or_interrupted(
+                        self.job.sealing_ctrl.config().recover_interval,
+                    )?;
                 }
 
                 Err(f) => return Err(f),
@@ -250,7 +271,10 @@ impl PlannerTrait for WdPostPlanner {
         Ok(next)
     }
 
-    fn exec(&self, job: &mut Self::Job) -> Result<Option<Self::Event>, Failure> {
+    fn exec(
+        &self,
+        job: &mut Self::Job,
+    ) -> Result<Option<Self::Event>, Failure> {
         let inner = WdPost { job };
 
         match &inner.job.state {
@@ -263,8 +287,17 @@ impl PlannerTrait for WdPostPlanner {
         .map(Some)
     }
 
-    fn apply(&self, event: Self::Event, state: Self::State, job: &mut Self::Job) -> Result<()> {
-        let next = if let WdPostEvent::SetState(s) = event { s } else { state };
+    fn apply(
+        &self,
+        event: Self::Event,
+        state: Self::State,
+        job: &mut Self::Job,
+    ) -> Result<()> {
+        let next = if let WdPostEvent::SetState(s) = event {
+            s
+        } else {
+            state
+        };
 
         if next == job.state {
             return Err(anyhow!("state unchanged, may enter an infinite loop"));
@@ -320,7 +353,9 @@ impl WdPost<'_> {
 
         let mut allocated = match res {
             Ok(a) => a,
-            Err(RpcError::JsonRpcError(e)) if e.code == ErrorCode::MethodNotFound => {
+            Err(RpcError::JsonRpcError(e))
+                if e.code == ErrorCode::MethodNotFound =>
+            {
                 warn!("damocles-manager may not have enabled the worker-prover module. Please enable the worker-prover module first.");
                 return Ok(WdPostEvent::Idle);
             }
@@ -351,9 +386,19 @@ impl WdPost<'_> {
     }
 
     fn generate(&self) -> Result<WdPostEvent, Failure> {
-        let _token = self.job.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_WINDOW_POST).crit()?;
+        let _token = self
+            .job
+            .sealing_ctrl
+            .ctrl_ctx()
+            .wait(STAGE_NAME_WINDOW_POST)
+            .crit()?;
 
-        let wdpost_job = self.job.wdpost_job.as_ref().context("wdpost info not found").abort()?;
+        let wdpost_job = self
+            .job
+            .wdpost_job
+            .as_ref()
+            .context("wdpost info not found")
+            .abort()?;
 
         let mut instances = HashMap::new();
         for access in wdpost_job
@@ -362,7 +407,9 @@ impl WdPost<'_> {
             .iter()
             .flat_map(|x| [&x.accesses.cache_dir, &x.accesses.sealed_file])
         {
-            if let std::collections::hash_map::Entry::Vacant(e) = instances.entry(access) {
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                instances.entry(access)
+            {
                 let instance = self
                     .job
                     .sealing_ctrl
@@ -370,7 +417,9 @@ impl WdPost<'_> {
                     .global
                     .attached
                     .get(access)
-                    .with_context(|| format!("get access store instance named {}", access))
+                    .with_context(|| {
+                        format!("get access store instance named {}", access)
+                    })
                     .abort()?;
                 e.insert(instance);
             }
@@ -392,13 +441,15 @@ impl WdPost<'_> {
                 } else {
                     paths::sealed_file(sector_id)
                 };
-                let sealed_path = instances[&sector.accesses.sealed_file].uri(&sealed_file).with_context(|| {
-                    format!(
-                        "get uri for sealed file {} in {}",
-                        sealed_file.display(),
-                        sector.accesses.sealed_file
-                    )
-                })?;
+                let sealed_path = instances[&sector.accesses.sealed_file]
+                    .uri(&sealed_file)
+                    .with_context(|| {
+                        format!(
+                            "get uri for sealed file {} in {}",
+                            sealed_file.display(),
+                            sector.accesses.sealed_file
+                        )
+                    })?;
                 let cache_dir = if sector.upgrade {
                     paths::update_cache_dir(sector_id)
                 } else {
@@ -406,7 +457,13 @@ impl WdPost<'_> {
                 };
                 let cache_path = instances[&sector.accesses.cache_dir]
                     .uri(&cache_dir)
-                    .with_context(|| format!("get uri for cache file {} in {}", cache_dir.display(), sector.accesses.cache_dir))?;
+                    .with_context(|| {
+                        format!(
+                            "get uri for cache file {} in {}",
+                            cache_dir.display(),
+                            sector.accesses.cache_dir
+                        )
+                    })?;
 
                 let sector_id = sector.sector_id;
                 let replica = PoStReplicaInfo {
@@ -468,7 +525,12 @@ impl WdPost<'_> {
         Ok(WdPostEvent::Finish)
     }
 
-    fn start_heartbeat(rpc: Arc<crate::rpc::sealer::SealerClient>, job_id: String, worker_name: String, stop_rx: Receiver<()>) {
+    fn start_heartbeat(
+        rpc: Arc<crate::rpc::sealer::SealerClient>,
+        job_id: String,
+        worker_name: String,
+        stop_rx: Receiver<()>,
+    ) {
         let handle = Handle::current();
         std::thread::spawn(move || loop {
             let _guard = handle.enter();

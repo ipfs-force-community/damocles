@@ -88,8 +88,8 @@ func (s *SnapUpAllocator) PreFetch(ctx context.Context, mid abi.ActorID, dlindex
 
 	actives := bitfield.New()
 
-	for pi, p := range partitions {
-		psectors, err := s.chain.StateMinerSectors(ctx, maddr, &p.ActiveSectors, tsk)
+	for pi := range partitions {
+		psectors, err := s.chain.StateMinerSectors(ctx, maddr, &partitions[pi].ActiveSectors, tsk)
 		if err != nil {
 			return 0, 0, fmt.Errorf("get #%d partition info: %w", pi, err)
 		}
@@ -378,7 +378,7 @@ func (s *SnapUpAllocator) updateExists(ctx context.Context, key kvstore.Key, exi
 	return nil
 }
 
-func (s *SnapUpAllocator) addSectors(ctx context.Context, mid abi.ActorID, dlidx uint64, deadlines uint64, sectors bitfield.BitField, count uint64) (uint64, error) {
+func (s *SnapUpAllocator) addSectors(ctx context.Context, mid abi.ActorID, dlidx uint64, deadlines uint64, sectors bitfield.BitField, _ uint64) (uint64, error) {
 	key := kvKeyForMinerActorID(mid)
 
 	exists, err := s.loadExists(ctx, key)

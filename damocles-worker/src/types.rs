@@ -15,7 +15,9 @@ pub const SIZE_32G: u64 = 32 << 30;
 pub const SIZE_64G: u64 = 64 << 30;
 
 /// seal proof types with repr i64
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize_repr, Serialize_repr)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize_repr, Serialize_repr,
+)]
 #[repr(i64)]
 pub enum SealProof {
     /// 2kib v1
@@ -72,13 +74,33 @@ impl SealProof {
         use RegisteredPoStProof::*;
         use SealProof::*;
         match self {
-            StackedDrg2KiBV1 | StackedDrg2KiBV1_1 => vec![StackedDrgWinning2KiBV1, StackedDrgWindow2KiBV1, StackedDrgWindow2KiBV1_2],
-            StackedDrg8MiBV1 | StackedDrg8MiBV1_1 => vec![StackedDrgWinning8MiBV1, StackedDrgWindow8MiBV1, StackedDrgWindow8MiBV1_2],
+            StackedDrg2KiBV1 | StackedDrg2KiBV1_1 => vec![
+                StackedDrgWinning2KiBV1,
+                StackedDrgWindow2KiBV1,
+                StackedDrgWindow2KiBV1_2,
+            ],
+            StackedDrg8MiBV1 | StackedDrg8MiBV1_1 => vec![
+                StackedDrgWinning8MiBV1,
+                StackedDrgWindow8MiBV1,
+                StackedDrgWindow8MiBV1_2,
+            ],
             StackedDrg512MiBV1 | StackedDrg512MiBV1_1 => {
-                vec![StackedDrgWinning512MiBV1, StackedDrgWindow512MiBV1, StackedDrgWindow512MiBV1_2]
+                vec![
+                    StackedDrgWinning512MiBV1,
+                    StackedDrgWindow512MiBV1,
+                    StackedDrgWindow512MiBV1_2,
+                ]
             }
-            StackedDrg32GiBV1 | StackedDrg32GiBV1_1 => vec![StackedDrgWinning32GiBV1, StackedDrgWindow32GiBV1, StackedDrgWindow32GiBV1_2],
-            StackedDrg64GiBV1 | StackedDrg64GiBV1_1 => vec![StackedDrgWinning64GiBV1, StackedDrgWindow64GiBV1, StackedDrgWindow64GiBV1_2],
+            StackedDrg32GiBV1 | StackedDrg32GiBV1_1 => vec![
+                StackedDrgWinning32GiBV1,
+                StackedDrgWindow32GiBV1,
+                StackedDrgWindow32GiBV1_2,
+            ],
+            StackedDrg64GiBV1 | StackedDrg64GiBV1_1 => vec![
+                StackedDrgWinning64GiBV1,
+                StackedDrgWindow64GiBV1,
+                StackedDrgWindow64GiBV1_2,
+            ],
         }
     }
 }
@@ -101,17 +123,37 @@ impl TryFrom<u64> for SealProof {
 impl From<SealProof> for RegisteredSealProof {
     fn from(val: SealProof) -> Self {
         match val {
-            SealProof::StackedDrg2KiBV1 => RegisteredSealProof::StackedDrg2KiBV1,
-            SealProof::StackedDrg8MiBV1 => RegisteredSealProof::StackedDrg8MiBV1,
-            SealProof::StackedDrg512MiBV1 => RegisteredSealProof::StackedDrg512MiBV1,
-            SealProof::StackedDrg32GiBV1 => RegisteredSealProof::StackedDrg32GiBV1,
-            SealProof::StackedDrg64GiBV1 => RegisteredSealProof::StackedDrg64GiBV1,
+            SealProof::StackedDrg2KiBV1 => {
+                RegisteredSealProof::StackedDrg2KiBV1
+            }
+            SealProof::StackedDrg8MiBV1 => {
+                RegisteredSealProof::StackedDrg8MiBV1
+            }
+            SealProof::StackedDrg512MiBV1 => {
+                RegisteredSealProof::StackedDrg512MiBV1
+            }
+            SealProof::StackedDrg32GiBV1 => {
+                RegisteredSealProof::StackedDrg32GiBV1
+            }
+            SealProof::StackedDrg64GiBV1 => {
+                RegisteredSealProof::StackedDrg64GiBV1
+            }
 
-            SealProof::StackedDrg2KiBV1_1 => RegisteredSealProof::StackedDrg2KiBV1_1,
-            SealProof::StackedDrg8MiBV1_1 => RegisteredSealProof::StackedDrg8MiBV1_1,
-            SealProof::StackedDrg512MiBV1_1 => RegisteredSealProof::StackedDrg512MiBV1_1,
-            SealProof::StackedDrg32GiBV1_1 => RegisteredSealProof::StackedDrg32GiBV1_1,
-            SealProof::StackedDrg64GiBV1_1 => RegisteredSealProof::StackedDrg64GiBV1_1,
+            SealProof::StackedDrg2KiBV1_1 => {
+                RegisteredSealProof::StackedDrg2KiBV1_1
+            }
+            SealProof::StackedDrg8MiBV1_1 => {
+                RegisteredSealProof::StackedDrg8MiBV1_1
+            }
+            SealProof::StackedDrg512MiBV1_1 => {
+                RegisteredSealProof::StackedDrg512MiBV1_1
+            }
+            SealProof::StackedDrg32GiBV1_1 => {
+                RegisteredSealProof::StackedDrg32GiBV1_1
+            }
+            SealProof::StackedDrg64GiBV1_1 => {
+                RegisteredSealProof::StackedDrg64GiBV1_1
+            }
         }
     }
 }
@@ -119,17 +161,37 @@ impl From<SealProof> for RegisteredSealProof {
 impl From<&SealProof> for RegisteredSealProof {
     fn from(val: &SealProof) -> Self {
         match val {
-            SealProof::StackedDrg2KiBV1 => RegisteredSealProof::StackedDrg2KiBV1,
-            SealProof::StackedDrg8MiBV1 => RegisteredSealProof::StackedDrg8MiBV1,
-            SealProof::StackedDrg512MiBV1 => RegisteredSealProof::StackedDrg512MiBV1,
-            SealProof::StackedDrg32GiBV1 => RegisteredSealProof::StackedDrg32GiBV1,
-            SealProof::StackedDrg64GiBV1 => RegisteredSealProof::StackedDrg64GiBV1,
+            SealProof::StackedDrg2KiBV1 => {
+                RegisteredSealProof::StackedDrg2KiBV1
+            }
+            SealProof::StackedDrg8MiBV1 => {
+                RegisteredSealProof::StackedDrg8MiBV1
+            }
+            SealProof::StackedDrg512MiBV1 => {
+                RegisteredSealProof::StackedDrg512MiBV1
+            }
+            SealProof::StackedDrg32GiBV1 => {
+                RegisteredSealProof::StackedDrg32GiBV1
+            }
+            SealProof::StackedDrg64GiBV1 => {
+                RegisteredSealProof::StackedDrg64GiBV1
+            }
 
-            SealProof::StackedDrg2KiBV1_1 => RegisteredSealProof::StackedDrg2KiBV1_1,
-            SealProof::StackedDrg8MiBV1_1 => RegisteredSealProof::StackedDrg8MiBV1_1,
-            SealProof::StackedDrg512MiBV1_1 => RegisteredSealProof::StackedDrg512MiBV1_1,
-            SealProof::StackedDrg32GiBV1_1 => RegisteredSealProof::StackedDrg32GiBV1_1,
-            SealProof::StackedDrg64GiBV1_1 => RegisteredSealProof::StackedDrg64GiBV1_1,
+            SealProof::StackedDrg2KiBV1_1 => {
+                RegisteredSealProof::StackedDrg2KiBV1_1
+            }
+            SealProof::StackedDrg8MiBV1_1 => {
+                RegisteredSealProof::StackedDrg8MiBV1_1
+            }
+            SealProof::StackedDrg512MiBV1_1 => {
+                RegisteredSealProof::StackedDrg512MiBV1_1
+            }
+            SealProof::StackedDrg32GiBV1_1 => {
+                RegisteredSealProof::StackedDrg32GiBV1_1
+            }
+            SealProof::StackedDrg64GiBV1_1 => {
+                RegisteredSealProof::StackedDrg64GiBV1_1
+            }
         }
     }
 }
@@ -137,17 +199,37 @@ impl From<&SealProof> for RegisteredSealProof {
 impl From<SealProof> for RegisteredUpdateProof {
     fn from(val: SealProof) -> Self {
         match val {
-            SealProof::StackedDrg2KiBV1 => RegisteredUpdateProof::StackedDrg2KiBV1,
-            SealProof::StackedDrg8MiBV1 => RegisteredUpdateProof::StackedDrg8MiBV1,
-            SealProof::StackedDrg512MiBV1 => RegisteredUpdateProof::StackedDrg512MiBV1,
-            SealProof::StackedDrg32GiBV1 => RegisteredUpdateProof::StackedDrg32GiBV1,
-            SealProof::StackedDrg64GiBV1 => RegisteredUpdateProof::StackedDrg64GiBV1,
+            SealProof::StackedDrg2KiBV1 => {
+                RegisteredUpdateProof::StackedDrg2KiBV1
+            }
+            SealProof::StackedDrg8MiBV1 => {
+                RegisteredUpdateProof::StackedDrg8MiBV1
+            }
+            SealProof::StackedDrg512MiBV1 => {
+                RegisteredUpdateProof::StackedDrg512MiBV1
+            }
+            SealProof::StackedDrg32GiBV1 => {
+                RegisteredUpdateProof::StackedDrg32GiBV1
+            }
+            SealProof::StackedDrg64GiBV1 => {
+                RegisteredUpdateProof::StackedDrg64GiBV1
+            }
 
-            SealProof::StackedDrg2KiBV1_1 => RegisteredUpdateProof::StackedDrg2KiBV1,
-            SealProof::StackedDrg8MiBV1_1 => RegisteredUpdateProof::StackedDrg8MiBV1,
-            SealProof::StackedDrg512MiBV1_1 => RegisteredUpdateProof::StackedDrg512MiBV1,
-            SealProof::StackedDrg32GiBV1_1 => RegisteredUpdateProof::StackedDrg32GiBV1,
-            SealProof::StackedDrg64GiBV1_1 => RegisteredUpdateProof::StackedDrg64GiBV1,
+            SealProof::StackedDrg2KiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg2KiBV1
+            }
+            SealProof::StackedDrg8MiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg8MiBV1
+            }
+            SealProof::StackedDrg512MiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg512MiBV1
+            }
+            SealProof::StackedDrg32GiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg32GiBV1
+            }
+            SealProof::StackedDrg64GiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg64GiBV1
+            }
         }
     }
 }
@@ -155,17 +237,37 @@ impl From<SealProof> for RegisteredUpdateProof {
 impl From<&SealProof> for RegisteredUpdateProof {
     fn from(val: &SealProof) -> Self {
         match val {
-            SealProof::StackedDrg2KiBV1 => RegisteredUpdateProof::StackedDrg2KiBV1,
-            SealProof::StackedDrg8MiBV1 => RegisteredUpdateProof::StackedDrg8MiBV1,
-            SealProof::StackedDrg512MiBV1 => RegisteredUpdateProof::StackedDrg512MiBV1,
-            SealProof::StackedDrg32GiBV1 => RegisteredUpdateProof::StackedDrg32GiBV1,
-            SealProof::StackedDrg64GiBV1 => RegisteredUpdateProof::StackedDrg64GiBV1,
+            SealProof::StackedDrg2KiBV1 => {
+                RegisteredUpdateProof::StackedDrg2KiBV1
+            }
+            SealProof::StackedDrg8MiBV1 => {
+                RegisteredUpdateProof::StackedDrg8MiBV1
+            }
+            SealProof::StackedDrg512MiBV1 => {
+                RegisteredUpdateProof::StackedDrg512MiBV1
+            }
+            SealProof::StackedDrg32GiBV1 => {
+                RegisteredUpdateProof::StackedDrg32GiBV1
+            }
+            SealProof::StackedDrg64GiBV1 => {
+                RegisteredUpdateProof::StackedDrg64GiBV1
+            }
 
-            SealProof::StackedDrg2KiBV1_1 => RegisteredUpdateProof::StackedDrg2KiBV1,
-            SealProof::StackedDrg8MiBV1_1 => RegisteredUpdateProof::StackedDrg8MiBV1,
-            SealProof::StackedDrg512MiBV1_1 => RegisteredUpdateProof::StackedDrg512MiBV1,
-            SealProof::StackedDrg32GiBV1_1 => RegisteredUpdateProof::StackedDrg32GiBV1,
-            SealProof::StackedDrg64GiBV1_1 => RegisteredUpdateProof::StackedDrg64GiBV1,
+            SealProof::StackedDrg2KiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg2KiBV1
+            }
+            SealProof::StackedDrg8MiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg8MiBV1
+            }
+            SealProof::StackedDrg512MiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg512MiBV1
+            }
+            SealProof::StackedDrg32GiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg32GiBV1
+            }
+            SealProof::StackedDrg64GiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg64GiBV1
+            }
         }
     }
 }

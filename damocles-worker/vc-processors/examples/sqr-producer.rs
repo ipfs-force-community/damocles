@@ -88,10 +88,13 @@ fn main() -> Result<()> {
 
 fn run_main() -> Result<()> {
     let _span = warn_span!("parent", pid = std::process::id()).entered();
-    let producer = ProducerBuilder::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
-        .stable_timeout(Duration::from_secs(5))
-        .spawn::<Num>()
-        .context("build producer")?;
+    let producer = ProducerBuilder::new(
+        current_exe().context("get current exe")?,
+        vec!["sub".to_owned()],
+    )
+    .stable_timeout(Duration::from_secs(5))
+    .spawn::<Num>()
+    .context("build producer")?;
 
     info!(child = producer.child_pid(), "producer start");
 
@@ -104,17 +107,18 @@ fn run_main() -> Result<()> {
 
         line_buf.clear();
 
-        let size = reader.read_line(&mut line_buf).context("read line from stdin")?;
+        let size = reader
+            .read_line(&mut line_buf)
+            .context("read line from stdin")?;
         if size == 0 {
             info!("exit");
             return Ok(());
         }
 
-        let num: u32 = line_buf
-            .as_str()
-            .trim()
-            .parse()
-            .with_context(|| format!("number required, got {:?}", line_buf))?;
+        let num: u32 =
+            line_buf.as_str().trim().parse().with_context(|| {
+                format!("number required, got {:?}", line_buf)
+            })?;
         info!(num, "read in");
 
         match producer.process(Num(num)) {

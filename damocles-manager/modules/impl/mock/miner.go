@@ -24,7 +24,7 @@ type minerAPI struct {
 	proofType abi.RegisteredSealProof
 }
 
-func (m *minerAPI) GetInfo(ctx context.Context, minerID abi.ActorID) (*core.MinerInfo, error) {
+func (m *minerAPI) GetInfo(_ context.Context, minerID abi.ActorID) (*core.MinerInfo, error) {
 	if minerID != m.minerID {
 		return nil, fmt.Errorf("miner id '%s' not found", minerID)
 	}
@@ -41,7 +41,7 @@ func (m *minerAPI) GetInfo(ctx context.Context, minerID abi.ActorID) (*core.Mine
 	}, nil
 }
 
-func (m *minerAPI) GetMinerConfig(ctx context.Context, minerID abi.ActorID) (*modules.MinerConfig, error) {
+func (m *minerAPI) GetMinerConfig(_ context.Context, minerID abi.ActorID) (*modules.MinerConfig, error) {
 	if minerID != m.minerID {
 		return nil, fmt.Errorf("miner id '%s' not found", minerID)
 	}
