@@ -337,8 +337,8 @@ var utilWdPostListCmd = &cli.Command{
 		}
 		defer stopper()
 
-		var jobs []core.WdPoStJobBrief
-		jobs, err = a.Damocles.WdPoStAllJobs(actx)
+		var allJobs core.AllWdPoStJob
+		allJobs, err = a.Damocles.WdPoStAllJobs(actx)
 		if err != nil {
 			return fmt.Errorf("get wdpost jobs: %w", err)
 		}
@@ -360,12 +360,17 @@ var utilWdPostListCmd = &cli.Command{
 			}
 			return time.Unix(int64(unix_secs), 0).Format("01-02 15:04:05")
 		}
-		for _, job := range jobs {
+		for _, job := range allJobs.Jobs {
 			if !cctx.Bool("all") && job.Succeed() {
 				continue
 			}
+
+			tryNum := strconv.FormatUint(uint64(job.TryNum), 10)
+			if job.TryNum >= allJobs.MaxTry {
+				tryNum += "(Max)"
+			}
 			if detail {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 					job.ID,
 					job.State,
 					job.Input.MinerID,
@@ -374,7 +379,7 @@ var utilWdPostListCmd = &cli.Command{
 					job.Sectors,
 					job.WorkerName,
 					job.DisplayState(),
-					job.TryNum,
+					tryNum,
 					formatDateTime(job.CreatedAt),
 					formatDateTime(job.StartedAt),
 					formatDateTime(job.HeartbeatAt),
@@ -397,7 +402,7 @@ var utilWdPostListCmd = &cli.Command{
 					heartbeat = "-"
 				}
 
-				fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%s\n",
+				fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 					job.ID,
 					job.Input.MinerID,
 					job.DeadlineIdx,
@@ -405,7 +410,7 @@ var utilWdPostListCmd = &cli.Command{
 					job.Sectors,
 					job.WorkerName,
 					job.DisplayState(),
-					job.TryNum,
+					tryNum,
 					formatDateTime(job.CreatedAt),
 					elapsed,
 					heartbeat,
@@ -494,11 +499,11 @@ var utilWdPostRemoveAllCmd = &cli.Command{
 		}
 		defer stopper()
 
-		jobs, err := a.Damocles.WdPoStAllJobs(actx)
+		allJobs, err := a.Damocles.WdPoStAllJobs(actx)
 		if err != nil {
 			return err
 		}
-		for _, job := range jobs {
+		for _, job := range allJobs.Jobs {
 			_, err = a.Damocles.WdPoStRemoveJob(actx, job.ID)
 			if err != nil {
 				return fmt.Errorf("remove wdpost job: %w", err)

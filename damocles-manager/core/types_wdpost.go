@@ -68,6 +68,11 @@ func (t *WdPoStJob) Succeed() bool {
 	return t.ErrorReason == ""
 }
 
+type AllWdPoStJob struct {
+	Jobs   []WdPoStJobBrief
+	MaxTry uint32
+}
+
 type WdPoStJobBrief struct {
 	*WdPoStJob
 	Sectors uint32
