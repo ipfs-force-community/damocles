@@ -1,4 +1,4 @@
-FROM golang:1.20.7-buster AS build
+FROM golang:1.20.7-bullseye AS build
 
 RUN apt-get update && apt-get install -y tzdata ca-certificates build-essential clang ocl-icd-opencl-dev ocl-icd-libopencl1 jq libhwloc-dev
 
@@ -32,7 +32,7 @@ COPY --from=build /lib/*/libgcc_s.so.1      /lib/
 COPY --from=build /lib/*/libutil.so.1       /lib/
 COPY --from=build /usr/lib/*/libltdl.so.7   /lib/
 COPY --from=build /usr/lib/*/libnuma.so.1   /lib/
-COPY --from=build /usr/lib/*/libhwloc.so.5  /lib/
+COPY --from=build /usr/lib/*/libhwloc.so.15  /lib/
 COPY --from=build /usr/lib/*/libOpenCL.so.1 /lib/
 
 RUN mkdir -p /etc/OpenCL/vendors \
