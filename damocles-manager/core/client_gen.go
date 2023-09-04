@@ -269,7 +269,7 @@ type WorkerWdPoStAPIClient struct {
 	WdPoStFinishJob     func(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
 	WdPoStResetJob      func(ctx context.Context, jobID string) (Meta, error)
 	WdPoStRemoveJob     func(ctx context.Context, jobID string) (Meta, error)
-	WdPoStAllJobs       func(ctx context.Context) ([]WdPoStJobBrief, error)
+	WdPoStAllJobs       func(ctx context.Context) (AllWdPoStJob, error)
 }
 
 var UnavailableWorkerWdPoStAPIClient = WorkerWdPoStAPIClient{
@@ -289,7 +289,7 @@ var UnavailableWorkerWdPoStAPIClient = WorkerWdPoStAPIClient{
 	WdPoStRemoveJob: func(ctx context.Context, jobID string) (Meta, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
-	WdPoStAllJobs: func(ctx context.Context) ([]WdPoStJobBrief, error) {
+	WdPoStAllJobs: func(ctx context.Context) (AllWdPoStJob, error) {
 		panic("WorkerWdPoStAPI client unavailable")
 	},
 }

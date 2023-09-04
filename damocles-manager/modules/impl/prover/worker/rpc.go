@@ -6,19 +6,22 @@ import (
 	"fmt"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
+	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/slices"
 )
 
-func NewWdPoStAPIImpl(jobMgr core.WorkerWdPoStJobManager) core.WorkerWdPoStAPI {
+func NewWdPoStAPIImpl(jobMgr core.WorkerWdPoStJobManager, cfg modules.WorkerProverConfig) core.WorkerWdPoStAPI {
 	return &WdPoStAPIImpl{
 		jobMgr: jobMgr,
+		cfg:    cfg,
 	}
 }
 
 type WdPoStAPIImpl struct {
 	jobMgr core.WorkerWdPoStJobManager
+	cfg    modules.WorkerProverConfig
 }
 
 func (api WdPoStAPIImpl) WdPoStHeartbeatJobs(ctx context.Context, runningJobIDs []string, workerName string) (core.Meta, error) {
@@ -49,20 +52,23 @@ func (api WdPoStAPIImpl) WdPoStRemoveJob(ctx context.Context, jobID string) (cor
 	return nil, err
 }
 
-func (api WdPoStAPIImpl) WdPoStAllJobs(ctx context.Context) ([]core.WdPoStJobBrief, error) {
+func (api WdPoStAPIImpl) WdPoStAllJobs(ctx context.Context) (core.AllWdPoStJob, error) {
 	jobs, err := api.jobMgr.All(ctx, func(_ *core.WdPoStJob) bool { return true })
 	if err != nil {
-		return nil, err
+		return core.AllWdPoStJob{}, err
 	}
-	return slices.Map(jobs, func(job *core.WdPoStJob) core.WdPoStJobBrief {
-		faults := 0
-		if job.Output != nil {
-			faults = len(job.Output.Faults)
-		}
-		return core.WdPoStJobBrief{
-			WdPoStJob: job,
-			Sectors:   uint32(len(job.Input.Sectors)),
-			Faults:    uint32(faults),
-		}
-	}), nil
+	return core.AllWdPoStJob{
+		Jobs: slices.Map(jobs, func(job *core.WdPoStJob) core.WdPoStJobBrief {
+			faults := 0
+			if job.Output != nil {
+				faults = len(job.Output.Faults)
+			}
+			return core.WdPoStJobBrief{
+				WdPoStJob: job,
+				Sectors:   uint32(len(job.Input.Sectors)),
+				Faults:    uint32(faults),
+			}
+		}),
+		MaxTry: api.cfg.JobMaxTry,
+	}, nil
 }
