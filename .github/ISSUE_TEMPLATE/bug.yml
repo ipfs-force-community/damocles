@@ -28,7 +28,7 @@ body:
     placeholder: |
       e.g.
       damocles-manager version v0.3.0-rc1-prod-git.f97994a
-      vc-worker v0.3.0-rc1-git.f97994a
+      damocles-worker v0.3.0-rc1-git.f97994a
   validations:
     required: true
 - type: textarea

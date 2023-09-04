@@ -69,7 +69,7 @@ func (lm *localMgr) run(ctx context.Context) {
 
 }
 
-func (lm *localMgr) Close(ctx context.Context) error {
+func (lm *localMgr) Close(context.Context) error {
 	return nil
 }
 
@@ -77,7 +77,7 @@ func (lm *localMgr) cfgpath(key string) string {
 	return filepath.Join(lm.dir, fmt.Sprintf("%s.cfg", key))
 }
 
-func (lm *localMgr) SetDefault(ctx context.Context, key string, c interface{}) error {
+func (lm *localMgr) SetDefault(_ context.Context, key string, c interface{}) error {
 	fname := lm.cfgpath(key)
 	_, err := os.Stat(fname)
 	if err == nil {
@@ -96,7 +96,7 @@ func (lm *localMgr) SetDefault(ctx context.Context, key string, c interface{}) e
 	return os.WriteFile(fname, content, 0644)
 }
 
-func (lm *localMgr) Load(ctx context.Context, key string, c interface{}) error {
+func (lm *localMgr) Load(_ context.Context, key string, c interface{}) error {
 	fname := lm.cfgpath(key)
 	data, err := os.ReadFile(fname)
 	if err != nil {
@@ -114,7 +114,7 @@ func (lm *localMgr) unmarshal(data []byte, obj interface{}) error {
 	return toml.Unmarshal(data, obj)
 }
 
-func (lm *localMgr) Watch(ctx context.Context, key string, c interface{}, wlock WLocker, newfn func() interface{}) error {
+func (lm *localMgr) Watch(_ context.Context, key string, c interface{}, wlock WLocker, newfn func() interface{}) error {
 
 	maybe := newfn()
 	valC := reflect.ValueOf(c)

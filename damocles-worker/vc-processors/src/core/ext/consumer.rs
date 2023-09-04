@@ -11,12 +11,18 @@ use crate::core::{Processor, Task};
 /// In most cases, this is used in a sub-process
 /// Please be awrae that you should let the logs output into stderr, or just disable all logs
 /// from this process, otherwise the producer colud be confused.
-pub fn run_with_processor<T: Task, P: Processor<T> + Send + Sync + Clone + 'static>(proc: P) -> Result<()> {
+pub fn run_with_processor<
+    T: Task,
+    P: Processor<T> + Send + Sync + Clone + 'static,
+>(
+    proc: P,
+) -> Result<()> {
     #[cfg(feature = "numa")]
     crate::sys::numa::try_set_preferred();
     let _cg = crate::sys::cgroup::try_load_from_env();
 
-    let _span = warn_span!("sub", name = %T::STAGE, pid = std::process::id()).entered();
+    let _span =
+        warn_span!("sub", name = %T::STAGE, pid = std::process::id()).entered();
 
     let mut output = stdout();
     writeln!(output, "{}", ready_msg(T::STAGE)).context("write ready msg")?;
@@ -34,7 +40,8 @@ pub fn run_with_processor<T: Task, P: Processor<T> + Send + Sync + Clone + 'stat
             return Err(anyhow!("got empty line, parent might be out"));
         }
 
-        let req: Request<T> = match from_str(&line).context("unmarshal request") {
+        let req: Request<T> = match from_str(&line).context("unmarshal request")
+        {
             Ok(r) => r,
             Err(e) => {
                 error!("unmarshal request: {:?}", e);
@@ -55,13 +62,19 @@ pub fn run_with_processor<T: Task, P: Processor<T> + Send + Sync + Clone + 'stat
 }
 
 /// Starts the consumer with the processor impl with Default.
-pub fn run<T: Task, P: Processor<T> + Default + Send + Sync + Copy + 'static>() -> Result<()> {
+pub fn run<
+    T: Task,
+    P: Processor<T> + Default + Send + Sync + Copy + 'static,
+>() -> Result<()> {
     let proc = P::default();
 
     run_with_processor(proc)
 }
 
-fn process_request<T: Task, P: Processor<T>>(proc: P, req: Request<T>) -> Result<()> {
+fn process_request<T: Task, P: Processor<T>>(
+    proc: P,
+    req: Request<T>,
+) -> Result<()> {
     debug!("request received");
 
     let resp = match proc.process(req.task) {

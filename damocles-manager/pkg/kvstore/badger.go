@@ -36,7 +36,7 @@ type BadgerKVStore struct {
 	db *badger.DB
 }
 
-func (b *BadgerKVStore) View(ctx context.Context, f func(Txn) error) error {
+func (b *BadgerKVStore) View(_ context.Context, f func(Txn) error) error {
 	err := b.db.View(func(txn *badger.Txn) error {
 		return f(&BadgerTxn{inner: txn})
 	})
@@ -46,7 +46,7 @@ func (b *BadgerKVStore) View(ctx context.Context, f func(Txn) error) error {
 	return err
 }
 
-func (b *BadgerKVStore) Update(ctx context.Context, f func(Txn) error) error {
+func (b *BadgerKVStore) Update(_ context.Context, f func(Txn) error) error {
 	err := b.db.Update(func(txn *badger.Txn) error {
 		return f(&BadgerTxn{inner: txn})
 	})
@@ -109,7 +109,7 @@ func (b *BadgerKVStore) Del(ctx context.Context, key Key) error {
 	}
 }
 
-func (b *BadgerKVStore) Scan(ctx context.Context, prefix Prefix) (it Iter, err error) {
+func (b *BadgerKVStore) Scan(_ context.Context, prefix Prefix) (it Iter, err error) {
 	txn := b.db.NewTransaction(false)
 	iter := txn.NewIterator(badger.DefaultIteratorOptions)
 
@@ -236,7 +236,7 @@ func (bi *BadgerIter) Key() Key {
 	return bi.item.Key()
 }
 
-func (bi *BadgerIter) View(ctx context.Context, f func(Val) error) error {
+func (bi *BadgerIter) View(_ context.Context, f func(Val) error) error {
 	if !bi.valid {
 		return ErrIterItemNotValid
 	}

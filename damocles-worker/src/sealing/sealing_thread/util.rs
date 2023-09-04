@@ -33,7 +33,9 @@ pub(super) use call_rpc;
 
 macro_rules! field_required {
     ($name:ident, $ex:expr) => {
-        let $name = $ex.with_context(|| format!("{} is required", stringify!(name))).abort()?;
+        let $name = $ex
+            .with_context(|| format!("{} is required", stringify!(name)))
+            .abort()?;
     };
 }
 

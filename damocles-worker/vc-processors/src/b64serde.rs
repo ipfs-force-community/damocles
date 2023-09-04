@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 base64_serde_type!(pub B64SerDe, STANDARD);
 
 /// Vec<u8> with base64 ser & de
-#[derive(Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(
+    Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize,
+)]
 #[serde(transparent)]
 pub struct BytesVec(#[serde(with = "B64SerDe")] pub Vec<u8>);
 
@@ -23,7 +25,9 @@ impl From<&Vec<u8>> for BytesVec {
 }
 
 /// [u8; 32]  with base64 ser & de
-#[derive(Copy, Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, Debug, Default, PartialEq, Hash, Eq, Serialize, Deserialize,
+)]
 #[serde(into = "BytesVec")]
 #[serde(try_from = "BytesVec")]
 pub struct BytesArray32(pub [u8; 32]);

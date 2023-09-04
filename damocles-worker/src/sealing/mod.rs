@@ -1,6 +1,6 @@
 //! sealing mod
 
-pub(self) mod failure;
+mod failure;
 mod paths;
 pub mod ping;
 pub mod processor;

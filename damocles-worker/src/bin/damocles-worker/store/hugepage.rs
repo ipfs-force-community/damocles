@@ -9,18 +9,30 @@ use bytesize::ByteSize;
 use tracing::warn;
 use vc_processors::sys::numa::Numa;
 
-pub fn create_hugepage_mem_files(numa_node_idx: u32, size: ByteSize, count: usize, path: impl AsRef<Path>) -> Result<Vec<PathBuf>> {
+pub fn create_hugepage_mem_files(
+    numa_node_idx: u32,
+    size: ByteSize,
+    count: usize,
+    path: impl AsRef<Path>,
+) -> Result<Vec<PathBuf>> {
     // bind NUMA node
     let numa = Numa::new().map_err(|_| anyhow!("NUMA not available"))?;
     numa.bind(numa_node_idx)
         .map_err(|_| anyhow!("invalid NUMA node: {}", numa_node_idx))?;
 
     let path = path.as_ref();
-    fs::create_dir_all(path).with_context(|| format!("create hugepage memory files directory: '{}'", path.display()))?;
+    fs::create_dir_all(path).with_context(|| {
+        format!(
+            "create hugepage memory files directory: '{}'",
+            path.display()
+        )
+    })?;
 
     let filename = size.to_string_as(true).replace(' ', "_");
 
-    let paths = (0..count).map(|i| path.join(format!("{}_{}", filename, i))).collect::<Vec<_>>();
+    let paths = (0..count)
+        .map(|i| path.join(format!("{}_{}", filename, i)))
+        .collect::<Vec<_>>();
 
     let files = paths
         .iter()

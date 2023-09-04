@@ -13,10 +13,14 @@ use super::{
     plan, PlannerTrait, PLANNER_NAME_SNAPUP,
 };
 use crate::logging::{debug, warn};
-use crate::rpc::sealer::{AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec, SnapUpOnChainInfo, SubmitResult};
+use crate::rpc::sealer::{
+    AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec,
+    SnapUpOnChainInfo, SubmitResult,
+};
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    cached_filenames_for_sector, TransferInput, TransferItem, TransferOption, TransferRoute, TransferStoreInfo,
+    cached_filenames_for_sector, TransferInput, TransferItem, TransferOption,
+    TransferRoute, TransferStoreInfo,
 };
 
 #[derive(Default)]
@@ -93,7 +97,13 @@ impl PlannerTrait for SnapUpPlanner {
                 return Err(TaskAborted.into());
             }
 
-            other => return Err(anyhow!("unexpected state {:?} in snapup planner", other).abort()),
+            other => {
+                return Err(anyhow!(
+                    "unexpected state {:?} in snapup planner",
+                    other
+                )
+                .abort())
+            }
         }
         .map(Some)
     }
@@ -171,7 +181,11 @@ impl<'t> SnapUp<'t> {
         let proof_type = self.task.sector_proof_type()?;
         field_required!(
             access_instance,
-            self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
+            self.task
+                .sector
+                .finalized
+                .as_ref()
+                .map(|f| &f.private.access_instance)
         );
 
         debug!("find access store named {}", access_instance);
@@ -182,14 +196,18 @@ impl<'t> SnapUp<'t> {
             .global
             .attached
             .get(access_instance)
-            .with_context(|| format!("get access store instance named {}", access_instance))
+            .with_context(|| {
+                format!("get access store instance named {}", access_instance)
+            })
             .perm()?;
 
         debug!("get basic info for access store named {}", access_instance);
         let access_store_basic_info = call_rpc! {
             self.task.rpc() => store_basic_info(access_instance.clone(),)
         }?
-        .with_context(|| format!("get basic info for store named {}", access_instance))
+        .with_context(|| {
+            format!("get basic info for store named {}", access_instance)
+        })
         .perm()?;
 
         // sealed file & persisted cache files should be accessed inside persist store
@@ -210,7 +228,12 @@ impl<'t> SnapUp<'t> {
                         store_name: Some(access_instance.clone()),
                         uri: access_store
                             .uri(cached_rel)
-                            .with_context(|| format!("get uri for cache dir {:?} in {}", cached_rel, access_instance))
+                            .with_context(|| {
+                                format!(
+                                    "get uri for cache dir {:?} in {}",
+                                    cached_rel, access_instance
+                                )
+                            })
                             .perm()?,
                     },
                     dest: TransferItem {
@@ -230,7 +253,12 @@ impl<'t> SnapUp<'t> {
                 store_name: Some(access_instance.clone()),
                 uri: access_store
                     .uri(sealed_rel)
-                    .with_context(|| format!("get uri for sealed file {:?} in {}", sealed_rel, access_instance))
+                    .with_context(|| {
+                        format!(
+                            "get uri for sealed file {:?} in {}",
+                            sealed_rel, access_instance
+                        )
+                    })
                     .perm()?,
             },
             dest: TransferItem {
@@ -243,7 +271,7 @@ impl<'t> SnapUp<'t> {
             }),
         }];
 
-        transfer_routes.extend(cached_file_routes.into_iter());
+        transfer_routes.extend(cached_file_routes);
 
         let transfer = TransferInput {
             stores: HashMap::from_iter([(
@@ -266,7 +294,8 @@ impl<'t> SnapUp<'t> {
             .context("link snapup sector files")
             .perm()?;
 
-        common::snap_encode(self.task, sector_id, proof_type).map(Event::SnapEncode)
+        common::snap_encode(self.task, sector_id, proof_type)
+            .map(Event::SnapEncode)
     }
 
     fn snap_prove(&self) -> Result<Event, Failure> {
@@ -278,7 +307,11 @@ impl<'t> SnapUp<'t> {
         let update_cache_dir = self.task.update_cache_dir(sector_id);
         let update_file = self.task.update_file(sector_id);
 
-        let ins_name = common::persist_sector_files(self.task, update_cache_dir, update_file)?;
+        let ins_name = common::persist_sector_files(
+            self.task,
+            update_cache_dir,
+            update_file,
+        )?;
 
         Ok(Event::Persist(ins_name))
     }
@@ -287,7 +320,10 @@ impl<'t> SnapUp<'t> {
         let sector_id = self.task.sector_id()?;
         field_required!(proof, self.task.sector.phases.snap_prov_out.as_ref());
         field_required!(deals, self.task.sector.deals.as_ref());
-        field_required!(encode_out, self.task.sector.phases.snap_encode_out.as_ref());
+        field_required!(
+            encode_out,
+            self.task.sector.phases.snap_encode_out.as_ref()
+        );
         cloned_required!(instance, self.task.sector.phases.persist_instance);
         let piece_cids = deals.iter().map(|d| d.piece.cid.clone()).collect();
 
@@ -305,7 +341,9 @@ impl<'t> SnapUp<'t> {
         }?;
 
         match res.res {
-            SubmitResult::Accepted | SubmitResult::DuplicateSubmit => Ok(Event::Finish),
+            SubmitResult::Accepted | SubmitResult::DuplicateSubmit => {
+                Ok(Event::Finish)
+            }
 
             SubmitResult::MismatchedSubmission => Err(anyhow!(
                 "submission for {} is not matched with a previous one: {:?}",
@@ -314,7 +352,9 @@ impl<'t> SnapUp<'t> {
             )
             .abort()),
 
-            SubmitResult::Rejected => Err(anyhow!("{:?}: {:?}", res.res, res.desc)).abort(),
+            SubmitResult::Rejected => {
+                Err(anyhow!("{:?}: {:?}", res.res, res.desc)).abort()
+            }
 
             SubmitResult::FilesMissed => Ok(Event::RePersist),
         }

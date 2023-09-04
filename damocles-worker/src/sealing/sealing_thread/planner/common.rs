@@ -14,8 +14,12 @@ use crate::sealing::failure::TaskAborted;
 use crate::{
     rpc::sealer::{SectorFailure, SectorStateChange},
     sealing::{
-        failure::{Failure, FailureContext, IntoFailure, Level, MapErrToFailure},
-        sealing_thread::{extend_lifetime, planner::JobTrait, Sealer, SealingThread, R},
+        failure::{
+            Failure, FailureContext, IntoFailure, Level, MapErrToFailure,
+        },
+        sealing_thread::{
+            extend_lifetime, planner::JobTrait, Sealer, SealingThread, R,
+        },
     },
     store::Store,
     watchdog::Ctx,
@@ -36,7 +40,9 @@ where
     P: PlannerTrait<Job = Task, Event = Event, State = State>,
 {
     fn seal(&mut self, state: Option<&str>) -> Result<R, Failure> {
-        let mut event = state.and_then(|s| State::from_str(s).ok()).map(Event::SetState);
+        let mut event = state
+            .and_then(|s| State::from_str(s).ok())
+            .map(Event::SetState);
         if let (true, Some(s)) = (event.is_none(), state) {
             tracing::error!("unknown state: {}", s);
         }
@@ -68,7 +74,9 @@ where
             };
 
             if self.job.sector.plan() != self.planner.name() {
-                return Ok(R::SwitchPlanner(self.job.sector.plan().to_string()));
+                return Ok(R::SwitchPlanner(
+                    self.job.sector.plan().to_string(),
+                ));
             }
 
             self.job.sealing_ctrl.interrupted()?;
@@ -120,7 +128,12 @@ where
                         self.job.finalize()?;
                         match state.abort_reason {
                             None => return Err(TaskAborted.into()),
-                            Some(reason) => return Err(Failure(Level::Abort, anyhow!(reason))),
+                            Some(reason) => {
+                                return Err(Failure(
+                                    Level::Abort,
+                                    anyhow!(reason),
+                                ))
+                            }
                         }
                     }
                 }
@@ -130,7 +143,13 @@ where
                 Ok(Some(evt)) => {
                     if let Event::Idle = &evt {
                         task_idle_count += 1;
-                        if task_idle_count > self.job.sealing_ctrl.config().request_task_max_retries {
+                        if task_idle_count
+                            > self
+                                .job
+                                .sealing_ctrl
+                                .config()
+                                .request_task_max_retries
+                        {
                             tracing::info!(
                                 "The task has returned `Event::Idle` for more than {} times. break the task",
                                 self.job.sealing_ctrl.config().request_task_max_retries
@@ -151,7 +170,11 @@ where
                     event.replace(evt);
                 }
 
-                Ok(None) => match self.job.report_finalized().context("report finalized") {
+                Ok(None) => match self
+                    .job
+                    .report_finalized()
+                    .context("report finalized")
+                {
                     Ok(_) => {
                         self.job.finalize()?;
                         return Ok(R::Done);
@@ -160,8 +183,12 @@ where
                 },
 
                 Err(Failure(Level::Abort, aerr)) => {
-                    if let Err(rerr) = self.job.report_aborted(aerr.to_string()) {
-                        tracing::error!("report aborted sector failed: {:?}", rerr);
+                    if let Err(rerr) = self.job.report_aborted(aerr.to_string())
+                    {
+                        tracing::error!(
+                            "report aborted sector failed: {:?}",
+                            rerr
+                        );
                     }
 
                     tracing::warn!("cleanup aborted sector");
@@ -187,16 +214,24 @@ where
     {
         let location = st.location.as_ref().expect("location must be set");
         let store_path = location.to_pathbuf();
-        let store = Box::pin(Store::open(store_path).with_context(|| format!("open store {}", location.as_ref().display()))?);
+        let store = Box::pin(Store::open(store_path).with_context(|| {
+            format!("open store {}", location.as_ref().display())
+        })?);
 
         Ok(Self {
-            job: Task::build(st.sealing_ctrl(ctx), unsafe { extend_lifetime(&*store.as_ref()) }).context("build tesk")?,
+            job: Task::build(st.sealing_ctrl(ctx), unsafe {
+                extend_lifetime(&*store.as_ref())
+            })
+            .context("build tesk")?,
             planner: P::default(),
             _store: store,
         })
     }
 
-    fn handle(&mut self, event: Option<Event>) -> Result<Option<Event>, Failure> {
+    fn handle(
+        &mut self,
+        event: Option<Event>,
+    ) -> Result<Option<Event>, Failure> {
         let prev = self.job.sector.state;
 
         if let Some(evt) = event {
@@ -208,18 +243,23 @@ where
                         "Event::{:?} captured", evt
                     );
 
-                    self.job
-                        .sealing_ctrl
-                        .wait_or_interrupted(self.job.sealing_ctrl.config().recover_interval)?;
+                    self.job.sealing_ctrl.wait_or_interrupted(
+                        self.job.sealing_ctrl.config().recover_interval,
+                    )?;
                 }
 
                 other => {
                     let next = if let Event::SetState(s) = other {
                         *s
                     } else {
-                        self.planner.plan(other, &self.job.sector.state).crit()?
+                        self.planner
+                            .plan(other, &self.job.sector.state)
+                            .crit()?
                     };
-                    self.planner.apply(evt, next, &mut self.job).context("event apply").crit()?;
+                    self.planner
+                        .apply(evt, next, &mut self.job)
+                        .context("event apply")
+                        .crit()?;
                     self.job.sector.sync().context("sync sector").crit()?;
                 }
             };
@@ -233,9 +273,19 @@ where
             .sealing_ctrl
             .ctrl_ctx()
             .update_state(|cst| {
-                cst.job.id = self.job.sector.base.as_ref().map(|x| x.allocated.id.to_string());
-                let _ = cst.job.state.replace(self.job.sector.state.as_str().to_string());
-                let _ = cst.job.stage.replace(self.job.sector.state.stage(self.job.planner()).to_string());
+                cst.job.id = self
+                    .job
+                    .sector
+                    .base
+                    .as_ref()
+                    .map(|x| x.allocated.id.to_string());
+                let _ = cst
+                    .job
+                    .state
+                    .replace(self.job.sector.state.as_str().to_string());
+                let _ = cst.job.stage.replace(
+                    self.job.sector.state.stage(self.job.planner()).to_string(),
+                );
             })
             .crit()?;
 

@@ -48,7 +48,9 @@ impl Ping {
                     }
                 }
             })
-            .with_context(|| format!("load state from ctrl for sealing thread {}", idx))?;
+            .with_context(|| {
+                format!("load state from ctrl for sealing thread {}", idx)
+            })?;
         }
 
         Ok(sum)
@@ -85,7 +87,8 @@ impl Module for Ping {
                     summary: sum,
                 };
 
-                block_on(ctx.global.rpc.worker_ping(winfo)).map_err(|e| anyhow!("worker ping: {:?}", e))
+                block_on(ctx.global.rpc.worker_ping(winfo))
+                    .map_err(|e| anyhow!("worker ping: {:?}", e))
             }) {
                 Ok(()) => {
                     debug!(elapsed = ?start.elapsed(), "ping");

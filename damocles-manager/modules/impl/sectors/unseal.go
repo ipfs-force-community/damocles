@@ -39,7 +39,7 @@ type UnsealManager struct {
 
 var _ core.UnsealSectorManager = (*UnsealManager)(nil)
 
-func NewUnsealManager(ctx context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerAPI, kv kvstore.KVStore, marketAddr, marketToken string) (ret *UnsealManager, err error) {
+func NewUnsealManager(_ context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerAPI, kv kvstore.KVStore, marketAddr, marketToken string) (ret *UnsealManager, err error) {
 	ret = &UnsealManager{
 		kv:   kv,
 		msel: newMinerSelector(scfg, minfoAPI),
@@ -141,7 +141,7 @@ func (u *UnsealManager) SetAndCheck(ctx context.Context, req *core.SectorUnsealI
 }
 
 // Set set unseal task
-func (u *UnsealManager) OnAchieve(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, hook func()) {
+func (u *UnsealManager) OnAchieve(_ context.Context, sid abi.SectorID, pieceCid cid.Cid, hook func()) {
 	key := core.UnsealInfoKey(sid.Miner, sid.Number, pieceCid)
 	u.kvMu.Lock()
 	defer u.kvMu.Unlock()

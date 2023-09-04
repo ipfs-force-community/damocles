@@ -17,7 +17,10 @@ impl AttachedManager {
         let mut stores = HashMap::new();
         for astore in attached {
             if let Some(prev) = stores.insert(astore.instance(), astore) {
-                return Err(anyhow!("duplicate instance name {}", prev.instance()));
+                return Err(anyhow!(
+                    "duplicate instance name {}",
+                    prev.instance()
+                ));
             };
         }
 
@@ -33,7 +36,13 @@ impl AttachedManager {
     pub fn available_instances(&self) -> Vec<String> {
         self.stores
             .values()
-            .filter_map(|st| if st.readonly() { None } else { Some(st.instance()) })
+            .filter_map(|st| {
+                if st.readonly() {
+                    None
+                } else {
+                    Some(st.instance())
+                }
+            })
             .collect()
     }
 }

@@ -36,7 +36,7 @@ type commitMgr struct {
 	}
 }
 
-func (c *commitMgr) SubmitPreCommit(ctx context.Context, sid abi.SectorID, info core.PreCommitInfo, hardReset bool) (core.SubmitPreCommitResp, error) {
+func (c *commitMgr) SubmitPreCommit(_ context.Context, sid abi.SectorID, info core.PreCommitInfo, hardReset bool) (core.SubmitPreCommitResp, error) {
 	c.pres.Lock()
 	defer c.pres.Unlock()
 
@@ -57,7 +57,7 @@ func (c *commitMgr) SubmitPreCommit(ctx context.Context, sid abi.SectorID, info 
 	}, nil
 }
 
-func (c *commitMgr) PreCommitState(ctx context.Context, sid abi.SectorID) (core.PollPreCommitStateResp, error) {
+func (c *commitMgr) PreCommitState(_ context.Context, sid abi.SectorID) (core.PollPreCommitStateResp, error) {
 	c.pres.RLock()
 	defer c.pres.RUnlock()
 
@@ -74,7 +74,7 @@ func (c *commitMgr) PreCommitState(ctx context.Context, sid abi.SectorID) (core.
 	}, nil
 }
 
-func (c *commitMgr) SubmitProof(ctx context.Context, sid abi.SectorID, info core.ProofInfo, hardReset bool) (core.SubmitProofResp, error) {
+func (c *commitMgr) SubmitProof(_ context.Context, sid abi.SectorID, info core.ProofInfo, hardReset bool) (core.SubmitProofResp, error) {
 	c.proofs.Lock()
 	defer c.proofs.Unlock()
 
@@ -95,7 +95,7 @@ func (c *commitMgr) SubmitProof(ctx context.Context, sid abi.SectorID, info core
 	}, nil
 }
 
-func (c *commitMgr) ProofState(ctx context.Context, sid abi.SectorID) (core.PollProofStateResp, error) {
+func (c *commitMgr) ProofState(_ context.Context, sid abi.SectorID) (core.PollProofStateResp, error) {
 	c.proofs.RLock()
 	defer c.proofs.RUnlock()
 
@@ -112,7 +112,7 @@ func (c *commitMgr) ProofState(ctx context.Context, sid abi.SectorID) (core.Poll
 	}, nil
 }
 
-func (c *commitMgr) SubmitTerminate(ctx context.Context, sid abi.SectorID) (core.SubmitTerminateResp, error) {
+func (c *commitMgr) SubmitTerminate(_ context.Context, sid abi.SectorID) (core.SubmitTerminateResp, error) {
 	c.terminates.Lock()
 	defer c.terminates.Unlock()
 
@@ -131,6 +131,6 @@ func (c *commitMgr) SubmitTerminate(ctx context.Context, sid abi.SectorID) (core
 	}, nil
 }
 
-func (c *commitMgr) TerminateState(ctx context.Context, sid abi.SectorID) (core.TerminateInfo, error) {
+func (c *commitMgr) TerminateState(context.Context, abi.SectorID) (core.TerminateInfo, error) {
 	return core.TerminateInfo{}, nil
 }

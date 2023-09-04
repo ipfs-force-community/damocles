@@ -25,11 +25,11 @@ func (fakeVerifier) VerifyAggregateSeals(context.Context, core.AggregateSealVeri
 	return false, nil
 }
 
-func (fakeVerifier) VerifyWindowPoSt(ctx context.Context, info core.WindowPoStVerifyInfo) (bool, error) {
+func (fakeVerifier) VerifyWindowPoSt(_ context.Context, _ core.WindowPoStVerifyInfo) (bool, error) {
 	return false, nil
 }
 
-func (fakeVerifier) VerifyWinningPoSt(ctx context.Context, info core.WinningPoStVerifyInfo) (bool, error) {
+func (fakeVerifier) VerifyWinningPoSt(_ context.Context, _ core.WinningPoStVerifyInfo) (bool, error) {
 	return false, nil
 }
 
@@ -40,26 +40,26 @@ func NewFakeProver() core.Prover {
 type fakeProver struct {
 }
 
-func (fakeProver) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
+func (fakeProver) AggregateSealProofs(context.Context, core.AggregateSealVerifyProofAndInfos, [][]byte) ([]byte, error) {
 	return make([]byte, 32), nil
 }
 
-func (fakeProver) GenerateWindowPoSt(ctx context.Context, params core.GenerateWindowPoStParams) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+func (fakeProver) GenerateWindowPoSt(context.Context, core.GenerateWindowPoStParams) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
 	return nil, nil, nil
 }
 
-func (fakeProver) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
+func (fakeProver) GenerateWinningPoSt(context.Context, abi.ActorID, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) ([]builtin.PoStProof, error) {
 	return nil, nil
 }
 
-func (fakeProver) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
+func (fakeProver) GeneratePoStFallbackSectorChallenges(context.Context, abi.RegisteredPoStProof, abi.ActorID, abi.PoStRandomness, []abi.SectorNumber) (*core.FallbackChallenges, error) {
 	return nil, nil
 }
 
-func (fakeProver) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
+func (fakeProver) GenerateSingleVanillaProof(context.Context, core.FFIPrivateSectorInfo, []uint64) ([]byte, error) {
 	return nil, nil
 }
 
-func (fakeProver) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
+func (fakeProver) GenerateWinningPoStWithVanilla(context.Context, abi.RegisteredPoStProof, abi.ActorID, abi.PoStRandomness, [][]byte) ([]core.PoStProof, error) {
 	return nil, nil
 }

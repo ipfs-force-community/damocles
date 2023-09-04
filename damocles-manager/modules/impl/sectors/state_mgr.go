@@ -412,7 +412,7 @@ func makeSectorKey(sid abi.SectorID) kvstore.Key {
 	return []byte(fmt.Sprintf("m-%d-n-%d", sid.Miner, sid.Number))
 }
 
-func apply(ctx context.Context, state *core.SectorState, fieldvals ...interface{}) error {
+func apply(_ context.Context, state *core.SectorState, fieldvals ...interface{}) error {
 	statev := reflect.ValueOf(state).Elem()
 	for fi := range fieldvals {
 		fieldval := fieldvals[fi]

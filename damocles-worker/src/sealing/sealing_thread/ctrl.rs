@@ -14,7 +14,10 @@ use crate::sealing::resource::Token;
 
 use super::super::store::Location;
 
-pub fn new_ctrl(loc: Option<Location>, limit: Arc<SealingLimit>) -> (Ctrl, CtrlCtx) {
+pub fn new_ctrl(
+    loc: Option<Location>,
+    limit: Arc<SealingLimit>,
+) -> (Ctrl, CtrlCtx) {
     let (pause_tx, pause_rx) = bounded(1);
     let (resume_tx, resume_rx) = bounded(0);
     let state = Arc::new(RwLock::new(Default::default()));
@@ -44,18 +47,16 @@ pub struct CtrlJobState {
     pub last_error: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum SealingThreadState {
+    #[default]
     Idle,
     PausedAt(Instant),
-    Running { at: Instant, proc: String },
+    Running {
+        at: Instant,
+        proc: String,
+    },
     WaitAt(Instant),
-}
-
-impl Default for SealingThreadState {
-    fn default() -> Self {
-        SealingThreadState::Idle
-    }
 }
 
 #[derive(Default)]
@@ -73,7 +74,10 @@ pub struct Ctrl {
 
 impl Ctrl {
     pub fn load_state<T, F: FnOnce(&CtrlState) -> T>(&self, f: F) -> Result<T> {
-        let ctrl_state: std::sync::RwLockReadGuard<'_, CtrlState> = self.state.read().map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
+        let ctrl_state: std::sync::RwLockReadGuard<'_, CtrlState> = self
+            .state
+            .read()
+            .map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
 
         let res = f(&ctrl_state);
         drop(ctrl_state);
@@ -109,7 +113,10 @@ pub struct CtrlCtx {
 
 impl CtrlCtx {
     pub fn update_state<F: FnOnce(&mut CtrlState)>(&self, f: F) -> Result<()> {
-        let mut ctrl_state = self.state.write().map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
+        let mut ctrl_state = self
+            .state
+            .write()
+            .map_err(|e| anyhow!("rwlock posioned {:?}", e))?;
 
         f(&mut ctrl_state);
         drop(ctrl_state);
@@ -117,7 +124,8 @@ impl CtrlCtx {
     }
 
     pub fn wait(&self, stage: impl AsRef<str>) -> Result<WaitGuard<Token>> {
-        self.state.write().unwrap().state = SealingThreadState::WaitAt(Instant::now());
+        self.state.write().unwrap().state =
+            SealingThreadState::WaitAt(Instant::now());
         let inner = self.limit.acquire_stage_limit(stage)?;
         self.state.write().unwrap().state = SealingThreadState::Running {
             at: Instant::now(),
@@ -162,11 +170,19 @@ where
     LP::Guard<'a>: Deref<Target = P>,
 {
     pub fn new(inner: LP) -> Self {
-        Self { inner, _pd: PhantomData }
+        Self {
+            inner,
+            _pd: PhantomData,
+        }
     }
 
-    pub fn process(&'a self, ctx: &CtrlCtx, task: T) -> Result<<T as vc_processors::core::Task>::Output> {
-        ctx.state.write().unwrap().state = SealingThreadState::WaitAt(Instant::now());
+    pub fn process(
+        &'a self,
+        ctx: &CtrlCtx,
+        task: T,
+    ) -> Result<<T as vc_processors::core::Task>::Output> {
+        ctx.state.write().unwrap().state =
+            SealingThreadState::WaitAt(Instant::now());
         let guard = self.inner.lock();
         ctx.state.write().unwrap().state = SealingThreadState::Running {
             at: Instant::now(),

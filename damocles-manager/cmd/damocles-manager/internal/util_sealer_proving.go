@@ -593,10 +593,10 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 			return fmt.Errorf("failed to load network version: %w", err)
 		}
 
-		for parIdx, par := range partitions {
+		for parIdx := range partitions {
 			sectors := make(map[abi.SectorNumber]struct{})
 
-			sectorInfos, err := api.Chain.StateMinerSectors(ctx, maddr, &par.LiveSectors, types.EmptyTSK)
+			sectorInfos, err := api.Chain.StateMinerSectors(ctx, maddr, &partitions[parIdx].LiveSectors, types.EmptyTSK)
 			if err != nil {
 				return err
 			}

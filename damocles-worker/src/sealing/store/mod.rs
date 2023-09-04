@@ -73,7 +73,10 @@ pub struct Store {
 
 impl Store {
     /// initialize the store at given location
-    pub fn init<P: AsRef<Path>>(loc: P, create_parents: bool) -> Result<Location> {
+    pub fn init<P: AsRef<Path>>(
+        loc: P,
+        create_parents: bool,
+    ) -> Result<Location> {
         let location = Location(loc.as_ref().to_owned());
 
         if create_parents {
@@ -102,14 +105,20 @@ impl Store {
         let location = Location(loc);
 
         let data_path = location.data_path();
-        if !data_path.symlink_metadata().context("read file metadata")?.is_dir() {
+        if !data_path
+            .symlink_metadata()
+            .context("read file metadata")?
+            .is_dir()
+        {
             return Err(anyhow!("{:?} is not a dir", data_path));
         }
 
         let meta_path = location.meta_path();
-        let meta = RocksMeta::open(&meta_path).with_context(|| format!("open metadb {:?}", meta_path))?;
+        let meta = RocksMeta::open(&meta_path)
+            .with_context(|| format!("open metadb {:?}", meta_path))?;
 
-        let _holder = PlaceHolder::open(&location).context("open placeholder")?;
+        let _holder =
+            PlaceHolder::open(&location).context("open placeholder")?;
 
         Ok(Self {
             location,

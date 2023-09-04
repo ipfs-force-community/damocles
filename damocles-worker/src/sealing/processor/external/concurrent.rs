@@ -36,7 +36,11 @@ impl<P> Concurrent<P> {
             Some(n) => bounded(n),
             None => unbounded(),
         };
-        Self { inner, limit_tx, limit_rx }
+        Self {
+            inner,
+            limit_tx,
+            limit_rx,
+        }
     }
 }
 
@@ -45,7 +49,9 @@ impl<P: LockProcessor> LockProcessor for Concurrent<P> {
 
     fn lock(&self) -> Self::Guard<'_> {
         let inner = self.inner.lock();
-        self.limit_tx.send(()).expect("limit channel never disconnect");
+        self.limit_tx
+            .send(())
+            .expect("limit channel never disconnect");
         Guard {
             inner,
             limit_rx: self.limit_rx.clone(),

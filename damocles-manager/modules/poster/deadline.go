@@ -52,7 +52,7 @@ import (
 // }
 
 // nextDeadline gets deadline info for the subsequent deadline
-func nextDeadline(currentDeadline *dline.Info, currentEpoch abi.ChainEpoch) *dline.Info {
+func nextDeadline(currentDeadline *dline.Info, _ abi.ChainEpoch) *dline.Info {
 	periodStart := currentDeadline.PeriodStart
 	newDeadlineIndex := currentDeadline.Index + 1
 	if newDeadlineIndex == currentDeadline.WPoStPeriodDeadlines {

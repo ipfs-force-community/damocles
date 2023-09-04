@@ -16,12 +16,16 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: dependencies
-        run: sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
+        run: |
+          sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
+          wget https://github.com/gnprice/toml-cli/releases/download/v0.2.3/toml-0.2.3-x86_64-linux.tar.gz && tar -xzf toml-0.2.3-x86_64-linux.tar.gz
+          sudo mv toml-0.2.3-x86_64-linux/toml /usr/local/bin
+          rm -rf toml-0.2.3-x86_64-linux.tar.gz toml-0.2.3-x86_64-linux
 
       - name: read rust toolchain
         id: read-rust-toolchain
         run: |
-          echo "toolchain=$(cat ./rust-toolchain)" >> "$GITHUB_OUTPUT"
+          echo "toolchain=$(toml get ./rust-toolchain.toml toolchain.channel --raw)" >> "$GITHUB_OUTPUT"
 
       - name: setup rust
         uses: actions-rs/toolchain@v1

@@ -4,15 +4,22 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 pub use fil_clock::ChainEpoch;
-pub use fil_types::{InteractiveSealRandomness, PieceInfo as DealInfo, Randomness};
+pub use fil_types::{
+    InteractiveSealRandomness, PieceInfo as DealInfo, Randomness,
+};
 
-use crate::rpc::sealer::{AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket};
+use crate::rpc::sealer::{
+    AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket,
+};
 use crate::sealing::processor::{
-    PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output, SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
+    PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output,
+    SealPreCommitPhase1Output, SealPreCommitPhase2Output, SectorId,
     SnapEncodeOutput,
 };
 use crate::sealing::sealing_thread::default_plan;
-use crate::sealing::sealing_thread::planner::{PLANNER_NAME_REBUILD, PLANNER_NAME_SNAPUP, PLANNER_NAME_UNSEAL};
+use crate::sealing::sealing_thread::planner::{
+    PLANNER_NAME_REBUILD, PLANNER_NAME_SNAPUP, PLANNER_NAME_UNSEAL,
+};
 
 const CURRENT_SECTOR_VERSION: u32 = 1;
 
@@ -61,7 +68,8 @@ impl State {
     pub fn stage(&self, plan: impl AsRef<str>) -> &'static str {
         match (self, plan.as_ref()) {
             (State::Empty, _) => "-",
-            (State::Allocated, PLANNER_NAME_SNAPUP) | (State::Allocated, PLANNER_NAME_REBUILD) => "AddPieces",
+            (State::Allocated, PLANNER_NAME_SNAPUP)
+            | (State::Allocated, PLANNER_NAME_REBUILD) => "AddPieces",
             (State::Allocated, PLANNER_NAME_UNSEAL) => "Unseal",
             (State::Allocated, _) => "AcquireDeals",
             (State::DealsAcquired, _) => "AddPieces",
@@ -129,6 +137,7 @@ impl std::fmt::Debug for State {
     }
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for State {
     fn default() -> Self {
         State::Empty

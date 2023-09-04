@@ -299,7 +299,9 @@ impl Config {
 
     /// load from config file
     pub fn load<P: AsRef<Path>>(p: P) -> Result<Self> {
-        let bytes = fs::read(p.as_ref()).with_context(|| format!("read config file: {}", p.as_ref().display()))?;
+        let bytes = fs::read(p.as_ref()).with_context(|| {
+            format!("read config file: {}", p.as_ref().display())
+        })?;
         Self::from_bytes(&bytes)
     }
 }
@@ -317,9 +319,9 @@ impl Config {
 
         let port = self.worker_server_listen_port();
 
-        let addr = format!("{}:{}", host, port)
-            .parse()
-            .with_context(|| format!("parse listen address with host: {}, port: {}", host, port))?;
+        let addr = format!("{}:{}", host, port).parse().with_context(|| {
+            format!("parse listen address with host: {}, port: {}", host, port)
+        })?;
         Ok(addr)
     }
 
@@ -334,9 +336,9 @@ impl Config {
             .unwrap_or(LOCAL_HOST);
 
         let port = self.worker_server_listen_port();
-        let addr = format!("{}:{}", host, port)
-            .parse()
-            .with_context(|| format!("parse connect address with host: {}, port: {}", host, port))?;
+        let addr = format!("{}:{}", host, port).parse().with_context(|| {
+            format!("parse connect address with host: {}, port: {}", host, port)
+        })?;
         Ok(addr)
     }
 
@@ -363,12 +365,14 @@ impl Config {
     pub fn worker_local_pieces_dirs(&self) -> Vec<PathBuf> {
         self.worker
             .as_ref()
-            .map(|worker| match (&worker.local_pieces_dir, &worker.local_pieces_dirs) {
-                (_, Some(dirs)) => dirs.clone(),
-                (Some(dir), None) => {
-                    vec![dir.clone()]
+            .map(|worker| {
+                match (&worker.local_pieces_dir, &worker.local_pieces_dirs) {
+                    (_, Some(dirs)) => dirs.clone(),
+                    (Some(dir), None) => {
+                        vec![dir.clone()]
+                    }
+                    (None, None) => Vec::new(),
                 }
-                (None, None) => Vec::new(),
             })
             .unwrap_or_default()
     }

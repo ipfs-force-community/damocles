@@ -15,8 +15,10 @@ use crate::{
     rpc::sealer::SealerClient,
     sealing::{
         processor::{
-            self, external::Proc as ExtProc, AddPiecesInput, C2Input, NoLockProcessor, PC1Input, PC2Input, SnapEncodeInput, SnapProveInput,
-            TransferInput, TreeDInput, UnsealInput, WindowPoStInput,
+            self, external::Proc as ExtProc, AddPiecesInput, C2Input,
+            NoLockProcessor, PC1Input, PC2Input, SnapEncodeInput,
+            SnapProveInput, TransferInput, TreeDInput, UnsealInput,
+            WindowPoStInput,
         },
         CtrlProcessor,
     },
@@ -51,7 +53,8 @@ pub(crate) struct GlobalModules {
 
 pub type ThreadProc<T> = NoLockProcessor<Box<dyn Processor<T>>>;
 pub type CtrlProc<T, LP> = CtrlProcessor<T, Box<dyn Processor<T>>, LP>;
-pub(crate) type Proc<T> = CtrlProc<T, processor::Either<ExtProc<T>, ThreadProc<T>>>;
+pub(crate) type Proc<T> =
+    CtrlProc<T, processor::Either<ExtProc<T>, ThreadProc<T>>>;
 
 pub(crate) struct GlobalProcessors {
     pub add_pieces: Proc<AddPiecesInput>,
@@ -93,11 +96,22 @@ pub(crate) struct WatchDog {
 }
 
 impl WatchDog {
-    pub fn build(cfg: Config, instance: String, dest: String, global: GlobalModules) -> Self {
+    pub fn build(
+        cfg: Config,
+        instance: String,
+        dest: String,
+        global: GlobalModules,
+    ) -> Self {
         Self::build_with_done(cfg, instance, dest, global, dones())
     }
 
-    pub fn build_with_done(cfg: Config, instance: String, dest: String, global: GlobalModules, done: (Sender<()>, Receiver<()>)) -> Self {
+    pub fn build_with_done(
+        cfg: Config,
+        instance: String,
+        dest: String,
+        global: GlobalModules,
+        done: (Sender<()>, Receiver<()>),
+    ) -> Self {
         Self {
             ctx: Ctx {
                 done: done.1,
@@ -135,7 +149,10 @@ impl WatchDog {
             return Ok(());
         }
 
-        let done_ctrl = self.done_ctrl.take().ok_or_else(|| anyhow!("no done controller provided"));
+        let done_ctrl = self
+            .done_ctrl
+            .take()
+            .ok_or_else(|| anyhow!("no done controller provided"));
 
         let mut indexes = HashMap::new();
         let mut selector = Select::new();
@@ -147,14 +164,25 @@ impl WatchDog {
         let op = selector.select();
         let opidx = op.index();
         let midx = match indexes.get(&opidx).cloned() {
-            None => return Err(anyhow!("no module found for select op index {}", opidx)),
+            None => {
+                return Err(anyhow!(
+                    "no module found for select op index {}",
+                    opidx
+                ))
+            }
             Some(i) => i,
         };
 
         let mname = (self.modules[midx].0).as_str();
         let res = match op.recv(&self.modules[midx].3) {
             Ok(r) => r,
-            Err(e) => return Err(anyhow!("unable to recv run result from module {} from chan: {}", mname, e)),
+            Err(e) => {
+                return Err(anyhow!(
+                    "unable to recv run result from module {} from chan: {}",
+                    mname,
+                    e
+                ))
+            }
         };
 
         match res {

@@ -12,11 +12,21 @@ pub mod http;
 pub mod local;
 
 /// Attempts to open a piece file
-pub fn open(piece_file: PieceFile, payload_size: u64, target_size: u64) -> anyhow::Result<Box<dyn io::Read>> {
+pub fn open(
+    piece_file: PieceFile,
+    payload_size: u64,
+    target_size: u64,
+) -> anyhow::Result<Box<dyn io::Read>> {
     let r = match piece_file {
-        PieceFile::Url(u) => inflator(http::fetcher_ref(), payload_size, target_size).open(u),
-        PieceFile::Local(p) => inflator(local::fetcher_ref(), payload_size, target_size).open(p),
-        PieceFile::Pledge => inflator(pledge_fetcher_ref(), payload_size, target_size).open(()),
+        PieceFile::Url(u) => {
+            inflator(http::fetcher_ref(), payload_size, target_size).open(u)
+        }
+        PieceFile::Local(p) => {
+            inflator(local::fetcher_ref(), payload_size, target_size).open(p)
+        }
+        PieceFile::Pledge => {
+            inflator(pledge_fetcher_ref(), payload_size, target_size).open(())
+        }
     };
 
     r.context("build inflator reader")
@@ -31,7 +41,11 @@ pub trait PieceFetcher<Addr> {
 }
 
 /// Creates a new `Inflator<T>`
-pub fn inflator<T>(inner: &T, payload_size: u64, target_size: u64) -> Inflator<T> {
+pub fn inflator<T>(
+    inner: &T,
+    payload_size: u64,
+    target_size: u64,
+) -> Inflator<T> {
     Inflator {
         inner,
         payload_size,
@@ -61,12 +75,14 @@ where
             return Err(anyhow!("payload size larger than target size"));
         }
 
-        let r = self.inner.open(addr).map_err(|e| anyhow!("open inner. {:?}", e))?;
+        let r = self
+            .inner
+            .open(addr)
+            .map_err(|e| anyhow!("open inner. {:?}", e))?;
         Ok(if self.target_size != self.payload_size {
-            Box::new(
-                r.take(self.payload_size)
-                    .chain(io::repeat(0).take(self.target_size - self.payload_size)),
-            )
+            Box::new(r.take(self.payload_size).chain(
+                io::repeat(0).take(self.target_size - self.payload_size),
+            ))
         } else {
             Box::new(r.take(self.payload_size))
         })

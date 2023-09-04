@@ -1,4 +1,6 @@
-use std::fs::{create_dir, create_dir_all, remove_dir_all, remove_file, File, OpenOptions};
+use std::fs::{
+    create_dir, create_dir_all, remove_dir_all, remove_file, File, OpenOptions,
+};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -31,7 +33,11 @@ impl TempDir {
     fn touch<P: AsRef<Path>>(&self, rel: P, data: Option<&[u8]>) -> PathBuf {
         let p = self.0.join(rel);
         ensure_dest_parent(&p).expect("ensure parent");
-        let mut f = OpenOptions::new().create_new(true).write(true).open(&p).expect("touch file");
+        let mut f = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&p)
+            .expect("touch file");
         if let Some(b) = data {
             f.write_all(b).expect("write data");
         }
@@ -65,7 +71,11 @@ fn compare_files(left: &Path, right: &Path) {
         .read_to_end(&mut right_data)
         .unwrap_or_else(|_| panic!("read {:?}", right));
 
-    assert_eq!(left_data, right_data, "compare file data {:?} vs {:?}", left, right);
+    assert_eq!(
+        left_data, right_data,
+        "compare file data {:?} vs {:?}",
+        left, right
+    );
 }
 
 #[test]
@@ -87,7 +97,9 @@ fn transfer_failure_test() {
         opt: None,
     });
     assert!(
-        res.unwrap_err().to_string().contains("src path is relative"),
+        res.unwrap_err()
+            .to_string()
+            .contains("src path is relative"),
         "src path is relative"
     );
 
@@ -103,7 +115,10 @@ fn transfer_failure_test() {
         },
         opt: None,
     });
-    assert!(res.unwrap_err().to_string().contains("src path not exists"), "src path not exists");
+    assert!(
+        res.unwrap_err().to_string().contains("src path not exists"),
+        "src path not exists"
+    );
 
     tmp.create_dir(rel_src);
     let res = do_transfer(&TransferRoute {
@@ -118,7 +133,9 @@ fn transfer_failure_test() {
         opt: None,
     });
     assert!(
-        res.unwrap_err().to_string().contains("dest path is relative"),
+        res.unwrap_err()
+            .to_string()
+            .contains("dest path is relative"),
         "dest path is relative"
     );
 
@@ -135,7 +152,9 @@ fn transfer_failure_test() {
         opt: None,
     });
     assert!(
-        res.unwrap_err().to_string().contains("dest entry type is different with src"),
+        res.unwrap_err()
+            .to_string()
+            .contains("dest entry type is different with src"),
         "dest entry type is different with src"
     );
 
@@ -174,7 +193,10 @@ fn transfer_test() {
             let rel_f = PathBuf::from(rel_src_dir).join(idx.to_string());
             rng.fill_bytes(&mut data);
             let src_file_path = tmp.touch(rel_f, Some(&data[..]));
-            (src_file_path, tmp.0.join(rel_dest_dir).join(idx.to_string()))
+            (
+                src_file_path,
+                tmp.0.join(rel_dest_dir).join(idx.to_string()),
+            )
         })
         .collect();
 
@@ -194,11 +216,20 @@ fn transfer_test() {
         }),
     });
 
-    assert!(res.is_ok(), "transfer dir {:?} to {:?}, allow_link", &src_path, &dest_path);
+    assert!(
+        res.is_ok(),
+        "transfer dir {:?} to {:?}, allow_link",
+        &src_path,
+        &dest_path
+    );
 
     assert!(dest_path.is_symlink(), "dest dir should be symlink");
     for (_, dfp) in file_pairs.iter() {
-        assert!(!dfp.is_symlink(), "file {:?} in dest dir should not be symlink", dfp);
+        assert!(
+            !dfp.is_symlink(),
+            "file {:?} in dest dir should not be symlink",
+            dfp
+        );
     }
 
     // link files
@@ -218,12 +249,21 @@ fn transfer_test() {
                 allow_link: true,
             }),
         });
-        assert!(res.is_ok(), "transfer file {:?} to {:?}, allow_link", sfp, dfp);
+        assert!(
+            res.is_ok(),
+            "transfer file {:?} to {:?}, allow_link",
+            sfp,
+            dfp
+        );
     }
 
     assert!(!dest_path.is_symlink(), "dest dir should not be symlink");
     for (_, dfp) in file_pairs.iter() {
-        assert!(dfp.is_symlink(), "file {:?} in dest dir should be symlink", dfp);
+        assert!(
+            dfp.is_symlink(),
+            "file {:?} in dest dir should be symlink",
+            dfp
+        );
     }
 
     // copy dir
@@ -240,10 +280,19 @@ fn transfer_test() {
         opt: None,
     });
 
-    assert!(res.is_ok(), "transfer dir {:?} to {:?}, disallow_link", &src_path, &dest_path);
+    assert!(
+        res.is_ok(),
+        "transfer dir {:?} to {:?}, disallow_link",
+        &src_path,
+        &dest_path
+    );
     assert!(!dest_path.is_symlink(), "dest dir should not be symlink");
     for (sfp, dfp) in file_pairs.iter() {
-        assert!(!dfp.is_symlink(), "file {:?} in dest dir should not be symlink", dfp);
+        assert!(
+            !dfp.is_symlink(),
+            "file {:?} in dest dir should not be symlink",
+            dfp
+        );
         compare_files(sfp, dfp);
     }
 
@@ -261,13 +310,22 @@ fn transfer_test() {
             },
             opt: None,
         });
-        assert!(res.is_ok(), "transfer file {:?} to {:?}, disallow_link", sfp, dfp);
+        assert!(
+            res.is_ok(),
+            "transfer file {:?} to {:?}, disallow_link",
+            sfp,
+            dfp
+        );
     }
 
     assert!(!dest_path.is_symlink(), "dest dir should not be symlink");
 
     for (sfp, dfp) in file_pairs.iter().take(3) {
-        assert!(!dfp.is_symlink(), "file {:?} in dest dir should not be symlink", dfp);
+        assert!(
+            !dfp.is_symlink(),
+            "file {:?} in dest dir should not be symlink",
+            dfp
+        );
         compare_files(sfp, dfp);
     }
 

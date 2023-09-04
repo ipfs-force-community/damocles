@@ -119,7 +119,7 @@ type StoreManager struct {
 	metadb    kvstore.KVStore
 }
 
-func (m *StoreManager) GetInstance(ctx context.Context, name string) (Store, error) {
+func (m *StoreManager) GetInstance(_ context.Context, name string) (Store, error) {
 	idx, ok := m.storeIdxes[name]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrObjectStoreInstanceNotFound, name)

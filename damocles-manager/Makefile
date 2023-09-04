@@ -71,10 +71,10 @@ test-all: $(BUILD_DEPS)
 check-all: check-lint check-go-mod
 
 check-lint: $(BUILD_DEPS)
-	golangci-lint run
+	golangci-lint run -c .golangci.yml
 
 check-go-mod:
 	$(GO) mod tidy
 
 dev-env:
-	$(GO) install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.1
+	$(GO) install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2

@@ -10,7 +10,9 @@ use tracing_subscriber::{
     registry,
 };
 
-pub use tracing::{debug, error, error_span, info, trace, warn, warn_span, Span};
+pub use tracing::{
+    debug, error, error_span, info, trace, warn, warn_span, Span,
+};
 
 /// initiate the global tracing subscriber
 pub fn init() -> Result<()> {
@@ -37,7 +39,10 @@ pub fn init() -> Result<()> {
         // SAFETY: It's sound as we don't manipulate environment variables while querying local offsets.
         local_offset::set_soundness(local_offset::Soundness::Unsound);
     }
-    let timer = OffsetTime::new(UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC), well_known::Rfc3339);
+    let timer = OffsetTime::new(
+        UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC),
+        well_known::Rfc3339,
+    );
 
     let fmt_layer = layer()
         .with_writer(std::io::stderr)

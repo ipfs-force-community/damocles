@@ -15,7 +15,9 @@ pub fn connect(host: SocketAddr) -> Result<WorkerClient> {
     let endpoint = format!("http://{}", host);
     let endpoint_ref = &endpoint;
     let client = block_on(async move { http::connect(endpoint_ref).await })
-        .map_err(|e| anyhow!("http connect: {:?}; endpoint: {}", e, endpoint_ref))?;
+        .map_err(|e| {
+            anyhow!("http connect: {:?}; endpoint: {}", e, endpoint_ref)
+        })?;
 
     Ok(client)
 }

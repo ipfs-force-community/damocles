@@ -72,7 +72,7 @@ func (e *EventBus) Stop() {
 }
 
 // exec callback func when receive tipset with epoch >= height + confidential
-func (e *EventBus) At(ctx context.Context, height abi.ChainEpoch, confidential abi.ChainEpoch, callback func(ts *types.TipSet)) {
+func (e *EventBus) At(_ context.Context, height abi.ChainEpoch, confidential abi.ChainEpoch, callback func(ts *types.TipSet)) {
 	if callback == nil {
 		return
 	}

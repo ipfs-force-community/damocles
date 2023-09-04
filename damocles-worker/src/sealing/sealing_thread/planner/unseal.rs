@@ -17,11 +17,16 @@ use std::{
 use tracing::{debug, info};
 use url::Url;
 use vc_processors::{
-    builtin::tasks::{PieceFile, Unseal as UnsealInput, STAGE_NAME_TRANSFER, STAGE_NAME_UNSEAL},
+    builtin::tasks::{
+        PieceFile, Unseal as UnsealInput, STAGE_NAME_TRANSFER,
+        STAGE_NAME_UNSEAL,
+    },
     fil_proofs::{UnpaddedByteIndex, UnpaddedBytesAmount},
 };
 
-use crate::sealing::processor::{TransferInput, TransferItem, TransferRoute, TransferStoreInfo};
+use crate::sealing::processor::{
+    TransferInput, TransferItem, TransferRoute, TransferStoreInfo,
+};
 
 #[derive(Default)]
 pub(crate) struct UnsealPlanner;
@@ -64,7 +69,10 @@ impl PlannerTrait for UnsealPlanner {
             State::Unsealed => inner.upload_piece(),
             State::Finished => return Ok(None),
 
-            other => Err(anyhow!("unexpected state: {:?} in unseal planner", other).abort()),
+            other => {
+                Err(anyhow!("unexpected state: {:?} in unseal planner", other)
+                    .abort())
+            }
         }
         .map(Some)
     }
@@ -110,15 +118,27 @@ impl<'t> Unseal<'t> {
 
     fn unseal(&self) -> Result<Event, Failure> {
         // query token
-        let _token = self.task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_UNSEAL).crit()?;
+        let _token = self
+            .task
+            .sealing_ctrl
+            .ctrl_ctx()
+            .wait(STAGE_NAME_UNSEAL)
+            .crit()?;
 
         let sector_id = self.task.sector_id()?;
         let proof_type = self.task.sector_proof_type()?;
 
-        field_required!(unseal_info, self.task.sector.phases.unseal_in.as_ref());
+        field_required!(
+            unseal_info,
+            self.task.sector.phases.unseal_in.as_ref()
+        );
         field_required!(
             instance_name,
-            self.task.sector.finalized.as_ref().map(|f| &f.private.access_instance)
+            self.task
+                .sector
+                .finalized
+                .as_ref()
+                .map(|f| &f.private.access_instance)
         );
 
         debug!("find access store named {}", instance_name);
@@ -129,7 +149,9 @@ impl<'t> Unseal<'t> {
             .global
             .attached
             .get(instance_name)
-            .with_context(|| format!("get access store instance named {}", instance_name))
+            .with_context(|| {
+                format!("get access store instance named {}", instance_name)
+            })
             .perm()?;
 
         let sealed_temp = self.task.sealed_file(sector_id);
@@ -140,16 +162,28 @@ impl<'t> Unseal<'t> {
 
         let sealed_path = instance
             .uri(sealed_rel)
-            .with_context(|| format!("get uri for sealed file {:?} in {}", sealed_rel, instance_name))
+            .with_context(|| {
+                format!(
+                    "get uri for sealed file {:?} in {}",
+                    sealed_rel, instance_name
+                )
+            })
             .perm()?;
         let cache_path = instance
             .uri(cache_rel)
-            .with_context(|| format!("get uri for cache file {:?} in {}", cache_rel, instance_name))
+            .with_context(|| {
+                format!(
+                    "get uri for cache file {:?} in {}",
+                    cache_rel, instance_name
+                )
+            })
             .perm()?;
 
         let piece_file = self.task.piece_file(&unseal_info.piece_cid);
         if piece_file.full().exists() {
-            remove_file(&piece_file).context("remove the existing piece file").perm()?;
+            remove_file(&piece_file)
+                .context("remove the existing piece file")
+                .perm()?;
         } else {
             piece_file.prepare().context("prepare piece file").perm()?;
         }
@@ -197,13 +231,24 @@ impl<'t> Unseal<'t> {
     }
 
     fn upload_piece(&self) -> Result<Event, Failure> {
-        let _token = self.task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_TRANSFER).crit()?;
+        let _token = self
+            .task
+            .sealing_ctrl
+            .ctrl_ctx()
+            .wait(STAGE_NAME_TRANSFER)
+            .crit()?;
 
         let sector_id = self.task.sector_id()?;
 
-        field_required!(unseal_info, self.task.sector.phases.unseal_in.as_ref());
+        field_required!(
+            unseal_info,
+            self.task.sector.phases.unseal_in.as_ref()
+        );
         let piece_file = self.task.piece_file(&unseal_info.piece_cid);
-        field_required!(unseal_info, self.task.sector.phases.unseal_in.as_ref());
+        field_required!(
+            unseal_info,
+            self.task.sector.phases.unseal_in.as_ref()
+        );
 
         // parse dest
         let dests = call_rpc! {
@@ -216,7 +261,9 @@ impl<'t> Unseal<'t> {
 
         for d in dests.into_iter() {
             let dest = &d;
-            let raw_url = Url::parse(dest).context(format!("parse url {}", dest)).perm()?;
+            let raw_url = Url::parse(dest)
+                .context(format!("parse url {}", dest))
+                .perm()?;
 
             // we accept four kinds of url by now
             // 1. http://xxx or https://xxx , it means we will post data to a http server
@@ -226,29 +273,52 @@ impl<'t> Unseal<'t> {
             match raw_url.scheme() {
                 "http" | "https" => {
                     // post req
-                    let fd = File::open(&piece_file).context("open piece file").temp()?;
+                    let fd = File::open(&piece_file)
+                        .context("open piece file")
+                        .temp()?;
                     let body = reqwest::blocking::Body::from(fd);
 
-                    let resp = reqwest::blocking::Client::new().put(raw_url).body(body).send().temp()?;
+                    let resp = reqwest::blocking::Client::new()
+                        .put(raw_url)
+                        .body(body)
+                        .send()
+                        .temp()?;
                     if !resp.status().is_success() {
-                        return Err(anyhow!("upload piece failed: {:?}", resp)).temp();
+                        return Err(anyhow!("upload piece failed: {:?}", resp))
+                            .temp();
                     }
                 }
                 "market" => {
-                    let query = raw_url.query_pairs().collect::<HashMap<_, _>>();
+                    let query =
+                        raw_url.query_pairs().collect::<HashMap<_, _>>();
 
-                    let (host, scheme, token) = match (query.get("host"), query.get("scheme"), query.get("token")) {
+                    let (host, scheme, token) = match (
+                        query.get("host"),
+                        query.get("scheme"),
+                        query.get("token"),
+                    ) {
                         (Some(h), Some(s), Some(t)) => (h, s, t),
-                        _ => return Err(anyhow!("parse url fail {}", raw_url)).perm(),
+                        _ => {
+                            return Err(anyhow!("parse url fail {}", raw_url))
+                                .perm()
+                        }
                     };
 
                     let piece_cid = raw_url.path().trim_matches('/');
                     let store_name = match raw_url.host_str() {
                         Some(v) => v,
-                        None => return Err(anyhow!("store name not found in {}", raw_url)).perm(),
+                        None => {
+                            return Err(anyhow!(
+                                "store name not found in {}",
+                                raw_url
+                            ))
+                            .perm()
+                        }
                     };
 
-                    let fd = File::open(&piece_file).context("open piece file").temp()?;
+                    let fd = File::open(&piece_file)
+                        .context("open piece file")
+                        .temp()?;
                     let body = reqwest::blocking::Body::from(fd);
 
                     // url example: market://store_name/piece_cid => http://market_ip/resource?resource-id=piece_cid&store=store_name
@@ -268,14 +338,19 @@ impl<'t> Unseal<'t> {
 
                     debug!("upload piece to market, resp: {:?}", resp);
                     if resp.status() != reqwest::StatusCode::OK {
-                        return Err(anyhow!("upload piece to market failed, resp: {:?}", resp)).perm();
+                        return Err(anyhow!(
+                            "upload piece to market failed, resp: {:?}",
+                            resp
+                        ))
+                        .perm();
                     }
                 }
                 "file" => {
                     // copy to dest file
                     let path_str = raw_url.path();
                     if path_str.is_empty() {
-                        return Err(anyhow!("path not found in {}", raw_url)).perm();
+                        return Err(anyhow!("path not found in {}", raw_url))
+                            .perm();
                     }
                     let des_path = Path::new(path_str);
                     fs::copy(piece_file.full(), des_path).perm()?;
@@ -284,7 +359,8 @@ impl<'t> Unseal<'t> {
                     let access_instance = raw_url.host_str();
                     let p = raw_url.path();
                     if p.is_empty() {
-                        return Err(anyhow!("path not found in {}", raw_url)).perm();
+                        return Err(anyhow!("path not found in {}", raw_url))
+                            .perm();
                     }
                     let des_path = PathBuf::from(p);
 
@@ -298,10 +374,18 @@ impl<'t> Unseal<'t> {
                                 .global
                                 .attached
                                 .get(&ins_name)
-                                .with_context(|| format!("get access store instance named {}", ins_name))
+                                .with_context(|| {
+                                    format!(
+                                        "get access store instance named {}",
+                                        ins_name
+                                    )
+                                })
                                 .perm()?;
 
-                            debug!("get basic info for access store named {}", ins_name);
+                            debug!(
+                                "get basic info for access store named {}",
+                                ins_name
+                            );
                             let access_store_basic_info = call_rpc! {
                                 self.task.rpc()=>store_basic_info(ins_name.clone(),)
                             }?
@@ -337,37 +421,70 @@ impl<'t> Unseal<'t> {
                                 .global
                                 .processors
                                 .transfer
-                                .process(self.task.sealing_ctrl.ctrl_ctx(), transfer)
+                                .process(
+                                    self.task.sealing_ctrl.ctrl_ctx(),
+                                    transfer,
+                                )
                                 .context("link unseal sector files")
                                 .perm()?;
                         }
                         None => {
                             // use remote piece store by default
-                            let access_store = &self.task.sealing_ctrl.ctx().global.remote_piece_store;
+                            let access_store = &self
+                                .task
+                                .sealing_ctrl
+                                .ctx()
+                                .global
+                                .remote_piece_store;
                             let p = p.trim_matches('/');
-                            let piece_cid = Cid::try_from(p).context(format!("parse cid {}", p)).perm()?;
+                            let piece_cid = Cid::try_from(p)
+                                .context(format!("parse cid {}", p))
+                                .perm()?;
                             let url = match access_store.get(&piece_cid).unwrap() {
                                 PieceFile::Url(u) => u,
-                                _ => return Err(anyhow!("unexpected piece_file  in remote piece store")).perm(),
+                                _ => {
+                                    return Err(anyhow!(
+                                        "unexpected piece_file  in remote piece store"
+                                    ))
+                                    .perm()
+                                }
                             };
 
-                            let fd = File::open(&piece_file).context("open piece file").temp()?;
+                            let fd = File::open(&piece_file)
+                                .context("open piece file")
+                                .temp()?;
                             let body = reqwest::blocking::Body::from(fd);
-                            let resp = reqwest::blocking::Client::new().put(url).body(body).send().temp()?;
+                            let resp = reqwest::blocking::Client::new()
+                                .put(url)
+                                .body(body)
+                                .send()
+                                .temp()?;
                             if !resp.status().is_success() {
                                 let resp_info = format!("{:?}", &resp);
                                 let error_info = resp.text().temp()?;
-                                return Err(anyhow!("upload piece failed: {}, body({})", resp_info, error_info)).temp();
+                                return Err(anyhow!(
+                                    "upload piece failed: {}, body({})",
+                                    resp_info,
+                                    error_info
+                                ))
+                                .temp();
                             }
                         }
                     }
                 }
                 _ => {
-                    return Err(anyhow!("unsupported url scheme {}", raw_url.scheme())).perm();
+                    return Err(anyhow!(
+                        "unsupported url scheme {}",
+                        raw_url.scheme()
+                    ))
+                    .perm();
                 }
             }
 
-            info!("upload piece done, piece_cid: {}, dest: {}", unseal_info.piece_cid.0, dest);
+            info!(
+                "upload piece done, piece_cid: {}, dest: {}",
+                unseal_info.piece_cid.0, dest
+            );
         }
 
         call_rpc! {

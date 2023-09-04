@@ -36,7 +36,7 @@ func Miner() dix.Option {
 	)
 }
 
-func NewGatewayClients(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConfig) (GatewayClients, error) {
+func NewGatewayClients(_ GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConfig) (GatewayClients, error) {
 	cfg.Lock()
 	urls, commonToken := cfg.Common.API.Gateway, cfg.Common.API.Token
 	cfg.Unlock()
@@ -64,7 +64,7 @@ func NewGatewayClients(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.SafeCon
 	return ret, nil
 }
 
-func NewMarketEventClients(gctx GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConfig, gatewayClients GatewayClients) (MarketEventClients, error) {
+func NewMarketEventClients(_ GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConfig, gatewayClients GatewayClients) (MarketEventClients, error) {
 	cfg.Lock()
 	var addr, token string
 	if cfg.Common.API.Market != nil {

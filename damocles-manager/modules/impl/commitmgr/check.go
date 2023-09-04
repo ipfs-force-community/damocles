@@ -170,9 +170,5 @@ func checkCommit(ctx context.Context, si core.SectorState, proof []byte, tok cor
 		return &ErrInvalidProof{fmt.Errorf("invalid proof (compute error?)")}
 	}
 
-	if err := checkPieces(ctx, maddr, si, api); err != nil {
-		return err
-	}
-
-	return nil
+	return checkPieces(ctx, maddr, si, api)
 }

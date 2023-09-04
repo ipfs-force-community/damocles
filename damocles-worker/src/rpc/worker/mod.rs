@@ -23,13 +23,23 @@ impl fmt::Display for SealingThreadState {
         match self {
             SealingThreadState::Idle => f.write_str("Idle"),
             SealingThreadState::Paused { elapsed } => {
-                f.write_fmt(format_args!("Paused({})", format_duration(Duration::from_secs(*elapsed))))
+                f.write_fmt(format_args!(
+                    "Paused({})",
+                    format_duration(Duration::from_secs(*elapsed))
+                ))
             }
             SealingThreadState::Running { elapsed, proc } => {
-                f.write_fmt(format_args!("Running({}) {}", format_duration(Duration::from_secs(*elapsed)), proc))
+                f.write_fmt(format_args!(
+                    "Running({}) {}",
+                    format_duration(Duration::from_secs(*elapsed)),
+                    proc
+                ))
             }
             SealingThreadState::Waiting { elapsed } => {
-                f.write_fmt(format_args!("Waiting({})", format_duration(Duration::from_secs(*elapsed))))
+                f.write_fmt(format_args!(
+                    "Waiting({})",
+                    format_duration(Duration::from_secs(*elapsed))
+                ))
             }
         }
     }
@@ -73,7 +83,11 @@ pub trait Worker {
 
     /// resume specific worker, with given state, if any
     #[rpc(name = "VenusWorker.WorkerResume")]
-    fn worker_resume(&self, index: usize, set_to: Option<String>) -> Result<bool>;
+    fn worker_resume(
+        &self,
+        index: usize,
+        set_to: Option<String>,
+    ) -> Result<bool>;
 
     /// set os environment
     #[rpc(name = "VenusWorker.WorkerSetEnv")]

@@ -85,10 +85,13 @@ fn main() -> Result<()> {
 
 fn run_main() -> Result<()> {
     let _span = warn_span!("parent", pid = std::process::id()).entered();
-    let producer = ProducerBuilder::new(current_exe().context("get current exe")?, vec!["sub".to_owned()])
-        .stable_timeout(Duration::from_secs(5))
-        .spawn::<TreeD>()
-        .context("build producer")?;
+    let producer = ProducerBuilder::new(
+        current_exe().context("get current exe")?,
+        vec!["sub".to_owned()],
+    )
+    .stable_timeout(Duration::from_secs(5))
+    .spawn::<TreeD>()
+    .context("build producer")?;
 
     info!(child = producer.child_pid(), "producer start");
 
@@ -100,7 +103,9 @@ fn run_main() -> Result<()> {
         info!("please enter a dir:");
         line_buf.clear();
 
-        let size = reader.read_line(&mut line_buf).context("read line from stdin")?;
+        let size = reader
+            .read_line(&mut line_buf)
+            .context("read line from stdin")?;
         if size == 0 {
             info!("exit");
             return Ok(());
@@ -119,7 +124,8 @@ fn run_main() -> Result<()> {
         );
 
         let staged_file_path = dir.join("staged");
-        create_dir_all(&dir).with_context(|| format!("create dir at {:?}", &dir))?;
+        create_dir_all(&dir)
+            .with_context(|| format!("create dir at {:?}", &dir))?;
         let fs = OpenOptions::new()
             .create(true)
             .truncate(true)

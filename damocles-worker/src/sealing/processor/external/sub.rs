@@ -23,11 +23,9 @@ impl<I: Input> SubProcessor<I> {
             .map(|s| Ok(PathBuf::from(s)))
             .unwrap_or_else(|| current_exe().context("get current exe name"))?;
 
-        let args = sub_cfg
-            .args
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| vec!["processor".to_owned(), I::STAGE.to_owned()]);
+        let args = sub_cfg.args.as_ref().cloned().unwrap_or_else(|| {
+            vec!["processor".to_owned(), I::STAGE.to_owned()]
+        });
 
         let mut builder = ProducerBuilder::new(bin, args)
             .inherit_envs(sub_cfg.inherit_envs)
@@ -42,7 +40,10 @@ impl<I: Input> SubProcessor<I> {
             if let Some(cpuset) = cgroup.cpuset.as_ref() {
                 let cgname = format!(
                     "{}/sub-{}-{}-{}",
-                    cgroup.group_name.as_deref().unwrap_or(DEFAULT_CGROUP_GROUP_NAME),
+                    cgroup
+                        .group_name
+                        .as_deref()
+                        .unwrap_or(DEFAULT_CGROUP_GROUP_NAME),
                     I::STAGE,
                     std::process::id(),
                     index

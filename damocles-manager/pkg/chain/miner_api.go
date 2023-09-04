@@ -103,7 +103,7 @@ func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.MinerInf
 	return mi, nil
 }
 
-func (m *MinerAPI) GetMinerConfig(ctx context.Context, mid abi.ActorID) (*modules.MinerConfig, error) {
+func (m *MinerAPI) GetMinerConfig(_ context.Context, mid abi.ActorID) (*modules.MinerConfig, error) {
 	config, err := m.safeConfig.MinerConfig(mid)
 	if err != nil {
 		return nil, err

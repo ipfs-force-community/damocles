@@ -185,7 +185,7 @@ func (*Store) Version() string {
 
 func (s *Store) Instance(context.Context) string { return s.cfg.Name }
 
-func (s *Store) InstanceConfig(ctx context.Context) objstore.Config {
+func (s *Store) InstanceConfig(_ context.Context) objstore.Config {
 	return s.cfg
 }
 
@@ -210,7 +210,7 @@ func (s *Store) Get(ctx context.Context, p string) (io.ReadCloser, error) {
 	return res.ReadCloser, res.Err
 }
 
-func (s *Store) Del(ctx context.Context, p string) error {
+func (s *Store) Del(_ context.Context, p string) error {
 	if s.cfg.GetReadOnly() {
 		return objstore.ErrReadOnlyStore
 	}
@@ -267,7 +267,7 @@ func (s *Store) getAbsPath(p string) (string, error) {
 	return fpath, nil
 }
 
-func (s *Store) Put(ctx context.Context, p string, r io.Reader) (int64, error) {
+func (s *Store) Put(_ context.Context, p string, r io.Reader) (int64, error) {
 	if s.cfg.GetReadOnly() {
 		return 0, objstore.ErrReadOnlyStore
 	}
@@ -287,6 +287,6 @@ func (s *Store) Put(ctx context.Context, p string, r io.Reader) (int64, error) {
 	return io.Copy(file, r)
 }
 
-func (s *Store) FullPath(ctx context.Context, sub string) string {
+func (s *Store) FullPath(_ context.Context, sub string) string {
 	return filepath.Join(s.cfg.Path, sub)
 }
