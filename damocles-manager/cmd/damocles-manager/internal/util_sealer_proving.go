@@ -27,12 +27,12 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/adt"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	"github.com/filecoin-project/venus/venus-shared/blockstore"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
-	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 )
 
@@ -103,7 +103,7 @@ var utilSealerProvingInfoCmd = &cli.Command{
 			return err
 		}
 
-		stor := adt.WrapStore(actx, cbor.NewCborStore(chainAPI.NewAPIBlockstore(api.Chain)))
+		stor := adt.WrapStore(actx, cbor.NewCborStore(blockstore.NewAPIBlockstore(api.Chain)))
 
 		mas, err := miner.Load(stor, mact)
 		if err != nil {
@@ -197,7 +197,7 @@ var utilSealerProvingFaultsCmd = &cli.Command{
 		}
 		defer stop()
 
-		stor := adt.WrapStore(ctx, cbor.NewCborStore(chainAPI.NewAPIBlockstore(api.Chain)))
+		stor := adt.WrapStore(ctx, cbor.NewCborStore(blockstore.NewAPIBlockstore(api.Chain)))
 
 		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
 		if err != nil {

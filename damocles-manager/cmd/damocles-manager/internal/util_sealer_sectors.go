@@ -25,6 +25,7 @@ import (
 	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	"github.com/filecoin-project/venus/pkg/util/fr32"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/verifreg"
+	"github.com/filecoin-project/venus/venus-shared/blockstore"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	levelds "github.com/ipfs/go-ds-leveldb"
@@ -43,7 +44,6 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
-	chain2 "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/lotusminer"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 )
@@ -489,7 +489,7 @@ var utilSealerSectorsExpiredCmd = &cli.Command{
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(chain2.NewAPIBlockstore(extAPI.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(blockstore.NewAPIBlockstore(extAPI.Chain)))
 		mas, err := miner.Load(store, mact)
 		if err != nil {
 			return err
@@ -806,7 +806,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(chain2.NewAPIBlockstore(fapi.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(blockstore.NewAPIBlockstore(fapi.Chain)))
 		mas, err := miner.Load(store, mact)
 		if err != nil {
 			return err

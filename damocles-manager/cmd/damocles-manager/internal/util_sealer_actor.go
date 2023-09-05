@@ -21,6 +21,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/adt"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	"github.com/filecoin-project/venus/venus-shared/blockstore"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	"github.com/urfave/cli/v2"
@@ -29,7 +30,6 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 )
 
@@ -302,7 +302,7 @@ var utilSealerActorRepayDebtCmd = &cli.Command{
 				return err
 			}
 
-			store := adt.WrapStore(ctx, cbor.NewCborStore(chain.NewAPIBlockstore(api.Chain)))
+			store := adt.WrapStore(ctx, cbor.NewCborStore(blockstore.NewAPIBlockstore(api.Chain)))
 			mst, err := miner.Load(store, mact)
 			if err != nil {
 				return err
@@ -943,7 +943,7 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 			return err
 		}
 
-		store := adt.WrapStore(ctx, cbor.NewCborStore(chain.NewAPIBlockstore(api.Chain)))
+		store := adt.WrapStore(ctx, cbor.NewCborStore(blockstore.NewAPIBlockstore(api.Chain)))
 
 		mst, err := miner.Load(store, mact)
 		if err != nil {

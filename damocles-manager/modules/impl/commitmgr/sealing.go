@@ -21,6 +21,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/market"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	"github.com/filecoin-project/venus/venus-shared/blockstore"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
@@ -117,7 +118,7 @@ func (s SealingAPIImpl) StateSectorPreCommitInfo(ctx context.Context, maddr addr
 	if err != nil {
 		return nil, fmt.Errorf("handleSealFailed(%d): temp error: %w", sectorNumber, err)
 	}
-	stor := adt.WrapStore(ctx, cbor.NewCborStore(chainAPI.NewAPIBlockstore(s.api)))
+	stor := adt.WrapStore(ctx, cbor.NewCborStore(blockstore.NewAPIBlockstore(s.api)))
 
 	state, err := miner.Load(stor, act)
 	if err != nil {
