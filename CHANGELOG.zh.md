@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.4
+  - damocles-manager
+    - 修复外部执行器模式 windowpost "Invalid commitment" 的 bug [#943](https://github.com/ipfs-force-community/damocles/pull/943)
+
 ## v0.8.3
   - damocles-manager
     - 生成 windowpost 任务和封装提交扇区文件事，非严格模式不再检查扇区文件大小，只检查文件是否存在 [#924](https://github.com/ipfs-force-community/damocles/pull/924)

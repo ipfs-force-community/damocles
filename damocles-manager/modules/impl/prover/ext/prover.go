@@ -89,6 +89,7 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWin
 		return p.localProver.GenerateWindowPoSt(ctx, params)
 	}
 	minerID, proofType, sectors, randomness := params.MinerID, params.ProofType, params.Sectors, params.Randomness
+	randomness[31] &= 0x3f
 
 	if len(sectors) == 0 {
 		return nil, nil, nil
