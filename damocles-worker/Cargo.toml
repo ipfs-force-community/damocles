@@ -85,7 +85,7 @@ vc-processors = { path = "./vc-processors", features = ["numa"] }
 [dependencies.storage-proofs-porep]
 git = "https://github.com/ipfs-force-community/rust-fil-proofs"
 package = "storage-proofs-porep"
-branch = "force/master_v14.0.0"
+branch = "feat/0x5459/support-disable-numa"
 default-features = false
 
 [dev-dependencies]
@@ -99,14 +99,14 @@ cuda = ["vc-processors/fil-proofs-cuda"]
 supra-c2 = ["bellperson/supra-c2"]
 
 [patch.crates-io]
-filecoin-hashers = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-hashers", branch = "force/master_v14.0.0" }
-filecoin-proofs = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-proofs", branch = "force/master_v14.0.0" }
-fr32 = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "fr32", branch = "force/master_v14.0.0" }
-sha2raw = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "sha2raw", branch = "force/master_v14.0.0" }
-storage-proofs-core = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-core", branch = "force/master_v14.0.0" }
-storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v14.0.0" }
-storage-proofs-post = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-post", branch = "force/master_v14.0.0" }
-storage-proofs-update = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-update", branch = "force/master_v14.0.0" }
+filecoin-hashers = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-hashers", branch = "feat/0x5459/support-disable-numa" }
+filecoin-proofs = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-proofs", branch = "feat/0x5459/support-disable-numa" }
+fr32 = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "fr32", branch = "feat/0x5459/support-disable-numa" }
+sha2raw = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "sha2raw", branch = "feat/0x5459/support-disable-numa" }
+storage-proofs-core = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-core", branch = "feat/0x5459/support-disable-numa" }
+storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "feat/0x5459/support-disable-numa" }
+storage-proofs-post = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-post", branch = "feat/0x5459/support-disable-numa" }
+storage-proofs-update = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-update", branch = "feat/0x5459/support-disable-numa" }
 
 bellperson = { git = "https://github.com/ipfs-force-community/bellperson.git", branch = "v0.24.1-supra-c2" }
 sppark = { git = "https://github.com/supranational/sppark.git", rev = "3ea4eb3" }
