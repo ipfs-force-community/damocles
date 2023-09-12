@@ -1,7 +1,7 @@
 BUILD_GIT_FALLBACK := "Unknown (no git or not git repo)"
 export GIT_COMMIT?=git.$(subst -,.,$(shell git describe --always --match=NeVeRmAtCh --dirty 2> /dev/null || git rev-parse --short HEAD 2> /dev/null || echo ${BUILD_GIT_FALLBACK}))
 export RUSTFLAGS
-export RUST_TOOLCHAIN?=$(strip $(shell cat rust-toolchain))
+export RUST_TOOLCHAIN?=$(shell awk 'NR==2 { gsub(/"/, "", $$3); print $$3 }' ./rust-toolchain.toml)
 
 unexport FFI_USE_CUDA
 unexport VENUS_WORKER_FEATURES
