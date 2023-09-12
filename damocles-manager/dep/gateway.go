@@ -69,9 +69,8 @@ func NewMarketEventClients(_ GlobalContext, lc fx.Lifecycle, cfg *modules.SafeCo
 	var addr, token string
 	if cfg.Common.API.Market != nil {
 		addr, token = extractAPIInfo(*cfg.Common.API.Market, cfg.Common.API.Token)
-	} else if len(cfg.Common.API.Gateway) > 0 {
-		addr, token = cfg.Common.API.Gateway[0], cfg.Common.API.Token
 	}
+	// should vsm call droplet for market event when use unit entry from gateway
 	cfg.Unlock()
 
 	var ret MarketEventClients
