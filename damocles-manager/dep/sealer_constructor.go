@@ -516,9 +516,11 @@ type MarketAPIRelatedComponents struct {
 func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig) (market.API, error) {
 	scfg.Lock()
 	var api, token string
+	isGatewayEntry := false
 	if scfg.Common.API.Market != nil {
 		api, token = extractAPIInfo(*scfg.Common.API.Market, scfg.Common.API.Token)
 	} else if len(scfg.Common.API.Gateway) > 0 {
+		isGatewayEntry = true
 		api, token = scfg.Common.API.Gateway[0], scfg.Common.API.Token
 	}
 	defer scfg.Unlock()
@@ -529,7 +531,13 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 
 	mapi, mcloser, err := market.New(gctx, api, token)
 	if err != nil {
-		return nil, fmt.Errorf("construct market api: %w", err)
+		if !isGatewayEntry {
+			// market has been configured, but failed to connect, return error
+			return nil, fmt.Errorf("construct market api: %w", err)
+		}
+		// market has not been configured manually, Errors are tolerated
+		log.Warnf("failed to construct market api from gateway proxy: %s", err)
+		return nil, nil
 	}
 
 	lc.Append(fx.Hook{
