@@ -607,10 +607,7 @@ pub(crate) fn persist_sector_files(
             path: persist_store
                 .path(Resource::Cache(sector_id.clone()))
                 .with_context(|| {
-                    format!(
-                        "get path for cache({}) in {}",
-                        sector_id, ins_name
-                    )
+                    format!("get path for cache({}) in {}", sector_id, ins_name)
                 })
                 .perm()?,
         },

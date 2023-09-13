@@ -1,7 +1,7 @@
 use std::fs::{create_dir_all, remove_dir_all, remove_file, OpenOptions};
 use std::io::copy;
 use std::os::unix::fs::symlink;
-use std::path::{Path};
+use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
 use tracing::info;
