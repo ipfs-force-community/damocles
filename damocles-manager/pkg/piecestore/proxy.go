@@ -56,13 +56,13 @@ func (p *Proxy) handleGet(rw http.ResponseWriter, req *http.Request) {
 
 	for _, store := range p.locals {
 
-		fullPath, _, err := store.FullPath(req.Context(), filestore.PathTypeCustom, nil, &path)
+		_, subPath, err := store.FullPath(req.Context(), filestore.PathTypeCustom, nil, &path)
 		if err != nil {
-			log.Debug("get FullPath for custom(%s): %w", fullPath, err)
+			log.Debug("get FullPath for custom(%s): %w", subPath, err)
 			continue
 		}
 
-		if r, err := store.Read(req.Context(), fullPath); err == nil {
+		if r, err := store.Read(req.Context(), subPath); err == nil {
 			defer r.Close()
 			_, err := io.Copy(rw, r)
 			if err != nil {
@@ -90,21 +90,21 @@ func (p *Proxy) handlePut(rw http.ResponseWriter, req *http.Request) {
 			continue
 		}
 
-		fullPath, _, err := store.FullPath(req.Context(), filestore.PathTypeCustom, nil, &path)
+		_, subPath, err := store.FullPath(req.Context(), filestore.PathTypeCustom, nil, &path)
 		if err != nil {
-			log.Debug("get FullPath for custom(%s): %w", fullPath, err)
+			log.Debug("get FullPath for custom(%s): %w", subPath, err)
 			continue
 		}
 
 		// todo : we can't get the free space of the store some time, so there is compromise when free == 0
 		if storeInfo.Free > uint64(dataSize) || storeInfo.Free == 0 {
-			count, err := store.Write(req.Context(), fullPath, req.Body)
+			count, err := store.Write(req.Context(), subPath, req.Body)
 			if err != nil {
-				log.Errorw("put piece data", "path", path, "fullPath", fullPath, "store", storeInfo.Config.Name, "count", count, "err", err)
+				log.Errorw("put piece data", "path", path, "subPath", subPath, "store", storeInfo.Config.Name, "count", count, "err", err)
 				http.Error(rw, fmt.Sprintf("put piece data: %s", err), http.StatusInternalServerError)
 			}
 
-			log.Infow("put piece data", "path", path, "fullPath", fullPath, "count", count)
+			log.Infow("put piece data", "path", path, "subPath", subPath, "count", count)
 			return
 		}
 	}
@@ -115,12 +115,12 @@ func (p *Proxy) handlePut(rw http.ResponseWriter, req *http.Request) {
 func (p *Proxy) Get(ctx context.Context, pieceCid cid.Cid) (io.ReadCloser, error) {
 	key := pieceCid.String()
 	for _, store := range p.locals {
-		fullPath, _, err := store.FullPath(ctx, filestore.PathTypeCustom, nil, &key)
+		_, subPath, err := store.FullPath(ctx, filestore.PathTypeCustom, nil, &key)
 		if err != nil {
 			log.Debug("get FullPath for custom(%s): %w", key, err)
 			continue
 		}
-		if r, err := store.Read(ctx, fullPath); err == nil {
+		if r, err := store.Read(ctx, subPath); err == nil {
 			return r, nil
 		}
 	}
@@ -141,13 +141,13 @@ func (p *Proxy) Put(ctx context.Context, pieceCid cid.Cid, data io.Reader) (int6
 			continue
 		}
 
-		fullPath, _, err := store.FullPath(ctx, filestore.PathTypeCustom, nil, &key)
+		_, subPath, err := store.FullPath(ctx, filestore.PathTypeCustom, nil, &key)
 		if err != nil {
 			log.Debug("get FullPath for custom(%s): %w", key, err)
 			continue
 		}
 
-		count, err := store.Write(ctx, fullPath, data)
+		count, err := store.Write(ctx, subPath, data)
 		if err != nil {
 			log.Errorw("put piece data", "path", key, "store", storeInfo.Config.Name, "count", count, "err", err)
 			return 0, err

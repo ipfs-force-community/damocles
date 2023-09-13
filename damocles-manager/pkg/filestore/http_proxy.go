@@ -42,15 +42,15 @@ func ServeHTTP(ctx context.Context, mux *http.ServeMux, store Ext) {
 			}
 		}()
 
-		fullPath := strings.TrimLeft(r.URL.Path, "/")
-		if fullPath == "" {
+		subPath := strings.TrimLeft(r.URL.Path, "/")
+		if subPath == "" {
 			statusCode = http.StatusBadRequest
 			return
 		}
 
 		switch r.Method {
 		case http.MethodGet:
-			f, err := store.Read(r.Context(), fullPath)
+			f, err := store.Read(r.Context(), subPath)
 			if err != nil {
 				herr = fmt.Errorf("get object: %w", err)
 				return
@@ -64,14 +64,14 @@ func ServeHTTP(ctx context.Context, mux *http.ServeMux, store Ext) {
 			}
 
 		case http.MethodPut:
-			_, err := store.Write(r.Context(), fullPath, r.Body)
+			_, err := store.Write(r.Context(), subPath, r.Body)
 			if err != nil {
 				herr = fmt.Errorf("put object: %w", err)
 				return
 			}
 
 		case http.MethodHead:
-			stat, err := store.Stat(r.Context(), fullPath)
+			stat, err := store.Stat(r.Context(), subPath)
 			if err != nil {
 				if errors.Is(err, ErrFileNotFound) {
 					statusCode = http.StatusNotFound
