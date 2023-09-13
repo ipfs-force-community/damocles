@@ -1,5 +1,5 @@
 //! infrastructures
 
-pub mod objstore;
+pub mod filestore;
 pub mod piecestore;
 pub mod util;

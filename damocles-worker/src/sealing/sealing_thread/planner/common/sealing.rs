@@ -7,12 +7,14 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use vc_processors::builtin::tasks::{
-    Piece, PieceFile, STAGE_NAME_ADD_PIECES, STAGE_NAME_SYNTHETIC_PROOF,
+    Piece, PieceFile, TransferOption, STAGE_NAME_ADD_PIECES, STAGE_NAME_SYNTHETIC_PROOF,
     STAGE_NAME_TREED,
 };
 
 use crate::{
-    rpc::sealer::{Deals, SectorID, Seed, Ticket},
+    filestore::Resource,
+    infra::filestore::FileStoreExt,
+    rpc::sealer::{Deals, PathType, SectorID, Seed, Ticket},
     sealing::{
         failure::{Failure, IntoFailure, MapErrToFailure, MapStdErrToFailure},
         processor::{
@@ -579,35 +581,44 @@ pub(crate) fn persist_sector_files(
     let ins_name = persist_store.instance();
     tracing::debug!(name = %ins_name, "persist store acquired");
 
-    let mut wanted = vec![sealed_file];
-    wanted.extend(
-        cached_filenames_for_sector(proof_type.into())
-            .into_iter()
-            .map(|fname| cache_dir.join(fname)),
-    );
+    let sealed_file_route = TransferRoute {
+        src: TransferItem::Local(sealed_file.full().clone()),
+        dest: TransferItem::Store {
+            store: ins_name.clone(),
+            path: persist_store
+                .path(Resource::Sealed(sector_id.clone()))
+                .with_context(|| {
+                    format!(
+                        "get path for sealed({}) in {}",
+                        sector_id, ins_name
+                    )
+                })
+                .crit()?,
+        },
+        opt: None,
+    };
 
-    let transfer_routes = wanted
-        .into_iter()
-        .map(|p| {
-            let rel_path = p.rel();
-            Ok(TransferRoute {
-                // local
-                src: TransferItem {
-                    store_name: None,
-                    uri: p.full().to_owned(),
-                },
-                // persist store
-                dest: TransferItem {
-                    store_name: Some(ins_name.clone()),
-                    uri: persist_store
-                        .uri(rel_path)
-                        .with_context(|| format!("get uri for {:?}", rel_path))
-                        .perm()?,
-                },
-                opt: None,
-            })
-        })
-        .collect::<Result<Vec<_>, Failure>>()?;
+    let cache_dir_route = TransferRoute {
+        // local
+        src: TransferItem::Local(cache_dir.full().clone()),
+        // persist store
+        dest: TransferItem::Store {
+            store: ins_name.clone(),
+            path: persist_store
+                .path(Resource::Cache(sector_id.clone()))
+                .with_context(|| {
+                    format!(
+                        "get path for cache({}) in {}",
+                        sector_id, ins_name
+                    )
+                })
+                .perm()?,
+        },
+        opt: Some(TransferOption {
+            is_dir: true,
+            allow_link: false,
+        }),
+    };
 
     let transfer_store_info = TransferStoreInfo {
         name: ins_name.clone(),
@@ -616,7 +627,7 @@ pub(crate) fn persist_sector_files(
 
     let transfer = TransferInput {
         stores: HashMap::from_iter([(ins_name.clone(), transfer_store_info)]),
-        routes: transfer_routes,
+        routes: vec![sealed_file_route, cache_dir_route],
     };
 
     task.sealing_ctrl

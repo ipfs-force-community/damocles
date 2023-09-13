@@ -21,9 +21,12 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/dep"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
+	filestorebuiltin "github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore/builtin"
+	filestoreplugin "github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore/plugin"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore/filestore"
+	managerplugin "github.com/ipfs-force-community/damocles/manager-plugin"
+
 	"github.com/urfave/cli/v2"
 )
 
@@ -44,6 +47,10 @@ var utilStorageAttachCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name: "name",
+		},
+		&cli.StringFlag{
+			Name:  "plugin-name",
+			Usage: "the filestore plugin name, the plugin file should exist in `Plugin.Dir`",
 		},
 		&cli.BoolFlag{
 			Name: "strict",
@@ -80,27 +87,20 @@ var utilStorageAttachCmd = &cli.Command{
 		}
 
 		verbose := cctx.Bool("verbose")
-		name := cctx.String("name")
 		strict := cctx.Bool("strict")
+		name := cctx.String("name")
 		readOnly := cctx.Bool("read-only")
 		allowSplitted := cctx.Bool("allow-splitted")
 		pattern := cctx.String("pattern")
+		pluginName := cctx.String("plugin-name")
 
-		scfg := objstore.DefaultConfig(abs, readOnly)
+		scfg := filestore.DefaultConfig(abs, readOnly)
 		scfg.Name = name
 		scfg.Strict = &strict
 
-		store, err := filestore.Open(scfg, false)
-		if err != nil {
-			return fmt.Errorf("open file store: %w", err)
-		}
-
-		name = store.Instance(gctx)
-		logger := Log.With("name", name, "strict", strict, "read-only", readOnly, "splitted", allowSplitted)
-
 		cfgExample := struct {
 			Common struct {
-				PersistStores []objstore.Config
+				PersistStores []filestore.Config
 			}
 		}{}
 
@@ -116,6 +116,7 @@ var utilStorageAttachCmd = &cli.Command{
 
 		var indexer core.SectorIndexer
 		var chainAPI chain.API
+		var loadedPlugins *managerplugin.LoadedPlugins
 
 		stopper, err := dix.New(
 			gctx,
@@ -123,7 +124,7 @@ var utilStorageAttachCmd = &cli.Command{
 			dep.Product(),
 			dix.Override(new(dep.GlobalContext), gctx),
 			dix.Override(new(dep.ListenAddress), dep.ListenAddress(cctx.String(SealerListenFlag.Name))),
-			dix.Populate(dep.InvokePopulate, &indexer, &chainAPI),
+			dix.Populate(dep.InvokePopulate, &indexer, &chainAPI, &loadedPlugins),
 		)
 
 		if err != nil {
@@ -131,6 +132,24 @@ var utilStorageAttachCmd = &cli.Command{
 		}
 
 		defer stopper(gctx) // nolint:errcheck
+
+		var store filestore.Store
+		if pluginName != "" {
+			// use builtin fs filestore
+			store, err = filestorebuiltin.New(scfg)
+			if err != nil {
+				return fmt.Errorf("open builtin file store: %w", err)
+			}
+		} else {
+			// use plugin filestore
+			store, err = filestoreplugin.OpenPluginFileStore(pluginName, scfg, loadedPlugins)
+			if err != nil {
+				return fmt.Errorf("open plugin file store: %w", err)
+			}
+		}
+
+		name = store.Instance(gctx)
+		logger := Log.With("name", name, "strict", strict, "read-only", readOnly, "splitted", allowSplitted)
 
 		cacheInfo := &cachedInfoForScanning{
 			capi:   chainAPI,
@@ -408,7 +427,7 @@ var utilStorageFindCmd = &cli.Command{
 				continue
 			}
 
-			if errors.Is(err, objstore.ErrObjectStoreInstanceNotFound) {
+			if errors.Is(err, filestore.ErrFileStoreInstanceNotFound) {
 				iLog.Warn("store instance not found, check your config file")
 				continue
 			}

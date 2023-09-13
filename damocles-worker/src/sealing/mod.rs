@@ -11,4 +11,7 @@ pub mod util;
 
 mod config;
 mod sealing_thread;
-pub(crate) use sealing_thread::{build_sealing_threads, CtrlProcessor};
+pub(crate) use failure::IntoFailure;
+pub(crate) use sealing_thread::{
+    build_sealing_threads, call_rpc, CtrlProcessor,
+};

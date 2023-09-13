@@ -1,24 +1,22 @@
-package objstore
+package filestore
 
 import (
 	"context"
-	"fmt"
-	"io"
 )
 
-var (
-	ErrNotRegularFile              = fmt.Errorf("not a regular file")
-	ErrNotSeekable                 = fmt.Errorf("not seekable")
-	ErrNotOpened                   = fmt.Errorf("not opened")
-	ErrReadOnlyStore               = fmt.Errorf("read only store")
-	ErrInvalidObjectPath           = fmt.Errorf("invalid object path")
-	ErrObjectStoreInstanceNotFound = fmt.Errorf("instance not found")
-	ErrObjectNotFound              = fmt.Errorf("object not found")
+type PathType string
+
+const (
+	PathTypeSealed      PathType = "sealed"
+	PathTypeUpdate      PathType = "update"
+	PathTypeCache       PathType = "cache"
+	PathTypeUpdateCache PathType = "update-cache"
+	PathTypeCustom      PathType = "__custom__"
 )
 
 type Config struct {
 	Name string
-	Path string
+	Path string // In general, path is the mount point
 	Meta map[string]string
 
 	// Strict should never be used directly, use GetStrict() instead
@@ -60,10 +58,6 @@ func DefaultConfig(path string, readonly bool) Config {
 	}
 }
 
-type Stat struct {
-	Size int64 // file size
-}
-
 type InstanceInfo struct {
 	Config      Config
 	Type        string  // the type of this store, just for display
@@ -71,6 +65,11 @@ type InstanceInfo struct {
 	Free        uint64  // the free capacity of this store, in bytes
 	Used        uint64  // the used capacity of this store, in bytes
 	UsedPercent float64 // the percentage of used capacity for this store.
+}
+
+type SectorID struct {
+	Miner  uint64
+	Number uint64
 }
 
 type Store interface {
@@ -84,26 +83,22 @@ type Store interface {
 	// InstanceInfo returns the information of this store.
 	InstanceInfo(ctx context.Context) (InstanceInfo, error)
 
-	// Get returns an io.ReadCloser object for reading the file corresponding to the fullPath from this store.
-	Get(ctx context.Context, fullPath string) (io.ReadCloser, error)
-	// Del removes the file corresponding to given path from this store
-	Del(ctx context.Context, fullPath string) error
-	// Stat returns a Stat describing the file corresponding to given path
-	Stat(ctx context.Context, fullPath string) (Stat, error)
-	// Put copies from src to dstPath until either EOF is reached
-	// on src or an error occurs.
-	// It returns the number of bytes copied.
-	Put(ctx context.Context, dstFullPath string, src io.Reader) (int64, error)
-
-	// FullPath returns the full path of the given relative path.
+	// SubPath returns the subpath of given params
+	// if `pathType` is `PathTypeCustom` then `custom` is not nil otherwise `sectorID` is not nil
 	//
+	// Example:
 	// ```go
-	// assert(FullPath(context.TODO(), "cache/s-t04040-1001") == "depends_on_your_store/cache/s-t04040-1001")
+	// assert(SubPath(context.TODO(), "cache", sid4040_1001, nil) == ("cache/s-t04040-1001", nil))
+	// assert(SubPath(context.TODO(), "sealed", sid4040_1001, nil) == ("sealed/s-t04040-1001", nil))
+	// assert(SubPath(context.TODO(), "update", sid4040_1001, nil) == ("update/s-t04040-1001", nil))
+	// assert(SubPath(context.TODO(), "update-cache", sid4040_1001, nil) == ("update-cache/s-t04040-1001", nil))
+	// assert(SubPath(context.TODO(), "custom", sid4040_1001, "path/to/anything") == ("path/to/anything", nil))
+	// -- OR --
+	// assert(SubPath(context.TODO(), "cache", sid4040_1001, nil) == ("myprefix/mycache/mysubdir/s-t04040-1001", nil))
+	// assert(SubPath(context.TODO(), "sealed", sid4040_1001, nil) == ("myprefix/mysealed/mysubdir/s-t04040-1001", nil))
+	// assert(SubPath(context.TODO(), "update", sid4040_1001, nil) == ("myprefix/myupdate/mysubdir/s-t04040-1001", nil))
+	// assert(SubPath(context.TODO(), "update-cache", sid4040_1001, nil) == ("myprefix/myupdate-cache/mysubdir/s-t04040-1001", nil))
+	// ...
 	// ```
-	//
-	// Example(for filesystem):
-	// ```go
-	// assert(FullPath(context.TODO(), "cache/s-t04040-1001") == "/path/to/your_store_dir/cache/s-t04040-1001")
-	// ```
-	FullPath(ctx context.Context, relPath string) string
+	SubPath(ctx context.Context, pathType PathType, sectorID *SectorID, custom *string) (subPath string, err error)
 }

@@ -16,20 +16,21 @@ macro_rules! call_rpc {
     };
     ($client:expr=>$method:ident($($arg:expr,)*)) => {
         {
+            use crate::sealing::IntoFailure;
+
             call_rpc!(raw, $client=>$method($($arg,)*)).map_err(|e| {
                 if let jsonrpc_core_client::RpcError::JsonRpcError(ref je) = e {
                     if je.code == jsonrpc_core::types::error::ErrorCode::ServerError(crate::rpc::APIErrCode::SectorStateNotFound as i64) {
                         return anyhow::anyhow!("from error code: sector state not found, with msg: {}", je.message).abort()
                     }
                 }
-
                 anyhow::anyhow!("rpc error: {}", e).temp()
             })
         }
     };
 }
 
-pub(super) use call_rpc;
+pub(crate) use call_rpc;
 
 macro_rules! field_required {
     ($name:ident, $ex:expr) => {

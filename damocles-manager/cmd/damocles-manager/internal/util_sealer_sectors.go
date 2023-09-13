@@ -2035,7 +2035,7 @@ var utilSealerSectorsExportFilesCmd = &cli.Command{
 					<-throttle
 				}()
 
-				for _, dir := range []string{loc.Private.SealedSectorPath, loc.Private.CacheDirPath} {
+				for _, dir := range []string{loc.Private.SealedFullPath, loc.Private.CacheDirFullPath} {
 					if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 						if err != nil {
 							return err
@@ -2043,10 +2043,10 @@ var utilSealerSectorsExportFilesCmd = &cli.Command{
 
 						if !info.IsDir() && !strings.Contains(info.Name(), ".json") {
 							destPath := ""
-							if dir == loc.Private.SealedSectorPath {
-								destPath = filepath.Join(absPath, loc.Private.SealedSectorURI)
+							if dir == loc.Private.SealedFullPath {
+								destPath = filepath.Join(absPath, loc.Private.SealedSubPath)
 							} else {
-								destPath = filepath.Join(absPath, loc.Private.CacheDirURI, info.Name())
+								destPath = filepath.Join(absPath, loc.Private.CacheDirSubPath, info.Name())
 							}
 
 							if reserve {
@@ -2080,7 +2080,7 @@ var utilSealerSectorsExportFilesCmd = &cli.Command{
 								}
 							}
 						} else {
-							if err := os.MkdirAll(filepath.Join(absPath, loc.Private.CacheDirURI), 0755); err != nil {
+							if err := os.MkdirAll(filepath.Join(absPath, loc.Private.CacheDirSubPath), 0755); err != nil {
 								return err
 							}
 						}

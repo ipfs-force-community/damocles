@@ -12,7 +12,6 @@ use super::{
     },
     plan, PlannerTrait, PLANNER_NAME_SNAPUP,
 };
-use crate::logging::{debug, warn};
 use crate::rpc::sealer::{
     AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec,
     SnapUpOnChainInfo, SubmitResult,
@@ -22,6 +21,11 @@ use crate::sealing::processor::{
     cached_filenames_for_sector, TransferInput, TransferItem, TransferOption,
     TransferRoute, TransferStoreInfo,
 };
+use crate::{
+    filestore::Resource,
+    logging::{debug, warn},
+};
+use crate::{infra::filestore::FileStoreExt, rpc::sealer::PathType};
 
 #[derive(Default)]
 pub(crate) struct SnapUpPlanner;
@@ -211,67 +215,49 @@ impl<'t> SnapUp<'t> {
         .perm()?;
 
         // sealed file & persisted cache files should be accessed inside persist store
-        let sealed_file = self.task.sealed_file(sector_id);
-        sealed_file.prepare().perm()?;
-        let sealed_rel = sealed_file.rel();
-
-        let cache_dir = self.task.cache_dir(sector_id);
-
-        let cached_file_routes = cached_filenames_for_sector(proof_type.into())
-            .into_iter()
-            .map(|fname| {
-                let cached_file = cache_dir.join(fname);
-                let cached_rel = cached_file.rel();
-
-                Ok(TransferRoute {
-                    src: TransferItem {
-                        store_name: Some(access_instance.clone()),
-                        uri: access_store
-                            .uri(cached_rel)
-                            .with_context(|| {
-                                format!(
-                                    "get uri for cache dir {:?} in {}",
-                                    cached_rel, access_instance
-                                )
-                            })
-                            .perm()?,
-                    },
-                    dest: TransferItem {
-                        store_name: None,
-                        uri: cached_file.full().clone(),
-                    },
-                    opt: Some(TransferOption {
-                        is_dir: false,
-                        allow_link: true,
-                    }),
-                })
-            })
-            .collect::<Result<Vec<_>, Failure>>()?;
-
-        let mut transfer_routes = vec![TransferRoute {
-            src: TransferItem {
-                store_name: Some(access_instance.clone()),
-                uri: access_store
-                    .uri(sealed_rel)
+        let local_cache_dir = self.task.cache_dir(sector_id);
+        local_cache_dir.prepare().crit()?;
+        let cache_files_route = TransferRoute {
+            src: TransferItem::Store {
+                store: access_instance.clone(),
+                path: access_store
+                    .path(Resource::Cache(sector_id.clone()))
                     .with_context(|| {
                         format!(
-                            "get uri for sealed file {:?} in {}",
-                            sealed_rel, access_instance
+                            "get path for cache({}) in {}",
+                            sector_id, access_instance
                         )
                     })
-                    .perm()?,
+                    .crit()?,
             },
-            dest: TransferItem {
-                store_name: None,
-                uri: sealed_file.full().clone(),
+            dest: TransferItem::Local(local_cache_dir.full().clone()),
+            opt: Some(TransferOption {
+                is_dir: true,
+                allow_link: true,
+            }),
+        };
+
+        let local_sealed_file = self.task.sealed_file(sector_id);
+        local_sealed_file.prepare().crit()?;
+        let sealed_file_route = TransferRoute {
+            src: TransferItem::Store {
+                store: access_instance.clone(),
+                path: access_store
+                    .path(Resource::Sealed(sector_id.clone()))
+                    .with_context(|| {
+                        format!(
+                            "get path for cache({}) in {}",
+                            sector_id, access_instance
+                        )
+                    })
+                    .crit()?,
             },
+            dest: TransferItem::Local(local_sealed_file.full().clone()),
             opt: Some(TransferOption {
                 is_dir: false,
                 allow_link: true,
             }),
-        }];
-
-        transfer_routes.extend(cached_file_routes);
+        };
 
         let transfer = TransferInput {
             stores: HashMap::from_iter([(
@@ -281,7 +267,7 @@ impl<'t> SnapUp<'t> {
                     meta: access_store_basic_info.meta,
                 },
             )]),
-            routes: transfer_routes,
+            routes: vec![cache_files_route, sealed_file_route],
         };
 
         self.task

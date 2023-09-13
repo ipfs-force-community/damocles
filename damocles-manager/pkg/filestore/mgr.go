@@ -1,4 +1,4 @@
-package objstore
+package filestore
 
 import (
 	"context"
@@ -58,7 +58,7 @@ type StoreInfo struct {
 }
 
 type Manager interface {
-	GetInstance(ctx context.Context, name string) (Store, error)
+	GetInstance(ctx context.Context, name string) (Ext, error)
 	ListInstances(ctx context.Context) ([]StoreInfo, error)
 	ReserveSpace(ctx context.Context, by abi.SectorID, size uint64, candidates []string) (*Config, error)
 	ReleaseReserved(ctx context.Context, by abi.SectorID) (bool, error)
@@ -91,7 +91,7 @@ func (p StoreSelectPolicy) Allowed(miner abi.ActorID) bool {
 	return true
 }
 
-func NewStoreManager(stores []Store, policy map[string]StoreSelectPolicy, metadb kvstore.KVStore) (*StoreManager, error) {
+func NewStoreManager(stores []Ext, policy map[string]StoreSelectPolicy, metadb kvstore.KVStore) (*StoreManager, error) {
 	idxes := map[string]int{}
 	for i, st := range stores {
 		idxes[st.Instance(context.Background())] = i
@@ -111,7 +111,7 @@ func NewStoreManager(stores []Store, policy map[string]StoreSelectPolicy, metadb
 
 type StoreManager struct {
 	storeIdxes map[string]int
-	stores     []Store
+	stores     []Ext
 	policy     map[string]StoreSelectPolicy
 
 	resRand   *rand.Rand
@@ -119,10 +119,10 @@ type StoreManager struct {
 	metadb    kvstore.KVStore
 }
 
-func (m *StoreManager) GetInstance(_ context.Context, name string) (Store, error) {
+func (m *StoreManager) GetInstance(_ context.Context, name string) (Ext, error) {
 	idx, ok := m.storeIdxes[name]
 	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrObjectStoreInstanceNotFound, name)
+		return Ext{}, fmt.Errorf("%w: %s", ErrFileStoreInstanceNotFound, name)
 	}
 
 	return m.stores[idx], nil

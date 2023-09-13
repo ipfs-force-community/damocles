@@ -20,9 +20,9 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/piecestore"
 )
 
@@ -660,7 +660,7 @@ func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proo
 	}
 	err = s.sectorProving.SingleProvable(ctx, ppt, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false, false)
 	if err != nil {
-		if errors.Is(err, objstore.ErrObjectNotFound) {
+		if errors.Is(err, filestore.ErrFileNotFound) {
 			return false, nil
 		}
 
@@ -756,7 +756,7 @@ func (s *Sealer) StoreReserveSpace(ctx context.Context, sid abi.SectorID, size u
 func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core.StoreBasicInfo, error) {
 	store, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, instanceName)
 	if err != nil {
-		if errors.Is(err, objstore.ErrObjectStoreInstanceNotFound) {
+		if errors.Is(err, filestore.ErrFileStoreInstanceNotFound) {
 			return nil, nil
 		}
 
@@ -838,4 +838,21 @@ func (s *Sealer) AchieveUnsealSector(ctx context.Context, sid abi.SectorID, piec
 
 func (s *Sealer) AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error) {
 	return s.unseal.AcquireDest(ctx, sid, pieceCid)
+}
+
+func (s *Sealer) StoreSubPaths(ctx context.Context, storeName string, resources []core.StoreResource) ([]string, error) {
+	store, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, storeName)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, len(resources))
+	for i, resource := range resources {
+		subPath, err := store.SubPath(ctx, resource.PathType, filestore.SectorIDFromAbiSectorID(resource.SectorID), resource.Custom)
+		if err != nil {
+			return nil, fmt.Errorf("get subPath(%s): %w", resource, err)
+		}
+		paths[i] = subPath
+	}
+
+	return paths, nil
 }
