@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/filecoin-project/go-address"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 )
 
@@ -31,50 +29,6 @@ type PreCommitProcessor struct {
 	config *modules.SafeConfig
 }
 
-func (p PreCommitProcessor) processIndividually(ctx context.Context, sectors []core.SectorState, from address.Address, mid abi.ActorID, l *logging.ZapLogger) {
-	mcfg, err := p.config.MinerConfig(mid)
-	if err != nil {
-		l.Errorf("get miner config for %d: %s", mid, err)
-		return
-	}
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(sectors))
-	for i := range sectors {
-		go func(idx int) {
-			slog := l.With("sector", sectors[idx].ID.Number)
-
-			defer wg.Done()
-
-			params, deposit, _, err := p.preCommitParams(ctx, sectors[idx])
-			if err != nil {
-				slog.Error("get pre-commit params failed: ", err)
-				return
-			}
-
-			enc := new(bytes.Buffer)
-			if err := params.MarshalCBOR(enc); err != nil {
-				slog.Error("serialize pre-commit sector parameters failed: ", err)
-				return
-			}
-
-			if !mcfg.Commitment.Pre.SendFund {
-				deposit = big.Zero()
-			}
-
-			mcid, err := pushMessage(ctx, from, mid, deposit, stbuiltin.MethodsMiner.PreCommitSector, p.msgClient, &mcfg.Commitment.Pre.FeeConfig, enc.Bytes(), slog)
-			if err != nil {
-				slog.Error("push pre-commit single failed: ", err)
-				return
-			}
-
-			sectors[idx].MessageInfo.PreCommitCid = &mcid
-			slog.Info("push pre-commit success, cid: ", mcid)
-		}(i)
-	}
-	wg.Wait()
-}
-
 func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "pre", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
@@ -83,10 +37,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	defer plog.Infof("finished process, elapsed %s", time.Since(start))
 	defer updateSector(ctx, p.smgr, sectors, plog)
 
-	if !p.EnableBatch(mid) {
-		p.processIndividually(ctx, sectors, ctrlAddr, mid, plog)
-		return nil
-	}
+	// For precommits the only method to precommit sectors after nv21 is to use the new precommit_batch2 method
 
 	mcfg, err := p.config.MinerConfig(mid)
 	if err != nil {
@@ -96,7 +47,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	infos := []core.PreCommitEntry{}
 	failed := map[abi.SectorID]struct{}{}
 	for _, s := range sectors {
-		params, deposit, _, err := p.preCommitParams(ctx, s)
+		params, deposit, _, err := p.preCommitInfo(ctx, s)
 		if err != nil {
 			plog.Errorf("get precommit params for %d failed: %s\n", s.ID.Number, err)
 			failed[s.ID] = struct{}{}
@@ -129,7 +80,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 		return fmt.Errorf("couldn't serialize PreCommitSectorBatchParams: %w", err)
 	}
 
-	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, stbuiltin.MethodsMiner.PreCommitSectorBatch,
+	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, stbuiltin.MethodsMiner.PreCommitSectorBatch2,
 		p.msgClient, &mcfg.Commitment.Pre.Batch.FeeConfig, enc.Bytes(), plog)
 	if err != nil {
 		return fmt.Errorf("push batch precommit message failed: %w", err)
@@ -169,7 +120,8 @@ func (p PreCommitProcessor) Threshold(mid abi.ActorID) int {
 }
 
 func (p PreCommitProcessor) EnableBatch(mid abi.ActorID) bool {
-	return p.config.MustMinerConfig(mid).Commitment.Pre.Batch.Enabled
+	// always batch after nv21
+	return true
 }
 
 var _ Processor = (*PreCommitProcessor)(nil)
