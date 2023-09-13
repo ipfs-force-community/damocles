@@ -71,8 +71,13 @@ docker-worker:
 docker: docker-manager docker-worker
 
 TAG:=test
-docker-push: docker
+
+docker-push-manager: docker-manager
 	docker tag damocles-manager $(PRIVATE_REGISTRY)/filvenus/damocles-manager:$(TAG)
 	docker push $(PRIVATE_REGISTRY)/filvenus/damocles-manager:$(TAG)
+
+docker-push-worker: docker-worker
 	docker tag damocles-worker $(PRIVATE_REGISTRY)/filvenus/damocles-worker:$(TAG)
 	docker push $(PRIVATE_REGISTRY)/filvenus/damocles-worker:$(TAG)
+
+docker-push: docker-push-manager docker-push-worker
