@@ -49,7 +49,7 @@ func TestStorePoxy(t *testing.T) {
 	t.Run("download for common piece store", func(t *testing.T) {
 		storeProxy := setupStoreProxy(t, "mock")
 		resourceID := "bafy2bzacea2a75bbdhr6gjozglrmp4akkgzsw3xh3s62j3hga5uhmkxwne5b6"
-		tmpFile, err := os.CreateTemp(os.TempDir(), "piece_proxy")
+		tmpFile, err := os.CreateTemp(t.TempDir(), "piece_proxy")
 		require.NoError(t, err)
 		require.NoError(t, random.WriteRandomBytes(100, tmpFile))
 		tmpFile.Seek(0, io.SeekStart) //nolint
@@ -95,7 +95,7 @@ func TestStorePoxy(t *testing.T) {
 }
 
 func TestStoreRead(t *testing.T) {
-	storePath := os.TempDir()
+	storePath := t.TempDir()
 	st, err := filestorebuiltin.New(filestore.Config{
 		Name: "mock test",
 		Path: storePath,
@@ -108,7 +108,7 @@ func TestStoreRead(t *testing.T) {
 	resourceID := "bafy2bzacecc4iu4nsmm5vqkj427xtkqjedcclo77glct2j5rhrrohe3xj7zpw"
 	fullPath, _, err := stExt.FullPath(ctx, filestore.PathTypeCustom, nil, &resourceID)
 	require.NoError(t, err)
-	tmpFile, err := os.CreateTemp(os.TempDir(), "piece_proxy")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "piece_proxy")
 	require.NoError(t, err)
 	require.NoError(t, random.WriteRandomBytes(100, tmpFile))
 	tmpFile.Seek(0, io.SeekStart) //nolint
