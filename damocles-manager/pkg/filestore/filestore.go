@@ -79,12 +79,17 @@ func NewExt(inner plugin.Store) Ext {
 	}
 }
 
-func (s Ext) Read(ctx context.Context, fullPath string) (io.ReadCloser, error) {
-	res := s.openWithContext(ctx, fullPath, nil)
+func (s Ext) Read(ctx context.Context, subPath string) (io.ReadCloser, error) {
+	res := s.openWithContext(ctx, subPath, nil)
 	return res.ReadCloser, res.Err
 }
 
-func (s Ext) Stat(ctx context.Context, fullPath string) (Stat, error) {
+func (s Ext) Stat(ctx context.Context, subPath string) (Stat, error) {
+	fullPath, err := s.SubPathToFullPath(ctx, subPath)
+	if err != nil {
+		return Stat{}, err
+	}
+
 	resCh := make(chan statOrErr, 1)
 	go func() {
 		defer close(resCh)
@@ -110,9 +115,14 @@ func (s Ext) Stat(ctx context.Context, fullPath string) (Stat, error) {
 	}
 }
 
-func (s Ext) Write(ctx context.Context, fullPath string, r io.Reader) (int64, error) {
+func (s Ext) Write(ctx context.Context, subPath string, r io.Reader) (int64, error) {
 	if s.InstanceConfig(ctx).GetReadOnly() {
 		return 0, ErrReadOnlyStore
+	}
+
+	fullPath, err := s.SubPathToFullPath(ctx, subPath)
+	if err != nil {
+		return 0, err
 	}
 
 	file, err := os.OpenFile(fullPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
@@ -125,12 +135,17 @@ func (s Ext) Write(ctx context.Context, fullPath string, r io.Reader) (int64, er
 	return io.Copy(file, r)
 }
 
-func (s Ext) Del(ctx context.Context, fullPath string) error {
+func (s Ext) Del(ctx context.Context, subPath string) error {
 	if s.InstanceConfig(ctx).GetReadOnly() {
 		return ErrReadOnlyStore
 	}
 
-	err := os.Remove(fullPath)
+	fullPath, err := s.SubPathToFullPath(ctx, subPath)
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(fullPath)
 	if err != nil {
 		return fmt.Errorf("del file(%s): %w", fullPath, err)
 	}
@@ -138,12 +153,7 @@ func (s Ext) Del(ctx context.Context, fullPath string) error {
 	return nil
 }
 
-func (s Ext) FullPath(ctx context.Context, pathType PathType, sectorID *abi.SectorID, custom *string) (fullPath string, subPath string, err error) {
-	subPath, err = s.SubPath(ctx, pathType, SectorIDFromAbiSectorID(sectorID), custom)
-	if err != nil {
-		return
-	}
-
+func (s Ext) SubPathToFullPath(ctx context.Context, subPath string) (fullPath string, err error) {
 	basePath := s.InstanceConfig(ctx).Path
 	fullPath, err = filepath.Abs(filepath.Join(basePath, subPath))
 	if err != nil {
@@ -155,7 +165,15 @@ func (s Ext) FullPath(ctx context.Context, pathType PathType, sectorID *abi.Sect
 		err = fmt.Errorf("subPath %s: %w: outside of the dir", subPath, ErrInvalidFilePath)
 		return
 	}
+	return
+}
 
+func (s Ext) FullPath(ctx context.Context, pathType PathType, sectorID *abi.SectorID, custom *string) (fullPath string, subPath string, err error) {
+	subPath, err = s.SubPath(ctx, pathType, SectorIDFromAbiSectorID(sectorID), custom)
+	if err != nil {
+		return
+	}
+	fullPath, err = s.SubPathToFullPath(ctx, subPath)
 	return
 }
 
@@ -204,10 +222,10 @@ func (s Ext) openWithContext(ctx context.Context, p string, r *readRange) reader
 	}
 }
 
-func (s Ext) open(fullPath string, r *readRange, strict bool) (io.ReadCloser, error) {
-	file, err := s.dir.Open(fullPath)
+func (s Ext) open(subPath string, r *readRange, strict bool) (io.ReadCloser, error) {
+	file, err := s.dir.Open(subPath)
 	if err != nil {
-		return nil, fmt.Errorf("file %s: open: %w", fullPath, err)
+		return nil, fmt.Errorf("file %s: open: %w", subPath, err)
 	}
 
 	hold := false
@@ -220,12 +238,12 @@ func (s Ext) open(fullPath string, r *readRange, strict bool) (io.ReadCloser, er
 	if strict {
 		stat, err := file.Stat()
 		if err != nil {
-			return nil, fmt.Errorf("file %s: get stat: %w", fullPath, err)
+			return nil, fmt.Errorf("file %s: get stat: %w", subPath, err)
 		}
 
 		if !stat.Mode().Type().IsRegular() {
 			file.Close()
-			return nil, fmt.Errorf("file %s: %w", fullPath, ErrNotRegularFile)
+			return nil, fmt.Errorf("file %s: %w", subPath, ErrNotRegularFile)
 		}
 	}
 
@@ -233,12 +251,12 @@ func (s Ext) open(fullPath string, r *readRange, strict bool) (io.ReadCloser, er
 	if r != nil {
 		seek, ok := file.(io.Seeker)
 		if !ok {
-			return nil, fmt.Errorf("file %s: %w", fullPath, ErrNotSeekable)
+			return nil, fmt.Errorf("file %s: %w", subPath, ErrNotSeekable)
 		}
 
 		_, err = seek.Seek(r.Offset, io.SeekStart)
 		if err != nil {
-			return nil, fmt.Errorf("file %s: seek to %d: %w", fullPath, r.Offset, err)
+			return nil, fmt.Errorf("file %s: seek to %d: %w", subPath, r.Offset, err)
 		}
 
 		reader = &limitedFile{

@@ -65,7 +65,7 @@ func (p *Proving) SingleProvable(ctx context.Context, postProofType abi.Register
 	}
 
 	targetsInCacheDir := map[string]int64{}
-	addCachePathsForSectorSize(targetsInCacheDir, privateInfo.CacheDirFullPath, ssize)
+	addCachePathsForSectorSize(targetsInCacheDir, privateInfo.CacheDirSubPath, ssize)
 
 	checks := []struct {
 		title   string
@@ -76,7 +76,7 @@ func (p *Proving) SingleProvable(ctx context.Context, postProofType abi.Register
 			title: "sealed file",
 			store: sealedFileIns,
 			targets: map[string]int64{
-				privateInfo.SealedFullPath: 1,
+				privateInfo.SealedSubPath: 1,
 			},
 		},
 		{

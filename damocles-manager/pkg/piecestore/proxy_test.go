@@ -57,9 +57,9 @@ func TestStorePoxy(t *testing.T) {
 		require.NoError(t, err)
 		tmpFile.Seek(0, io.SeekStart) //nolint
 
-		fullPath, _, err := storeProxy.locals[0].FullPath(ctx, filestore.PathTypeCustom, nil, &resourceID)
+		_, subPath, err := storeProxy.locals[0].FullPath(ctx, filestore.PathTypeCustom, nil, &resourceID)
 		require.NoError(t, err)
-		_, err = storeProxy.locals[0].Write(ctx, fullPath, tmpFile)
+		_, err = storeProxy.locals[0].Write(ctx, subPath, tmpFile)
 		require.NoError(t, err)
 		require.NoError(t, tmpFile.Close())
 
@@ -117,7 +117,7 @@ func TestStoreRead(t *testing.T) {
 
 	ctx := context.Background()
 	resourceID := "bafy2bzacecc4iu4nsmm5vqkj427xtkqjedcclo77glct2j5rhrrohe3xj7zpw"
-	fullPath, _, err := stExt.FullPath(ctx, filestore.PathTypeCustom, nil, &resourceID)
+	_, subPath, err := stExt.FullPath(ctx, filestore.PathTypeCustom, nil, &resourceID)
 	require.NoError(t, err)
 	tmpFile, err := os.CreateTemp(t.TempDir(), "piece_proxy")
 	require.NoError(t, err)
@@ -131,7 +131,7 @@ func TestStoreRead(t *testing.T) {
 	require.NoError(t, tmpFile.Close())
 
 	t.Run("read from local store", func(t *testing.T) {
-		r, err := stExt.Read(ctx, fullPath)
+		r, err := stExt.Read(ctx, subPath)
 		require.NoError(t, err)
 		result, err := io.ReadAll(r)
 		assert.Nil(t, err)

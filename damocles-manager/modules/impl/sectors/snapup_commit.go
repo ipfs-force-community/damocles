@@ -602,11 +602,11 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 	}{
 		{
 			storeInstance: privateInfo.Accesses.SealedFile,
-			fileURIs:      []string{privateInfo.SealedFullPath},
+			fileURIs:      []string{privateInfo.SealedSubPath},
 		},
 		{
 			storeInstance: privateInfo.Accesses.CacheDir,
-			fileURIs:      util.CachedFilesForSectorSize(privateInfo.CacheDirFullPath, h.ssize),
+			fileURIs:      util.CachedFilesForSectorSize(privateInfo.CacheDirSubPath, h.ssize),
 		},
 	}
 
