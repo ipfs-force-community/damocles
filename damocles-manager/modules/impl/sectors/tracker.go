@@ -10,15 +10,15 @@ import (
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 )
 
 var _ core.SectorTracker = (*Tracker)(nil)
 
 type sectorStoreInstances struct {
 	info       core.SectorAccessStores
-	sealedFile objstore.Store
-	cacheDir   objstore.Store
+	sealedFile filestore.Ext
+	cacheDir   filestore.Ext
 }
 
 func NewTracker(indexer core.SectorIndexer) (*Tracker, error) {
@@ -46,22 +46,29 @@ func (t *Tracker) getPrivateInfo(ctx context.Context, sref core.SectorRef, upgra
 		return nil, core.PrivateSectorInfo{}, fmt.Errorf("get location for %s: %w", util.FormatSectorID(sref.ID), err)
 	}
 
-	var cache string
-	var sealed string
+	var sealedPathType filestore.PathType
+	var cachePathType filestore.PathType
 	if upgrade {
-		cache = util.SectorPath(util.SectorPathTypeUpdateCache, sref.ID)
-		sealed = util.SectorPath(util.SectorPathTypeUpdate, sref.ID)
+		sealedPathType = filestore.PathTypeUpdate
+		cachePathType = filestore.PathTypeUpdateCache
 	} else {
-		cache = util.SectorPath(util.SectorPathTypeCache, sref.ID)
-		sealed = util.SectorPath(util.SectorPathTypeSealed, sref.ID)
+		sealedPathType = filestore.PathTypeSealed
+		cachePathType = filestore.PathTypeCache
 	}
-
+	cacheDirFullPath, cacheDirSubPath, err := objins.cacheDir.FullPath(ctx, cachePathType, &sref.ID, nil)
+	if err != nil {
+		return nil, core.PrivateSectorInfo{}, fmt.Errorf("get cache FullPath(%s): %w", sref.ID, err)
+	}
+	sealedFullPath, sealedSubPath, err := objins.sealedFile.FullPath(ctx, sealedPathType, &sref.ID, nil)
+	if err != nil {
+		return nil, core.PrivateSectorInfo{}, fmt.Errorf("get sealed FullPath(%s): %w", sealedFullPath, err)
+	}
 	return objins, core.PrivateSectorInfo{
 		Accesses:         objins.info,
-		CacheDirURI:      cache,
-		CacheDirPath:     objins.cacheDir.FullPath(ctx, cache),
-		SealedSectorURI:  sealed,
-		SealedSectorPath: objins.sealedFile.FullPath(ctx, sealed),
+		CacheDirFullPath: cacheDirFullPath,
+		SealedFullPath:   sealedFullPath,
+		CacheDirSubPath:  cacheDirSubPath,
+		SealedSubPath:    sealedSubPath,
 	}, nil
 }
 
@@ -102,7 +109,7 @@ func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID,
 
 	access, has, err := locator(ctx, sid)
 	if err != nil {
-		return nil, fmt.Errorf("find objstore instance: %w", err)
+		return nil, fmt.Errorf("find filestore instance: %w", err)
 	}
 
 	if !has {
@@ -114,12 +121,12 @@ func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID,
 	}
 	instances.sealedFile, err = t.indexer.StoreMgr().GetInstance(ctx, access.SealedFile)
 	if err != nil {
-		return nil, fmt.Errorf("get objstore instance %s for sealed file: %w", access.SealedFile, err)
+		return nil, fmt.Errorf("get filestore instance %s for sealed file: %w", access.SealedFile, err)
 	}
 
 	instances.cacheDir, err = t.indexer.StoreMgr().GetInstance(ctx, access.CacheDir)
 	if err != nil {
-		return nil, fmt.Errorf("get objstore instance %s for cache dir: %w", access.CacheDir, err)
+		return nil, fmt.Errorf("get filestore instance %s for cache dir: %w", access.CacheDir, err)
 	}
 
 	return &instances, nil

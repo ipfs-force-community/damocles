@@ -1,10 +1,12 @@
 use std::fs::{create_dir_all, remove_dir_all, remove_file, OpenOptions};
 use std::io::copy;
 use std::os::unix::fs::symlink;
-use std::path::Path;
+use std::path::{Path};
 
 use anyhow::{anyhow, Context, Result};
 use tracing::info;
+
+use crate::builtin::tasks::TransferItem;
 
 use super::TransferRoute;
 
@@ -19,25 +21,29 @@ pub fn do_transfer_inner(
     route: &TransferRoute,
     disable_link: bool,
 ) -> Result<()> {
-    if route.src.uri.is_relative() {
+    let src = match &route.src {
+        TransferItem::Store { path, .. } => path.clone(),
+        TransferItem::Local(p) => p.clone(),
+    };
+
+    let dest = route.dest.path();
+
+    if src.is_relative() {
         return Err(anyhow!("src path is relative"));
     }
 
-    if !route.src.uri.exists() {
-        return Err(anyhow!(
-            "src path not exists: {}",
-            route.src.uri.display()
-        ));
+    if !src.exists() {
+        return Err(anyhow!("src path not exists: {}", dest.display()));
     }
 
-    let src_is_dir = route.src.uri.is_dir();
+    let src_is_dir = src.is_dir();
 
-    if route.dest.uri.is_relative() {
+    if dest.is_relative() {
         return Err(anyhow!("dest path is relative"));
     }
 
-    if route.dest.uri.exists() {
-        let dest_is_dir = route.dest.uri.is_dir();
+    if dest.exists() {
+        let dest_is_dir = dest.is_dir();
         if src_is_dir != dest_is_dir {
             return Err(anyhow!(
                 "dest entry type is different with src, is_dir={}",
@@ -46,38 +52,30 @@ pub fn do_transfer_inner(
         }
 
         if dest_is_dir {
-            remove_dir_all(&route.dest.uri).context("remove exist dest dir")?;
+            remove_dir_all(dest).context("remove exist dest dir")?;
         } else {
-            remove_file(&route.dest.uri).context("remove exist dest file")?;
+            remove_file(dest).context("remove exist dest file")?;
         }
     }
 
     if !disable_link {
         if let Some(true) = route.opt.as_ref().map(|opt| opt.allow_link) {
-            link_entry(&route.src.uri, &route.dest.uri)
-                .context("link entry")?;
-            info!(src=?&route.src.uri, dest=?&route.dest.uri, "entry linked");
+            link_entry(&src, dest).context("link entry")?;
+            info!(src=?src.display(), dest=?dest.display(), "entry linked");
             return Ok(());
         }
     }
 
     if src_is_dir {
-        copy_dir(&route.src.uri, &route.dest.uri).with_context(|| {
-            format!(
-                "transfer dir {:?} to {:?}",
-                &route.src.uri, &route.dest.uri
-            )
+        copy_dir(&src, dest).with_context(|| {
+            format!("transfer dir {:?} to {:?}", &src, &dest)
         })?;
-        info!(src=?&route.src.uri, dest=?&route.dest.uri, "dir copied");
+        info!(src = ?src.display(), dest = ?dest.display(), "dir copied");
     } else {
-        let size =
-            copy_file(&route.src.uri, &route.dest.uri).with_context(|| {
-                format!(
-                    "transfer file {:?} to {:?}",
-                    &route.src.uri, &route.dest.uri
-                )
-            })?;
-        info!(src=?&route.src.uri, dest=?&route.dest.uri, size, "file copied");
+        let size = copy_file(&src, dest).with_context(|| {
+            format!("transfer file {:?} to {:?}", &src, &dest)
+        })?;
+        info!(src=?&src, dest=?&dest, size, "file copied");
     }
 
     Ok(())

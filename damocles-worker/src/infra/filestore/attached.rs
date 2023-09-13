@@ -4,16 +4,16 @@ use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
 
-use super::ObjectStore;
+use super::FileStore;
 
 /// manages all attached stores
 pub struct AttachedManager {
-    stores: HashMap<String, Box<dyn ObjectStore>>,
+    stores: HashMap<String, Box<dyn FileStore>>,
 }
 
 impl AttachedManager {
     /// init AttachedManager with given stores
-    pub fn init(attached: Vec<Box<dyn ObjectStore>>) -> Result<Self> {
+    pub fn init(attached: Vec<Box<dyn FileStore>>) -> Result<Self> {
         let mut stores = HashMap::new();
         for astore in attached {
             if let Some(prev) = stores.insert(astore.instance(), astore) {
@@ -28,7 +28,7 @@ impl AttachedManager {
     }
 
     /// get a named store instance
-    pub fn get(&self, instance: &str) -> Option<&dyn ObjectStore> {
+    pub fn get(&self, instance: &str) -> Option<&dyn FileStore> {
         self.stores.get(instance).map(|b| b.as_ref())
     }
 

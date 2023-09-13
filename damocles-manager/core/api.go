@@ -83,6 +83,8 @@ type SealerAPI interface {
 	AllocateUnsealSector(ctx context.Context, spec AllocateSectorSpec) (*SectorUnsealInfo, error)
 	AchieveUnsealSector(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (Meta, error)
 	AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error)
+
+	StoreSubPaths(ctx context.Context, storeName string, resources []StoreResource) ([]string, error)
 }
 
 type SealerCliAPI interface {

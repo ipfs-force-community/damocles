@@ -6,7 +6,7 @@ use clap::Parser;
 use tracing::{error, info};
 
 use damocles_worker::seal_util::MemoryFileDirPattern;
-use damocles_worker::{objstore::filestore::FileStore, store::Store};
+use damocles_worker::{filestore::DefaultFileStore, store::Store};
 
 #[cfg(target_os = "linux")]
 mod hugepage;
@@ -73,7 +73,7 @@ pub(crate) fn run(cmd: &StoreCommand) -> Result<()> {
         }
         StoreCommand::FileInit { location } => {
             for loc in location {
-                match FileStore::init(loc) {
+                match DefaultFileStore::init(loc) {
                     Ok(_) => info!(?loc, "store initialized"),
                     Err(e) => error!(
                         loc = ?loc.display(),

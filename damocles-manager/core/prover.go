@@ -18,19 +18,19 @@ type SectorOnChainInfo = miner.SectorOnChainInfo
 
 type PrivateSectorInfo struct {
 	Accesses         SectorAccessStores
-	CacheDirPath     string
-	SealedSectorPath string
+	CacheDirFullPath string
+	SealedFullPath   string
 
-	CacheDirURI     string
-	SealedSectorURI string
+	CacheDirSubPath string
+	SealedSubPath   string
 }
 
 func (p PrivateSectorInfo) ToFFI(sector SectorInfo, proofType abi.RegisteredPoStProof) FFIPrivateSectorInfo {
 	return FFIPrivateSectorInfo{
 		SectorInfo:       sector,
-		CacheDirPath:     p.CacheDirPath,
+		CacheDirPath:     p.CacheDirFullPath,
 		PoStProofType:    proofType,
-		SealedSectorPath: p.SealedSectorPath,
+		SealedSectorPath: p.SealedFullPath,
 	}
 }
 

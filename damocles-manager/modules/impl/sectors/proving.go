@@ -14,11 +14,11 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs/go-cid"
 )
 
-func NewProving(sectorTracker core.SectorTracker, state core.SectorStateManager, storeMgr objstore.Manager, prover core.Prover, capi chainAPI.API, stCfg modules.ProvingConfig) (core.SectorProving, error) {
+func NewProving(sectorTracker core.SectorTracker, state core.SectorStateManager, storeMgr filestore.Manager, prover core.Prover, capi chainAPI.API, stCfg modules.ProvingConfig) (core.SectorProving, error) {
 	return &Proving{
 		SectorTracker: sectorTracker,
 		state:         state,
@@ -35,7 +35,7 @@ func NewProving(sectorTracker core.SectorTracker, state core.SectorStateManager,
 type Proving struct {
 	core.SectorTracker
 	state    core.SectorStateManager
-	storeMgr objstore.Manager
+	storeMgr filestore.Manager
 	prover   core.Prover
 	capi     chainAPI.API
 
@@ -56,27 +56,27 @@ func (p *Proving) SingleProvable(ctx context.Context, postProofType abi.Register
 	}
 	sealedFileIns, err := p.storeMgr.GetInstance(ctx, privateInfo.Accesses.SealedFile)
 	if err != nil {
-		return fmt.Errorf("get objstore instance %s for sealed file: %w", privateInfo.Accesses.SealedFile, err)
+		return fmt.Errorf("get filestore instance %s for sealed file: %w", privateInfo.Accesses.SealedFile, err)
 	}
 
 	cacheDirIns, err := p.storeMgr.GetInstance(ctx, privateInfo.Accesses.CacheDir)
 	if err != nil {
-		return fmt.Errorf("get objstore instance %s for cache dir: %w", privateInfo.Accesses.CacheDir, err)
+		return fmt.Errorf("get filestore instance %s for cache dir: %w", privateInfo.Accesses.CacheDir, err)
 	}
 
 	targetsInCacheDir := map[string]int64{}
-	addCachePathsForSectorSize(targetsInCacheDir, privateInfo.CacheDirURI, ssize)
+	addCachePathsForSectorSize(targetsInCacheDir, privateInfo.CacheDirFullPath, ssize)
 
 	checks := []struct {
 		title   string
-		store   objstore.Store
+		store   filestore.Ext
 		targets map[string]int64
 	}{
 		{
 			title: "sealed file",
 			store: sealedFileIns,
 			targets: map[string]int64{
-				privateInfo.SealedSectorURI: 1,
+				privateInfo.SealedFullPath: 1,
 			},
 		},
 		{

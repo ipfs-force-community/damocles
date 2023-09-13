@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/ipfs-force-community/damocles/manager-plugin/filestore"
 	"github.com/ipfs-force-community/damocles/manager-plugin/kvstore"
-	"github.com/ipfs-force-community/damocles/manager-plugin/objstore"
 )
 
 const (
@@ -28,8 +28,8 @@ type Kind uint8
 const (
 	// KVStore indicates it is a KVStore plugin.
 	KVStore Kind = 1 + iota
-	// ObjStore indicates it is a ObjStore plugin.
-	ObjStore
+	// FileStore indicates it is a FileStore plugin.
+	FileStore
 	// RegisterJsonRpc indicates it is a RegisterJsonRpc plugin.
 	RegisterJsonRpc
 	// SyncSectorState indicates it is a SyncSectorState plugin.
@@ -40,8 +40,8 @@ func (k Kind) String() (str string) {
 	switch k {
 	case KVStore:
 		str = "KVStore"
-	case ObjStore:
-		str = "ObjStore"
+	case FileStore:
+		str = "FileStore"
 	case SyncSectorState:
 		str = "SyncSectorState"
 	}
@@ -66,10 +66,10 @@ type Manifest struct {
 	Kind Kind
 }
 
-type ObjStoreManifest struct {
+type FileStoreManifest struct {
 	Manifest
 
-	Constructor func(cfg objstore.Config) (objstore.Store, error)
+	Constructor func(cfg filestore.Config) (filestore.Store, error)
 }
 
 type KVStoreManifest struct {
@@ -103,9 +103,9 @@ func ExportManifest(m interface{}) *Manifest {
 	return (*Manifest)(unsafe.Pointer(v.Pointer()))
 }
 
-// DeclareObjStoreManifest declares manifest as ObjStoreManifest.
-func DeclareObjStoreManifest(m *Manifest) *ObjStoreManifest {
-	return (*ObjStoreManifest)(unsafe.Pointer(m))
+// DeclareFileStoreManifest declares manifest as FileStoreManifest.
+func DeclareFileStoreManifest(m *Manifest) *FileStoreManifest {
+	return (*FileStoreManifest)(unsafe.Pointer(m))
 }
 
 // DeclareKVStoreManifest declares manifest as KVStoreManifest.

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -11,9 +12,15 @@ use tokio::runtime::Handle;
 use vc_processors::builtin::tasks::{
     PoStReplicaInfo, WindowPoSt, WindowPoStOutput, STAGE_NAME_WINDOW_POST,
 };
+use vc_processors::fil_proofs::SectorId;
 
+use crate::filestore::Resource;
+use crate::infra::filestore::FileStoreExt;
 use crate::logging::warn;
-use crate::rpc::sealer::{AllocatePoStSpec, AllocatedWdPoStJob, SectorID};
+use crate::rpc::sealer::{
+    AllocatePoStSpec, AllocatedWdPoStJob, PathType, SectorID, StoreResource,
+    WdPoStInput,
+};
 use crate::sealing::failure::*;
 use crate::sealing::paths;
 use crate::sealing::sealing_thread::{planner::plan, Sealer, SealingCtrl, R};
@@ -326,6 +333,11 @@ impl PlannerTrait for WdPostPlanner {
     }
 }
 
+struct PostPath {
+    cache_dir: PathBuf,
+    sealed_file: PathBuf,
+}
+
 struct WdPost<'a> {
     job: &'a mut WdPostJob,
 }
@@ -400,30 +412,10 @@ impl WdPost<'_> {
             .context("wdpost info not found")
             .abort()?;
 
-        let mut instances = HashMap::new();
-        for access in wdpost_job
-            .input
-            .sectors
-            .iter()
-            .flat_map(|x| [&x.accesses.cache_dir, &x.accesses.sealed_file])
-        {
-            if let std::collections::hash_map::Entry::Vacant(e) =
-                instances.entry(access)
-            {
-                let instance = self
-                    .job
-                    .sealing_ctrl
-                    .ctx()
-                    .global
-                    .attached
-                    .get(access)
-                    .with_context(|| {
-                        format!("get access store instance named {}", access)
-                    })
-                    .abort()?;
-                e.insert(instance);
-            }
-        }
+        let mut paths = self
+            .build_paths(&wdpost_job.input)
+            .context("build paths")
+            .abort()?;
 
         // get sealed path and cache path
         let replica = wdpost_job
@@ -431,46 +423,12 @@ impl WdPost<'_> {
             .sectors
             .iter()
             .map(|sector| {
-                let sector_id = &SectorID {
-                    miner: wdpost_job.input.miner_id,
-                    number: sector.sector_id.into(),
-                };
-
-                let sealed_file = if sector.upgrade {
-                    paths::update_file(sector_id)
-                } else {
-                    paths::sealed_file(sector_id)
-                };
-                let sealed_path = instances[&sector.accesses.sealed_file]
-                    .uri(&sealed_file)
-                    .with_context(|| {
-                        format!(
-                            "get uri for sealed file {} in {}",
-                            sealed_file.display(),
-                            sector.accesses.sealed_file
-                        )
-                    })?;
-                let cache_dir = if sector.upgrade {
-                    paths::update_cache_dir(sector_id)
-                } else {
-                    paths::cache_dir(sector_id)
-                };
-                let cache_path = instances[&sector.accesses.cache_dir]
-                    .uri(&cache_dir)
-                    .with_context(|| {
-                        format!(
-                            "get uri for cache file {} in {}",
-                            cache_dir.display(),
-                            sector.accesses.cache_dir
-                        )
-                    })?;
-
-                let sector_id = sector.sector_id;
+                let p = paths.remove(&sector.sector_id).context("get path")?;
                 let replica = PoStReplicaInfo {
-                    sector_id,
+                    sector_id: sector.sector_id,
                     comm_r: sector.comm_r,
-                    cache_dir: cache_path,
-                    sealed_file: sealed_path,
+                    cache_dir: p.cache_dir,
+                    sealed_file: p.sealed_file,
                 };
                 Ok(replica)
             })
@@ -523,6 +481,91 @@ impl WdPost<'_> {
             let _ = tx.send(());
         }
         Ok(WdPostEvent::Finish)
+    }
+
+    fn build_paths(
+        &self,
+        input: &WdPoStInput,
+    ) -> Result<HashMap<SectorId, PostPath>> {
+        struct Resources {
+            cache_dir: Vec<Resource>,
+            sealed_file: Vec<Resource>,
+        }
+        let mut resources_by_store = HashMap::new();
+        for sector in input.sectors.iter() {
+            let sid = SectorID {
+                miner: input.miner_id,
+                number: sector.sector_id.into(),
+            };
+            resources_by_store
+                .entry(sector.accesses.sealed_file.clone())
+                .or_insert(Resources {
+                    cache_dir: vec![],
+                    sealed_file: vec![],
+                })
+                .sealed_file
+                .push(if sector.upgrade {
+                    Resource::Update(sid.clone())
+                } else {
+                    Resource::Sealed(sid.clone())
+                });
+            resources_by_store
+                .entry(sector.accesses.cache_dir.clone())
+                .or_insert(Resources {
+                    cache_dir: vec![],
+                    sealed_file: vec![],
+                })
+                .cache_dir
+                .push(if sector.upgrade {
+                    Resource::UpdateCache(sid.clone())
+                } else {
+                    Resource::Cache(sid)
+                });
+        }
+        let mut paths: HashMap<SectorId, PostPath> = HashMap::new();
+        for (ins, resources) in resources_by_store {
+            let instance = self
+                .job
+                .sealing_ctrl
+                .ctx()
+                .global
+                .attached
+                .get(&ins)
+                .with_context(|| {
+                    format!("get access store instance named {}", ins)
+                })?;
+            let sealed_files = instance
+                .paths(resources.sealed_file.clone())
+                .with_context(|| format!("get sealed paths for {}", ins))?;
+            let cache_dirs = instance
+                .paths(resources.cache_dir.clone())
+                .with_context(|| format!("get cache paths for {}", ins))?;
+            for (resource, sealed_file) in
+                resources.sealed_file.iter().zip(sealed_files)
+            {
+                let sid = resource
+                    .sector_id()
+                    .expect("sector_id must be set")
+                    .number
+                    .into();
+                paths.entry(sid).and_modify(|e| {
+                    e.sealed_file = sealed_file;
+                });
+            }
+            for (resource, cache_dir) in
+                resources.cache_dir.iter().zip(cache_dirs)
+            {
+                let sid = resource
+                    .sector_id()
+                    .expect("sector_id must be set")
+                    .number
+                    .into();
+                paths.entry(sid).and_modify(|e| {
+                    e.cache_dir = cache_dir;
+                });
+            }
+        }
+        Ok(paths)
     }
 
     fn start_heartbeat(

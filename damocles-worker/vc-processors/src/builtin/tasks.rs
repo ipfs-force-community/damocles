@@ -2,7 +2,7 @@
 //!
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use filecoin_proofs::{UnpaddedByteIndex, UnpaddedBytesAmount};
 use serde::{Deserialize, Serialize};
@@ -188,9 +188,18 @@ pub struct TransferStoreInfo {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct TransferItem {
-    pub store_name: Option<String>,
-    pub uri: PathBuf,
+pub enum TransferItem {
+    Store { store: String, path: PathBuf },
+    Local(PathBuf),
+}
+
+impl TransferItem {
+    pub fn path(&self) -> &Path {
+        match self {
+            TransferItem::Store { path, .. } => path,
+            TransferItem::Local(path) => path,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

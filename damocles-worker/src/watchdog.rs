@@ -10,7 +10,7 @@ use vc_processors::core::Processor;
 
 use crate::{
     config::Config,
-    infra::{objstore::attached::AttachedManager, piecestore::PieceStore},
+    infra::{filestore::attached::AttachedManager, piecestore::PieceStore},
     logging::{error, error_span, info, warn},
     rpc::sealer::SealerClient,
     sealing::{

@@ -13,15 +13,14 @@ use reqwest::Url;
 use tokio::runtime::Builder;
 use vc_processors::builtin::processors::BuiltinProcessor;
 
+use crate::infra::filestore::DefaultFileStore;
 use crate::limit::{SealingLimit, SealingLimitBuilder};
 use crate::sealing::build_sealing_threads;
 use crate::sealing::processor::{Either, NoLockProcessor};
 use crate::{
     config,
     infra::{
-        objstore::{
-            attached::AttachedManager, filestore::FileStore, ObjectStore,
-        },
+        filestore::{attached::AttachedManager, FileStore},
         piecestore::{
             local::LocalPieceStore, remote::RemotePieceStore,
             ComposePieceStore, EmptyPieceStore, PieceStore,
@@ -60,18 +59,23 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
         "rpc dial info"
     );
 
-    let rpc_client: SealerClient = runtime
-        .block_on(async { http::connect(&dial_addr).await })
-        .map_err(|e| anyhow!("jsonrpc connect to {}: {:?}", &dial_addr, e))?;
+    let rpc_client: Arc<SealerClient> = Arc::new(
+        runtime
+            .block_on(async { http::connect(&dial_addr).await })
+            .map_err(|e| {
+                anyhow!("jsonrpc connect to {}: {:?}", &dial_addr, e)
+            })?,
+    );
 
-    let mut attached: Vec<Box<dyn ObjectStore>> = Vec::new();
+    let mut attached: Vec<Box<dyn FileStore>> = Vec::new();
     let mut attached_writable = 0;
     if let Some(remote_cfg) = cfg.remote_store.as_ref() {
         let remote_store = Box::new(
-            FileStore::open(
+            DefaultFileStore::open(
                 remote_cfg.location.clone(),
                 remote_cfg.name.clone(),
                 remote_cfg.readonly.unwrap_or(false),
+                rpc_client.clone(),
             )
             .with_context(|| {
                 format!("open remote filestore {}", remote_cfg.location)
@@ -88,10 +92,11 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
     if let Some(attach_cfgs) = cfg.attached.as_ref() {
         for (sidx, scfg) in attach_cfgs.iter().enumerate() {
             let attached_store = Box::new(
-                FileStore::open(
+                DefaultFileStore::open(
                     scfg.location.clone(),
                     scfg.name.clone(),
                     scfg.readonly.unwrap_or(false),
+                    rpc_client.clone(),
                 )
                 .with_context(|| {
                     format!("open attached filestore #{}", sidx)
@@ -213,7 +218,7 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
 
     let rt = Arc::new(runtime);
     let global = GlobalModules {
-        rpc: Arc::new(rpc_client),
+        rpc: rpc_client,
         attached: Arc::new(attached_mgr),
         processors: Arc::new(processors),
         static_tree_d,

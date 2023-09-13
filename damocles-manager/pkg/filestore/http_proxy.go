@@ -1,4 +1,4 @@
-package objstore
+package filestore
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 )
 
-var httpLog = logging.New("objstore-http")
+var httpLog = logging.New("filestore-http")
 
-func ServeHTTP(ctx context.Context, mux *http.ServeMux, store Store) {
+func ServeHTTP(ctx context.Context, mux *http.ServeMux, store Ext) {
 	instanceName := strings.Trim(store.Instance(ctx), "/")
 	prefix := instanceName + "/"
 
@@ -42,38 +42,38 @@ func ServeHTTP(ctx context.Context, mux *http.ServeMux, store Store) {
 			}
 		}()
 
-		p := strings.TrimLeft(r.URL.Path, "/")
-		if p == "" {
+		fullPath := strings.TrimLeft(r.URL.Path, "/")
+		if fullPath == "" {
 			statusCode = http.StatusBadRequest
 			return
 		}
 
 		switch r.Method {
 		case http.MethodGet:
-			obj, err := store.Get(r.Context(), p)
+			f, err := store.Read(r.Context(), fullPath)
 			if err != nil {
 				herr = fmt.Errorf("get object: %w", err)
 				return
 			}
 
-			defer obj.Close()
-			_, err = io.Copy(rw, obj)
+			defer f.Close()
+			_, err = io.Copy(rw, f)
 			if err != nil {
 				herr = fmt.Errorf("send object: %w", err)
 				return
 			}
 
 		case http.MethodPut:
-			_, err := store.Put(r.Context(), p, r.Body)
+			_, err := store.Write(r.Context(), fullPath, r.Body)
 			if err != nil {
 				herr = fmt.Errorf("put object: %w", err)
 				return
 			}
 
 		case http.MethodHead:
-			stat, err := store.Stat(r.Context(), p)
+			stat, err := store.Stat(r.Context(), fullPath)
 			if err != nil {
-				if errors.Is(err, ErrObjectNotFound) {
+				if errors.Is(err, ErrFileNotFound) {
 					statusCode = http.StatusNotFound
 					return
 				}
