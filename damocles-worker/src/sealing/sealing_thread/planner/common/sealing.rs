@@ -12,7 +12,6 @@ use vc_processors::builtin::tasks::{
 };
 
 use crate::{
-    filestore::Resource,
     infra::filestore::FileStoreExt,
     rpc::sealer::{Deals, PathType, SectorID, Seed, Ticket},
     sealing::{
@@ -586,7 +585,7 @@ pub(crate) fn persist_sector_files(
         dest: TransferItem::Store {
             store: ins_name.clone(),
             path: persist_store
-                .path(Resource::Sealed(sector_id.clone()))
+                .sector_path(PathType::Sealed, sector_id.clone())
                 .with_context(|| {
                     format!(
                         "get path for sealed({}) in {}",
@@ -605,7 +604,7 @@ pub(crate) fn persist_sector_files(
         dest: TransferItem::Store {
             store: ins_name.clone(),
             path: persist_store
-                .path(Resource::Cache(sector_id.clone()))
+                .sector_path(PathType::Cache, sector_id.clone())
                 .with_context(|| {
                     format!("get path for cache({}) in {}", sector_id, ins_name)
                 })

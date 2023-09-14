@@ -12,6 +12,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/extproc/stage"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 )
 
 //go:generate go run gen.go -interface=SealerAPI,SealerCliAPI,RandomnessAPI,MinerAPI,WorkerWdPoStAPI
@@ -84,7 +85,8 @@ type SealerAPI interface {
 	AchieveUnsealSector(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (Meta, error)
 	AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error)
 
-	StoreSubPaths(ctx context.Context, storeName string, resources []StoreResource) ([]string, error)
+	StoreSectorSubPaths(ctx context.Context, storeName string, pathType filestore.PathType, minerID uint64, sectorNumbers []abi.SectorNumber) ([]string, error)
+	StoreCustomSubPath(ctx context.Context, storeName string, custom string) (string, error)
 }
 
 type SealerCliAPI interface {

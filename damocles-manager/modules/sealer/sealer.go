@@ -544,7 +544,7 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 	if err != nil {
 		ierr := s.state.InitWith(ctx, []*core.AllocatedSector{{ID: candidateSector.Sector.ID, ProofType: candidateSector.Sector.ProofType}}, core.WorkerOnline, core.SectorUpgraded(true), pieces, &upgradePublic)
 		if ierr != nil {
-			return nil, fmt.Errorf("init non-exist snapup sector: %w", ierr)
+			return nil, fmt.Errorf("init non-exist snapup sector(%s): %w", util.FormatSectorID(candidateSector.Sector.ID), ierr)
 		}
 	}
 
@@ -840,19 +840,35 @@ func (s *Sealer) AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceC
 	return s.unseal.AcquireDest(ctx, sid, pieceCid)
 }
 
-func (s *Sealer) StoreSubPaths(ctx context.Context, storeName string, resources []core.StoreResource) ([]string, error) {
+func (s *Sealer) StoreSectorSubPaths(ctx context.Context, storeName string, pathType filestore.PathType, minerID uint64, sectorNumbers []abi.SectorNumber) ([]string, error) {
 	store, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, storeName)
 	if err != nil {
 		return nil, err
 	}
-	paths := make([]string, len(resources))
-	for i, resource := range resources {
-		subPath, err := store.SubPath(ctx, resource.PathType, filestore.SectorIDFromAbiSectorID(resource.SectorID), resource.Custom)
+	paths := make([]string, len(sectorNumbers))
+	for i, sectorNumber := range sectorNumbers {
+		subPath, err := store.SubPath(ctx, pathType, &filestore.SectorID{
+			Miner:  minerID,
+			Number: uint64(sectorNumber),
+		}, nil)
 		if err != nil {
-			return nil, fmt.Errorf("get subPath(%s): %w", resource, err)
+			return nil, fmt.Errorf("get subPath(%s, %s, nil) for %s: %w", pathType, fmt.Sprintf("%d-%d", minerID, uint64(sectorNumber)), storeName, err)
 		}
 		paths[i] = subPath
 	}
 
 	return paths, nil
+}
+
+func (s *Sealer) StoreCustomSubPath(ctx context.Context, storeName string, custom string) (string, error) {
+	store, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, storeName)
+	if err != nil {
+		return "", err
+	}
+	subPath, err := store.SubPath(ctx, filestore.PathTypeCustom, nil, nil)
+	if err != nil {
+		return "", fmt.Errorf("get subPath(%s, nil, %s) for %s: %w", filestore.PathTypeCustom, custom, storeName, err)
+	}
+
+	return subPath, nil
 }

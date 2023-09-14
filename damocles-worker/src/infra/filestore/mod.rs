@@ -9,10 +9,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
+use vc_processors::fil_proofs::{ActorID, SectorId};
 
-use crate::rpc::sealer::SealerClient;
 use crate::rpc::sealer::SectorID;
-use crate::rpc::sealer::StoreResource;
+use crate::rpc::sealer::{PathType, SealerClient};
 use crate::sealing::call_rpc;
 
 pub mod attached;
@@ -70,37 +70,21 @@ pub struct Range {
     pub size: u64,
 }
 
-/// Filestore Resource
-#[allow(missing_docs)]
-#[derive(Debug, Clone)]
-pub enum Resource {
-    Sealed(SectorID),
-    Update(SectorID),
-    Cache(SectorID),
-    UpdateCache(SectorID),
-    Custom(String),
-}
-
-impl Resource {
-    /// Returns None if resource is Custom otherwise Some(sector_id)
-    pub fn sector_id(&self) -> Option<&SectorID> {
-        match self {
-            Resource::Sealed(sid)
-            | Resource::Update(sid)
-            | Resource::Cache(sid)
-            | Resource::UpdateCache(sid) => Some(sid),
-            Resource::Custom(_) => None,
-        }
-    }
-}
-
 /// definition of object store
 pub trait FileStore: Send + Sync {
     /// instance name of the store
     fn instance(&self) -> String;
 
-    /// get paths of the given resources.
-    fn paths(&self, resources: Vec<Resource>) -> StoreResult<Vec<PathBuf>>;
+    /// get paths of given sectors.
+    fn sector_paths(
+        &self,
+        path_type: PathType,
+        miner_id: ActorID,
+        sector_numbers: Vec<SectorId>,
+    ) -> StoreResult<Vec<PathBuf>>;
+
+    /// get path of given custom name.
+    fn custom_path(&self, custom: String) -> StoreResult<PathBuf>;
 
     /// if this instance is read-only
     fn readonly(&self) -> bool;
@@ -108,13 +92,22 @@ pub trait FileStore: Send + Sync {
 
 /// Extension methods of Objstore
 pub trait FileStoreExt {
-    /// Get a single uri
-    fn path(&self, resource: Resource) -> StoreResult<PathBuf>;
+    /// Get a single sector path
+    fn sector_path(
+        &self,
+        path_type: PathType,
+        sid: SectorID,
+    ) -> StoreResult<PathBuf>;
 }
 
 impl<T: FileStore + ?Sized> FileStoreExt for T {
-    fn path(&self, resource: Resource) -> StoreResult<PathBuf> {
-        let mut res = self.paths(vec![resource])?;
+    fn sector_path(
+        &self,
+        path_type: PathType,
+        sid: SectorID,
+    ) -> StoreResult<PathBuf> {
+        let mut res =
+            self.sector_paths(path_type, sid.miner, vec![sid.number.into()])?;
         Ok(res.swap_remove(0))
     }
 }
@@ -177,41 +170,24 @@ impl FileStore for DefaultFileStore {
         self.instance.clone()
     }
 
-    fn paths(&self, resources: Vec<Resource>) -> StoreResult<Vec<PathBuf>> {
-        let store_resources = resources
-            .into_iter()
-            .map(|r| match r {
-                Resource::Sealed(sid) => StoreResource {
-                    path_type: crate::rpc::sealer::PathType::Sealed,
-                    sector_id: Some(sid),
-                    custom: None,
-                },
-                Resource::Update(sid) => StoreResource {
-                    path_type: crate::rpc::sealer::PathType::Update,
-                    sector_id: Some(sid),
-                    custom: None,
-                },
-                Resource::Cache(sid) => StoreResource {
-                    path_type: crate::rpc::sealer::PathType::Cache,
-                    sector_id: Some(sid),
-                    custom: None,
-                },
-                Resource::UpdateCache(sid) => StoreResource {
-                    path_type: crate::rpc::sealer::PathType::UpdateCache,
-                    sector_id: Some(sid),
-                    custom: None,
-                },
-                Resource::Custom(s) => StoreResource {
-                    path_type: crate::rpc::sealer::PathType::Custom,
-                    sector_id: None,
-                    custom: Some(s),
-                },
-            })
-            .collect();
+    fn sector_paths(
+        &self,
+        path_type: PathType,
+        miner_id: ActorID,
+        sector_numbers: Vec<SectorId>,
+    ) -> StoreResult<Vec<PathBuf>> {
         call_rpc! {
-            self.rpc=>store_sub_paths(self.instance(), store_resources,)
+            self.rpc=>store_sector_sub_paths(self.instance(), path_type, miner_id as u64, sector_numbers,)
         }
         .map(|p| p.iter().map(|p| self.local_path.join(p)).collect())
+        .map_err(|e| FileStoreError::Other(e.1))
+    }
+
+    fn custom_path(&self, custom: String) -> StoreResult<PathBuf> {
+        call_rpc! {
+            self.rpc=>store_custom_sub_path(self.instance(), custom,)
+        }
+        .map(|p| self.local_path.join(p))
         .map_err(|e| FileStoreError::Other(e.1))
     }
 

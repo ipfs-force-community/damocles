@@ -9,7 +9,6 @@ import (
 	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
-	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs/go-cid"
 )
@@ -387,23 +386,6 @@ type SectorStateResp struct {
 	ID          abi.SectorID `json:"Id"`
 	Finalized   SectorFinalized
 	AbortReason *string
-}
-
-type StoreResource struct {
-	PathType filestore.PathType
-	SectorID *abi.SectorID
-	Custom   *string
-}
-
-func (s StoreResource) String() string {
-	if s.PathType == filestore.PathTypeCustom && s.Custom != nil {
-		return fmt.Sprintf("%s(%s)", s.PathType, *s.Custom)
-	}
-	if s.PathType != filestore.PathTypeCustom && s.SectorID != nil {
-		return fmt.Sprintf("%s(%s)", s.PathType, util.FormatSectorID(*s.SectorID))
-	}
-
-	return fmt.Sprintf("invalid StoreResource: %#v", s)
 }
 
 func UnsealInfoKey(actor abi.ActorID, sectorNumber abi.SectorNumber, pieceCid cid.Cid) string {
