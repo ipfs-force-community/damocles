@@ -82,6 +82,8 @@ func (s *Store) SubPath(ctx context.Context, pathType pluginfilestore.PathType, 
 		if custom == nil {
 			return "", fmt.Errorf("sectorID cannot be nil")
 		}
+		// just return custom, or return an error.
+		// return nil, fmt.Errorf("PathType custom is not support");
 		return *custom, nil
 	}
 

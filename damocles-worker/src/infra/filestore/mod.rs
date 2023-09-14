@@ -176,6 +176,10 @@ impl FileStore for DefaultFileStore {
         miner_id: ActorID,
         sector_numbers: Vec<SectorId>,
     ) -> StoreResult<Vec<PathBuf>> {
+        if sector_numbers.is_empty() {
+            return Ok(vec![]);
+        }
+
         call_rpc! {
             self.rpc=>store_sector_sub_paths(self.instance(), path_type, miner_id, sector_numbers,)
         }
