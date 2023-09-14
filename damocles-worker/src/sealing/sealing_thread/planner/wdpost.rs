@@ -412,7 +412,7 @@ impl WdPost<'_> {
             .context("wdpost info not found")
             .abort()?;
 
-        let mut paths = self
+        let paths = self
             .build_paths(&wdpost_job.input)
             .context("build paths")
             .abort()?;
@@ -422,19 +422,20 @@ impl WdPost<'_> {
             .sectors
             .iter()
             .map(|sector| {
-                let p = paths.remove(&sector.sector_id).with_context(|| {
+                let p = paths.get(&sector.sector_id).with_context(|| {
                     format!("get path for {}", sector.sector_id)
                 })?;
                 let replica = PoStReplicaInfo {
                     sector_id: sector.sector_id,
                     comm_r: sector.comm_r,
-                    cache_dir: p.cache_dir,
-                    sealed_file: p.sealed_file,
+                    cache_dir: p.cache_dir.clone(),
+                    sealed_file: p.sealed_file.clone(),
                 };
                 Ok(replica)
             })
             .collect::<Result<Vec<_>>>()
             .abort()?;
+        drop(paths);
 
         let post_in = WindowPoSt {
             miner_id: wdpost_job.input.miner_id,
