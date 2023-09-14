@@ -177,7 +177,7 @@ impl FileStore for DefaultFileStore {
         sector_numbers: Vec<SectorId>,
     ) -> StoreResult<Vec<PathBuf>> {
         call_rpc! {
-            self.rpc=>store_sector_sub_paths(self.instance(), path_type, miner_id as u64, sector_numbers,)
+            self.rpc=>store_sector_sub_paths(self.instance(), path_type, miner_id, sector_numbers,)
         }
         .map(|p| p.iter().map(|p| self.local_path.join(p)).collect())
         .map_err(|e| FileStoreError::Other(e.1))
