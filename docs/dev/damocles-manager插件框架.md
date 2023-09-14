@@ -6,7 +6,7 @@ Inspired by [TIDB plugin](https://github.com/pingcap/tidb/blob/master/docs/desig
 damocles 希望给用户提供足够灵活的自定义能力。例如[外部执行器](../zh/07.damocles-worker%E5%A4%96%E9%83%A8%E6%89%A7%E8%A1%8C%E5%99%A8%E7%9A%84%E9%85%8D%E7%BD%AE%E8%8C%83%E4%BE%8B.md)提供了 damocles 与其他进程通信的能力，用户可以使用外部执行器功能创建自定义的优化后的封装算法。本文介绍 damocles-manager 中另一种更轻量级，性能更高的插件机制。两者适用于不同的场景，前者主要用于自定义 filecoin 各个封装算法以及 WindowPoSt、WinningPoSt。后者将用于 damocles-manager 内部自定义数据库类型、自定义存储类型、自定义数据同步、审计工作，亦或是自定义的 deals 匹配算法等。
 
 ## 使用
-damocles-manager 插件机制基于 [Go plugin](https://pkg.go.dev/plugin#section-documentation)。 并提供了统一的插件 Manifest 机制、Package 和灵活的 SPI。
+damocles-manager 插件机制基于 [Go plugin](https://pkg.go.dev/plugin#section-documentation)。并提供了统一的插件 Manifest 机制、Package 和灵活的 SPI。
 
 插件开发者创建一个插件需要以下 5 步。
 1. 选择一个插件类型，或者发送 PR 给 damocles-manager 创建一个新的插件类型。
@@ -53,7 +53,7 @@ damocles-manager 插件机制基于 [Go plugin](https://pkg.go.dev/plugin#sectio
 
 ##### Manifest:
 
-struct 定义:
+struct 定义：
 ```go
 type FileStoreManifest struct {
 	Manifest
@@ -62,13 +62,13 @@ type FileStoreManifest struct {
 }
 ```
 
-manifest.toml 示例:
+manifest.toml 示例：
 ```toml
 # manifest.toml
 
 name = "mystore"
 description = "my filestore plugin"
-# 插件类型设置为: FileStore
+# 插件类型设置为：FileStore
 kind = "FileStore"
 onInit = "OnInit"
 onShutdown = "OnShutdown"
@@ -81,7 +81,7 @@ export = [
 
 `FileStore` 插件只需要额外提供一个 `Constructor` 函数返回实现了 [filestore.Store](https://github.com/ipfs-force-community/damocles/blob/68b14f09025eab2ed7adb5b86ebb0b098fb3063f/manager-plugin/filestore/filestore.go#L75-L103) 接口的对象即可。
 
-`FileStore` 目前用于 Piece 文件存储 (PieceStore) 与封装后的扇区数据存储 (PersistStores)， 当正确配置 FileStore 插件后， damocles-manager 会调用插件返回的 `filesotre.Store` 进行文件读写。
+`FileStore` 目前用于 Piece 文件存储 (PieceStore) 与封装后的扇区数据存储 (PersistStores)，当正确配置 FileStore 插件后，damocles-manager 会调用插件返回的 `filesotre.Store` 进行文件读写。
 
 ##### PieceStore 插件配置样例
 
@@ -92,13 +92,13 @@ Dir = "path/to/damocles-manager-plugins-dir"
 
 # ...
 
-# damocles-manager 可以配置多个 PieceStore， 每个 PieceStore 都可以使用不同的插件。
+# damocles-manager 可以配置多个 PieceStore，每个 PieceStore 都可以使用不同的插件。
 [[Common.PieceStores]]
 Name = "my-file-store"
 Path = "/path"
 
 # 指定插件名称
-# 注意: PluginName 不是插件程序的文件名，而是在 manifest.toml 中配置的名称
+# 注意：PluginName 不是插件程序的文件名，而是在 manifest.toml 中配置的名称
 PluginName = "mystore"
 
 [[Common.PieceStores.Meta]]
@@ -120,7 +120,7 @@ PersistStores 的插件配置与 PieceStore 类似，详细请参考 damocles-ma
 `KVStore` 插件允许用户使用其他 damocles-manager 不支持的数据库作为 damocles-manager 的扇区元数据信息存储。
 
 ##### Manifest:
-struct 定义:
+struct 定义：
 ```go
 type KVStoreManifest struct {
 	Manifest
@@ -130,13 +130,13 @@ type KVStoreManifest struct {
 ```
 
 
-manifest.toml 示例:
+manifest.toml 示例：
 ```toml
 # manifest.toml
 
 name = "kvstoreredis"
 description = "use redis as kvstore"
-# 插件类型设置为: KVStore
+# 插件类型设置为：KVStore
 kind = "KVStore"
 onInit = "OnInit"
 onShutdown = "OnShutdown"
@@ -158,14 +158,14 @@ Dir = "path/to/damocles-manager-plugins-dir"
 
 # ...
 
-#### 基础配置范例:
+#### 基础配置范例：
 [Common.DB]
 # 指定使用 kvstore 插件实现的数据库
 Driver = "plugin"
 
 [Common.DB.Plugin]
 # 指定插件名称
-# 注意: PluginName 不是插件程序的文件名，而是在 manifest.toml 中配置的名称
+# 注意：PluginName 不是插件程序的文件名，而是在 manifest.toml 中配置的名称
 PluginName = "redis"
 
 # Meta 数据会传入 kvstore 插件的 Constructor 函数中
@@ -184,7 +184,7 @@ Addr = "127.0.0.1:6379"
 
 Manifest:
 
-Struct 定义:
+Struct 定义：
 ```go
 type RegisterJsonRpcManifest struct {
 	Manifest
@@ -194,13 +194,13 @@ type RegisterJsonRpcManifest struct {
 	Handler func() (namespace string, handler interface{})
 }
 ```
-manifest.toml 示例:
+manifest.toml 示例：
 ```toml
 # manifest.toml
 
 name = "AtomicCounter"
 description = "Expose a series of jsonrpc methods to implement an atomic counter"
-# 插件类型设置为: RegisterJsonRpc
+# 插件类型设置为：RegisterJsonRpc
 kind = "RegisterJsonRpc"
 onInit = "OnInit"
 onShutdown = "OnShutdown"
@@ -210,7 +210,7 @@ export = [
 ]
 ```
 
-`RegisterJsonRpc` 插件无需配置，当 damocles-manager 在插件目录中扫描到多个 `RegisterJsonRpc` 插件时, 会[依次调用](https://github.com/ipfs-force-community/damocles/blob/dfc20a9a4d2728192bbbf830ddfd15b684b98ce9/damocles-manager/modules/impl/sectors/state_mgr.go#L181)每一个 `RegisterJsonRpc` 插件。我们可以通过编写多个的 `RegisterJsonRpc` 插件注册多个自定义 jsonrpc 接口。
+`RegisterJsonRpc` 插件无需配置，当 damocles-manager 在插件目录中扫描到多个 `RegisterJsonRpc` 插件时，会[依次调用](https://github.com/ipfs-force-community/damocles/blob/dfc20a9a4d2728192bbbf830ddfd15b684b98ce9/damocles-manager/modules/impl/sectors/state_mgr.go#L181)每一个 `RegisterJsonRpc` 插件。我们可以通过编写多个的 `RegisterJsonRpc` 插件注册多个自定义 jsonrpc 接口。
 
 ---
 
@@ -219,7 +219,7 @@ export = [
 
 Manifest:
 
-Struct 定义:
+Struct 定义：
 ```go
 type SyncSectorStateManifest struct {
 	Manifest
@@ -231,13 +231,13 @@ type SyncSectorStateManifest struct {
 	OnRestore  func(...) error
 }
 ```
-manifest.toml 示例:
+manifest.toml 示例：
 ```toml
 # manifest.toml
 
 name = "mysqlsyncer"
 description = "sync sectors state to mysql"
-# 插件类型设置为: SyncSectorState
+# 插件类型设置为：SyncSectorState
 kind = "SyncSectorState"
 onInit = "OnInit"
 onShutdown = "OnShutdown"
@@ -251,12 +251,12 @@ export = [
 ]
 ```
 
-`SyncSectorState` 插件无需配置，当 damocles-manager 在插件目录中扫描到多个 `SyncSectorState` 插件时, 会[依次调用](https://github.com/ipfs-force-community/damocles/blob/dfc20a9a4d2728192bbbf830ddfd15b684b98ce9/damocles-manager/modules/impl/sectors/state_mgr.go#L181)每一个 `SyncSectorState` 插件。我们可以通过编写不同的 `SyncSectorState` 插件将扇区状态数据同步到不同的目标数据库或者存储中。
+`SyncSectorState` 插件无需配置，当 damocles-manager 在插件目录中扫描到多个 `SyncSectorState` 插件时，会[依次调用](https://github.com/ipfs-force-community/damocles/blob/dfc20a9a4d2728192bbbf830ddfd15b684b98ce9/damocles-manager/modules/impl/sectors/state_mgr.go#L181)每一个 `SyncSectorState` 插件。我们可以通过编写不同的 `SyncSectorState` 插件将扇区状态数据同步到不同的目标数据库或者存储中。
 
 ---
 
 #### 其他插件
-正如前文所说的:
+正如前文所说的：
 > 后者将用于 damocles-manager 内部自定义数据库类型、自定义存储类型、自定义数据同步、审计工作，亦或是自定义的 deals 匹配算法等。
 
 damocles-manager 未来会提供更多类型的插件。也欢迎给 damocles-manager 发送 issue 和 pr，交流想法与代码。
@@ -268,7 +268,7 @@ damocles-manager 当前存在以下限制：
 - 插件仅能使用 go 编写
 - damocles-manager 与 plugin 的共同依赖包的版本必须一致
 
-针对「 damocles-manager 与 plugin 的共同依赖包的版本必须一致」的问题, damocles-manager 提供了依赖版本检查工具可以自动修复或检查插件依赖版本。
+针对「damocles-manager 与 plugin 的共同依赖包的版本必须一致」的问题，damocles-manager 提供了依赖版本检查工具可以自动修复或检查插件依赖版本。
 
 ```shell
 # 仅检查依赖版本

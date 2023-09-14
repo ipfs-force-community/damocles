@@ -29,7 +29,7 @@ pub(crate) enum StoreCommand {
     HugepageFileInit {
         /// Specify the numa node
         #[arg(short = 'n', long = "node", alias = "numa_node_index")]
-        numa_node_index: u32,
+        numa_node_index: Option<u32>,
         /// Specify the size of each hugepage memory file. (e.g., 1B, 2KB, 3kiB, 1MB, 2MiB, 3GB, 1GiB, ...)
         #[arg(short = 's', long)]
         size: bytesize::ByteSize,
@@ -115,7 +115,7 @@ pub(crate) fn run(cmd: &StoreCommand) -> Result<()> {
 
 #[cfg(target_os = "linux")]
 fn hugepage_file_init(
-    numa_node_idx: u32,
+    numa_node_idx: Option<u32>,
     size: ByteSize,
     count: usize,
     pat: MemoryFileDirPattern,
@@ -124,7 +124,7 @@ fn hugepage_file_init(
         numa_node_idx,
         size,
         count,
-        pat.to_path(numa_node_idx),
+        pat.to_path(numa_node_idx.unwrap_or_default()),
     )?;
     println!("Created hugepage memory files:");
     for file in files {
@@ -135,7 +135,7 @@ fn hugepage_file_init(
 
 #[cfg(not(target_os = "linux"))]
 fn hugepage_file_init(
-    _numa_node_idx: u32,
+    _numa_node_idx: Option<u32>,
     _size: ByteSize,
     _count: usize,
     _pat: MemoryFileDirPattern,
