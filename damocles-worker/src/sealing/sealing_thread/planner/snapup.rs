@@ -12,6 +12,7 @@ use super::{
     },
     plan, PlannerTrait, PLANNER_NAME_SNAPUP,
 };
+use crate::logging::{debug, warn};
 use crate::rpc::sealer::{
     AcquireDealsSpec, AllocateSectorSpec, AllocateSnapUpSpec,
     SnapUpOnChainInfo, SubmitResult,
@@ -20,10 +21,6 @@ use crate::sealing::failure::*;
 use crate::sealing::processor::{
     cached_filenames_for_sector, TransferInput, TransferItem, TransferOption,
     TransferRoute, TransferStoreInfo,
-};
-use crate::{
-    filestore::Resource,
-    logging::{debug, warn},
 };
 use crate::{infra::filestore::FileStoreExt, rpc::sealer::PathType};
 
@@ -221,7 +218,7 @@ impl<'t> SnapUp<'t> {
             src: TransferItem::Store {
                 store: access_instance.clone(),
                 path: access_store
-                    .path(Resource::Cache(sector_id.clone()))
+                    .sector_path(PathType::Cache, sector_id.clone())
                     .with_context(|| {
                         format!(
                             "get path for cache({}) in {}",
@@ -243,7 +240,7 @@ impl<'t> SnapUp<'t> {
             src: TransferItem::Store {
                 store: access_instance.clone(),
                 path: access_store
-                    .path(Resource::Sealed(sector_id.clone()))
+                    .sector_path(PathType::Sealed, sector_id.clone())
                     .with_context(|| {
                         format!(
                             "get path for cache({}) in {}",

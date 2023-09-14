@@ -12,14 +12,13 @@ use tokio::runtime::Handle;
 use vc_processors::builtin::tasks::{
     PoStReplicaInfo, WindowPoSt, WindowPoStOutput, STAGE_NAME_WINDOW_POST,
 };
-use vc_processors::fil_proofs::SectorId;
+use vc_processors::fil_proofs::{ActorID, SectorId};
 
-use crate::filestore::Resource;
+use crate::filestore::FileStore;
 use crate::infra::filestore::FileStoreExt;
 use crate::logging::warn;
 use crate::rpc::sealer::{
-    AllocatePoStSpec, AllocatedWdPoStJob, PathType, SectorID, StoreResource,
-    WdPoStInput,
+    AllocatePoStSpec, AllocatedWdPoStJob, PathType, SectorID, WdPoStInput,
 };
 use crate::sealing::failure::*;
 use crate::sealing::paths;
@@ -489,44 +488,36 @@ impl WdPost<'_> {
         &self,
         input: &WdPoStInput,
     ) -> Result<HashMap<SectorId, PostPath>> {
-        #[derive(Debug)]
+        #[derive(Debug, Default)]
         struct Resources {
-            cache_dir: Vec<Resource>,
-            sealed_file: Vec<Resource>,
+            cache_dir: Vec<SectorId>,
+            update_cache_dir: Vec<SectorId>,
+            sealed: Vec<SectorId>,
+            update: Vec<SectorId>,
         }
+
         let mut resources_by_store = HashMap::new();
         for sector in input.sectors.iter() {
-            let sid = SectorID {
-                miner: input.miner_id,
-                number: sector.sector_id.into(),
-            };
-            resources_by_store
+            let resources = resources_by_store
                 .entry(sector.accesses.sealed_file.clone())
-                .or_insert(Resources {
-                    cache_dir: vec![],
-                    sealed_file: vec![],
-                })
-                .sealed_file
-                .push(if sector.upgrade {
-                    Resource::Update(sid.clone())
-                } else {
-                    Resource::Sealed(sid.clone())
-                });
-            resources_by_store
+                .or_insert_with(Resources::default);
+            if sector.upgrade {
+                resources.update.push(sector.sector_id)
+            } else {
+                resources.sealed.push(sector.sector_id)
+            }
+
+            let resources = resources_by_store
                 .entry(sector.accesses.cache_dir.clone())
-                .or_insert(Resources {
-                    cache_dir: vec![],
-                    sealed_file: vec![],
-                })
-                .cache_dir
-                .push(if sector.upgrade {
-                    Resource::UpdateCache(sid.clone())
-                } else {
-                    Resource::Cache(sid)
-                });
+                .or_insert_with(Default::default);
+            if sector.upgrade {
+                resources.update_cache_dir.push(sector.sector_id)
+            } else {
+                resources.cache_dir.push(sector.sector_id)
+            }
         }
-        let mut paths: HashMap<SectorId, PostPath> = HashMap::new();
-        for (ins, resources) in resources_by_store {
+        let mut all_paths: HashMap<SectorId, PostPath> = HashMap::new();
+        for (ins, res) in resources_by_store {
             let instance = self
                 .job
                 .sealing_ctrl
@@ -537,53 +528,24 @@ impl WdPost<'_> {
                 .with_context(|| {
                     format!("get access store instance named {}", ins)
                 })?;
-            let sealed_files = instance
-                .paths(resources.sealed_file.clone())
-                .with_context(|| format!("get sealed paths for {}", ins))?;
-            let cache_dirs = instance
-                .paths(resources.cache_dir.clone())
-                .with_context(|| format!("get cache paths for {}", ins))?;
 
-            for (resource, sealed_file) in
-                resources.sealed_file.iter().zip(sealed_files)
-            {
-                let sid = resource
-                    .sector_id()
-                    .expect("sector_id must be set")
-                    .number
-                    .into();
-                let mut sealed_file = Some(sealed_file);
-                paths
-                    .entry(sid)
-                    .and_modify(|e| {
-                        e.sealed_file = sealed_file.take().unwrap();
-                    })
-                    .or_insert_with(|| PostPath {
-                        cache_dir: PathBuf::new(),
-                        sealed_file: sealed_file.take().unwrap(),
-                    });
-            }
-            for (resource, cache_dir) in
-                resources.cache_dir.iter().zip(cache_dirs)
-            {
-                let sid = resource
-                    .sector_id()
-                    .expect("sector_id must be set")
-                    .number
-                    .into();
-                let mut cache_dir = Some(cache_dir);
-                paths
-                    .entry(sid)
-                    .and_modify(|e| {
-                        e.cache_dir = cache_dir.take().unwrap();
-                    })
-                    .or_insert_with(|| PostPath {
-                        cache_dir: cache_dir.take().unwrap(),
-                        sealed_file: PathBuf::new(),
-                    });
-            }
+            let mut curried_get_paths = |path_type: PathType,
+                                         sector_ids: Vec<SectorId>|
+             -> Result<()> {
+                get_paths(
+                    &mut all_paths,
+                    instance,
+                    input.miner_id,
+                    path_type,
+                    sector_ids,
+                )
+            };
+            curried_get_paths(PathType::Sealed, res.sealed)?;
+            curried_get_paths(PathType::Update, res.update)?;
+            curried_get_paths(PathType::Cache, res.cache_dir)?;
+            curried_get_paths(PathType::UpdateCache, res.update_cache_dir)?;
         }
-        Ok(paths)
+        Ok(all_paths)
     }
 
     fn start_heartbeat(
@@ -616,4 +578,47 @@ impl WdPost<'_> {
             }
         });
     }
+}
+
+fn get_paths(
+    all_paths: &mut HashMap<SectorId, PostPath>,
+    instance: &dyn FileStore,
+    miner_id: ActorID,
+    path_type: PathType,
+    sector_ids: Vec<SectorId>,
+) -> Result<()> {
+    let paths = instance
+        .sector_paths(path_type, miner_id, sector_ids.clone())
+        .with_context(|| {
+            format!(
+                "get sector paths for (path_type:{:?}, minr_id: {} ins: {})",
+                path_type,
+                miner_id,
+                instance.instance()
+            )
+        })?;
+    for (sector_id, path) in sector_ids.into_iter().zip(paths) {
+        let mut path = Some(path);
+        all_paths
+            .entry(sector_id)
+            .and_modify(|e| match path_type {
+                PathType::Sealed | PathType::Update => {
+                    e.sealed_file = path.take().unwrap();
+                }
+                PathType::Cache | PathType::UpdateCache => {
+                    e.cache_dir = path.take().unwrap();
+                }
+            })
+            .or_insert_with(|| match path_type {
+                PathType::Sealed | PathType::Update => PostPath {
+                    cache_dir: PathBuf::new(),
+                    sealed_file: path.take().unwrap(),
+                },
+                PathType::Cache | PathType::UpdateCache => PostPath {
+                    cache_dir: path.take().unwrap(),
+                    sealed_file: PathBuf::new(),
+                },
+            });
+    }
+    Ok(())
 }
