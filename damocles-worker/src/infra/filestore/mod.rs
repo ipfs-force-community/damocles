@@ -187,12 +187,12 @@ impl FileStore for DefaultFileStore {
                     custom: None,
                 },
                 Resource::Update(sid) => StoreResource {
-                    path_type: crate::rpc::sealer::PathType::Sealed,
+                    path_type: crate::rpc::sealer::PathType::Update,
                     sector_id: Some(sid),
                     custom: None,
                 },
                 Resource::Cache(sid) => StoreResource {
-                    path_type: crate::rpc::sealer::PathType::Sealed,
+                    path_type: crate::rpc::sealer::PathType::Cache,
                     sector_id: Some(sid),
                     custom: None,
                 },
