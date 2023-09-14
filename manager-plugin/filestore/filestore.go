@@ -92,7 +92,7 @@ type Store interface {
 	// assert(SubPath(context.TODO(), "sealed", sid4040_1001, nil) == ("sealed/s-t04040-1001", nil))
 	// assert(SubPath(context.TODO(), "update", sid4040_1001, nil) == ("update/s-t04040-1001", nil))
 	// assert(SubPath(context.TODO(), "update-cache", sid4040_1001, nil) == ("update-cache/s-t04040-1001", nil))
-	// assert(SubPath(context.TODO(), "custom", sid4040_1001, "path/to/anything") == ("path/to/anything", nil))
+	// assert(SubPath(context.TODO(), "custom", nil, "path/to/anything") == ("path/to/anything", nil))
 	// -- OR --
 	// assert(SubPath(context.TODO(), "cache", sid4040_1001, nil) == ("myprefix/mycache/mysubdir/s-t04040-1001", nil))
 	// assert(SubPath(context.TODO(), "sealed", sid4040_1001, nil) == ("myprefix/mysealed/mysubdir/s-t04040-1001", nil))
