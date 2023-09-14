@@ -1,10 +1,10 @@
 module github.com/ipfs-force-community/damocles/manager-plugin/examples/memdb
 
-go 1.18
+go 1.20
 
 require (
-	github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230613072356-8713ced20557
-	github.com/stretchr/testify v1.8.1
+	github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230913074304-520ac6d716fa
+	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/btree v1.6.0
 )
 

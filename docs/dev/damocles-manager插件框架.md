@@ -22,7 +22,7 @@ damocles-manager 插件机制基于 [Go plugin](https://pkg.go.dev/plugin#sectio
 	name = "memdb"
 	# 插件描述
 	description = "kvstore in memory"
-	# 插件类型，当前支持: ObjStore | KVStore | SyncSectorState
+	# 插件类型，当前支持: FileStore | KVStore | SyncSectorState
 	kind = "KVStore"
 	# 指定插件的初始化函数
 	onInit = "OnInit"
@@ -41,24 +41,24 @@ damocles-manager 插件机制基于 [Go plugin](https://pkg.go.dev/plugin#sectio
 启动 damocles-manager 后会以日志的形式输出所有成功加载的插件。
 ```
 2023-01-13T11:33:09.658+0800    INFO    dep     dep/sealer_constructor.go:132   loaded plugin 'KVStore/memdb', build time: '2023.01.13 11:32:43'.
-2023-01-13T11:33:09.658+0800    INFO    dep     dep/sealer_constructor.go:132   loaded plugin 'ObjStore/fsstore', build time: '2023.01.13 11:32:43'.
+2023-01-13T11:33:09.658+0800    INFO    dep     dep/sealer_constructor.go:132   loaded plugin 'FileStore/examplefstore', build time: '2023.01.13 11:32:43'.
 ...
 ```
 ---
 
 ### 当前支持的插件类型
-#### ObjStore 插件
+#### FileStore 插件
 
-`ObjStore` 允许用户创建自定的存储类型，例如 s3, fs 等。
+`FileStore` 允许用户创建自定的存储类型，受 filecoin 封装算法限制，目前只支持文件系统，但是 FileStore 插件支持用户自定义扇区文件的存储路径。
 
 ##### Manifest:
 
 struct 定义：
 ```go
-type ObjStoreManifest struct {
+type FileStoreManifest struct {
 	Manifest
 
-	Constructor func(cfg objstore.Config) (objstore.Store, error)
+	Constructor func(cfg filestore.Config) (filestore.Store, error)
 }
 ```
 
@@ -66,10 +66,10 @@ manifest.toml 示例：
 ```toml
 # manifest.toml
 
-name = "s3store"
-description = "s3 plugin"
-# 插件类型设置为：ObjStore
-kind = "ObjStore"
+name = "mystore"
+description = "my filestore plugin"
+# 插件类型设置为: FileStore
+kind = "FileStore"
 onInit = "OnInit"
 onShutdown = "OnShutdown"
 
@@ -79,9 +79,9 @@ export = [
 ]
 ```
 
-`ObjStore` 插件只需要额外提供一个 `Constructor` 函数返回实现了 [objstore.Store](https://github.com/ipfs-force-community/venus-objstore/blob/00ad77fcbfed1df5c1613176521bce3ba3041fc7/objstore.go#L50-L61) 接口的对象即可。
+`FileStore` 插件只需要额外提供一个 `Constructor` 函数返回实现了 [filestore.Store](https://github.com/ipfs-force-community/damocles/blob/68b14f09025eab2ed7adb5b86ebb0b098fb3063f/manager-plugin/filestore/filestore.go#L75-L103) 接口的对象即可。
 
-`ObjStore` 目前用于 Piece 文件存储 (PieceStore) 与封装后的扇区数据存储 (PersistStores)，当正确配置 ObjStore 插件后，damocles-manager 会调用插件返回的 `objstore.Store` 进行文件读写。
+`FileStore` 目前用于 Piece 文件存储 (PieceStore) 与封装后的扇区数据存储 (PersistStores)， 当正确配置 FileStore 插件后， damocles-manager 会调用插件返回的 `filesotre.Store` 进行文件读写。
 
 ##### PieceStore 插件配置样例
 
@@ -94,17 +94,17 @@ Dir = "path/to/damocles-manager-plugins-dir"
 
 # damocles-manager 可以配置多个 PieceStore，每个 PieceStore 都可以使用不同的插件。
 [[Common.PieceStores]]
-Name = "my-s3-store"
+Name = "my-file-store"
 Path = "/path"
 
 # 指定插件名称
-# 注意：PluginName 不是插件程序的文件名，而是在 manifest.toml 中配置的名称
-PluginName = "s3store"
+# 注意: PluginName 不是插件程序的文件名，而是在 manifest.toml 中配置的名称
+PluginName = "mystore"
 
 [[Common.PieceStores.Meta]]
 # Your plugin config here
-Bucket = "mybucket"
-# ConfigPath = "path/to/my-s3-store-config.toml"
+SubDirPattern = "sub-%d-%d"
+# ConfigPath = "path/to/my-store-config.toml"
 ```
 
 PersistStores 的插件配置与 PieceStore 类似，详细请参考 damocles-manager 配置文件说明。
