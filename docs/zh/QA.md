@@ -16,13 +16,13 @@
 
 
 ## Q: 编译出的 damocles-worker 可执行文件特别大，是什么原因？
-**A**: 这里的特别大，通常是指可执行文件的体积达到上 G。正常来说，`damocles-worker` 可执行文件的体积在数十M 这个量级。上 G 的文件肯定已经超出了正常的范畴。
+**A**: 这里的特别大，通常是指可执行文件的体积达到上 G。正常来说，`damocles-worker` 可执行文件的体积在数十 M 这个量级。上 G 的文件肯定已经超出了正常的范畴。
 
 这种情况通常是编译过程中意外启用了 debug 信息导致的，通常有几种可能性：
 1. 在各层级的 [cargo config 文件](https://doc.rust-lang.org/cargo/reference/config.html) 中设置了 `[profile.<name>.debug]`；
 2. 在编译指令中引入了启用 debug 信息的参数，这种参数可能出现在以下位置：
    - 环境变量：以 `RUSTFLAG` 为代表的各类 `XXXFLAG` 环境变量
-   - 编译器参数：以rustc 的 `-g` 参数为代表的各类参数
+   - 编译器参数：以 rustc 的 `-g` 参数为代表的各类参数
    - 编译配置项：在各层级的 cargo config 文件中存在的、以 `rustflags` 为代表的各类配置项
 
 
@@ -206,6 +206,6 @@ thread '<unnamed>' panicked at 'assertion failed: `(left == right)`
   left: `0`,
  right: `2`, .../storage-proofs-porep-11.1.1/src/stacked/vanilla/cores.rs:151:5
 ```
-是什么错误？ 如何处理？
+是什么错误？如何处理？
 
-**A**: 这个错误大概率是 damocles-worker 中 PC1 的 `cgroup.cpuset` 配置问题引发的. 参考: [`cgroup.cpuset` 配置注意事项](./03.damocles-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#cgroupcpuset-%E9%85%8D%E7%BD%AE%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9)
+**A**: 这个错误大概率是 damocles-worker 中 PC1 的 `cgroup.cpuset` 配置问题引发的。参考：[`cgroup.cpuset` 配置注意事项](./03.damocles-worker%E7%9A%84%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90.md#cgroupcpuset-%E9%85%8D%E7%BD%AE%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9)
