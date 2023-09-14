@@ -333,6 +333,7 @@ impl PlannerTrait for WdPostPlanner {
     }
 }
 
+#[derive(Debug)]
 struct PostPath {
     cache_dir: PathBuf,
     sealed_file: PathBuf,
@@ -416,14 +417,15 @@ impl WdPost<'_> {
             .build_paths(&wdpost_job.input)
             .context("build paths")
             .abort()?;
-
         // get sealed path and cache path
         let replica = wdpost_job
             .input
             .sectors
             .iter()
             .map(|sector| {
-                let p = paths.remove(&sector.sector_id).context("get path")?;
+                let p = paths.remove(&sector.sector_id).with_context(|| {
+                    format!("get path for {}", sector.sector_id)
+                })?;
                 let replica = PoStReplicaInfo {
                     sector_id: sector.sector_id,
                     comm_r: sector.comm_r,
@@ -487,6 +489,7 @@ impl WdPost<'_> {
         &self,
         input: &WdPoStInput,
     ) -> Result<HashMap<SectorId, PostPath>> {
+        #[derive(Debug)]
         struct Resources {
             cache_dir: Vec<Resource>,
             sealed_file: Vec<Resource>,
@@ -540,6 +543,7 @@ impl WdPost<'_> {
             let cache_dirs = instance
                 .paths(resources.cache_dir.clone())
                 .with_context(|| format!("get cache paths for {}", ins))?;
+
             for (resource, sealed_file) in
                 resources.sealed_file.iter().zip(sealed_files)
             {
@@ -548,9 +552,16 @@ impl WdPost<'_> {
                     .expect("sector_id must be set")
                     .number
                     .into();
-                paths.entry(sid).and_modify(|e| {
-                    e.sealed_file = sealed_file;
-                });
+                let mut sealed_file = Some(sealed_file);
+                paths
+                    .entry(sid)
+                    .and_modify(|e| {
+                        e.sealed_file = sealed_file.take().unwrap();
+                    })
+                    .or_insert_with(|| PostPath {
+                        cache_dir: PathBuf::new(),
+                        sealed_file: sealed_file.take().unwrap(),
+                    });
             }
             for (resource, cache_dir) in
                 resources.cache_dir.iter().zip(cache_dirs)
@@ -560,9 +571,16 @@ impl WdPost<'_> {
                     .expect("sector_id must be set")
                     .number
                     .into();
-                paths.entry(sid).and_modify(|e| {
-                    e.cache_dir = cache_dir;
-                });
+                let mut cache_dir = Some(cache_dir);
+                paths
+                    .entry(sid)
+                    .and_modify(|e| {
+                        e.cache_dir = cache_dir.take().unwrap();
+                    })
+                    .or_insert_with(|| PostPath {
+                        cache_dir: cache_dir.take().unwrap(),
+                        sealed_file: PathBuf::new(),
+                    });
             }
         }
         Ok(paths)
