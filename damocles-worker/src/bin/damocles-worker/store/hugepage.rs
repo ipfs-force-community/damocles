@@ -10,15 +10,17 @@ use tracing::warn;
 use vc_processors::sys::numa::Numa;
 
 pub fn create_hugepage_mem_files(
-    numa_node_idx: u32,
+    numa_node_idx: Option<u32>,
     size: ByteSize,
     count: usize,
     path: impl AsRef<Path>,
 ) -> Result<Vec<PathBuf>> {
     // bind NUMA node
-    let numa = Numa::new().map_err(|_| anyhow!("NUMA not available"))?;
-    numa.bind(numa_node_idx)
-        .map_err(|_| anyhow!("invalid NUMA node: {}", numa_node_idx))?;
+    if let Some(i) = numa_node_idx {
+        let numa = Numa::new().map_err(|_| anyhow!("NUMA not available"))?;
+        numa.bind(i)
+            .map_err(|_| anyhow!("invalid NUMA node: {}", i))?;
+    }
 
     let path = path.as_ref();
     fs::create_dir_all(path).with_context(|| {
