@@ -538,7 +538,7 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 	if err != nil {
 		ierr := s.state.InitWith(ctx, []*core.AllocatedSector{{ID: candidateSector.Sector.ID, ProofType: candidateSector.Sector.ProofType}}, core.WorkerOnline, core.SectorUpgraded(true), pieces, &upgradePublic)
 		if ierr != nil {
-			return nil, fmt.Errorf("init non-exist snapup sector: %w", err)
+			return nil, fmt.Errorf("init non-exist snapup sector: %w", ierr)
 		}
 	}
 
