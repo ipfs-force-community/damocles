@@ -46,7 +46,9 @@ pub fn do_transfer_inner(
         let dest_is_dir = dest.is_dir();
         if src_is_dir != dest_is_dir {
             return Err(anyhow!(
-                "dest entry type is different with src, is_dir={}",
+                "dest({}) entry type is different with src({}), is_dir={}",
+                dest.display(),
+                src.display(),
                 src_is_dir
             ));
         }
