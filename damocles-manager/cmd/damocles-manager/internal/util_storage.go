@@ -50,7 +50,7 @@ var utilStorageAttachCmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "plugin-name",
-			Usage: "the filestore plugin name, the plugin file should exist in `Plugin.Dir`",
+			Usage: "the filestore plugin name, the plugin file should exist in 'Plugin.Dir'",
 		},
 		&cli.BoolFlag{
 			Name: "strict",
@@ -134,7 +134,7 @@ var utilStorageAttachCmd = &cli.Command{
 		defer stopper(gctx) // nolint:errcheck
 
 		var store filestore.Store
-		if pluginName != "" {
+		if pluginName == "" {
 			// use builtin fs filestore
 			store, err = filestorebuiltin.New(scfg)
 			if err != nil {
