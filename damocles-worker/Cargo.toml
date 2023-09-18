@@ -109,5 +109,3 @@ storage-proofs-post = { git = "https://github.com/ipfs-force-community/rust-fil-
 storage-proofs-update = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-update", branch = "force/master_v14.0.0" }
 
 bellperson = { git = "https://github.com/ipfs-force-community/bellperson.git", branch = "v0.24.1-supra-c2" }
-sppark = { git = "https://github.com/supranational/sppark.git", rev = "3ea4eb3" }
-blst = { git = "https://github.com/supranational/blst.git", rev = "dce883b" }
