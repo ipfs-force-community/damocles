@@ -2,21 +2,6 @@ name: 功能 / Enhancement
 description:  "提议新功能，或改善已有功能 / New feature request or improvement suggestion"
 labels: [enhancement]
 body:
-- type: checkboxes
-  attributes:
-    label: 模块 / Components
-    description: |
-      选择涉及模块。
-      Please select the related components.
-    options:
-      - label: damocles-manager
-        required: false
-      - label: damocles-worker
-        required: false
-      - label: 工具链 / toolchains
-        required: false
-      - label: 文档 / docs
-        required: false
 - type: textarea
   id: description
   attributes:

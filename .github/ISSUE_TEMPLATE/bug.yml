@@ -2,21 +2,6 @@ name: "Bug"
 description: "报告 bug / File a bug report to help us improve"
 labels: [bug]
 body:
-- type: checkboxes
-  attributes:
-    label: 模块 / Components
-    description: |
-      选择 bug 所在的模块。
-      Please select the components you are filing a bug for
-    options:
-      - label: damocles-manager
-        required: false
-      - label: damocles-worker
-        required: false
-      - label: 工具链 / toolchains
-        required: false
-      - label: 文档 / docs
-        required: false
 - type: textarea
   id: version
   attributes:
