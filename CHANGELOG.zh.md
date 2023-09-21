@@ -1,4 +1,23 @@
 # Changelog 
+## v0.9.0
+- damocles-manager
+  - worker-prover 模块 cli 修复 MinerID 显示问题 [#850](https://github.com/ipfs-force-community/damocles/pull/850)
+  - 恢复 util sealer sectors abort 命令 [#853](https://github.com/ipfs-force-community/damocles/pull/853)
+  - 修复 wdpost 重复分配任务的 bug [#877](https://github.com/ipfs-force-community/damocles/pull/877)
+  - snapdeal 分配订单根据扇区的过期时间筛选 [#885](https://github.com/ipfs-force-community/damocles/pull/885)
+  - 生成 windowpost 任务和封装提交扇区文件时，非严格模式不再检查扇区文件大小，只检查文件是否存在 [#924](https://github.com/ipfs-force-community/damocles/pull/924)
+  - 修复外部执行器模式 windowpost "Invalid commitment" 的 bug [#943](https://github.com/ipfs-force-community/damocles/pull/943)
+
+- damocles-worker
+  - 修复无法手动设置 sealing 状态的 bug [#866](https://github.com/ipfs-force-community/damocles/pull/866)
+  - 修复 resume snapup 封装线程时 treed 链接文件已存在报错的 bug [#876](https://github.com/ipfs-force-community/damocles/pull/876)
+  - 允许 pc2 任务重复运行 [#837](https://github.com/ipfs-force-community/damocles/issues/837)
+  - 移除 rpc response 日志 [#892](https://github.com/ipfs-force-community/damocles/pull/892)
+  - 修复子进程配置的环境变量无法覆盖父进程环境变量的 bug [#887](https://github.com/ipfs-force-community/damocles/pull/887)
+  - docker 暴露端口号修改 17891 -> 17890 [#890](https://github.com/ipfs-force-community/damocles/pull/890)
+  - 修复 pc1 设置 cpuset 无效的 bug [#904](https://github.com/ipfs-force-community/damocles/pull/904)
+  - transfer 外部执行器支持禁用软链接 [#901](https://github.com/ipfs-force-community/damocles/pull/901)
+
 
 ## v0.8.0-rc1
 - 新增 worker-prover 模块支持多机 wdpost [#483](https://github.com/ipfs-force-community/damocles/issues/483)
