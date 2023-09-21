@@ -232,6 +232,7 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWin
 	var output *stage.WindowPoStOutput
 	for {
 		output, err = p.doWindowPoSt(ctx, deadlineIdx, partitions, input)
+		// if the job is manually deleted while the job is running, try again
 		if !errors.Is(err, ErrJobRemovedManually) {
 			break
 		}
