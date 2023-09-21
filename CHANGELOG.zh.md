@@ -7,6 +7,7 @@
   - snapdeal 分配订单根据扇区的过期时间筛选 [#885](https://github.com/ipfs-force-community/damocles/pull/885)
   - 生成 windowpost 任务和封装提交扇区文件时，非严格模式不再检查扇区文件大小，只检查文件是否存在 [#924](https://github.com/ipfs-force-community/damocles/pull/924)
   - 修复外部执行器模式 windowpost "Invalid commitment" 的 bug [#943](https://github.com/ipfs-force-community/damocles/pull/943)
+  - 修复 windowpost 重试逻辑 [#966](https://github.com/ipfs-force-community/damocles/pull/966)
 
 - damocles-worker
   - 修复无法手动设置 sealing 状态的 bug [#866](https://github.com/ipfs-force-community/damocles/pull/866)

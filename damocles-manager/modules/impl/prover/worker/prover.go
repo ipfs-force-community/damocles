@@ -232,7 +232,7 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWin
 	var output *stage.WindowPoStOutput
 	for {
 		output, err = p.doWindowPoSt(ctx, deadlineIdx, partitions, input)
-		if !errors.Is(err, ErrJobRemovedManually) {
+		if errors.Is(err, ErrJobRemovedManually) {
 			break
 		}
 	}
