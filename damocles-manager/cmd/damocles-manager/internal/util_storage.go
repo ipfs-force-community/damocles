@@ -61,7 +61,7 @@ var utilStorageAttachCmd = &cli.Command{
 		&cli.StringFlag{
 			Name:  "pattern",
 			Value: "*",
-			Usage: "the glob pattern for matching target sectors. e.g. s-t01000-1[0-9]",
+			Usage: "the glob pattern for matching target sectors. e.g. s-t01000-1[0-9] or s-t01000-10001",
 		},
 	},
 	ArgsUsage: "<storage path>",
