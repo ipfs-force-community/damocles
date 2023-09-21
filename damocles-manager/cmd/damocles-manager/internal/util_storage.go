@@ -58,6 +58,11 @@ var utilStorageAttachCmd = &cli.Command{
 		&cli.BoolFlag{
 			Name: "allow-splitted",
 		},
+		&cli.StringFlag{
+			Name:  "pattern",
+			Value: "*",
+			Usage: "the glob pattern for matching target sectors. e.g. s-t01000-1[0-9]",
+		},
 	},
 	ArgsUsage: "<storage path>",
 	Action: func(cctx *cli.Context) error {
@@ -79,6 +84,7 @@ var utilStorageAttachCmd = &cli.Command{
 		strict := cctx.Bool("strict")
 		readOnly := cctx.Bool("read-only")
 		allowSplitted := cctx.Bool("allow-splitted")
+		pattern := cctx.String("pattern")
 
 		scfg := objstore.DefaultConfig(abs, readOnly)
 		scfg.Name = name
@@ -134,7 +140,7 @@ var utilStorageAttachCmd = &cli.Command{
 
 		for _, upgrade := range []bool{false, true} {
 			logger.Infof("scan for sectors(upgrade=%v)", upgrade)
-			sids, err := scanForSectors(gctx, logger, cacheInfo, abs, upgrade, false, allowSplitted, verbose)
+			sids, err := scanForSectors(gctx, logger, cacheInfo, abs, pattern, upgrade, false, allowSplitted, verbose)
 			if err != nil {
 				return fmt.Errorf("scan sectors(upgrade=%v): %w", upgrade, err)
 			}
@@ -165,7 +171,7 @@ var utilStorageAttachCmd = &cli.Command{
 
 			if allowSplitted {
 				logger.Infof("scan for splitted cache dirs(upgrade=%v)", upgrade)
-				cachedSIDs, err := scanForSectors(gctx, logger, cacheInfo, abs, upgrade, true, allowSplitted, verbose)
+				cachedSIDs, err := scanForSectors(gctx, logger, cacheInfo, abs, pattern, upgrade, true, allowSplitted, verbose)
 				if err != nil {
 					return fmt.Errorf("scan splitted cache dirs(upgrade=%v): %w", upgrade, err)
 				}
@@ -230,7 +236,7 @@ func (c *cachedInfoForScanning) getSectorSize(ctx context.Context, mid abi.Actor
 	return ssize, nil
 }
 
-func scanForSectors(ctx context.Context, logger *logging.ZapLogger, cachedInfo *cachedInfoForScanning, abs string, upgrade bool, useCacheDir bool, allowSplitted bool, verbose bool) ([]abi.SectorID, error) {
+func scanForSectors(ctx context.Context, logger *logging.ZapLogger, cachedInfo *cachedInfoForScanning, abs, pattern string, upgrade bool, useCacheDir bool, allowSplitted bool, verbose bool) ([]abi.SectorID, error) {
 	var dirOfSealedFile string
 	var dirOfCacheDir string
 
@@ -247,7 +253,7 @@ func scanForSectors(ctx context.Context, logger *logging.ZapLogger, cachedInfo *
 		targetDir = dirOfCacheDir
 	}
 
-	matchPattern := filepath.Join(abs, targetDir, "*")
+	matchPattern := filepath.Join(abs, targetDir, pattern)
 	if verbose {
 		logger.Infof("use match pattern %q", matchPattern)
 	}
