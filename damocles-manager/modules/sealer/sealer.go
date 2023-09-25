@@ -465,6 +465,11 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 
 		if st.Upgraded {
 			s.snapup.CancelCommitment(ctx, sid)
+			// TODO(0x5459): Consider recording it in history(event) data
+			st.UpgradeMessageID = nil
+			st.UpgradeLandedEpoch = nil
+			st.UpgradePublic = nil
+			st.UpgradedInfo = nil
 		}
 
 		st.AbortReason = reason
