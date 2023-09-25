@@ -25,11 +25,20 @@ pub const STAGE_NAME_TREED: &str = "tree_d";
 /// name str for pc1
 pub const STAGE_NAME_PC1: &str = "pc1";
 
+/// name str for batch_pc1
+pub const STAGE_NAME_BATCH_PC1: &str = "batch_pc1";
+
 /// name str for pc2
 pub const STAGE_NAME_PC2: &str = "pc2";
 
+/// name str for batch_pc2
+pub const STAGE_NAME_BATCH_PC2: &str = "batch_pc2";
+
 /// name str for c1
 pub const STAGE_NAME_C1: &str = "c1";
+
+/// name str for batch_c1
+pub const STAGE_NAME_BATCH_C1: &str = "batch_c1";
 
 /// name str for c2
 pub const STAGE_NAME_C2: &str = "c2";
@@ -110,6 +119,10 @@ pub struct PC1 {
 impl Task for PC1 {
     const STAGE: &'static str = STAGE_NAME_PC1;
     type Output = SealPreCommitPhase1Output;
+}
+
+pub struct BatchPC1 {
+    data: Vec<PC1>,
 }
 
 /// Task of pre-commit phase2
