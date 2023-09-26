@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/dgraph-io/badger/v2"
 
@@ -15,6 +17,11 @@ import (
 var _ KVStore = (*BadgerKVStore)(nil)
 
 var blog = logging.New("kv").With("driver", "badger")
+
+var (
+	defaultGCSleep    = 20 * time.Second
+	defaultGCInterval = 10 * time.Minute
+)
 
 type blogger struct {
 	*logging.ZapLogger
@@ -33,7 +40,8 @@ func OpenBadger(basePath string) DB {
 }
 
 type BadgerKVStore struct {
-	db *badger.DB
+	db   *badger.DB
+	name string
 }
 
 func (b *BadgerKVStore) View(_ context.Context, f func(Txn) error) error {
@@ -121,6 +129,35 @@ func (b *BadgerKVStore) Scan(_ context.Context, prefix Prefix) (it Iter, err err
 			valid:  false,
 			prefix: prefix,
 		}}, nil
+}
+
+func (b *BadgerKVStore) gc(ctx context.Context) {
+	// use random time to avoid starting multiple gc tasks at the same time
+	gcTimer := time.NewTimer(time.Duration(rand.Int63n(int64(defaultGCInterval))))
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-gcTimer.C:
+			start := time.Now()
+			err := b.db.RunValueLogGC(0.7)
+			switch err {
+			case badger.ErrNoRewrite, badger.ErrRejected:
+				// No rewrite means we've fully garbage collected.
+				// Rejected means someone else is running a GC
+				// or we're closing.
+				gcTimer.Reset(defaultGCInterval)
+			case nil:
+				log.Infow("successful value log GC", "name", b.name, "elapsed", time.Since(start).Truncate(time.Microsecond).String())
+				gcTimer.Reset(defaultGCSleep)
+			default:
+				log.Errorw("error duraing a GC cycle", "name", b.name, "err", err)
+				gcTimer.Reset(defaultGCInterval)
+			}
+
+		}
+
+	}
 }
 
 type BadgerIterWithoutTrans struct {
@@ -274,7 +311,7 @@ func (db *badgerDB) Close(context.Context) error {
 	return lastError
 }
 
-func (db *badgerDB) OpenCollection(_ context.Context, name string) (KVStore, error) {
+func (db *badgerDB) OpenCollection(ctx context.Context, name string) (KVStore, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -288,5 +325,8 @@ func (db *badgerDB) OpenCollection(_ context.Context, name string) (KVStore, err
 		return nil, fmt.Errorf("open sub badger %s, %w", name, err)
 	}
 	db.dbs[name] = innerDB
-	return &BadgerKVStore{db: innerDB}, nil
+
+	kv := &BadgerKVStore{db: innerDB, name: name}
+	go kv.gc(ctx)
+	return kv, nil
 }
