@@ -181,8 +181,8 @@ var utilMinerCreateCmd = &cli.Command{
 			return fmt.Errorf("lookup actor address: %w", err)
 		}
 
-		mlog := Log.With("size", sizeStr, "from", fromStr, "actor", actor.String())
-		mlog.Info("constructing message")
+		mlog := Log.With("size", sizeStr, "from", fromStr)
+		mlog.Debug("constructing message")
 
 		owner := actor
 		if s := cctx.String("owner"); s != "" {
@@ -271,7 +271,7 @@ var utilMinerCreateCmd = &cli.Command{
 			return err
 		}
 
-		mlog.Infof("miner actor: %s (%s)", retval.IDAddress, retval.RobustAddress)
+		fmt.Printf("miner actor: %s (%s)\n", retval.IDAddress, retval.RobustAddress)
 		return nil
 	},
 }
