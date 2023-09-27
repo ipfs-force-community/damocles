@@ -203,7 +203,7 @@ func waitMessage(ctx context.Context, api *APIClient, rawMsg *messager.UnsignedM
 	if exid != "" {
 		mid = fmt.Sprintf("%s-%s", mid, exid)
 		mlog = mlog.With("exid", exid)
-		mlog.Warnf("use extra message id")
+		mlog.Debugf("use extra message id")
 	}
 
 	has, err := api.Messager.HasMessageByUid(ctx, mid)
@@ -241,13 +241,13 @@ WAIT_RET:
 			break WAIT_RET
 
 		default:
-			mlog.Infof("msg state: %s", messager.MessageStateToString(ret.State))
+			mlog.Debugf("msg state: %s", messager.MessageStateToString(ret.State))
 		}
 	}
 
 	mlog = mlog.With("smcid", mret.SignedCid.String(), "height", mret.Height)
 
-	mlog.Infow("message landed on chain")
+	mlog.Debugw("message landed on chain")
 	if mret.Receipt.ExitCode != 0 {
 		mlog.Warnf("message exec failed: %s(%d)", mret.Receipt.ExitCode, mret.Receipt.ExitCode)
 		return nil
