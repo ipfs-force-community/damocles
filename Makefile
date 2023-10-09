@@ -62,6 +62,7 @@ docker-manager:
 		-f Dockerfile.manager \
 		-t damocles-manager \
 		--build-arg HTTPS_PROXY=${BUILD_DOCKER_PROXY} \
+		--build-arg FFI_BUILD_FROM_SOURCE=${FFI_BUILD_FROM_SOURCE} \
 		.
 
 docker-worker:
