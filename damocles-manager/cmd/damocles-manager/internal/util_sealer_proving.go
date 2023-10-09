@@ -667,6 +667,10 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			Value: false,
 			Usage: "whether include faulty sectors or not",
 		},
+		&cli.Int64Flag{
+			Name:  "challenge",
+			Usage: "specify the challenge",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		api, ctx, stop, err := extractAPI(cctx)
@@ -733,11 +737,6 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			return fmt.Errorf("iterating partition sector bitmap: %w", err)
 		}
 
-		rand := abi.PoStRandomness{}
-		for i := 0; i < 32; i++ {
-			rand = append(rand, 0)
-		}
-
 		if len(proofSectors) == 0 {
 			return fmt.Errorf("no lived sector in that partition")
 		}
@@ -749,6 +748,24 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 		ppt, err := proofSectors[0].SealProof.RegisteredWindowPoStProofByNetworkVersion(nv)
 		if err != nil {
 			return fmt.Errorf("convert to winning post proof: %w", err)
+		}
+
+		var rand abi.PoStRandomness
+		if cctx.IsSet("challenge") {
+			mid, err := address.IDFromAddress(maddr)
+			if err != nil {
+				return err
+			}
+			r, err := api.Damocles.GetWindowPoStChanlleengeRand(ctx, ts.Key(), abi.ChainEpoch(cctx.Int64("challenge")), abi.ActorID(mid))
+			if err != nil {
+				return fmt.Errorf("getting challenge rand: %w", err)
+			}
+			rand = append(abi.PoStRandomness{}, r.Rand...)
+		} else {
+			rand = make(abi.PoStRandomness, 32)
+			for i := 0; i < 32; i++ {
+				rand[i] = 0
+			}
 		}
 
 		err = api.Damocles.SimulateWdPoSt(ctx, ddlIdx, pidx, maddr, ppt, proofSectors, rand)
