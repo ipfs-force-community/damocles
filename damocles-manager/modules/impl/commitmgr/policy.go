@@ -48,7 +48,11 @@ func (pp PreCommitProcessor) sectorExpiration(ctx context.Context, state *core.S
 	}
 
 	// Assume: both precommit msg & commit msg land on chain as early as possible
-	maxExpiration := height + policy.GetPreCommitChallengeDelay() + policy.GetMaxSectorExpirationExtension()
+	maxLifetime, err := policy.GetMaxSectorExpirationExtension(nv)
+	if err != nil {
+		return 0, fmt.Errorf("get max sector expiration extension: %w", err)
+	}
+	maxExpiration := height + policy.GetPreCommitChallengeDelay() + maxLifetime
 	if expiration > maxExpiration {
 		expiration = maxExpiration
 	}
@@ -88,7 +92,10 @@ func (pp PreCommitProcessor) sectorEnd(ctx context.Context, tok core.TipSetToken
 
 	if end == nil {
 		// no deal pieces, get expiration for committed capacity sector
-		expirationDuration := pp.ccSectorLifetime(abi.ChainEpoch(lifetimeDays*policy.EpochsInDay), provingPeriod)
+		expirationDuration, err := pp.ccSectorLifetime(abi.ChainEpoch(lifetimeDays*policy.EpochsInDay), provingPeriod)
+		if err != nil {
+			return 0, fmt.Errorf("get cc sector lifetime: %w", err)
+		}
 
 		tmp := height + expirationDuration
 		end = &tmp
@@ -104,19 +111,33 @@ func (pp PreCommitProcessor) sectorEnd(ctx context.Context, tok core.TipSetToken
 	return *end, nil
 }
 
-func (pp PreCommitProcessor) ccSectorLifetime(ccLifetimeEpochs abi.ChainEpoch, provingPeriod abi.ChainEpoch) abi.ChainEpoch {
+func (pp PreCommitProcessor) ccSectorLifetime(ccLifetimeEpochs abi.ChainEpoch, provingPeriod abi.ChainEpoch) (abi.ChainEpoch, error) {
+	ctx := context.Background()
+	tok, _, err := pp.api.ChainHead(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("get chain head: %w", err)
+	}
+	nv, err := pp.api.StateNetworkVersion(ctx, tok)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get network version: %w", err)
+	}
+	maxExpiration, err := policy.GetMaxSectorExpirationExtension(nv)
+	if err != nil {
+		return 0, fmt.Errorf("get max sector expiration extension: %w", err)
+	}
+
 	if ccLifetimeEpochs == 0 {
-		ccLifetimeEpochs = policy.GetMaxSectorExpirationExtension()
+		ccLifetimeEpochs = maxExpiration
 	}
 
 	if minExpiration := abi.ChainEpoch(policy.MinSectorExpiration); ccLifetimeEpochs < minExpiration {
 		log.Warnf("value for CommittedCapacitySectorLifetime is too short, using default minimum (%d epochs)", minExpiration)
-		return minExpiration
+		return minExpiration, nil
 	}
-	if maxExpiration := policy.GetMaxSectorExpirationExtension(); ccLifetimeEpochs > maxExpiration {
+	if ccLifetimeEpochs > maxExpiration {
 		log.Warnf("value for CommittedCapacitySectorLifetime is too long, using default maximum (%d epochs)", maxExpiration)
-		return maxExpiration
+		return maxExpiration, nil
 	}
 
-	return ccLifetimeEpochs - provingPeriod*2
+	return ccLifetimeEpochs - provingPeriod*2, nil
 }
