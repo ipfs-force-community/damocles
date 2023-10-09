@@ -445,7 +445,7 @@ func (h *snapupCommitHandler) calcCollateral(tsk types.TipSetKey, proofType abi.
 			return big.Int{}, fmt.Errorf("convert to v1_1 post proof: %w", err)
 		}
 	}
-	sealType, err := miner.PreferredSealProofTypeFromWindowPoStType(nv, proofType)
+	sealType, err := miner.PreferredSealProofTypeFromWindowPoStType(nv, proofType, false)
 	if err != nil {
 		return big.Int{}, fmt.Errorf("get seal proof type: %w", err)
 	}
