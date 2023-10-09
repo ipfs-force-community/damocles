@@ -83,7 +83,7 @@ func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.MinerInf
 		return nil, err
 	}
 
-	sealProof, err := miner.SealProofTypeFromSectorSize(minfo.SectorSize, constants.TestNetworkVersion)
+	sealProof, err := miner.SealProofTypeFromSectorSize(minfo.SectorSize, constants.TestNetworkVersion, false)
 	if err != nil {
 		return nil, err
 	}
