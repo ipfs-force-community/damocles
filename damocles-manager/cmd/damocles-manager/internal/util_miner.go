@@ -158,7 +158,7 @@ var utilMinerCreateCmd = &cli.Command{
 			return fmt.Errorf("failed to parse sector size: %w", err)
 		}
 
-		sealProof, err := miner.SealProofTypeFromSectorSize(abi.SectorSize(ssize), constants.TestNetworkVersion)
+		sealProof, err := miner.SealProofTypeFromSectorSize(abi.SectorSize(ssize), constants.TestNetworkVersion, false)
 		if err != nil {
 			return fmt.Errorf("invalid sector size %d: %w", ssize, err)
 		}
