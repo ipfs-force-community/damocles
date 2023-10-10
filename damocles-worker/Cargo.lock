@@ -1316,7 +1316,7 @@ dependencies = [
 [[package]]
 name = "filecoin-hashers"
 version = "9.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#37d81fd1da140d2b9f109b7c07c5421e68d48808"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#001ad9a519f9743d395ba89b97300b8d3e2ebe21"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1335,7 +1335,7 @@ dependencies = [
 [[package]]
 name = "filecoin-proofs"
 version = "14.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#37d81fd1da140d2b9f109b7c07c5421e68d48808"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#001ad9a519f9743d395ba89b97300b8d3e2ebe21"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1513,7 +1513,7 @@ dependencies = [
 [[package]]
 name = "fr32"
 version = "7.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#37d81fd1da140d2b9f109b7c07c5421e68d48808"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#001ad9a519f9743d395ba89b97300b8d3e2ebe21"
 dependencies = [
  "anyhow",
  "blstrs",
@@ -3512,7 +3512,7 @@ dependencies = [
 [[package]]
 name = "sha2raw"
 version = "9.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#37d81fd1da140d2b9f109b7c07c5421e68d48808"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#001ad9a519f9743d395ba89b97300b8d3e2ebe21"
 dependencies = [
  "byteorder",
  "cpufeatures",
@@ -3626,7 +3626,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "storage-proofs-core"
 version = "14.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#37d81fd1da140d2b9f109b7c07c5421e68d48808"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#001ad9a519f9743d395ba89b97300b8d3e2ebe21"
 dependencies = [
  "aes",
  "anyhow",
@@ -3661,7 +3661,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-porep"
 version = "14.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#37d81fd1da140d2b9f109b7c07c5421e68d48808"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#001ad9a519f9743d395ba89b97300b8d3e2ebe21"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3700,7 +3700,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-post"
 version = "14.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#37d81fd1da140d2b9f109b7c07c5421e68d48808"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#001ad9a519f9743d395ba89b97300b8d3e2ebe21"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3722,7 +3722,7 @@ dependencies = [
 [[package]]
 name = "storage-proofs-update"
 version = "14.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#37d81fd1da140d2b9f109b7c07c5421e68d48808"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=debug/0x5459/wdpost#001ad9a519f9743d395ba89b97300b8d3e2ebe21"
 dependencies = [
  "anyhow",
  "bellperson",
