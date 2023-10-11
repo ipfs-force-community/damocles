@@ -16,6 +16,15 @@ import (
 
 var log = logging.New("piecestore")
 
+const carSuffix = ".car"
+
+func parsePieceName(s string) (cid string, cidWithDotCar string) {
+	if strings.HasSuffix(s, carSuffix) {
+		return s[:len(s)-len(carSuffix)], s
+	}
+	return s, s + carSuffix
+}
+
 type PieceStore interface {
 	Get(ctx context.Context, pieceCid cid.Cid) (io.ReadCloser, error)
 	Put(ctx context.Context, pieceCid cid.Cid, data io.Reader) (int64, error)
@@ -48,20 +57,23 @@ func (p *Proxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 func (p *Proxy) handleGet(rw http.ResponseWriter, req *http.Request) {
 	path := strings.Trim(req.URL.Path, "/ ")
-	c, err := cid.Decode(path)
+	cidStr, cidWithDotCar := parsePieceName(path)
+	c, err := cid.Decode(cidStr)
 	if err != nil {
-		http.Error(rw, fmt.Sprintf("cast %s to cid: %s", path, err), http.StatusBadRequest)
+		http.Error(rw, fmt.Sprintf("cast %s to cid: %s", cidStr, err), http.StatusBadRequest)
 		return
 	}
 
 	for _, store := range p.locals {
-		if r, err := store.Get(req.Context(), path); err == nil {
-			defer r.Close()
-			_, err := io.Copy(rw, r)
-			if err != nil {
-				log.Warnw("transfer piece data for %s: %s", path, err)
+		for _, p := range []string{cidStr, cidWithDotCar} {
+			if r, err := store.Get(req.Context(), p); err == nil {
+				defer r.Close()
+				_, err := io.Copy(rw, r)
+				if err != nil {
+					log.Warnw("transfer piece data for %s: %s", p, err)
+				}
+				return
 			}
-			return
 		}
 	}
 
