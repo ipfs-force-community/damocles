@@ -103,14 +103,3 @@ func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, mid abi.Actor
 
 	return collateral, nil
 }
-
-func infoToPreCommitSectorParams(info *miner.SectorPreCommitInfo) *miner.PreCommitSectorParams {
-	return &miner.PreCommitSectorParams{
-		SealProof:     info.SealProof,
-		SectorNumber:  info.SectorNumber,
-		SealedCID:     info.SealedCID,
-		SealRandEpoch: info.SealRandEpoch,
-		DealIDs:       info.DealIDs,
-		Expiration:    info.Expiration,
-	}
-}
