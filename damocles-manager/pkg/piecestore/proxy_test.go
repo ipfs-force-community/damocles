@@ -58,15 +58,17 @@ func TestStorePoxy(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, tmpFile.Close())
 
-		path := fmt.Sprintf("http://127.0.0.1:3030/%s", resourceID)
-		req := httptest.NewRequest(http.MethodGet, path, nil)
-		w := httptest.NewRecorder()
-		storeProxy.ServeHTTP(w, req)
+		for _, id := range []string{resourceID, resourceID + ".car"} {
+			path := fmt.Sprintf("http://127.0.0.1:3030/%s", resourceID)
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			w := httptest.NewRecorder()
+			storeProxy.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusOK, w.Code)
-		result, err := io.ReadAll(w.Body)
-		assert.Nil(t, err)
-		assert.Equal(t, expectBytes, result)
+			assert.Equal(t, http.StatusOK, w.Code, "resource: %s", id)
+			result, err := io.ReadAll(w.Body)
+			assert.Nil(t, err, "resource: %s", id)
+			assert.Equal(t, expectBytes, result, "resource: %s", id)
+		}
 	})
 
 	t.Run("download from market server", func(t *testing.T) {
@@ -75,6 +77,7 @@ func TestStorePoxy(t *testing.T) {
 		defer srv.Close()
 
 		storeProxy := setupStoreProxy(t, srv.URL)
+
 		path := fmt.Sprintf("http://127.0.0.1:3030/%s", resourceID)
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		w := httptest.NewRecorder()
@@ -87,6 +90,14 @@ func TestStorePoxy(t *testing.T) {
 			assert.FailNow(t, "expect redirect header but not found")
 		}
 	})
+}
+
+func TestParsePieceName(t *testing.T) {
+	for _, c := range []string{"test", "test.car"} {
+		cid, cidWithDotCar := parsePieceName(c)
+		assert.Equal(t, "test", cid)
+		assert.Equal(t, "test.car", cidWithDotCar)
+	}
 }
 
 func TestStoreRead(t *testing.T) {
