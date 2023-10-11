@@ -67,6 +67,10 @@ func (p PreCommitProcessor) preCommitInfo(ctx context.Context, sector core.Secto
 		DealIDs:       sector.DealIDs(),
 	}
 
+	if len(sector.Pieces) > 0 {
+		params.UnsealedCid = &sector.Pre.CommD
+	}
+
 	// TODO: upgrade sector
 
 	deposit, err := stateMgr.StateMinerPreCommitDepositForPower(ctx, maddr, *params, tok)
