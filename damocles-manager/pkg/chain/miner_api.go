@@ -83,7 +83,18 @@ func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.MinerInf
 		return nil, err
 	}
 
-	sealProof, err := miner.SealProofTypeFromSectorSize(minfo.SectorSize, constants.TestNetworkVersion, false)
+	useSyntheticPoRep := false
+	m.safeConfig.Lock()
+	minerCfgs := m.safeConfig.Config.Miners
+	for _, minerCfg := range minerCfgs {
+		if minerCfg.Actor == mid {
+			useSyntheticPoRep = minerCfg.Sealing.UseSyntheticPoRep
+			break
+		}
+	}
+	m.safeConfig.Unlock()
+
+	sealProof, err := miner.SealProofTypeFromSectorSize(minfo.SectorSize, constants.TestNetworkVersion, useSyntheticPoRep)
 	if err != nil {
 		return nil, err
 	}
