@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 )
 
-func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector core.SectorState) (*miner.PreCommitSectorParams, big.Int, core.TipSetToken, error) {
+func (p PreCommitProcessor) preCommitInfo(ctx context.Context, sector core.SectorState) (*miner.SectorPreCommitInfo, big.Int, core.TipSetToken, error) {
 	stateMgr := p.api
 	tok, _, err := stateMgr.ChainHead(ctx)
 	if err != nil {
@@ -67,6 +67,10 @@ func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector core.Sec
 		DealIDs:       sector.DealIDs(),
 	}
 
+	if len(sector.Pieces) > 0 {
+		params.UnsealedCid = &sector.Pre.CommD
+	}
+
 	// TODO: upgrade sector
 
 	deposit, err := stateMgr.StateMinerPreCommitDepositForPower(ctx, maddr, *params, tok)
@@ -74,7 +78,7 @@ func (p PreCommitProcessor) preCommitParams(ctx context.Context, sector core.Sec
 		return nil, big.Zero(), nil, fmt.Errorf("getting initial pledge collateral: %w", err)
 	}
 
-	return infoToPreCommitSectorParams(params), deposit, tok, nil
+	return params, deposit, tok, nil
 }
 
 func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, mid abi.ActorID, sn abi.SectorNumber, tok core.TipSetToken) (abi.TokenAmount, error) {
@@ -102,15 +106,4 @@ func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, mid abi.Actor
 	}
 
 	return collateral, nil
-}
-
-func infoToPreCommitSectorParams(info *miner.SectorPreCommitInfo) *miner.PreCommitSectorParams {
-	return &miner.PreCommitSectorParams{
-		SealProof:     info.SealProof,
-		SectorNumber:  info.SectorNumber,
-		SealedCID:     info.SealedCID,
-		SealRandEpoch: info.SealRandEpoch,
-		DealIDs:       info.DealIDs,
-		Expiration:    info.Expiration,
-	}
 }
