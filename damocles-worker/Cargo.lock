@@ -304,7 +304,8 @@ dependencies = [
 [[package]]
 name = "bellperson"
 version = "0.24.1"
-source = "git+https://github.com/ipfs-force-community/bellperson.git?branch=v0.24.1-supra-c2#e51a1fea0a54dd9183ec7af184f1f6d973f2652c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1a8623f815c0b1fd89efd9b5f4afbb937f91f51c1ebe3f6dda399c69fa938f3"
 dependencies = [
  "bincode",
  "blake2s_simd 1.0.1",
@@ -325,7 +326,6 @@ dependencies = [
  "rustversion",
  "serde",
  "sha2",
- "supraseal-c2",
  "thiserror",
 ]
 
@@ -492,11 +492,13 @@ dependencies = [
 [[package]]
 name = "blst"
 version = "0.3.10"
-source = "git+https://github.com/supranational/blst.git?rev=dce883b#dce883beb46900b8b30e810096833f16b3ea2551"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a30d0edd9dd1c60ddb42b80341c7852f6f985279a5c1a83659dcb65899dec99"
 dependencies = [
  "cc",
  "glob",
  "threadpool",
+ "which",
  "zeroize",
 ]
 
@@ -508,7 +510,6 @@ checksum = "3ecb6f3a9429706971633edf4b84f922aba9d2e3a7d71bfb450337e64ccb7df0"
 dependencies = [
  "blst",
  "byte-slice-cast",
- "ec-gpu",
  "ff 0.12.1",
  "group 0.12.1",
  "pairing 0.22.0",
@@ -1083,7 +1084,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "signal-hook",
- "storage-proofs-porep 14.0.0",
+ "storage-proofs-porep",
  "tabwriter",
  "tempfile",
  "time 0.3.20",
@@ -1382,21 +1383,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fil_pasta_curves"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3303ea3c462ab949ab95b49f6e6d255d8d9396ebd4f1626ccb34c7037615aa8f"
-dependencies = [
- "blake2b_simd 1.0.1",
- "ff 0.12.1",
- "group 0.12.1",
- "lazy_static",
- "rand 0.8.5",
- "static_assertions",
- "subtle",
-]
-
-[[package]]
 name = "fil_types"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1423,28 +1409,8 @@ dependencies = [
 
 [[package]]
 name = "filecoin-hashers"
-version = "9.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v14.0.0#03b1d3d40069ab62ab5bb955feec986d858a86ad"
-dependencies = [
- "anyhow",
- "bellperson 0.24.1",
- "blstrs 0.6.1",
- "ff 0.12.1",
- "generic-array",
- "hex",
- "lazy_static",
- "merkletree 0.22.1",
- "neptune 8.0.0",
- "rand 0.8.5",
- "serde",
- "sha2",
-]
-
-[[package]]
-name = "filecoin-hashers"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3eb5ea33790e200a7d77b929e848fba8c3ee0d206dba6dc41e15286e433f62aa"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
  "bellperson 0.26.0",
@@ -1453,8 +1419,8 @@ dependencies = [
  "generic-array",
  "hex",
  "lazy_static",
- "merkletree 0.23.0",
- "neptune 11.0.0",
+ "merkletree",
+ "neptune",
  "rand 0.8.5",
  "serde",
  "sha2",
@@ -1463,8 +1429,7 @@ dependencies = [
 [[package]]
 name = "filecoin-proofs"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3840a583825e720be353549dca7e2cbd247bf2876adc9a79a8a1752eb95ab96"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
  "bellperson 0.26.0",
@@ -1472,23 +1437,23 @@ dependencies = [
  "blake2b_simd 1.0.1",
  "blstrs 0.7.1",
  "ff 0.13.0",
- "filecoin-hashers 11.0.0",
- "fr32 9.0.0",
+ "filecoin-hashers",
+ "fr32",
  "generic-array",
  "hex",
  "iowrap",
  "lazy_static",
  "log",
  "memmap2",
- "merkletree 0.23.0",
+ "merkletree",
  "once_cell",
  "rand 0.8.5",
  "rayon",
  "serde",
  "serde_json",
  "sha2",
- "storage-proofs-core 16.0.0",
- "storage-proofs-porep 16.0.0",
+ "storage-proofs-core",
+ "storage-proofs-porep",
  "storage-proofs-post",
  "storage-proofs-update",
  "typenum",
@@ -1504,12 +1469,12 @@ dependencies = [
  "bellperson 0.26.0",
  "bincode",
  "blstrs 0.7.1",
- "filecoin-hashers 11.0.0",
+ "filecoin-hashers",
  "filecoin-proofs",
- "fr32 9.0.0",
+ "fr32",
  "lazy_static",
  "serde",
- "storage-proofs-core 16.0.0",
+ "storage-proofs-core",
 ]
 
 [[package]]
@@ -1643,22 +1608,8 @@ dependencies = [
 
 [[package]]
 name = "fr32"
-version = "7.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v14.0.0#03b1d3d40069ab62ab5bb955feec986d858a86ad"
-dependencies = [
- "anyhow",
- "blstrs 0.6.1",
- "byte-slice-cast",
- "byteorder",
- "ff 0.12.1",
- "thiserror",
-]
-
-[[package]]
-name = "fr32"
 version = "9.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "308ab8ad1457d722a3d247549c759ca0ce4a58796c633c956f6186f6923ea371"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
  "blstrs 0.7.1",
@@ -2536,23 +2487,6 @@ dependencies = [
 
 [[package]]
 name = "merkletree"
-version = "0.22.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d348b5b0d1707be1c8a727b7078daa08e2a3051d63b35715a19c35a324d2aaac"
-dependencies = [
- "anyhow",
- "arrayref",
- "log",
- "memmap2",
- "positioned-io",
- "rayon",
- "serde",
- "tempfile",
- "typenum",
-]
-
-[[package]]
-name = "merkletree"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a0ed8c0ce1e281870da29266398541a0dbab168f5fb5fd36d7ef2bbdbf808a3"
@@ -2758,25 +2692,6 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
-]
-
-[[package]]
-name = "neptune"
-version = "8.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9dedb261f1b35ddfd867295eacbc25eb78b4b5b63b08b1c0dc4c1b5ef0e5b2c2"
-dependencies = [
- "bellperson 0.24.1",
- "blake2s_simd 0.5.11",
- "blstrs 0.6.1",
- "byteorder",
- "ff 0.12.1",
- "fil_pasta_curves",
- "generic-array",
- "itertools 0.8.2",
- "lazy_static",
- "log",
- "trait-set",
 ]
 
 [[package]]
@@ -3753,23 +3668,8 @@ dependencies = [
 
 [[package]]
 name = "sha2raw"
-version = "9.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v14.0.0#03b1d3d40069ab62ab5bb955feec986d858a86ad"
-dependencies = [
- "byteorder",
- "cpufeatures",
- "digest",
- "fake-simd",
- "lazy_static",
- "opaque-debug",
- "sha2-asm",
-]
-
-[[package]]
-name = "sha2raw"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b502b7bf556833b39551a1379b1ea715ce293016da621f18c3583fb13249a2ec"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "byteorder",
  "cpufeatures",
@@ -3872,15 +3772,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sppark"
-version = "0.1.3"
-source = "git+https://github.com/supranational/sppark.git?rev=3ea4eb3#3ea4eb3b763487ccd50e4c3ecb57844b0cfe4f79"
-dependencies = [
- "cc",
- "which",
-]
-
-[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3888,44 +3779,8 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage-proofs-core"
-version = "14.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v14.0.0#03b1d3d40069ab62ab5bb955feec986d858a86ad"
-dependencies = [
- "aes",
- "anyhow",
- "bellperson 0.24.1",
- "blake2b_simd 1.0.1",
- "blstrs 0.6.1",
- "byteorder",
- "cbc",
- "config",
- "ff 0.12.1",
- "filecoin-hashers 9.0.0",
- "fr32 7.0.0",
- "fs2",
- "generic-array",
- "glob",
- "itertools 0.10.5",
- "lazy_static",
- "log",
- "memmap2",
- "merkletree 0.22.1",
- "num_cpus",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "semver",
- "serde",
- "serde_json",
- "sha2",
- "thiserror",
-]
-
-[[package]]
-name = "storage-proofs-core"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "807382fd21c163e7666587a9f9142881c1caa00db33e14784dd31f7eb9982bee"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "aes",
  "anyhow",
@@ -3936,15 +3791,16 @@ dependencies = [
  "cbc",
  "config",
  "ff 0.13.0",
- "filecoin-hashers 11.0.0",
- "fr32 9.0.0",
+ "filecoin-hashers",
+ "fr32",
  "fs2",
  "generic-array",
+ "glob",
  "itertools 0.10.5",
  "lazy_static",
  "log",
  "memmap2",
- "merkletree 0.23.0",
+ "merkletree",
  "num_cpus",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -3958,47 +3814,8 @@ dependencies = [
 
 [[package]]
 name = "storage-proofs-porep"
-version = "14.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v14.0.0#03b1d3d40069ab62ab5bb955feec986d858a86ad"
-dependencies = [
- "anyhow",
- "bellperson 0.24.1",
- "bincode",
- "blstrs 0.6.1",
- "byte-slice-cast",
- "byteorder",
- "crossbeam",
- "fdlimit",
- "ff 0.12.1",
- "filecoin-hashers 9.0.0",
- "fr32 7.0.0",
- "generic-array",
- "hex",
- "lazy_static",
- "libc",
- "log",
- "memmap2",
- "merkletree 0.22.1",
- "neptune 8.0.0",
- "num-bigint 0.4.3",
- "num-traits",
- "num_cpus",
- "pretty_assertions",
- "rayon",
- "rustversion",
- "serde",
- "serde_json",
- "sha2",
- "sha2raw 9.0.0",
- "storage-proofs-core 14.0.0",
- "yastl",
-]
-
-[[package]]
-name = "storage-proofs-porep"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4c9539ca32203ac4c7e888f967b6343defd29c935614d2defa4912a10148ff8"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
  "bellperson 0.26.0",
@@ -4011,8 +3828,8 @@ dependencies = [
  "crossbeam",
  "fdlimit",
  "ff 0.13.0",
- "filecoin-hashers 11.0.0",
- "fr32 9.0.0",
+ "filecoin-hashers",
+ "fr32",
  "generic-array",
  "hex",
  "hwloc",
@@ -4020,8 +3837,8 @@ dependencies = [
  "libc",
  "log",
  "memmap2",
- "merkletree 0.23.0",
- "neptune 11.0.0",
+ "merkletree",
+ "neptune",
  "num-bigint 0.4.3",
  "num-traits",
  "num_cpus",
@@ -4031,16 +3848,15 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "sha2raw 11.0.0",
- "storage-proofs-core 16.0.0",
+ "sha2raw",
+ "storage-proofs-core",
  "yastl",
 ]
 
 [[package]]
 name = "storage-proofs-post"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1780ccdd466460d78ac70290e289c4e7a20721272ffc9ac19736e9f34fcafbc"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
  "bellperson 0.26.0",
@@ -4048,39 +3864,38 @@ dependencies = [
  "blstrs 0.7.1",
  "byteorder",
  "ff 0.13.0",
- "filecoin-hashers 11.0.0",
- "fr32 9.0.0",
+ "filecoin-hashers",
+ "fr32",
  "generic-array",
  "hex",
  "log",
  "rayon",
  "serde",
  "sha2",
- "storage-proofs-core 16.0.0",
+ "storage-proofs-core",
 ]
 
 [[package]]
 name = "storage-proofs-update"
 version = "16.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9a9c5760889cffd415961e6c1637c300aa40732e753646e8d4885baa4f48d72"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
  "bellperson 0.26.0",
  "blstrs 0.7.1",
  "ff 0.13.0",
- "filecoin-hashers 11.0.0",
- "fr32 9.0.0",
+ "filecoin-hashers",
+ "fr32",
  "generic-array",
  "lazy_static",
  "log",
  "memmap2",
- "merkletree 0.23.0",
- "neptune 11.0.0",
+ "merkletree",
+ "neptune",
  "rayon",
  "serde",
- "storage-proofs-core 16.0.0",
- "storage-proofs-porep 16.0.0",
+ "storage-proofs-core",
+ "storage-proofs-porep",
 ]
 
 [[package]]
@@ -4094,17 +3909,6 @@ name = "subtle"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
-
-[[package]]
-name = "supraseal-c2"
-version = "0.1.0"
-source = "git+https://github.com/supranational/supra_seal.git?rev=8097865#8097865cf9f96fbd20ed84cdf7e6cafedeebf36c"
-dependencies = [
- "blst",
- "cc",
- "sppark",
- "which",
-]
 
 [[package]]
 name = "syn"
@@ -4649,8 +4453,8 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "storage-proofs-core 16.0.0",
- "storage-proofs-porep 16.0.0",
+ "storage-proofs-core",
+ "storage-proofs-porep",
  "tempfile",
  "tracing",
  "tracing-subscriber",
@@ -5063,18 +4867,3 @@ dependencies = [
  "libc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "filecoin-proofs"
-version = "14.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v14.0.0#03b1d3d40069ab62ab5bb955feec986d858a86ad"
-
-[[patch.unused]]
-name = "storage-proofs-post"
-version = "14.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v14.0.0#03b1d3d40069ab62ab5bb955feec986d858a86ad"
-
-[[patch.unused]]
-name = "storage-proofs-update"
-version = "14.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v14.0.0#03b1d3d40069ab62ab5bb955feec986d858a86ad"
