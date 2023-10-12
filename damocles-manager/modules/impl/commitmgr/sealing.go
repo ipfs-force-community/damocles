@@ -73,10 +73,11 @@ func (s SealingAPIImpl) StateComputeDataCommitment(ctx context.Context, maddr ad
 	}
 
 	ccmt := &types.Message{
-		To:     market.Address,
-		From:   maddr,
-		Value:  types.NewInt(0),
-		Method: market.Methods.ComputeDataCommitment,
+		To:    market.Address,
+		From:  maddr,
+		Value: types.NewInt(0),
+		// Hard coded, because the method has since been deprecated
+		Method: 8,
 		Params: ccparams,
 	}
 	r, err := s.api.StateCall(ctx, ccmt, tsk)

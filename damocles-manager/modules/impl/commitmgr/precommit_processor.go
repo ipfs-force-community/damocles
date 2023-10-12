@@ -119,7 +119,7 @@ func (p PreCommitProcessor) Threshold(mid abi.ActorID) int {
 	return p.config.MustMinerConfig(mid).Commitment.Pre.Batch.Threshold
 }
 
-func (p PreCommitProcessor) EnableBatch(mid abi.ActorID) bool {
+func (p PreCommitProcessor) EnableBatch(_ abi.ActorID) bool {
 	// always batch after nv21
 	return true
 }
