@@ -2676,8 +2676,6 @@ var utilSealerSectorsMovePartitionsCmd = &cli.Command{
 			return fmt.Errorf("please use flags to provide arguments")
 		}
 
-		ctx := cctx.Context
-
 		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
 		if err != nil {
 			return err
