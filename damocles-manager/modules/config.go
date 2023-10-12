@@ -663,11 +663,13 @@ func defaultMinerProofConfig() MinerProofConfig {
 
 type MinerSealingConfig struct {
 	SealingEpochDuration int64
+	UseSyntheticPoRep    bool
 }
 
 func defaultMinerSealingConfig() MinerSealingConfig {
 	return MinerSealingConfig{
 		SealingEpochDuration: 0,
+		UseSyntheticPoRep:    false,
 	}
 }
 
