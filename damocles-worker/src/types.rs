@@ -133,21 +133,6 @@ impl SealProof {
     }
 }
 
-impl TryFrom<u64> for SealProof {
-    type Error = Error;
-
-    fn try_from(val: u64) -> Result<Self, Self::Error> {
-        match val {
-            SIZE_2K => Ok(SealProof::StackedDrg2KiBV1_1),
-            SIZE_8M => Ok(SealProof::StackedDrg8MiBV1_1),
-            SIZE_512M => Ok(SealProof::StackedDrg512MiBV1_1),
-            SIZE_32G => Ok(SealProof::StackedDrg32GiBV1_1),
-            SIZE_64G => Ok(SealProof::StackedDrg64GiBV1_1),
-            other => Err(anyhow!("invalid sector size {}", other)),
-        }
-    }
-}
-
 impl From<SealProof> for RegisteredSealProof {
     fn from(val: SealProof) -> Self {
         match val {
@@ -361,5 +346,32 @@ impl From<&SealProof> for RegisteredUpdateProof {
                 RegisteredUpdateProof::StackedDrg64GiBV1
             }
         }
+    }
+}
+
+pub(crate) fn seal_types_from_u64(u: u64) -> Result<Vec<SealProof>, Error> {
+    match u {
+        SIZE_2K => Ok(vec![
+            SealProof::StackedDrg2KiBV1_1,
+            SealProof::StackedDrg2KiBV1_1_Feat_SyntheticPoRep,
+        ]),
+        SIZE_8M => Ok(vec![
+            SealProof::StackedDrg8MiBV1_1,
+            SealProof::StackedDrg8MiBV1_1_Feat_SyntheticPoRep,
+        ]),
+        SIZE_512M => Ok(vec![
+            SealProof::StackedDrg512MiBV1_1,
+            SealProof::StackedDrg512MiBV1_1_Feat_SyntheticPoRep,
+        ]),
+        SIZE_32G => Ok(vec![
+            SealProof::StackedDrg32GiBV1_1,
+            SealProof::StackedDrg32GiBV1_1_Feat_SyntheticPoRep,
+        ]),
+        SIZE_64G => Ok(vec![
+            SealProof::StackedDrg64GiBV1_1,
+            SealProof::StackedDrg64GiBV1_1_Feat_SyntheticPoRep,
+        ]),
+
+        other => Err(anyhow!("invalid sector size {}", other)),
     }
 }

@@ -80,7 +80,7 @@ impl Processor<TreeD> for BuiltinProcessor {
 
     fn process(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {
         create_tree_d(
-            task.registered_proof,
+            task.registered_proof.sector_size().0,
             Some(task.staged_file),
             task.cache_dir,
         )
