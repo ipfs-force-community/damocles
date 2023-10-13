@@ -31,7 +31,7 @@ use crate::{
     rpc::sealer::SealerClient,
     sealing::{ping, processor, resource::LimitItem, service},
     signal::Signal,
-    types::SealProof,
+    types::seal_types_from_u64,
     util::net::{local_interface_ip, rpc_addr},
     watchdog::{CtrlProc, GlobalModules, GlobalProcessors, WatchDog},
 };
@@ -317,8 +317,10 @@ fn construct_static_tree_d(
             let b = Byte::from_str(k)
                 .with_context(|| format!("invalid bytes string {}", k))?;
             let size = b.get_bytes() as u64;
-            SealProof::try_from(size)
+
+            seal_types_from_u64(size)
                 .with_context(|| format!("invalid sector size {}", k))?;
+
             let tree_path = PathBuf::from(v.to_owned())
                 .canonicalize()
                 .with_context(|| {
