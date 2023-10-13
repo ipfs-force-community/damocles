@@ -96,6 +96,20 @@ where
     }
 }
 
+pub fn generate_synth_proofs<T: AsRef<Path>>(
+    cache_path: T,
+    replica_path: T,
+    prover_id: ProverId,
+    sector_id: SectorId,
+    ticket: Ticket,
+    pre_commit: SealPreCommitPhase2Output,
+    piece_infos: &[PieceInfo],
+) -> Result<()> {
+    safe_call! {
+        seal::generate_synth_proofs(cache_path, replica_path, prover_id, sector_id, ticket, pre_commit, piece_infos)
+    }
+}
+
 pub fn seal_commit_phase1(
     cache_path: PathBuf,
     replica_path: PathBuf,
@@ -440,4 +454,13 @@ pub fn generate_winning_post(
         )
     }
     .map(|proofs| proofs.into_iter().map(|(r, p)| (r, p.into())).collect())
+}
+
+pub fn clear_layer_data<T>(sector_size: u64, cache_path: T) -> Result<()>
+where
+    T: Into<PathBuf> + AsRef<Path>,
+{
+    safe_call! {
+        seal::clear_layer_data(sector_size, cache_path.as_ref())
+    }
 }

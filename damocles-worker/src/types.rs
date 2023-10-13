@@ -49,6 +49,12 @@ pub enum SealProof {
 
     /// 64gib v1_1
     StackedDrg64GiBV1_1,
+
+    StackedDrg2KiBV1_1_Feat_SyntheticPoRep,
+    StackedDrg8MiBV1_1_Feat_SyntheticPoRep,
+    StackedDrg512MiBV1_1_Feat_SyntheticPoRep,
+    StackedDrg32GiBV1_1_Feat_SyntheticPoRep,
+    StackedDrg64GiBV1_1_Feat_SyntheticPoRep,
 }
 
 impl SealProof {
@@ -66,6 +72,12 @@ impl SealProof {
             SealProof::StackedDrg512MiBV1_1 => SIZE_512M,
             SealProof::StackedDrg32GiBV1_1 => SIZE_32G,
             SealProof::StackedDrg64GiBV1_1 => SIZE_64G,
+
+            SealProof::StackedDrg2KiBV1_1_Feat_SyntheticPoRep => SIZE_2K,
+            SealProof::StackedDrg8MiBV1_1_Feat_SyntheticPoRep => SIZE_8M,
+            SealProof::StackedDrg512MiBV1_1_Feat_SyntheticPoRep => SIZE_512M,
+            SealProof::StackedDrg32GiBV1_1_Feat_SyntheticPoRep => SIZE_32G,
+            SealProof::StackedDrg64GiBV1_1_Feat_SyntheticPoRep => SIZE_64G,
         }
     }
 
@@ -74,29 +86,39 @@ impl SealProof {
         use RegisteredPoStProof::*;
         use SealProof::*;
         match self {
-            StackedDrg2KiBV1 | StackedDrg2KiBV1_1 => vec![
+            StackedDrg2KiBV1
+            | StackedDrg2KiBV1_1
+            | StackedDrg2KiBV1_1_Feat_SyntheticPoRep => vec![
                 StackedDrgWinning2KiBV1,
                 StackedDrgWindow2KiBV1,
                 StackedDrgWindow2KiBV1_2,
             ],
-            StackedDrg8MiBV1 | StackedDrg8MiBV1_1 => vec![
+            StackedDrg8MiBV1
+            | StackedDrg8MiBV1_1
+            | StackedDrg8MiBV1_1_Feat_SyntheticPoRep => vec![
                 StackedDrgWinning8MiBV1,
                 StackedDrgWindow8MiBV1,
                 StackedDrgWindow8MiBV1_2,
             ],
-            StackedDrg512MiBV1 | StackedDrg512MiBV1_1 => {
+            StackedDrg512MiBV1
+            | StackedDrg512MiBV1_1
+            | StackedDrg512MiBV1_1_Feat_SyntheticPoRep => {
                 vec![
                     StackedDrgWinning512MiBV1,
                     StackedDrgWindow512MiBV1,
                     StackedDrgWindow512MiBV1_2,
                 ]
             }
-            StackedDrg32GiBV1 | StackedDrg32GiBV1_1 => vec![
+            StackedDrg32GiBV1
+            | StackedDrg32GiBV1_1
+            | StackedDrg32GiBV1_1_Feat_SyntheticPoRep => vec![
                 StackedDrgWinning32GiBV1,
                 StackedDrgWindow32GiBV1,
                 StackedDrgWindow32GiBV1_2,
             ],
-            StackedDrg64GiBV1 | StackedDrg64GiBV1_1 => vec![
+            StackedDrg64GiBV1
+            | StackedDrg64GiBV1_1
+            | StackedDrg64GiBV1_1_Feat_SyntheticPoRep => vec![
                 StackedDrgWinning64GiBV1,
                 StackedDrgWindow64GiBV1,
                 StackedDrgWindow64GiBV1_2,
@@ -154,6 +176,22 @@ impl From<SealProof> for RegisteredSealProof {
             SealProof::StackedDrg64GiBV1_1 => {
                 RegisteredSealProof::StackedDrg64GiBV1_1
             }
+
+            SealProof::StackedDrg2KiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredSealProof::StackedDrg2KiBV1_1_Feat_SyntheticPoRep
+            }
+            SealProof::StackedDrg8MiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredSealProof::StackedDrg8MiBV1_1_Feat_SyntheticPoRep
+            }
+            SealProof::StackedDrg512MiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredSealProof::StackedDrg512MiBV1_1_Feat_SyntheticPoRep
+            }
+            SealProof::StackedDrg32GiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredSealProof::StackedDrg32GiBV1_1_Feat_SyntheticPoRep
+            }
+            SealProof::StackedDrg64GiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredSealProof::StackedDrg64GiBV1_1_Feat_SyntheticPoRep
+            }
         }
     }
 }
@@ -191,6 +229,22 @@ impl From<&SealProof> for RegisteredSealProof {
             }
             SealProof::StackedDrg64GiBV1_1 => {
                 RegisteredSealProof::StackedDrg64GiBV1_1
+            }
+
+            SealProof::StackedDrg2KiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredSealProof::StackedDrg2KiBV1_1_Feat_SyntheticPoRep
+            }
+            SealProof::StackedDrg8MiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredSealProof::StackedDrg8MiBV1_1_Feat_SyntheticPoRep
+            }
+            SealProof::StackedDrg512MiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredSealProof::StackedDrg512MiBV1_1_Feat_SyntheticPoRep
+            }
+            SealProof::StackedDrg32GiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredSealProof::StackedDrg32GiBV1_1_Feat_SyntheticPoRep
+            }
+            SealProof::StackedDrg64GiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredSealProof::StackedDrg64GiBV1_1_Feat_SyntheticPoRep
             }
         }
     }
@@ -230,6 +284,22 @@ impl From<SealProof> for RegisteredUpdateProof {
             SealProof::StackedDrg64GiBV1_1 => {
                 RegisteredUpdateProof::StackedDrg64GiBV1
             }
+
+            SealProof::StackedDrg2KiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredUpdateProof::StackedDrg2KiBV1
+            }
+            SealProof::StackedDrg8MiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredUpdateProof::StackedDrg8MiBV1
+            }
+            SealProof::StackedDrg512MiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredUpdateProof::StackedDrg512MiBV1
+            }
+            SealProof::StackedDrg32GiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredUpdateProof::StackedDrg32GiBV1
+            }
+            SealProof::StackedDrg64GiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredUpdateProof::StackedDrg64GiBV1
+            }
         }
     }
 }
@@ -266,6 +336,22 @@ impl From<&SealProof> for RegisteredUpdateProof {
                 RegisteredUpdateProof::StackedDrg32GiBV1
             }
             SealProof::StackedDrg64GiBV1_1 => {
+                RegisteredUpdateProof::StackedDrg64GiBV1
+            }
+
+            SealProof::StackedDrg2KiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredUpdateProof::StackedDrg2KiBV1
+            }
+            SealProof::StackedDrg8MiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredUpdateProof::StackedDrg8MiBV1
+            }
+            SealProof::StackedDrg512MiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredUpdateProof::StackedDrg512MiBV1
+            }
+            SealProof::StackedDrg32GiBV1_1_Feat_SyntheticPoRep => {
+                RegisteredUpdateProof::StackedDrg32GiBV1
+            }
+            SealProof::StackedDrg64GiBV1_1_Feat_SyntheticPoRep => {
                 RegisteredUpdateProof::StackedDrg64GiBV1
             }
         }
