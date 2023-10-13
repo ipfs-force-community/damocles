@@ -1,7 +1,6 @@
 package commitmgr
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
@@ -14,11 +13,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/adt"
 	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
-	cbg "github.com/whyrusleeping/cbor-gen"
 
-	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
-
-	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/market"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/blockstore"
@@ -46,67 +41,7 @@ func (s SealingAPIImpl) StateComputeDataCommitment(ctx context.Context, maddr ad
 		return cid.Undef, fmt.Errorf("failed to unmarshal TipSetToken to TipSetKey: %w", err)
 	}
 
-	nv, err := s.api.StateNetworkVersion(ctx, tsk)
-	if err != nil {
-		return cid.Cid{}, err
-	}
-
-	var ccparams []byte
-	if nv < network.Version13 {
-		ccparams, err = actors.SerializeParams(&market2.ComputeDataCommitmentParams{
-			DealIDs:    deals,
-			SectorType: sectorType,
-		})
-	} else {
-		ccparams, err = actors.SerializeParams(&core.ComputeDataCommitmentParams{
-			Inputs: []*core.SectorDataSpec{
-				{
-					DealIDs:    deals,
-					SectorType: sectorType,
-				},
-			},
-		})
-	}
-
-	if err != nil {
-		return cid.Undef, fmt.Errorf("computing params for ComputeDataCommitment: %w", err)
-	}
-
-	ccmt := &types.Message{
-		To:    market.Address,
-		From:  maddr,
-		Value: types.NewInt(0),
-		// Hard coded, because the method has since been deprecated
-		Method: 8,
-		Params: ccparams,
-	}
-	r, err := s.api.StateCall(ctx, ccmt, tsk)
-	if err != nil {
-		return cid.Undef, fmt.Errorf("calling ComputeDataCommitment: %w", err)
-	}
-	if r.MsgRct.ExitCode != 0 {
-		return cid.Undef, fmt.Errorf("receipt for ComputeDataCommitment had exit code %d", r.MsgRct.ExitCode)
-	}
-
-	if nv < network.Version13 {
-		var c cbg.CborCid
-		if err := c.UnmarshalCBOR(bytes.NewReader(r.MsgRct.Return)); err != nil {
-			return cid.Undef, fmt.Errorf("failed to unmarshal CBOR to CborCid: %w", err)
-		}
-
-		return cid.Cid(c), nil
-	}
-
-	var cr core.ComputeDataCommitmentReturn
-	if err := cr.UnmarshalCBOR(bytes.NewReader(r.MsgRct.Return)); err != nil {
-		return cid.Undef, fmt.Errorf("failed to unmarshal CBOR to CborCid: %w", err)
-	}
-
-	if len(cr.CommDs) != 1 {
-		return cid.Undef, fmt.Errorf("CommD output must have 1 entry")
-	}
-
-	return cid.Cid(cr.CommDs[0]), nil
+	return s.api.StateComputeDataCID(ctx, maddr, sectorType, deals, tsk)
 }
 
 func (s SealingAPIImpl) StateSectorPreCommitInfo(ctx context.Context, maddr address.Address, sectorNumber abi.SectorNumber, tok core.TipSetToken) (*stminer.SectorPreCommitOnChainInfo, error) {

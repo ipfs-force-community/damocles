@@ -43,17 +43,19 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si core.SectorSt
 		return err
 	}
 
-	commD, err := api.StateComputeDataCommitment(ctx, maddr, si.SectorType, si.DealIDs(), tok)
-	if err != nil {
-		return &ErrAPI{fmt.Errorf("calling StateComputeDataCommitment: %w", err)}
-	}
+	if len(si.Pieces) > 0 {
+		commD, err := api.StateComputeDataCommitment(ctx, maddr, si.SectorType, si.DealIDs(), tok)
+		if err != nil {
+			return &ErrAPI{fmt.Errorf("calling StateComputeDataCommitment: %w", err)}
+		}
 
-	if si.Pre == nil {
-		return &ErrBadCommD{fmt.Errorf("no pre commit on chain info available")}
-	}
+		if si.Pre == nil {
+			return &ErrBadCommD{fmt.Errorf("no pre commit on chain info available")}
+		}
 
-	if !commD.Equals(si.Pre.CommD) {
-		return &ErrBadCommD{fmt.Errorf("on chain CommD differs: %s != %s ", si.Pre.CommD, commD)}
+		if !commD.Equals(si.Pre.CommD) {
+			return &ErrBadCommD{fmt.Errorf("on chain CommD differs: %s != %s ", si.Pre.CommD, commD)}
+		}
 	}
 
 	// never commit P2 message before, check ticket expiration
