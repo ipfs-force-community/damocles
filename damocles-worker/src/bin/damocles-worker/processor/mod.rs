@@ -17,7 +17,7 @@ use vc_processors::{
 // #[cfg(feature = "supra-c2")]
 // const C2_ABOUT: &str = "damocles-worker built-in c2 [supra c2 enabled]";
 // #[cfg(not(feature = "supra-c2"))]
-// const C2_ABOUT: &str = "damocles-worker built-in c2";
+const C2_ABOUT: &str = "damocles-worker built-in c2";
 
 #[derive(Subcommand)]
 pub enum ProcessorCommand {

@@ -40,6 +40,8 @@ pub use filecoin_proofs_api::{
     UnpaddedByteIndex, UnpaddedBytesAmount,
 };
 
+pub use storage_proofs_core::api_version::ApiFeature;
+
 /// Identifier for Actors.
 pub type ActorID = u64;
 

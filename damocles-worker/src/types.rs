@@ -19,6 +19,7 @@ pub const SIZE_64G: u64 = 64 << 30;
     Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize_repr, Serialize_repr,
 )]
 #[repr(i64)]
+#[allow(non_camel_case_types)]
 pub enum SealProof {
     /// 2kib v1
     StackedDrg2KiBV1,
@@ -50,10 +51,15 @@ pub enum SealProof {
     /// 64gib v1_1
     StackedDrg64GiBV1_1,
 
+    /// 2kib v1_1 with synthetic porep
     StackedDrg2KiBV1_1_Feat_SyntheticPoRep,
+    /// 8mib v1_1 with synthetic porep
     StackedDrg8MiBV1_1_Feat_SyntheticPoRep,
+    /// 512mib v1_1 with synthetic porep
     StackedDrg512MiBV1_1_Feat_SyntheticPoRep,
+    /// 32gib v1_1 with synthetic porep
     StackedDrg32GiBV1_1_Feat_SyntheticPoRep,
+    /// 64gib v1_1 with synthetic porep
     StackedDrg64GiBV1_1_Feat_SyntheticPoRep,
 }
 
