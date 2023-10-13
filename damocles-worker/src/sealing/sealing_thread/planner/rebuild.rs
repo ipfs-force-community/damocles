@@ -43,7 +43,12 @@ impl PlannerTrait for RebuildPlanner {
             },
 
             State::PC1Done => {
+                Event::PC2WithSyntheticProof(_) => State::SyntheticPoRepNeeded,
                 Event::PC2(_) => State::PC2Done,
+            },
+
+            State::SyntheticPoRepNeeded => {
+                Event::SyntheticPoRep => State::PC2Done,
             },
 
             State::PC2Done => {
@@ -93,6 +98,8 @@ impl PlannerTrait for RebuildPlanner {
             State::TreeDBuilt => inner.pc1(),
 
             State::PC1Done => inner.pc2(),
+
+            State::SyntheticPoRepNeeded => inner.synthetic_porep(),
 
             State::PC2Done => inner.check_sealed(),
 
@@ -191,7 +198,20 @@ impl<'t> Rebuild<'t> {
     }
 
     fn pc2(&self) -> Result<Event, Failure> {
-        common::pre_commit2(self.task).map(Event::PC2)
+        common::pre_commit2(self.task).map(|out| {
+            if out.registered_proof.feature_enabled(
+                vc_processors::fil_proofs::ApiFeature::SyntheticPoRep,
+            ) {
+                Event::PC2WithSyntheticProof(out)
+            } else {
+                Event::PC2(out)
+            }
+        })
+    }
+
+    fn synthetic_porep(&self) -> Result<Event, Failure> {
+        common::compute_synthetic_proof(self.task)
+            .map(|_| Event::SyntheticPoRep)
     }
 
     fn check_sealed(&self) -> Result<Event, Failure> {
