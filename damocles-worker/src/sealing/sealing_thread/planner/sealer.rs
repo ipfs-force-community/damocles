@@ -1,7 +1,7 @@
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 
 use anyhow::{anyhow, Context, Result};
-use vc_processors::builtin::tasks::STAGE_NAME_C2;
+use vc_processors::builtin::tasks::{STAGE_NAME_C1, STAGE_NAME_C2};
 
 use super::{
     super::{call_rpc, cloned_required, field_required},
@@ -14,7 +14,12 @@ use crate::rpc::sealer::{
     ProofOnChainInfo, SubmitResult,
 };
 use crate::sealing::failure::*;
-use crate::sealing::processor::{clear_cache, C2Input};
+use crate::sealing::processor::{
+    clear_cache, clear_layer_data, generate_synth_proofs, seal_commit_phase1,
+    C2Input, RegisteredSealProof,
+};
+
+const SYNTHETIC_PROOF_CHECK_ROUND: i32 = 3;
 
 #[derive(Default)]
 pub(crate) struct SealerPlanner;
@@ -121,7 +126,9 @@ impl PlannerTrait for SealerPlanner {
 
             State::PC1Done => inner.handle_pc1_done(),
 
-            State::PC2Done => inner.handle_pc2_done(),
+            State::PC2Done => inner.handle_synthetic_proof_done(),
+
+            State::SyntheticPoRepDone => inner.handle_synthetic_proof_done(),
 
             State::PCSubmitted => inner.handle_pc_submitted(),
 
@@ -259,6 +266,93 @@ impl<'t> Sealer<'t> {
     }
 
     fn handle_pc2_done(&self) -> Result<Event, Failure> {
+        let _token = self
+            .task
+            .sealing_ctrl
+            .ctrl_ctx()
+            .wait(STAGE_NAME_C1)
+            .crit()?;
+
+        // do synthetic proof
+        let sector_id = self.task.sector_id()?;
+
+        field_required! {
+            allocated,
+            self.task.sector.base.as_ref().map(|b| &b.allocated)
+        }
+
+        cloned_required! {
+            seed,
+            self.task.sector.phases.seed
+        }
+
+        field_required! {
+            prove_input,
+            self.task.sector.base.as_ref().map(|b| b.prove_input)
+        }
+
+        field_required! {
+            prove_input,
+            self.task.sector.base.as_ref().map(|b| b.prove_input)
+        }
+
+        let (prover_id, seal_sector_id) = prove_input;
+
+        field_required! {
+            piece_infos,
+            self.task.sector.phases.pieces.as_ref()
+        }
+
+        field_required! {
+            ticket,
+            self.task.sector.phases.ticket.as_ref()
+        }
+
+        cloned_required! {
+            p2out,
+            self.task.sector.phases.pc2out
+        }
+
+        let cache_dir = self.task.cache_dir(sector_id);
+        let sealed_file = self.task.sealed_file(sector_id);
+
+        generate_synth_proofs::<&PathBuf>(
+            cache_dir.as_ref(),
+            sealed_file.as_ref(),
+            prover_id,
+            seal_sector_id,
+            ticket.ticket.0,
+            p2out,
+            piece_infos,
+        );
+
+        // clean layers
+        let seal_type: RegisteredSealProof = allocated.proof_type.into();
+        let sector_size = seal_type.sector_size();
+        clear_layer_data::<&PathBuf>(sector_size.into(), cache_dir.as_ref())
+            .temp()?;
+
+        // verify
+        (0..SYNTHETIC_PROOF_CHECK_ROUND)
+            .try_for_each(|_| {
+                seal_commit_phase1(
+                    cache_dir.clone().into(),
+                    sealed_file.clone().into(),
+                    prover_id,
+                    seal_sector_id,
+                    ticket.ticket.0,
+                    seed.seed.0,
+                    p2out,
+                    piece_infos,
+                )
+                .map(|_| ())
+            })
+            .temp()?;
+
+        return Ok(Event::SyntheticPoRep);
+    }
+
+    fn handle_synthetic_proof_done(&self) -> Result<Event, Failure> {
         field_required! {
             sector,
             self.task.sector.base.as_ref().map(|b| b.allocated.clone())

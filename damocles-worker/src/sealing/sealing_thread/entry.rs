@@ -21,6 +21,7 @@ impl Iterator for ReadDir {
     }
 }
 
+#[derive(Clone)]
 pub enum Entry {
     Dir(PathBuf, (PathBuf, PathBuf)),
     File(PathBuf, (PathBuf, PathBuf)),
