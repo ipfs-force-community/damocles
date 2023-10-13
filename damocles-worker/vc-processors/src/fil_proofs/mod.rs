@@ -112,9 +112,9 @@ pub fn generate_synth_proofs<T: AsRef<Path>>(
     }
 }
 
-pub fn seal_commit_phase1(
-    cache_path: PathBuf,
-    replica_path: PathBuf,
+pub fn seal_commit_phase1<T: AsRef<Path>>(
+    cache_path: T,
+    replica_path: T,
     prover_id: ProverId,
     sector_id: SectorId,
     ticket: Ticket,
@@ -328,13 +328,13 @@ impl AsRef<[u8]> for Bytes {
 }
 
 pub fn create_tree_d(
-    registered_proof: RegisteredSealProof,
+    sector_size: u64,
     in_path: Option<PathBuf>,
     cache_path: PathBuf,
 ) -> Result<()> {
     safe_call! {
         create_tree_d_inner(
-            registered_proof,
+            sector_size,
             in_path,
             cache_path,
         )
@@ -342,12 +342,12 @@ pub fn create_tree_d(
 }
 
 fn create_tree_d_inner(
-    registered_proof: RegisteredSealProof,
+    sector_size: u64,
     in_path: Option<PathBuf>,
     cache_path: PathBuf,
 ) -> Result<()> {
-    let sector_size = registered_proof.sector_size();
-    let tree_size = get_base_tree_size::<DefaultBinaryTree>(sector_size)?;
+    let tree_size =
+        get_base_tree_size::<DefaultBinaryTree>(sector_size.into())?;
     let tree_leafs = get_base_tree_leafs::<DefaultBinaryTree>(tree_size)?;
 
     let data = match in_path {
@@ -366,7 +366,7 @@ fn create_tree_d_inner(
             Bytes::Mmap(mapped)
         }
 
-        None => Bytes::InMem(vec![0; sector_size.0 as usize]),
+        None => Bytes::InMem(vec![0; sector_size as usize]),
     };
 
     let cfg = StoreConfig::new(
@@ -460,7 +460,7 @@ pub fn generate_winning_post(
 
 pub fn clear_layer_data<T>(sector_size: u64, cache_path: T) -> Result<()>
 where
-    T: Into<PathBuf> + AsRef<Path>,
+    T: AsRef<Path>,
 {
     safe_call! {
         seal::clear_layer_data(sector_size, cache_path.as_ref())

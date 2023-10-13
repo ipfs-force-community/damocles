@@ -363,9 +363,9 @@ pub(crate) fn commit1_with_seed(
     let cache_dir = task.cache_dir(sector_id);
     let sealed_file = task.sealed_file(sector_id);
 
-    let out = seal_commit_phase1(
-        cache_dir.into(),
-        sealed_file.into(),
+    let out = seal_commit_phase1::<&Path>(
+        cache_dir.as_ref(),
+        sealed_file.as_ref(),
         seal_prover_id,
         seal_sector_id,
         ticket.ticket.0,
@@ -686,7 +686,7 @@ pub(crate) fn compute_synthetic_proof(task: &'_ Task) -> Result<(), Failure> {
     let cache_dir = task.cache_dir(sector_id);
     let sealed_file = task.sealed_file(sector_id);
 
-    generate_synth_proofs::<&PathBuf>(
+    generate_synth_proofs::<&Path>(
         cache_dir.as_ref(),
         sealed_file.as_ref(),
         prover_id,
@@ -697,30 +697,27 @@ pub(crate) fn compute_synthetic_proof(task: &'_ Task) -> Result<(), Failure> {
     )
     .temp()?;
 
-    // clean layers
-    let seal_type: RegisteredSealProof = p2out.registered_proof;
-    let sector_size = seal_type.sector_size();
-    clear_layer_data::<&PathBuf>(sector_size.into(), cache_dir.as_ref())
-        .temp()?;
-
     // verify
-    let mut seed: [u8; 32] = [0; 32];
     (0..SYNTHETIC_PROOF_CHECK_ROUND)
         .try_for_each(|_| {
-            seed = rand::random();
-            seal_commit_phase1(
-                cache_dir.clone().into(),
-                sealed_file.clone().into(),
+            seal_commit_phase1::<&Path>(
+                cache_dir.as_ref(),
+                sealed_file.as_ref(),
                 prover_id,
                 seal_sector_id,
                 ticket.ticket.0,
-                seed,
+                rand::random(),
                 p2out.clone(),
                 piece_infos,
             )
             .map(|_| ())
         })
         .temp()?;
+
+    // clean layers
+    let seal_type: RegisteredSealProof = p2out.registered_proof;
+    let sector_size = seal_type.sector_size();
+    clear_layer_data::<&Path>(sector_size.into(), cache_dir.as_ref()).crit()?;
 
     Ok(())
 }
