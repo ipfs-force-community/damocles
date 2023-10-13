@@ -62,7 +62,7 @@ impl PlannerTrait for SealerPlanner {
 
             State::PC1Done => {
                 Event::PC2(_) => State::PC2Done,
-                Event::PC2WithSyntheticProof(_) => State::SyntheticPoRepNeeded,
+                Event::PC2NeedSyntheticProof(_) => State::SyntheticPoRepNeeded,
             },
 
             State::SyntheticPoRepNeeded => {
@@ -272,7 +272,7 @@ impl<'t> Sealer<'t> {
                 .registered_proof
                 .feature_enabled(ApiFeature::SyntheticPoRep)
             {
-                Event::PC2WithSyntheticProof(out)
+                Event::PC2NeedSyntheticProof(out)
             } else {
                 Event::PC2(out)
             }

@@ -43,7 +43,7 @@ impl PlannerTrait for RebuildPlanner {
             },
 
             State::PC1Done => {
-                Event::PC2WithSyntheticProof(_) => State::SyntheticPoRepNeeded,
+                Event::PC2NeedSyntheticProof(_) => State::SyntheticPoRepNeeded,
                 Event::PC2(_) => State::PC2Done,
             },
 
@@ -202,7 +202,7 @@ impl<'t> Rebuild<'t> {
             if out.registered_proof.feature_enabled(
                 vc_processors::fil_proofs::ApiFeature::SyntheticPoRep,
             ) {
-                Event::PC2WithSyntheticProof(out)
+                Event::PC2NeedSyntheticProof(out)
             } else {
                 Event::PC2(out)
             }
