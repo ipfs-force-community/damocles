@@ -112,7 +112,7 @@ impl Debug for Event {
 
             Self::PC2(_) => "PC2",
 
-            Self::PC2NeedSyntheticProof(_) => "PC2WithSyntheticProof",
+            Self::PC2NeedSyntheticProof(_) => "PC2NeedSyntheticProof",
 
             Self::SyntheticPoRep => "SyntheticPoRep",
 
