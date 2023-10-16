@@ -39,6 +39,10 @@ pub(crate) enum Event {
 
     PC2(SealPreCommitPhase2Output),
 
+    PC2NeedSyntheticProof(SealPreCommitPhase2Output),
+
+    SyntheticPoRep,
+
     SubmitPC,
 
     CheckPC,
@@ -107,6 +111,10 @@ impl Debug for Event {
             Self::PC1(_, _) => "PC1",
 
             Self::PC2(_) => "PC2",
+
+            Self::PC2NeedSyntheticProof(_) => "PC2NeedSyntheticProof",
+
+            Self::SyntheticPoRep => "SyntheticPoRep",
 
             Self::SubmitPC => "SubmitPC",
 
@@ -225,6 +233,10 @@ impl Event {
             }
 
             Self::PC2(out) => {
+                replace!(s.phases.pc2out, out);
+            }
+
+            Self::PC2NeedSyntheticProof(out) => {
                 replace!(s.phases.pc2out, out);
             }
 

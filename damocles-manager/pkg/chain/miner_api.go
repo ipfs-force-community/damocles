@@ -2,12 +2,12 @@ package chain
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 
-	"github.com/filecoin-project/venus/pkg/constants"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
@@ -65,40 +65,55 @@ func (m *MinerAPI) PrefetchCache(ctx context.Context) {
 	wg.Wait()
 }
 
-func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (*core.MinerInfo, error) {
+func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (mi *core.MinerInfo, err error) {
 	m.cacheMu.RLock()
 	mi, ok := m.cache[mid]
 	m.cacheMu.RUnlock()
-	if ok {
-		return mi, nil
+	if !ok {
+
+		maddr, err := address.NewIDAddress(uint64(mid))
+		if err != nil {
+			return nil, err
+		}
+
+		minfo, err := m.chain.StateMinerInfo(ctx, maddr, types.EmptyTSK)
+		if err != nil {
+			return nil, err
+		}
+
+		mi = &core.MinerInfo{
+			ID:                  mid,
+			Addr:                maddr,
+			SectorSize:          minfo.SectorSize,
+			WindowPoStProofType: minfo.WindowPoStProofType,
+		}
+
+		m.cacheMu.Lock()
+		m.cache[mid] = mi
+		m.cacheMu.Unlock()
 	}
 
-	maddr, err := address.NewIDAddress(uint64(mid))
+	useSyntheticPoRep := false
+	m.safeConfig.Lock()
+	minerCfgs := m.safeConfig.Config.Miners
+	for _, minerCfg := range minerCfgs {
+		if minerCfg.Actor == mid {
+			useSyntheticPoRep = minerCfg.Sealing.UseSyntheticPoRep
+			break
+		}
+	}
+	m.safeConfig.Unlock()
+
+	nv, err := m.chain.StateNetworkVersion(ctx, types.EmptyTSK)
+	if err != nil {
+		return nil, fmt.Errorf("get network version: %w", err)
+	}
+
+	sealProof, err := miner.SealProofTypeFromSectorSize(mi.SectorSize, nv, useSyntheticPoRep)
 	if err != nil {
 		return nil, err
 	}
-
-	minfo, err := m.chain.StateMinerInfo(ctx, maddr, types.EmptyTSK)
-	if err != nil {
-		return nil, err
-	}
-
-	sealProof, err := miner.SealProofTypeFromSectorSize(minfo.SectorSize, constants.TestNetworkVersion, false)
-	if err != nil {
-		return nil, err
-	}
-
-	mi = &core.MinerInfo{
-		ID:                  mid,
-		Addr:                maddr,
-		SectorSize:          minfo.SectorSize,
-		WindowPoStProofType: minfo.WindowPoStProofType,
-		SealProofType:       sealProof,
-	}
-
-	m.cacheMu.Lock()
-	m.cache[mid] = mi
-	m.cacheMu.Unlock()
+	mi.SealProofType = sealProof
 
 	return mi, nil
 }
