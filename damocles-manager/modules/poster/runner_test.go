@@ -99,34 +99,30 @@ func TestBatchPartitions(t *testing.T) {
 		counts []int
 	}{
 		{
+			max:    1,
+			counts: []int{1, 1, 1, 1, 1},
+		},
+		{
+			max:    2,
+			counts: []int{2, 2, 1},
+		},
+		{
 			max:    3,
-			counts: []int{3, 3, 3, 1},
-		},
-		{
-			max:    4,
-			counts: []int{4, 4, 2},
-		},
-		{
-			max:    5,
-			counts: []int{5, 5},
-		},
-		{
-			max:    7,
-			counts: []int{7, 3},
+			counts: []int{3, 2},
 		},
 	}
 
-	partCount := 10
+	partCount := 5
 	partitions := generatePartitions(partCount)
 	for ci := range cases {
 		c := cases[ci]
-		require.Less(t, c.max, partitionsPerMsg, "smaller MaxPartitionsPerPoStMessage")
+		require.LessOrEqual(t, c.max, partitionsPerMsg, "smaller MaxPartitionsPerPoStMessage")
 
 		runner.startCtx.pcfg.MaxPartitionsPerPoStMessage = uint64(c.max)
 		batches, err := runner.batchPartitions(partitions, nv)
 		require.NoErrorf(t, err, "batch partitions for max=%d", c.max)
 
-		require.Lenf(t, batches, len(c.counts), "ensure batches count for matx=%d", c.max)
+		require.Lenf(t, batches, len(c.counts), "ensure batches count for max=%d", c.max)
 		for i := range c.counts {
 			require.Lenf(t, batches[i], c.counts[i], "ensure #%d batch count for max=%d", i, c.max)
 		}
