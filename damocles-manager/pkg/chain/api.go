@@ -51,14 +51,13 @@ func CacheStateNetworkVersion(inner stateNetworkVersion) stateNetworkVersion {
 	var latestUpdate time.Time
 
 	return func(p0 context.Context, p1 types.TipSetKey) (network.Version, error) {
-		if time.Since(latestUpdate) > time.Second*time.Duration(constants.MainNetBlockDelaySecs) {
-			if nv < constants.TestNetworkVersion {
-				nv, err := inner(p0, p1)
-				if err != nil {
-					return nv, err
-				}
-				latestUpdate = time.Now()
+		if nv < constants.TestNetworkVersion && time.Since(latestUpdate) > time.Second*time.Duration(constants.MainNetBlockDelaySecs) {
+			var err error
+			nv, err = inner(p0, p1)
+			if err != nil {
+				return nv, err
 			}
+			latestUpdate = time.Now()
 			return nv, nil
 		}
 		return nv, nil
