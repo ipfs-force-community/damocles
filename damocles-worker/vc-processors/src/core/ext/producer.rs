@@ -430,7 +430,12 @@ impl ProducerInner {
         stage: &'static str,
         stable_timeout: Option<Duration>,
     ) -> Result<(Child, ChildStdin, ChildStdout)> {
-        let mut child = cmd.spawn().context("spawn child process")?;
+        let mut child = cmd.spawn().with_context(|| {
+            format!(
+                "spawn child process: {}",
+                cmd.get_program().to_string_lossy()
+            )
+        })?;
         let child_stdin = child.stdin.take().context("child stdin lost")?;
         let mut child_stdout =
             child.stdout.take().context("child stdout lost")?;
