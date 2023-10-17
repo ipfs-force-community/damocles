@@ -34,7 +34,7 @@ func New(ctx context.Context, api, token string) (API, jsonrpc.ClientCloser, err
 		return nil, nil, err
 	}
 
-	client.IChainInfoStruct.Internal.StateNetworkVersion = CacheStateNetworkVersion(client.IChainInfoStruct.Internal.StateNetworkVersion)
+	client.IChainInfoStruct.Internal.StateNetworkVersion = cacheStateNetworkVersion(client.IChainInfoStruct.Internal.StateNetworkVersion)
 
 	return client, closer, nil
 }
@@ -43,10 +43,10 @@ type MockStruct = v1.FullNodeStruct
 
 type stateNetworkVersion func(p0 context.Context, p1 types.TipSetKey) (network.Version, error)
 
-// CacheStateNetworkVersion will cache the network version for a block delay.
+// cacheStateNetworkVersion will cache the network version for a block delay.
 // You should be careful to use this function, make sure the params passed in is the same as the one to be replaced
 // And it can lead to latency of chain version up to a block delay
-func CacheStateNetworkVersion(inner stateNetworkVersion) stateNetworkVersion {
+func cacheStateNetworkVersion(inner stateNetworkVersion) stateNetworkVersion {
 	nv := constants.TestNetworkVersion - 1
 	var latestUpdate time.Time
 
