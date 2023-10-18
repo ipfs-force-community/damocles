@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 pub enum SealingThreadState {
     Idle,
     Paused { elapsed: u64 },
-    Running { elapsed: u64, proc: String },
+    Running { elapsed: u64, proc: Option<String> },
     Waiting { elapsed: u64 },
 }
 
@@ -32,7 +32,7 @@ impl fmt::Display for SealingThreadState {
                 f.write_fmt(format_args!(
                     "Running({}) {}",
                     format_duration(Duration::from_secs(*elapsed)),
-                    proc
+                    proc.as_deref().unwrap_or("")
                 ))
             }
             SealingThreadState::Waiting { elapsed } => {
