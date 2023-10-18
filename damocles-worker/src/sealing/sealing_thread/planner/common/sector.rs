@@ -79,7 +79,7 @@ impl State {
             (State::TreeDBuilt, _) => "AssignTicket",
             (State::TicketAssigned, _) => "PC1",
             (State::PC1Done, _) => "PC2",
-            (State::SyntheticPoRepNeeded, _) => "PC2",
+            (State::SyntheticPoRepNeeded, _) => "SyntheticPoRep",
             (State::PC2Done, PLANNER_NAME_REBUILD) => "C1",
             (State::PC2Done, _) => "SubmitPreCommit",
             (State::PCSubmitted, _) => "WaitPCLanded",
