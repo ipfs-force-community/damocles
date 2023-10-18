@@ -7,7 +7,8 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use vc_processors::builtin::tasks::{
-    Piece, PieceFile, STAGE_NAME_ADD_PIECES, STAGE_NAME_TREED,
+    Piece, PieceFile, STAGE_NAME_ADD_PIECES, STAGE_NAME_SYNTHETIC_PROOF,
+    STAGE_NAME_TREED,
 };
 
 use crate::{
@@ -656,7 +657,11 @@ pub(crate) fn submit_persisted(
 }
 
 pub(crate) fn compute_synthetic_proof(task: &'_ Task) -> Result<(), Failure> {
-    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_C1).crit()?;
+    let _token = task
+        .sealing_ctrl
+        .ctrl_ctx()
+        .wait(STAGE_NAME_SYNTHETIC_PROOF)
+        .crit()?;
 
     // do synthetic proof
     let sector_id = task.sector_id()?;
