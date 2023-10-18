@@ -13,7 +13,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 
-	"github.com/filecoin-project/venus/pkg/constants"
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/power"
@@ -158,11 +157,6 @@ var utilMinerCreateCmd = &cli.Command{
 			return fmt.Errorf("failed to parse sector size: %w", err)
 		}
 
-		sealProof, err := miner.SealProofTypeFromSectorSize(abi.SectorSize(ssize), constants.TestNetworkVersion)
-		if err != nil {
-			return fmt.Errorf("invalid sector size %d: %w", ssize, err)
-		}
-
 		ts, err := api.Chain.ChainHead(gctx)
 		if err != nil {
 			return fmt.Errorf("get chain head: %w", err)
@@ -238,9 +232,10 @@ var utilMinerCreateCmd = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("get network version: %w", err)
 		}
-		postProof, err := sealProof.RegisteredWindowPoStProofByNetworkVersion(nv)
+
+		postProof, err := miner.WindowPoStProofTypeFromSectorSize(abi.SectorSize(ssize), nv)
 		if err != nil {
-			return fmt.Errorf("invalid seal proof type %d: %w", sealProof, err)
+			return fmt.Errorf("invalid sector size %d: %w", ssize, err)
 		}
 
 		params, err := actors.SerializeParams(&core.CreateMinerParams{

@@ -40,6 +40,8 @@ pub use filecoin_proofs_api::{
     UnpaddedByteIndex, UnpaddedBytesAmount,
 };
 
+pub use storage_proofs_core::api_version::ApiFeature;
+
 /// Identifier for Actors.
 pub type ActorID = u64;
 
@@ -96,9 +98,23 @@ where
     }
 }
 
-pub fn seal_commit_phase1(
-    cache_path: PathBuf,
-    replica_path: PathBuf,
+pub fn generate_synth_proofs<T: AsRef<Path>>(
+    cache_path: T,
+    replica_path: T,
+    prover_id: ProverId,
+    sector_id: SectorId,
+    ticket: Ticket,
+    pre_commit: SealPreCommitPhase2Output,
+    piece_infos: &[PieceInfo],
+) -> Result<()> {
+    safe_call! {
+        seal::generate_synth_proofs(cache_path, replica_path, prover_id, sector_id, ticket, pre_commit, piece_infos)
+    }
+}
+
+pub fn seal_commit_phase1<T: AsRef<Path>>(
+    cache_path: T,
+    replica_path: T,
     prover_id: ProverId,
     sector_id: SectorId,
     ticket: Ticket,
@@ -312,13 +328,13 @@ impl AsRef<[u8]> for Bytes {
 }
 
 pub fn create_tree_d(
-    registered_proof: RegisteredSealProof,
+    sector_size: u64,
     in_path: Option<PathBuf>,
     cache_path: PathBuf,
 ) -> Result<()> {
     safe_call! {
         create_tree_d_inner(
-            registered_proof,
+            sector_size,
             in_path,
             cache_path,
         )
@@ -326,12 +342,12 @@ pub fn create_tree_d(
 }
 
 fn create_tree_d_inner(
-    registered_proof: RegisteredSealProof,
+    sector_size: u64,
     in_path: Option<PathBuf>,
     cache_path: PathBuf,
 ) -> Result<()> {
-    let sector_size = registered_proof.sector_size();
-    let tree_size = get_base_tree_size::<DefaultBinaryTree>(sector_size)?;
+    let tree_size =
+        get_base_tree_size::<DefaultBinaryTree>(sector_size.into())?;
     let tree_leafs = get_base_tree_leafs::<DefaultBinaryTree>(tree_size)?;
 
     let data = match in_path {
@@ -350,7 +366,7 @@ fn create_tree_d_inner(
             Bytes::Mmap(mapped)
         }
 
-        None => Bytes::InMem(vec![0; sector_size.0 as usize]),
+        None => Bytes::InMem(vec![0; sector_size as usize]),
     };
 
     let cfg = StoreConfig::new(
@@ -373,16 +389,27 @@ pub fn cached_filenames_for_sector(
 ) -> Vec<PathBuf> {
     use RegisteredSealProof::*;
     let mut trees = match registered_proof {
-        StackedDrg2KiBV1 | StackedDrg8MiBV1 | StackedDrg512MiBV1
-        | StackedDrg2KiBV1_1 | StackedDrg8MiBV1_1 | StackedDrg512MiBV1_1 => {
+        StackedDrg2KiBV1
+        | StackedDrg8MiBV1
+        | StackedDrg512MiBV1
+        | StackedDrg2KiBV1_1
+        | StackedDrg8MiBV1_1
+        | StackedDrg512MiBV1_1
+        | StackedDrg2KiBV1_1_Feat_SyntheticPoRep
+        | StackedDrg8MiBV1_1_Feat_SyntheticPoRep
+        | StackedDrg512MiBV1_1_Feat_SyntheticPoRep => {
             vec!["sc-02-data-tree-r-last.dat".into()]
         }
 
-        StackedDrg32GiBV1 | StackedDrg32GiBV1_1 => (0..8)
+        StackedDrg32GiBV1
+        | StackedDrg32GiBV1_1
+        | StackedDrg32GiBV1_1_Feat_SyntheticPoRep => (0..8)
             .map(|idx| format!("sc-02-data-tree-r-last-{}.dat", idx).into())
             .collect(),
 
-        StackedDrg64GiBV1 | StackedDrg64GiBV1_1 => (0..16)
+        StackedDrg64GiBV1
+        | StackedDrg64GiBV1_1
+        | StackedDrg64GiBV1_1_Feat_SyntheticPoRep => (0..16)
             .map(|idx| format!("sc-02-data-tree-r-last-{}.dat", idx).into())
             .collect(),
     };
@@ -429,4 +456,13 @@ pub fn generate_winning_post(
         )
     }
     .map(|proofs| proofs.into_iter().map(|(r, p)| (r, p.into())).collect())
+}
+
+pub fn clear_layer_data<T>(sector_size: u64, cache_path: T) -> Result<()>
+where
+    T: AsRef<Path>,
+{
+    safe_call! {
+        seal::clear_layer_data(sector_size, cache_path.as_ref())
+    }
 }

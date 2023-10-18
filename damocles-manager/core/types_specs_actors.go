@@ -18,7 +18,7 @@ type (
 	ExpirationExtension2          = miner9.ExpirationExtension2
 	ExtendSectorExpirationParams  = miner9.ExtendSectorExpirationParams
 	ExtendSectorExpiration2Params = miner9.ExtendSectorExpiration2Params
-	PreCommitSectorBatchParams    = miner9.PreCommitSectorBatchParams
+	PreCommitSectorBatchParams    = miner9.PreCommitSectorBatchParams2
 	TerminationDeclaration        = miner9.TerminationDeclaration
 	TerminateSectorsParams        = miner9.TerminateSectorsParams
 	WithdrawBalanceParams         = miner9.WithdrawBalanceParams

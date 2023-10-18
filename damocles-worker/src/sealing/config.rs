@@ -8,6 +8,7 @@ use serde::Deserialize;
 use crate::{
     config::{Sealing, SealingOptional, SealingThreadInner},
     sealing::sealing_thread::default_plan,
+    types::seal_types_from_u64,
     SealProof,
 };
 
@@ -104,12 +105,13 @@ impl Config {
                         format!("invalid size string {}", &size_str)
                     })
                     .and_then(|s| {
-                        (s.get_bytes() as u64).try_into().with_context(|| {
-                            format!("invalid SealProof from {}", &size_str)
-                        })
+                        seal_types_from_u64(s.get_bytes() as u64).with_context(
+                            || format!("invalid SealProof from {}", &size_str),
+                        )
                     })
             })
-            .collect::<Result<_>>()?;
+            .collect::<Result<Vec<_>>>()?
+            .concat();
         Ok((allowed_miners, allowed_proof_types))
     }
 }

@@ -3,14 +3,10 @@ name = "damocles-worker"
 version = "0.9.0"
 authors = ["dtynn <dtynn@163.com>"]
 edition = "2021"
-exclude = [
-    ".github",
-]
+exclude = [".github"]
 
 [workspace]
-members = [
-    "vc-processors",
-]
+members = ["vc-processors"]
 
 [workspace.dependencies]
 nix = "0.26.2"
@@ -32,7 +28,10 @@ crossbeam-utils = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "time"] }
 crossterm = "0.26"
-jsonrpc-core-client = { git = "https://github.com/ipfs-force-community/jsonrpc.git", branch = "feat/0x5459/v18-do-not-check-http-status", features = ["tls", "http"] }
+jsonrpc-core-client = { git = "https://github.com/ipfs-force-community/jsonrpc.git", branch = "feat/0x5459/v18-do-not-check-http-status", features = [
+    "tls",
+    "http",
+] }
 jsonrpc-core = { git = "https://github.com/ipfs-force-community/jsonrpc.git", branch = "feat/0x5459/v18-do-not-check-http-status" }
 jsonrpc-derive = { git = "https://github.com/ipfs-force-community/jsonrpc.git", branch = "feat/0x5459/v18-do-not-check-http-status" }
 jsonrpc-http-server = { git = "https://github.com/ipfs-force-community/jsonrpc.git", branch = "feat/0x5459/v18-do-not-check-http-status" }
@@ -55,26 +54,11 @@ once_cell = "1"
 time = { version = "0.3.20", features = ["local-offset", "formatting"] }
 url = "2.3.1"
 tabwriter = "1"
-bellperson = { version = "0.24.1", optional = true }
-
-[dependencies.reqwest]
-version = "0.11"
-features = ["blocking"]
-
-[dependencies.tokio]
-version = "1"
-features = ["rt", "rt-multi-thread"]
-
-[dependencies.fil_types]
-version = "0.2"
-features = ["json"]
-
-[dependencies.rocksdb]
-version = "0.20"
-
-[dependencies.byte-unit]
-version = "4"
-features = ["serde"]
+reqwest = { version = "0.11", features = ["blocking"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
+fil_types = { version = "0.2", features = ["json"] }
+rocksdb = { version = "0.14.0" }
+byte-unit = { version = "4", features = ["serde"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 vc-processors = { path = "./vc-processors" }
@@ -82,11 +66,7 @@ vc-processors = { path = "./vc-processors" }
 [target.'cfg(not(target_os = "macos"))'.dependencies]
 vc-processors = { path = "./vc-processors", features = ["numa"] }
 
-[dependencies.storage-proofs-porep]
-git = "https://github.com/ipfs-force-community/rust-fil-proofs"
-package = "storage-proofs-porep"
-branch = "force/master_v14.0.0"
-default-features = false
+storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v16.0.0", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1.3"
@@ -96,18 +76,16 @@ tempfile = "3.3"
 [features]
 default = ["vc-processors/builtin", "vc-processors/ext-producer"]
 cuda = ["vc-processors/fil-proofs-cuda"]
-supra-c2 = ["bellperson/supra-c2"]
+
+cuda-supraseal = ["vc-processors/fil-cuda-supraseal"]
+supra-c2 = ["vc-processors/fil-cuda-supraseal"]       # alias cuda-supraseal
 
 [patch.crates-io]
-filecoin-hashers = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-hashers", branch = "force/master_v14.0.0" }
-filecoin-proofs = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-proofs", branch = "force/master_v14.0.0" }
-fr32 = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "fr32", branch = "force/master_v14.0.0" }
-sha2raw = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "sha2raw", branch = "force/master_v14.0.0" }
-storage-proofs-core = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-core", branch = "force/master_v14.0.0" }
-storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v14.0.0" }
-storage-proofs-post = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-post", branch = "force/master_v14.0.0" }
-storage-proofs-update = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-update", branch = "force/master_v14.0.0" }
-
-bellperson = { git = "https://github.com/ipfs-force-community/bellperson.git", branch = "v0.24.1-supra-c2" }
-sppark = { git = "https://github.com/supranational/sppark.git", rev = "3ea4eb3" }
-blst = { git = "https://github.com/supranational/blst.git", rev = "dce883b" }
+filecoin-hashers = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-hashers", branch = "force/master_v16.0.0" }
+filecoin-proofs = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-proofs", branch = "force/master_v16.0.0" }
+fr32 = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "fr32", branch = "force/master_v16.0.0" }
+sha2raw = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "sha2raw", branch = "force/master_v16.0.0" }
+storage-proofs-core = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-core", branch = "force/master_v16.0.0" }
+storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v16.0.0" }
+storage-proofs-post = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-post", branch = "force/master_v16.0.0" }
+storage-proofs-update = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-update", branch = "force/master_v16.0.0" }

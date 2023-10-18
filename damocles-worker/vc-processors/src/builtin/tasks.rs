@@ -52,6 +52,9 @@ pub const STAGE_NAME_WINNING_POST: &str = "winning_post";
 /// name str for unseal
 pub const STAGE_NAME_UNSEAL: &str = "unseal";
 
+/// name str for synthetic proof
+pub const STAGE_NAME_SYNTHETIC_PROOF: &str = "synth_proof";
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PieceFile {
