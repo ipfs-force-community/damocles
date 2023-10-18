@@ -54,7 +54,7 @@ pub enum SealingThreadState {
     PausedAt(Instant),
     Running {
         at: Instant,
-        proc: String,
+        proc: Option<String>,
     },
     WaitAt(Instant),
 }
@@ -129,7 +129,7 @@ impl CtrlCtx {
         let inner = self.limit.acquire_stage_limit(stage)?;
         self.state.write().unwrap().state = SealingThreadState::Running {
             at: Instant::now(),
-            proc: "prepare".to_string(),
+            proc: None,
         };
         Ok(WaitGuard {
             inner,
@@ -186,7 +186,7 @@ where
         let guard = self.inner.lock();
         ctx.state.write().unwrap().state = SealingThreadState::Running {
             at: Instant::now(),
-            proc: guard.name(),
+            proc: Some(guard.name()),
         };
         let res = guard.process(task);
         ctx.state.write().unwrap().state = SealingThreadState::Idle;
