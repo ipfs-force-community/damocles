@@ -285,7 +285,7 @@ checksum = "0271a107b5f600ee41bdafbb3c8ddf4afa52983d4b078917d89dbb920116e987"
 dependencies = [
  "bellpepper-core",
  "byteorder",
- "ff 0.13.0",
+ "ff",
 ]
 
 [[package]]
@@ -296,36 +296,8 @@ checksum = "b2c9a1b2f748c59938bc72165ebdf34efffeecee9cfbe0bb7d6b01aea21cd523"
 dependencies = [
  "blake2s_simd 1.0.1",
  "byteorder",
- "ff 0.13.0",
+ "ff",
  "serde",
- "thiserror",
-]
-
-[[package]]
-name = "bellperson"
-version = "0.24.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1a8623f815c0b1fd89efd9b5f4afbb937f91f51c1ebe3f6dda399c69fa938f3"
-dependencies = [
- "bincode",
- "blake2s_simd 1.0.1",
- "blstrs 0.6.1",
- "byteorder",
- "crossbeam-channel",
- "digest",
- "ec-gpu",
- "ec-gpu-gen 0.5.2",
- "ff 0.12.1",
- "group 0.12.1",
- "log",
- "memmap2",
- "pairing 0.22.0",
- "rand 0.8.5",
- "rand_core 0.6.4",
- "rayon",
- "rustversion",
- "serde",
- "sha2",
  "thiserror",
 ]
 
@@ -338,24 +310,25 @@ dependencies = [
  "bellpepper-core",
  "bincode",
  "blake2s_simd 1.0.1",
- "blstrs 0.7.1",
+ "blstrs",
  "byteorder",
  "crossbeam-channel",
  "digest",
  "ec-gpu",
  "ec-gpu-gen 0.7.0",
- "ff 0.13.0",
+ "ff",
  "fs2",
- "group 0.13.0",
+ "group",
  "log",
  "memmap2",
- "pairing 0.23.0",
+ "pairing",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rayon",
  "rustversion",
  "serde",
  "sha2",
+ "supraseal-c2",
  "thiserror",
 ]
 
@@ -370,9 +343,9 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.64.0"
+version = "0.59.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4243e6031260db77ede97ad86c27e501d646a27ab57b59a574f725d98ab1fb4"
+checksum = "2bd2a9a458e8f4304c52c43ebb0cfbd520289f8379a52e329a38afda99bf8eb8"
 dependencies = [
  "bitflags 1.3.2",
  "cexpr",
@@ -385,7 +358,6 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -491,31 +463,14 @@ dependencies = [
 
 [[package]]
 name = "blst"
-version = "0.3.10"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a30d0edd9dd1c60ddb42b80341c7852f6f985279a5c1a83659dcb65899dec99"
+checksum = "c94087b935a822949d3291a9989ad2b2051ea141eda0fd4e478a75f6aa3e604b"
 dependencies = [
  "cc",
  "glob",
  "threadpool",
- "which",
  "zeroize",
-]
-
-[[package]]
-name = "blstrs"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ecb6f3a9429706971633edf4b84f922aba9d2e3a7d71bfb450337e64ccb7df0"
-dependencies = [
- "blst",
- "byte-slice-cast",
- "ff 0.12.1",
- "group 0.12.1",
- "pairing 0.22.0",
- "rand_core 0.6.4",
- "serde",
- "subtle",
 ]
 
 [[package]]
@@ -527,9 +482,9 @@ dependencies = [
  "blst",
  "byte-slice-cast",
  "ec-gpu",
- "ff 0.13.0",
- "group 0.13.0",
- "pairing 0.23.0",
+ "ff",
+ "group",
+ "pairing",
  "rand_core 0.6.4",
  "serde",
  "subtle",
@@ -584,17 +539,6 @@ name = "bytesize"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38fcc2979eff34a4b84e1cf9a1e3da42a7d44b3b690a40cdcb23e3d556cfb2e5"
-
-[[package]]
-name = "bzip2-sys"
-version = "0.1.11+1.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "736a955f3fa7875102d57c82b8cac37ec45224a07fd32d58f9f7a186b6cd4cdc"
-dependencies = [
- "cc",
- "libc",
- "pkg-config",
-]
 
 [[package]]
 name = "cbc"
@@ -1050,7 +994,6 @@ dependencies = [
  "anyhow",
  "base64 0.13.1",
  "base64-serde 0.6.1",
- "bellperson 0.24.1",
  "byte-unit",
  "bytesize",
  "clap",
@@ -1159,28 +1102,6 @@ checksum = "bd63582de2b59ea1aa48d7c1941b5d87618d95484397521b3acdfa0e1e9f5e45"
 
 [[package]]
 name = "ec-gpu-gen"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd09bf9d5313ad60379f70250590bccc10f7a04e2773062ac13255a37022584e"
-dependencies = [
- "bitvec",
- "crossbeam-channel",
- "ec-gpu",
- "execute",
- "ff 0.12.1",
- "group 0.12.1",
- "hex",
- "log",
- "num_cpus",
- "once_cell",
- "rayon",
- "sha2",
- "thiserror",
- "yastl",
-]
-
-[[package]]
-name = "ec-gpu-gen"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "892df2aa20abec5b816e15d5d6383892ca142077708efa3067dd3ac44b75c664"
@@ -1189,8 +1110,8 @@ dependencies = [
  "crossbeam-channel",
  "ec-gpu",
  "execute",
- "ff 0.13.0",
- "group 0.13.0",
+ "ff",
+ "group",
  "hex",
  "log",
  "num_cpus",
@@ -1212,8 +1133,8 @@ dependencies = [
  "crossbeam-channel",
  "ec-gpu",
  "execute",
- "ff 0.13.0",
- "group 0.13.0",
+ "ff",
+ "group",
  "hex",
  "log",
  "num_cpus",
@@ -1341,17 +1262,6 @@ dependencies = [
 
 [[package]]
 name = "ff"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d013fc25338cc558c5c2cfbad646908fb23591e2404481826742b651c9af7160"
-dependencies = [
- "bitvec",
- "rand_core 0.6.4",
- "subtle",
-]
-
-[[package]]
-name = "ff"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
@@ -1413,9 +1323,9 @@ version = "11.0.0"
 source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
- "bellperson 0.26.0",
- "blstrs 0.7.1",
- "ff 0.13.0",
+ "bellperson",
+ "blstrs",
+ "ff",
  "generic-array",
  "hex",
  "lazy_static",
@@ -1432,11 +1342,11 @@ version = "16.0.0"
 source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
- "bellperson 0.26.0",
+ "bellperson",
  "bincode",
  "blake2b_simd 1.0.1",
- "blstrs 0.7.1",
- "ff 0.13.0",
+ "blstrs",
+ "ff",
  "filecoin-hashers",
  "fr32",
  "generic-array",
@@ -1466,9 +1376,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c61bdd3ba08899866a2b2c7f0fbe1fcb55cc6ad3c2f0b20026ef63263ac8ac50"
 dependencies = [
  "anyhow",
- "bellperson 0.26.0",
+ "bellperson",
  "bincode",
- "blstrs 0.7.1",
+ "blstrs",
  "filecoin-hashers",
  "filecoin-proofs",
  "fr32",
@@ -1612,10 +1522,10 @@ version = "9.0.0"
 source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
- "blstrs 0.7.1",
+ "blstrs",
  "byte-slice-cast",
  "byteorder",
- "ff 0.13.0",
+ "ff",
  "thiserror",
 ]
 
@@ -1834,24 +1744,11 @@ dependencies = [
 
 [[package]]
 name = "group"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dfbfb3a6cfbd390d5c9564ab283a0349b9b9fcd46a706c1eb10e0db70bfbac7"
-dependencies = [
- "ff 0.12.1",
- "rand 0.8.5",
- "rand_core 0.6.4",
- "rand_xorshift",
- "subtle",
-]
-
-[[package]]
-name = "group"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
 dependencies = [
- "ff 0.13.0",
+ "ff",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rand_xorshift",
@@ -2349,29 +2246,14 @@ dependencies = [
 
 [[package]]
 name = "librocksdb-sys"
-version = "0.10.0+7.9.2"
+version = "6.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fe4d5874f5ff2bc616e55e8c6086d478fcda13faf9495768a4aa1c22042d30b"
+checksum = "c309a9d2470844aceb9a4a098cf5286154d20596868b75a6b36357d2bb9ca25d"
 dependencies = [
  "bindgen",
- "bzip2-sys",
  "cc",
  "glob",
  "libc",
- "libz-sys",
- "lz4-sys",
- "zstd-sys",
-]
-
-[[package]]
-name = "libz-sys"
-version = "1.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9702761c3935f8cc2f101793272e202c72b99da8f4224a19ddcf1279a6450bbf"
-dependencies = [
- "cc",
- "pkg-config",
- "vcpkg",
 ]
 
 [[package]]
@@ -2406,16 +2288,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 dependencies = [
  "value-bag",
-]
-
-[[package]]
-name = "lz4-sys"
-version = "1.9.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57d27b317e207b10f69f5e75494119e391a96f48861ae870d1da6edac98ca900"
-dependencies = [
- "cc",
- "libc",
 ]
 
 [[package]]
@@ -2703,11 +2575,11 @@ dependencies = [
  "bellpepper",
  "bellpepper-core",
  "blake2s_simd 0.5.11",
- "blstrs 0.7.1",
+ "blstrs",
  "byteorder",
  "ec-gpu",
  "ec-gpu-gen 0.6.0",
- "ff 0.13.0",
+ "ff",
  "generic-array",
  "itertools 0.8.2",
  "log",
@@ -2958,20 +2830,11 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "pairing"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "135590d8bdba2b31346f9cd1fb2a912329f5135e832a4f422942eb6ead8b6b3b"
-dependencies = [
- "group 0.12.1",
-]
-
-[[package]]
-name = "pairing"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81fec4625e73cf41ef4bb6846cafa6d44736525f442ba45e407c4a000a13996f"
 dependencies = [
- "group 0.13.0",
+ "group",
 ]
 
 [[package]]
@@ -3036,8 +2899,8 @@ checksum = "d3e57598f73cc7e1b2ac63c79c517b31a0877cd7c402cdcaa311b5208de7a095"
 dependencies = [
  "blake2b_simd 1.0.1",
  "ec-gpu",
- "ff 0.13.0",
- "group 0.13.0",
+ "ff",
+ "group",
  "hex",
  "lazy_static",
  "rand 0.8.5",
@@ -3428,9 +3291,9 @@ dependencies = [
 
 [[package]]
 name = "rocksdb"
-version = "0.20.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "015439787fce1e75d55f279078d33ff14b4af5d93d995e8838ee4631301c8a99"
+checksum = "61aa17a99a2413cd71c1106691bf59dad7de0cd5099127f90e9d99c429c40d4a"
 dependencies = [
  "libc",
  "librocksdb-sys",
@@ -3772,6 +3635,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sppark"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba7a6d98937866ea8917015cd4a72d56d6e7feee8979dbccf83fc0c870053c46"
+dependencies = [
+ "cc",
+ "which",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3784,13 +3657,13 @@ source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=for
 dependencies = [
  "aes",
  "anyhow",
- "bellperson 0.26.0",
+ "bellperson",
  "blake2b_simd 1.0.1",
- "blstrs 0.7.1",
+ "blstrs",
  "byteorder",
  "cbc",
  "config",
- "ff 0.13.0",
+ "ff",
  "filecoin-hashers",
  "fr32",
  "fs2",
@@ -3818,16 +3691,16 @@ version = "16.0.0"
 source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
- "bellperson 0.26.0",
+ "bellperson",
  "bincode",
  "blake2b_simd 1.0.1",
- "blstrs 0.7.1",
+ "blstrs",
  "byte-slice-cast",
  "byteorder",
  "chacha20",
  "crossbeam",
  "fdlimit",
- "ff 0.13.0",
+ "ff",
  "filecoin-hashers",
  "fr32",
  "generic-array",
@@ -3859,11 +3732,11 @@ version = "16.0.0"
 source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
- "bellperson 0.26.0",
+ "bellperson",
  "blake2b_simd 1.0.1",
- "blstrs 0.7.1",
+ "blstrs",
  "byteorder",
- "ff 0.13.0",
+ "ff",
  "filecoin-hashers",
  "fr32",
  "generic-array",
@@ -3881,9 +3754,9 @@ version = "16.0.0"
 source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
 dependencies = [
  "anyhow",
- "bellperson 0.26.0",
- "blstrs 0.7.1",
- "ff 0.13.0",
+ "bellperson",
+ "blstrs",
+ "ff",
  "filecoin-hashers",
  "fr32",
  "generic-array",
@@ -3909,6 +3782,17 @@ name = "subtle"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
+
+[[package]]
+name = "supraseal-c2"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd636fe8d238305b3022c399f9973c88f58d75212ef36d2ff1ebd51e20285d5b"
+dependencies = [
+ "blst",
+ "cc",
+ "sppark",
+]
 
 [[package]]
 name = "syn"
@@ -4855,15 +4739,4 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.38",
-]
-
-[[package]]
-name = "zstd-sys"
-version = "2.0.8+zstd.1.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5556e6ee25d32df2586c098bbfa278803692a20d0ab9565e049480d52707ec8c"
-dependencies = [
- "cc",
- "libc",
- "pkg-config",
 ]
