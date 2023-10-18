@@ -27,7 +27,8 @@ pub fn init() -> Result<()> {
         .add_directive("rpc=warn".parse()?)
         .add_directive("hyper=warn".parse()?)
         .add_directive("mio=warn".parse()?)
-        .add_directive("reqwest=warn".parse()?);
+        .add_directive("reqwest=warn".parse()?)
+        .add_directive("merkletree=info".parse()?);
 
     let worker_env_filter = filter::EnvFilter::builder()
         .with_default_directive(filter::LevelFilter::OFF.into())
