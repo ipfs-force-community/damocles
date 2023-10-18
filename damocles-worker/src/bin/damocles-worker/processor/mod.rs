@@ -14,9 +14,9 @@ use vc_processors::{
     core::ext::{run_consumer, run_consumer_with_proc},
 };
 
-// #[cfg(feature = "supra-c2")]
-// const C2_ABOUT: &str = "damocles-worker built-in c2 [supra c2 enabled]";
-// #[cfg(not(feature = "supra-c2"))]
+#[cfg(any(feature = "supra-c2", feature = "cuda-supraseal"))]
+const C2_ABOUT: &str = "damocles-worker built-in c2 [supra c2 enabled]";
+#[cfg(not(any(feature = "supra-c2", feature = "cuda-supraseal")))]
 const C2_ABOUT: &str = "damocles-worker built-in c2";
 
 #[derive(Subcommand)]

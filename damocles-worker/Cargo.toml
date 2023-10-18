@@ -54,26 +54,11 @@ once_cell = "1"
 time = { version = "0.3.20", features = ["local-offset", "formatting"] }
 url = "2.3.1"
 tabwriter = "1"
-bellperson = { version = "0.24.1", optional = true }
-
-[dependencies.reqwest]
-version = "0.11"
-features = ["blocking"]
-
-[dependencies.tokio]
-version = "1"
-features = ["rt", "rt-multi-thread"]
-
-[dependencies.fil_types]
-version = "0.2"
-features = ["json"]
-
-[dependencies.rocksdb]
-version = "0.20"
-
-[dependencies.byte-unit]
-version = "4"
-features = ["serde"]
+reqwest = { version = "0.11", features = ["blocking"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
+fil_types = { version = "0.2", features = ["json"] }
+rocksdb = { version = "0.14.0" }
+byte-unit = { version = "4", features = ["serde"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 vc-processors = { path = "./vc-processors" }
@@ -81,11 +66,7 @@ vc-processors = { path = "./vc-processors" }
 [target.'cfg(not(target_os = "macos"))'.dependencies]
 vc-processors = { path = "./vc-processors", features = ["numa"] }
 
-[dependencies.storage-proofs-porep]
-git = "https://github.com/ipfs-force-community/rust-fil-proofs"
-package = "storage-proofs-porep"
-branch = "force/master_v16.0.0"
-default-features = false
+storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v16.0.0", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1.3"
@@ -95,6 +76,9 @@ tempfile = "3.3"
 [features]
 default = ["vc-processors/builtin", "vc-processors/ext-producer"]
 cuda = ["vc-processors/fil-proofs-cuda"]
+
+cuda-supraseal = ["vc-processors/fil-cuda-supraseal"]
+supra-c2 = ["vc-processors/fil-cuda-supraseal"]       # alias cuda-supraseal
 
 [patch.crates-io]
 filecoin-hashers = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "filecoin-hashers", branch = "force/master_v16.0.0" }
