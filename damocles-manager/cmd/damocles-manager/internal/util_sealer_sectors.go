@@ -1304,10 +1304,11 @@ var utilSealerSectorsFinalizeCmd = &cli.Command{
 	Usage:     "Mandatory label the sector status as the finalize, this is only to the sector that has been on the chain.",
 	ArgsUsage: "<sectorNum>",
 	Flags: []cli.Flag{
-		&cli.Uint64Flag{
-			Name:     "actor",
+		&cli.StringFlag{
+			Name:     "miner",
 			Required: true,
-			Usage:    "actor id, eg. 1000",
+			Aliases:  []string{"actor"},
+			Usage:    "miner id",
 		},
 		&cli.BoolFlag{
 			Name:  "really-do-it",
@@ -1317,6 +1318,11 @@ var utilSealerSectorsFinalizeCmd = &cli.Command{
 	Action: func(cctx *cli.Context) error {
 		if !cctx.Bool("really-do-it") {
 			return fmt.Errorf("pass --really-do-it to confirm this action")
+		}
+
+		minerID, err := ShouldActor(cctx.String("miner"), true)
+		if err != nil {
+			return fmt.Errorf("invalid miner actor id: %w", err)
 		}
 
 		cli, gctx, stop, err := extractAPI(cctx)
@@ -1331,8 +1337,7 @@ var utilSealerSectorsFinalizeCmd = &cli.Command{
 			return fmt.Errorf("could not parse sector number: %w", err)
 		}
 
-		actor := cctx.Uint64("actor")
-		err = cli.Damocles.FinalizeSector(gctx, abi.SectorID{Miner: abi.ActorID(actor), Number: abi.SectorNumber(id)})
+		err = cli.Damocles.FinalizeSector(gctx, abi.SectorID{Miner: minerID, Number: abi.SectorNumber(id)})
 		if err != nil {
 			return err
 		}
