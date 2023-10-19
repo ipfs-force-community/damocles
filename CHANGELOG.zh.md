@@ -1,22 +1,36 @@
-# Changelog 
-## v0.9.0
+# Changelog
+## v0.9.0-rc1
+- nv21 网络升级
+- synthetic PoRep 支持, 新增配置项 `Miners.Sealing.UseSyntheticPoRep` [#988](https://github.com/ipfs-force-community/damocles/pull/988)
 - damocles-manager
   - worker-prover 模块 cli 修复 MinerID 显示问题 [#850](https://github.com/ipfs-force-community/damocles/pull/850)
-  - 恢复 util sealer sectors abort 命令 [#853](https://github.com/ipfs-force-community/damocles/pull/853)
+  - 恢复 `util sealer sectors abort`` 命令 [#853](https://github.com/ipfs-force-community/damocles/pull/853)
+  - `util storage attach` 命令支持自定义 pattern，用于只导入指定的扇区 [#963](https://github.com/ipfs-force-community/damocles/pull/963)
+  - `util worker wdpost list` 命令支持显示证明的扇区数量 [#929](https://github.com/ipfs-force-community/damocles/issues/929)
+  - 增强 `util sealer sectors abort` 命令, 现在允许在 manager 侧直接 abort 扇区并且不会产生副作用。[#737](https://github.com/ipfs-force-community/damocles/issues/737)
   - 修复 wdpost 重复分配任务的 bug [#877](https://github.com/ipfs-force-community/damocles/pull/877)
-  - snapdeal 分配订单根据扇区的过期时间筛选 [#885](https://github.com/ipfs-force-community/damocles/pull/885)
+  - snapdeal 分配订单根据扇区的过期时间筛选, 避免分配到生命周期不匹配的订单 [#885](https://github.com/ipfs-force-community/damocles/pull/885)
   - 生成 windowpost 任务和封装提交扇区文件时，非严格模式不再检查扇区文件大小，只检查文件是否存在 [#924](https://github.com/ipfs-force-community/damocles/pull/924)
   - 修复外部执行器模式 windowpost "Invalid commitment" 的 bug [#943](https://github.com/ipfs-force-community/damocles/pull/943)
+  - 模拟 windowpost 支持设置自定义 challenge [#976](https://github.com/ipfs-force-community/damocles/pull/976)
+  - 内置 badger 数据库支持自动清理, 大幅减少数据库磁盘占用 [#971](https://github.com/ipfs-force-community/damocles/pull/971)
+  - windowpost 任务中读取文件添加超时机制，避免文件系统故障导致 manager hang 住, 使得整个 deadline 的 partition 都证明失败。[#728](https://github.com/ipfs-force-community/damocles/pull/728)
 
 - damocles-worker
+  - `worker list` 支持显示封装线程的状态 [#886](https://github.com/ipfs-force-community/damocles/pull/886)
+  - `worker list` 新增 stage 列，用于显示此封装线程当前正在执行的任务阶段 [#886](https://github.com/ipfs-force-community/damocles/pull/886)
   - 修复无法手动设置 sealing 状态的 bug [#866](https://github.com/ipfs-force-community/damocles/pull/866)
   - 修复 resume snapup 封装线程时 treed 链接文件已存在报错的 bug [#876](https://github.com/ipfs-force-community/damocles/pull/876)
-  - 允许 pc2 任务重复运行 [#837](https://github.com/ipfs-force-community/damocles/issues/837)
+  - 支持 pc2 中断运行 [#837](https://github.com/ipfs-force-community/damocles/issues/837)
   - 移除 rpc response 日志 [#892](https://github.com/ipfs-force-community/damocles/pull/892)
   - 修复子进程配置的环境变量无法覆盖父进程环境变量的 bug [#887](https://github.com/ipfs-force-community/damocles/pull/887)
   - docker 暴露端口号修改 17891 -> 17890 [#890](https://github.com/ipfs-force-community/damocles/pull/890)
   - 修复 pc1 设置 cpuset 无效的 bug [#904](https://github.com/ipfs-force-community/damocles/pull/904)
   - transfer 外部执行器支持禁用软链接 [#901](https://github.com/ipfs-force-community/damocles/pull/901)
+  - supranational c2 算法支持。 使用 `DAMOCLES_WORKER_FEATURES=supra-c2 make build-worker` 编译启用此功能 [#989](https://github.com/ipfs-force-community/damocles/pull/989)
+  - 新增配置项 `processors.{stage}.inherit_envs` 用于控制子进程是否继承 worker 的环境变量, 默认为 true 表示继承 worker 环境变量 [#917](https://github.com/ipfs-force-community/damocles/issues/917)
+  - 子进程任务分配策略调整: 根据子进程的负载分配任务，使其负载均衡。[#915](https://github.com/ipfs-force-community/damocles/pull/915)
+  - worker 支持自动初始化 sealing_thread 目录 [#899](https://github.com/ipfs-force-community/damocles/issues/899)
 
 
 ## v0.8.0-rc1
