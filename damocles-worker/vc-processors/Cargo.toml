@@ -32,9 +32,6 @@ fnv = "1.0.7"
 nix = { workspace = true }
 libc = { workspace = true }
 
-[target.'cfg(target_os = "linux")'.dependencies]
-cgroups-rs = "0.3"
-
 filecoin-proofs = { version = "16.0", default-features = false, features = [
     "opencl",
     "multicore-sdr",
@@ -45,6 +42,9 @@ filecoin-proofs-api = { version = "16.0", default-features = false, features = [
 ], optional = true }
 storage-proofs-core = { version = "16.0", optional = true }
 storage-proofs-porep = { version = "16.0", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+cgroups-rs = "0.3"
 
 [dev-dependencies]
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
