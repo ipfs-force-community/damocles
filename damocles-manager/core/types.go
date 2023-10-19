@@ -214,8 +214,9 @@ type AggregateInput struct {
 }
 
 type PreCommitEntry struct {
-	Deposit abi.TokenAmount
-	Pcsp    *miner.SectorPreCommitInfo
+	Deposit     abi.TokenAmount
+	Pcsp        *miner.SectorPreCommitInfo
+	SectorState *SectorState
 }
 
 type MessageInfo struct {

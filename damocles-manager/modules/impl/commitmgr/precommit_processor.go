@@ -46,7 +46,8 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 
 	infos := []core.PreCommitEntry{}
 	failed := map[abi.SectorID]struct{}{}
-	for _, s := range sectors {
+	for i := range sectors {
+		s := sectors[i]
 		params, deposit, _, err := p.preCommitInfo(ctx, s)
 		if err != nil {
 			plog.Errorf("get precommit params for %d failed: %s\n", s.ID.Number, err)
@@ -55,41 +56,55 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 		}
 
 		infos = append(infos, core.PreCommitEntry{
-			Deposit: deposit,
-			Pcsp:    params,
+			Deposit:     deposit,
+			Pcsp:        params,
+			SectorState: &s,
 		})
 	}
 
 	if len(infos) == 0 {
-		return fmt.Errorf("no available sector infos for pre commit batching")
+		return fmt.Errorf("no available sector infos for pre commit ")
 	}
 
-	params := core.PreCommitSectorBatchParams{}
+	sendPrecommit := func(infos []core.PreCommitEntry) error {
+		params := core.PreCommitSectorBatchParams{}
+		deposit := big.Zero()
+		for i := range infos {
+			params.Sectors = append(params.Sectors, *infos[i].Pcsp)
+			if mcfg.Commitment.Pre.SendFund {
+				deposit = big.Add(deposit, infos[i].Deposit)
+			}
+		}
 
-	deposit := big.Zero()
+		enc := new(bytes.Buffer)
+		if err := params.MarshalCBOR(enc); err != nil {
+			return fmt.Errorf("couldn't serialize PreCommitSectorBatchParams: %w", err)
+		}
 
+		ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, stbuiltin.MethodsMiner.PreCommitSectorBatch2,
+			p.msgClient, &mcfg.Commitment.Pre.Batch.FeeConfig, enc.Bytes(), plog)
+		if err != nil {
+			return fmt.Errorf("push message failed: %w", err)
+		}
+
+		for i := range infos {
+			infos[i].SectorState.MessageInfo.PreCommitCid = &ccid
+		}
+		return nil
+	}
+
+	if p.EnableBatch(mid) {
+		return sendPrecommit(infos)
+	}
+
+	// handle precommit individually
 	for i := range infos {
-		params.Sectors = append(params.Sectors, *infos[i].Pcsp)
-		if mcfg.Commitment.Pre.SendFund {
-			deposit = big.Add(deposit, infos[i].Deposit)
+		err := sendPrecommit([]core.PreCommitEntry{infos[i]})
+		if err != nil {
+			plog.Errorf("send precommit for %d: %s", infos[i].Pcsp.SectorNumber, err)
 		}
 	}
 
-	enc := new(bytes.Buffer)
-	if err := params.MarshalCBOR(enc); err != nil {
-		return fmt.Errorf("couldn't serialize PreCommitSectorBatchParams: %w", err)
-	}
-
-	ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, stbuiltin.MethodsMiner.PreCommitSectorBatch2,
-		p.msgClient, &mcfg.Commitment.Pre.Batch.FeeConfig, enc.Bytes(), plog)
-	if err != nil {
-		return fmt.Errorf("push batch precommit message failed: %w", err)
-	}
-	for i := range sectors {
-		if _, ok := failed[sectors[i].ID]; !ok {
-			sectors[i].MessageInfo.PreCommitCid = &ccid
-		}
-	}
 	return nil
 }
 
@@ -119,9 +134,8 @@ func (p PreCommitProcessor) Threshold(mid abi.ActorID) int {
 	return p.config.MustMinerConfig(mid).Commitment.Pre.Batch.Threshold
 }
 
-func (p PreCommitProcessor) EnableBatch(_ abi.ActorID) bool {
-	// always batch after nv21
-	return true
+func (p PreCommitProcessor) EnableBatch(mid abi.ActorID) bool {
+	return p.config.MustMinerConfig(mid).Commitment.Pre.Batch.Enabled
 }
 
 var _ Processor = (*PreCommitProcessor)(nil)
