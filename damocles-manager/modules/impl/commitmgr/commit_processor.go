@@ -98,7 +98,7 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 
 	defer updateSector(ctx, c.smgr, sectors, plog)
 
-	if !c.EnableBatch(mid) || len(sectors) < core.MinAggregatedSectors {
+	if !c.ShouldBatch(mid) || len(sectors) < core.MinAggregatedSectors {
 		c.processIndividually(ctx, sectors, ctrlAddr, mid, plog)
 		return nil
 	}
@@ -233,6 +233,26 @@ func (c CommitProcessor) Threshold(mid abi.ActorID) int {
 
 func (c CommitProcessor) EnableBatch(mid abi.ActorID) bool {
 	return c.config.MustMinerConfig(mid).Commitment.Prove.Batch.Enabled
+}
+
+func (c CommitProcessor) ShouldBatch(mid abi.ActorID) bool {
+	basefee, err := func() (abi.TokenAmount, error) {
+		ctx := context.Background()
+		tok, _, err := c.api.ChainHead(ctx)
+		if err != nil {
+			return abi.NewTokenAmount(0), err
+		}
+		return c.api.ChainBaseFee(ctx, tok)
+	}()
+
+	if err != nil {
+		log.Errorf("get basefee: %w", err)
+		return false
+	}
+
+	mcfg := c.config.MustMinerConfig(mid)
+
+	return mcfg.Commitment.Prove.Batch.Enabled && basefee.GreaterThanEqual(mcfg.Commitment.Prove.Batch.BatchPreCommitAboveBaseFee)
 }
 
 var _ Processor = (*CommitProcessor)(nil)

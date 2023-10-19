@@ -18,4 +18,5 @@ type Processor interface {
 	CheckAfter(mid abi.ActorID) *time.Timer
 	Threshold(mid abi.ActorID) int
 	EnableBatch(mid abi.ActorID) bool
+	ShouldBatch(mid abi.ActorID) bool
 }

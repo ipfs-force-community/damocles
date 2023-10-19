@@ -91,7 +91,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 		return nil
 	}
 
-	if p.EnableBatch(mid) {
+	if p.ShouldBatch(mid) || len(infos) == 1 {
 		return sendPrecommit(infos)
 	}
 
@@ -134,6 +134,26 @@ func (p PreCommitProcessor) Threshold(mid abi.ActorID) int {
 
 func (p PreCommitProcessor) EnableBatch(mid abi.ActorID) bool {
 	return p.config.MustMinerConfig(mid).Commitment.Pre.Batch.Enabled
+}
+
+func (p PreCommitProcessor) ShouldBatch(mid abi.ActorID) bool {
+	basefee, err := func() (abi.TokenAmount, error) {
+		ctx := context.Background()
+		tok, _, err := p.api.ChainHead(ctx)
+		if err != nil {
+			return abi.NewTokenAmount(0), err
+		}
+		return p.api.ChainBaseFee(ctx, tok)
+	}()
+
+	if err != nil {
+		log.Errorf("get basefee: %w", err)
+		return false
+	}
+
+	mcfg := p.config.MustMinerConfig(mid)
+
+	return mcfg.Commitment.Pre.Batch.Enabled && basefee.GreaterThanEqual(mcfg.Commitment.Pre.Batch.BatchPreCommitAboveBaseFee)
 }
 
 var _ Processor = (*PreCommitProcessor)(nil)
