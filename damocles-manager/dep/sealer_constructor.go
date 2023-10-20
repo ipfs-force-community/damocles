@@ -88,7 +88,7 @@ func ProvideConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigMan
 		return nil, err
 	}
 
-	log.Infof("Sector-manager initial cfg: \n%s\n", buf.String())
+	log.Debugf("Sector-manager initial cfg: \n%s\n", buf.String())
 
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
