@@ -347,7 +347,7 @@ func (tp TerminateProcessor) ShouldBatch(mid abi.ActorID) bool {
 
 	bcfg := tp.config.MustMinerConfig(mid).Commitment.Terminate.Batch
 	basefeeAbove := basefee.GreaterThanEqual(bcfg.BatchCommitAboveBaseFee)
-	bLog.Debugf("should batch: basefee(%s), basefee above(%t), enabled(%t)", types.FIL(basefee), basefeeAbove, bcfg.Enabled)
+	bLog.Debugf("should batch: basefee(%s), basefee above(%t), enabled(%t)", types.FIL(basefee).Short(), basefeeAbove, bcfg.Enabled)
 
 	return bcfg.Enabled && basefeeAbove
 }

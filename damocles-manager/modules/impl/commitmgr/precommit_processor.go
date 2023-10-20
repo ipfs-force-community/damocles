@@ -163,7 +163,7 @@ func (p PreCommitProcessor) ShouldBatch(mid abi.ActorID) bool {
 
 	bcfg := p.config.MustMinerConfig(mid).Commitment.Pre.Batch
 	basefeeAbove := basefee.GreaterThanEqual(bcfg.BatchCommitAboveBaseFee)
-	bLog.Debugf("should batch: basefee(%s), basefee above(%t), enabled(%t)", types.FIL(basefee), basefeeAbove, bcfg.Enabled)
+	bLog.Debugf("should batch: basefee(%s), basefee above(%t), enabled(%t)", types.FIL(basefee).Short(), basefeeAbove, bcfg.Enabled)
 
 	return bcfg.Enabled && basefeeAbove
 
