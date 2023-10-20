@@ -45,20 +45,18 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	}
 
 	infos := []core.PreCommitEntry{}
-	failed := map[abi.SectorID]struct{}{}
 	for i := range sectors {
-		s := sectors[i]
-		params, deposit, _, err := p.preCommitInfo(ctx, s)
+		s := &sectors[i]
+		params, deposit, _, err := p.preCommitInfo(ctx, *s)
 		if err != nil {
 			plog.Errorf("get precommit params for %d failed: %s\n", s.ID.Number, err)
-			failed[s.ID] = struct{}{}
 			continue
 		}
 
 		infos = append(infos, core.PreCommitEntry{
 			Deposit:     deposit,
 			Pcsp:        params,
-			SectorState: &s,
+			SectorState: s,
 		})
 	}
 

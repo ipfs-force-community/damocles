@@ -1,4 +1,14 @@
 # Changelog
+
+## v0.9.0-rc3
+
+- damocles-manager
+  - 修复 precommit 消息 cid 记录失败的问题 [#1006](https://github.com/ipfs-force-community/damocles/pull/1006)
+
+## v0.9.0-rc2
+- damocles-worker
+  - 修复依赖问题 [#1004](https://github.com/ipfs-force-community/damocles/pull/1004)
+
 ## v0.9.0-rc1
 - NV21 网络升级
 - Synthetic PoRep 支持, 新增配置项 `Miners.Sealing.UseSyntheticPoRep` [#988](https://github.com/ipfs-force-community/damocles/pull/988)
