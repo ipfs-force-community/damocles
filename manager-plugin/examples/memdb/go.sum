@@ -1,8 +1,8 @@
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230913074304-520ac6d716fa h1:i7fkriydgf7sLwXYsls+wyMDM0A3erSKOpHdff2Ipyw=
-github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230913074304-520ac6d716fa/go.mod h1:EpGeK7b251iv7L5TnHl1PJGFH4KbliE03ctYt5thy6c=
+github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20231020075910-8928215b9852 h1:lEkfYzy8GIuG+Utoj+RM7pwG3npTzrsFKFytLF0Pt8k=
+github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20231020075910-8928215b9852/go.mod h1:EpGeK7b251iv7L5TnHl1PJGFH4KbliE03ctYt5thy6c=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
 github.com/kr/pretty v0.3.0 h1:WgNl7dwNpEZ6jJ9k1snq4pZsg7DOEN8hP9Xw0Tsjwk0=

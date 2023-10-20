@@ -46,8 +46,8 @@ github.com/gopherjs/gopherjs v0.0.0-20190812055157-5d271430af9f h1:KMlcu9X58lhTA
 github.com/gopherjs/gopherjs v0.0.0-20190812055157-5d271430af9f/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
 github.com/gxed/hashland/keccakpg v0.0.1/go.mod h1:kRzw3HkwxFU1mpmPP8v1WyQzwdGfmKFJ6tItnhQ67kU=
 github.com/gxed/hashland/murmur3 v0.0.1/go.mod h1:KjXop02n4/ckmZSnY2+HKcLud/tcmvhST0bie/0lS48=
-github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230913074304-520ac6d716fa h1:i7fkriydgf7sLwXYsls+wyMDM0A3erSKOpHdff2Ipyw=
-github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230913074304-520ac6d716fa/go.mod h1:EpGeK7b251iv7L5TnHl1PJGFH4KbliE03ctYt5thy6c=
+github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20231020075910-8928215b9852 h1:lEkfYzy8GIuG+Utoj+RM7pwG3npTzrsFKFytLF0Pt8k=
+github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20231020075910-8928215b9852/go.mod h1:EpGeK7b251iv7L5TnHl1PJGFH4KbliE03ctYt5thy6c=
 github.com/ipfs/go-block-format v0.0.2/go.mod h1:AWR46JfpcObNfg3ok2JHDUfdiHRgWhJgCQF+KIgOPJY=
 github.com/ipfs/go-block-format v0.0.3/go.mod h1:4LmD4ZUw0mhO+JSKdpWwrzATiEfM7WWgQ8H5l6P8MVk=
 github.com/ipfs/go-block-format v0.1.2 h1:GAjkfhVx1f4YTODS6Esrj1wt2HhrtwTnhEr+DyPUaJo=

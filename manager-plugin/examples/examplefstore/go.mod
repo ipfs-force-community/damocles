@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/filecoin-project/go-state-types v0.11.1
-	github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20230913074304-520ac6d716fa
+	github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20231020075910-8928215b9852
 	github.com/shirou/gopsutil v2.18.12+incompatible
 )
 
