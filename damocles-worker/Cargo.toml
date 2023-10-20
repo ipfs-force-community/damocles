@@ -60,13 +60,14 @@ fil_types = { version = "0.2", features = ["json"] }
 rocksdb = { version = "0.21.0" }
 byte-unit = { version = "4", features = ["serde"] }
 
+storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v16.0.0", default-features = false }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 vc-processors = { path = "./vc-processors" }
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
 vc-processors = { path = "./vc-processors", features = ["numa"] }
 
-storage-proofs-porep = { git = "https://github.com/ipfs-force-community/rust-fil-proofs", package = "storage-proofs-porep", branch = "force/master_v16.0.0", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = "1.3"

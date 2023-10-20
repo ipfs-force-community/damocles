@@ -1,7 +1,5 @@
-#[allow(unused_imports)]
 use anyhow::{Context, Result};
 use clap::Subcommand;
-#[allow(unused_imports)]
 use vc_processors::{
     builtin::{
         processors::{BuiltinProcessor, TransferProcessor},
@@ -16,26 +14,17 @@ use vc_processors::{
     core::ext::{run_consumer, run_consumer_with_proc},
 };
 
-#[cfg(all(
-    feature = "fil-proofs",
-    any(feature = "supra-c2", feature = "cuda-supraseal")
-))]
+#[cfg(any(feature = "supra-c2", feature = "cuda-supraseal"))]
 const C2_ABOUT: &str = "damocles-worker built-in c2 [supra c2 enabled]";
-#[cfg(all(
-    feature = "fil-proofs",
-    not(any(feature = "supra-c2", feature = "cuda-supraseal"))
-))]
+#[cfg(not(any(feature = "supra-c2", feature = "cuda-supraseal")))]
 const C2_ABOUT: &str = "damocles-worker built-in c2";
 
 #[derive(Subcommand)]
 pub enum ProcessorCommand {
-    #[cfg(feature = "fil-proofs")]
     #[command(name=STAGE_NAME_ADD_PIECES)]
     AddPieces,
-    #[cfg(feature = "fil-proofs")]
     #[command(name=STAGE_NAME_TREED)]
     TreeD,
-    #[cfg(feature = "fil-proofs")]
     #[command(name=STAGE_NAME_PC1)]
     PC1 {
         /// Specify the path to the hugepage memory file and scan the hugepage memory files
@@ -66,16 +55,12 @@ pub enum ProcessorCommand {
         )]
         hugepage_files_path_pattern: Option<String>,
     },
-    #[cfg(feature = "fil-proofs")]
     #[command(name=STAGE_NAME_PC2)]
     PC2,
-    #[cfg(feature = "fil-proofs")]
     #[command(name=STAGE_NAME_C2, about=C2_ABOUT)]
     C2,
-    #[cfg(feature = "fil-proofs")]
     #[command(name=STAGE_NAME_SNAP_ENCODE)]
     SnapEncode,
-    #[cfg(feature = "fil-proofs")]
     #[command(name=STAGE_NAME_SNAP_PROVE)]
     SnapProve,
     #[command(name=STAGE_NAME_TRANSFER)]
@@ -83,23 +68,18 @@ pub enum ProcessorCommand {
         #[arg(long, alias = "disable_link", env = "DISABLE_LINK")]
         disable_link: bool,
     },
-    #[cfg(feature = "fil-proofs")]
     #[command(name=STAGE_NAME_WINDOW_POST)]
     WindowPoSt,
-    #[cfg(feature = "fil-proofs")]
     #[command(name=STAGE_NAME_WINNING_POST)]
     WinningPoSt,
 }
 
 pub(crate) fn run(cmd: &ProcessorCommand) -> Result<()> {
     match cmd {
-        #[cfg(feature = "fil-proofs")]
         ProcessorCommand::AddPieces => {
             run_consumer::<AddPieces, BuiltinProcessor>()
         }
-        #[cfg(feature = "fil-proofs")]
         ProcessorCommand::TreeD => run_consumer::<TreeD, BuiltinProcessor>(),
-        #[cfg(feature = "fil-proofs")]
         ProcessorCommand::PC1 {
             hugepage_files_path,
             hugepage_files_path_pattern,
@@ -128,15 +108,11 @@ pub(crate) fn run(cmd: &ProcessorCommand) -> Result<()> {
 
             run_consumer::<PC1, BuiltinProcessor>()
         }
-        #[cfg(feature = "fil-proofs")]
         ProcessorCommand::PC2 => run_consumer::<PC2, BuiltinProcessor>(),
-        #[cfg(feature = "fil-proofs")]
         ProcessorCommand::C2 => run_consumer::<C2, BuiltinProcessor>(),
-        #[cfg(feature = "fil-proofs")]
         ProcessorCommand::SnapEncode => {
             run_consumer::<SnapEncode, BuiltinProcessor>()
         }
-        #[cfg(feature = "fil-proofs")]
         ProcessorCommand::SnapProve => {
             run_consumer::<SnapProve, BuiltinProcessor>()
         }
@@ -146,11 +122,9 @@ pub(crate) fn run(cmd: &ProcessorCommand) -> Result<()> {
                 *disable_link,
             ))
         }
-        #[cfg(feature = "fil-proofs")]
         ProcessorCommand::WindowPoSt => {
             run_consumer::<WindowPoSt, BuiltinProcessor>()
         }
-        #[cfg(feature = "fil-proofs")]
         ProcessorCommand::WinningPoSt => {
             run_consumer::<WinningPoSt, BuiltinProcessor>()
         }
