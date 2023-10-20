@@ -597,22 +597,22 @@ func defaultMinerCommitmentPolicyConfig(example bool) MinerCommitmentPolicyConfi
 }
 
 type MinerCommitmentBatchPolicyConfig struct {
-	Enabled                    bool
-	Threshold                  int
-	MaxWait                    Duration
-	CheckInterval              Duration
-	BatchPreCommitAboveBaseFee abi.TokenAmount
+	Enabled                 bool
+	Threshold               int
+	MaxWait                 Duration
+	CheckInterval           Duration
+	BatchCommitAboveBaseFee abi.TokenAmount
 	FeeConfig
 }
 
 func defaultMinerCommitmentBatchPolicyConfig() MinerCommitmentBatchPolicyConfig {
 	cfg := MinerCommitmentBatchPolicyConfig{
-		Enabled:                    false,
-		Threshold:                  16,
-		MaxWait:                    Duration(time.Hour),
-		BatchPreCommitAboveBaseFee: abi.NewTokenAmount(0),
-		CheckInterval:              Duration(time.Minute),
-		FeeConfig:                  defaultFeeConfig(),
+		Enabled:                 false,
+		Threshold:               16,
+		MaxWait:                 Duration(time.Hour),
+		BatchCommitAboveBaseFee: abi.NewTokenAmount(0),
+		CheckInterval:           Duration(time.Minute),
+		FeeConfig:               defaultFeeConfig(),
 	}
 
 	return cfg

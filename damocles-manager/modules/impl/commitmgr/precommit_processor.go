@@ -12,6 +12,7 @@ import (
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
@@ -65,6 +66,13 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	}
 
 	sendPrecommit := func(infos []core.PreCommitEntry) error {
+		if len(infos) > 1 {
+			nums := make([]abi.SectorNumber, len(infos))
+			for i := range infos {
+				nums[i] = infos[i].Pcsp.SectorNumber
+			}
+			plog.Infof("batch precommit for %v", nums)
+		}
 		params := core.PreCommitSectorBatchParams{}
 		deposit := big.Zero()
 		for i := range infos {
@@ -137,6 +145,8 @@ func (p PreCommitProcessor) EnableBatch(mid abi.ActorID) bool {
 }
 
 func (p PreCommitProcessor) ShouldBatch(mid abi.ActorID) bool {
+	bLog := log.With("actor", mid, "type", "pre")
+
 	basefee, err := func() (abi.TokenAmount, error) {
 		ctx := context.Background()
 		tok, _, err := p.api.ChainHead(ctx)
@@ -151,9 +161,12 @@ func (p PreCommitProcessor) ShouldBatch(mid abi.ActorID) bool {
 		return false
 	}
 
-	mcfg := p.config.MustMinerConfig(mid)
+	bcfg := p.config.MustMinerConfig(mid).Commitment.Pre.Batch
+	basefeeAbove := basefee.GreaterThanEqual(bcfg.BatchCommitAboveBaseFee)
+	bLog.Debugf("should batch: basefee(%s), basefee above(%t), enabled(%t)", types.FIL(basefee), basefeeAbove, bcfg.Enabled)
 
-	return mcfg.Commitment.Pre.Batch.Enabled && basefee.GreaterThanEqual(mcfg.Commitment.Pre.Batch.BatchPreCommitAboveBaseFee)
+	return bcfg.Enabled && basefeeAbove
+
 }
 
 var _ Processor = (*PreCommitProcessor)(nil)
