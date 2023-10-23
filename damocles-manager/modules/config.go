@@ -597,17 +597,17 @@ func defaultMinerCommitmentPolicyConfig(example bool) MinerCommitmentPolicyConfi
 }
 
 type MinerCommitmentBatchPolicyConfig struct {
+	BatchCommitAboveBaseFee FIL
 	Threshold               int
 	MaxWait                 Duration
 	CheckInterval           Duration
-	BatchCommitAboveBaseFee FIL
 	FeeConfig
 }
 
 func defaultMinerCommitmentBatchPolicyConfig() MinerCommitmentBatchPolicyConfig {
 	cfg := MinerCommitmentBatchPolicyConfig{
-		Threshold:               16,
 		BatchCommitAboveBaseFee: FIL(big.NewInt(0)),
+		Threshold:               16,
 		MaxWait:                 Duration(time.Hour),
 		CheckInterval:           Duration(time.Minute),
 		FeeConfig:               defaultFeeConfig(),
