@@ -17,7 +17,6 @@ import (
 
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
-	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
@@ -233,10 +232,14 @@ func (c CommitProcessor) Threshold(mid abi.ActorID) int {
 }
 
 func (c CommitProcessor) EnableBatch(mid abi.ActorID) bool {
-	return c.config.MustMinerConfig(mid).Commitment.Prove.Batch.Enabled
+	return !c.config.MustMinerConfig(mid).Commitment.Prove.Batch.BatchCommitAboveBaseFee.IsZero()
 }
 
 func (c CommitProcessor) ShouldBatch(mid abi.ActorID) bool {
+	if !c.EnableBatch(mid) {
+		return false
+	}
+
 	bLog := log.With("actor", mid, "type", "prove")
 
 	basefee, err := func() (abi.TokenAmount, error) {
@@ -254,10 +257,10 @@ func (c CommitProcessor) ShouldBatch(mid abi.ActorID) bool {
 	}
 
 	bcfg := c.config.MustMinerConfig(mid).Commitment.Prove.Batch
-	basefeeAbove := basefee.GreaterThanEqual(bcfg.BatchCommitAboveBaseFee)
-	bLog.Debugf("should batch: basefee(%s), basefee above(%t), enabled(%t)", types.FIL(basefee).Short(), basefeeAbove, bcfg.Enabled)
+	basefeeAbove := basefee.GreaterThanEqual(abi.TokenAmount(bcfg.BatchCommitAboveBaseFee))
+	bLog.Debugf("should batch(%t): basefee(%s), basefee above(%s)", basefeeAbove, modules.FIL(basefee).Short(), bcfg.BatchCommitAboveBaseFee.Short())
 
-	return bcfg.Enabled && basefeeAbove
+	return basefeeAbove
 }
 
 var _ Processor = (*CommitProcessor)(nil)

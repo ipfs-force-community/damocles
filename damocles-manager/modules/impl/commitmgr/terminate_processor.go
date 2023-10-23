@@ -17,7 +17,6 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
-	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
@@ -325,7 +324,7 @@ func (tp TerminateProcessor) Threshold(mid abi.ActorID) int {
 }
 
 func (tp TerminateProcessor) EnableBatch(mid abi.ActorID) bool {
-	return tp.config.MustMinerConfig(mid).Commitment.Terminate.Batch.Enabled
+	return !tp.config.MustMinerConfig(mid).Commitment.Terminate.Batch.BatchCommitAboveBaseFee.IsZero()
 }
 
 func (tp TerminateProcessor) ShouldBatch(mid abi.ActorID) bool {
@@ -346,10 +345,10 @@ func (tp TerminateProcessor) ShouldBatch(mid abi.ActorID) bool {
 	}
 
 	bcfg := tp.config.MustMinerConfig(mid).Commitment.Terminate.Batch
-	basefeeAbove := basefee.GreaterThanEqual(bcfg.BatchCommitAboveBaseFee)
-	bLog.Debugf("should batch: basefee(%s), basefee above(%t), enabled(%t)", types.FIL(basefee).Short(), basefeeAbove, bcfg.Enabled)
+	basefeeAbove := basefee.GreaterThanEqual(abi.TokenAmount(bcfg.BatchCommitAboveBaseFee))
+	bLog.Debugf("should batch(%t): basefee(%s), basefee above(%s)", basefeeAbove, modules.FIL(basefee).Short(), bcfg.BatchCommitAboveBaseFee.Short())
 
-	return bcfg.Enabled && basefeeAbove
+	return basefeeAbove
 }
 
 var _ Processor = (*TerminateProcessor)(nil)
