@@ -112,7 +112,7 @@ var (
 	AttoFIL = FIL(big.NewInt(1))
 	NanoFIL = AttoFIL.Mul(1_000_000_000)
 	OneFIL  = NanoFIL.Mul(1_000_000_000)
-	Zero    = FIL(big.NewInt(0))
+	ZeroFIL = FIL(big.NewInt(0))
 )
 
 func (f FIL) Mul(num int64) FIL {
