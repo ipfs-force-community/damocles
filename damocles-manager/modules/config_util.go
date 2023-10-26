@@ -102,7 +102,7 @@ var filUnits = []struct {
 		name:      "attofil",
 		short:     "afil",
 		pretty:    "attoFIL",
-		precision: 1,
+		precision: 0,
 	},
 }
 
@@ -112,10 +112,15 @@ var (
 	AttoFIL = FIL(big.NewInt(1))
 	NanoFIL = AttoFIL.Mul(1_000_000_000)
 	OneFIL  = NanoFIL.Mul(1_000_000_000)
+	ZeroFIL = FIL(big.NewInt(0))
 )
 
 func (f FIL) Mul(num int64) FIL {
 	return FIL(big.Mul(big.Int(f), big.NewInt(num)))
+}
+
+func (f FIL) Div(num int64) FIL {
+	return FIL(big.Div(big.Int(f), big.NewInt(num)))
 }
 
 func (f FIL) Short() string {
@@ -136,7 +141,10 @@ func (f FIL) Short() string {
 		return "0"
 	}
 
-	return strings.TrimRight(strings.TrimRight(r.FloatString(filUnits[ui].precision), "0"), ".") + " " + filUnits[ui].pretty
+	fl, _ := r.Float64()
+	s := strconv.FormatFloat(fl, 'f', -1, 64)
+
+	return fmt.Sprintf("%s %s", s, filUnits[ui].pretty)
 }
 
 func (f FIL) Std() big.Int {
@@ -145,6 +153,10 @@ func (f FIL) Std() big.Int {
 	}
 
 	return big.Int(f).Copy()
+}
+
+func (f FIL) IsZero() bool {
+	return f.Int == nil || f.Std().Equals(big.Zero())
 }
 
 func ParseFIL(raw string) (FIL, error) {
