@@ -136,7 +136,7 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 		}
 	}()
 
-	if !tp.EnableBatch(mid) {
+	if !tp.ShouldBatch(mid) {
 		tp.processIndividually(ctx, sectors, ctrlAddr, mid, plog)
 		return nil
 	}
@@ -324,7 +324,31 @@ func (tp TerminateProcessor) Threshold(mid abi.ActorID) int {
 }
 
 func (tp TerminateProcessor) EnableBatch(mid abi.ActorID) bool {
-	return tp.config.MustMinerConfig(mid).Commitment.Terminate.Batch.Enabled
+	return !tp.config.MustMinerConfig(mid).Commitment.Terminate.Batch.BatchCommitAboveBaseFee.IsZero()
+}
+
+func (tp TerminateProcessor) ShouldBatch(mid abi.ActorID) bool {
+	bLog := log.With("actor", mid, "type", "terminate")
+
+	basefee, err := func() (abi.TokenAmount, error) {
+		ctx := context.Background()
+		tok, _, err := tp.api.ChainHead(ctx)
+		if err != nil {
+			return abi.NewTokenAmount(0), err
+		}
+		return tp.api.ChainBaseFee(ctx, tok)
+	}()
+
+	if err != nil {
+		log.Errorf("get basefee: %w", err)
+		return false
+	}
+
+	bcfg := tp.config.MustMinerConfig(mid).Commitment.Terminate.Batch
+	basefeeAbove := basefee.GreaterThanEqual(abi.TokenAmount(bcfg.BatchCommitAboveBaseFee))
+	bLog.Debugf("should batch(%t): basefee(%s), basefee above(%s)", basefeeAbove, modules.FIL(basefee).Short(), bcfg.BatchCommitAboveBaseFee.Short())
+
+	return basefeeAbove
 }
 
 var _ Processor = (*TerminateProcessor)(nil)
