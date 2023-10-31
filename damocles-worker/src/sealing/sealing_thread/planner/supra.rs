@@ -1095,7 +1095,7 @@ impl BatchSealer<'_> {
             tracing::debug!(
                 start_slot,
                 end_slot,
-                landed = landed,
+                landed,
                 interval = ?self.job.sealing_ctrl.config().rpc_polling_interval,
                 "waiting for next round of polling pre commit state",
             );
@@ -1481,7 +1481,9 @@ impl BatchSealer<'_> {
             }
 
             tracing::debug!(
-                landed = landed,
+                start_slot,
+                end_slot,
+                landed,
                 interval = ?self.job.sealing_ctrl.config().rpc_polling_interval,
                 "waiting for next round of polling proof state",
             );
