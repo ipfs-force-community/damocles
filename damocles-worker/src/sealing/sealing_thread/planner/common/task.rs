@@ -66,6 +66,10 @@ impl Task {
     pub fn rpc(&self) -> &SealerClient {
         self.sealing_ctrl.ctx.global.rpc.as_ref()
     }
+
+    pub fn is_cc(&self) -> bool {
+        self.sector.deals.as_ref().map(|d| d.len()).unwrap_or(0) == 0
+    }
 }
 
 impl JobTrait for Task {
@@ -253,10 +257,7 @@ impl Task {
     }
 
     pub fn staged_file(&self, sector_id: &SectorID) -> Entry {
-        Entry::file(
-            &self.store.data_path,
-            PathBuf::from("unsealed").join(self.sector_path(sector_id)),
-        )
+        Entry::file(&self.store.data_path, paths::unsealed_file(sector_id))
     }
 
     pub fn piece_file(&self, piece_cid: &CidJson) -> Entry {

@@ -181,14 +181,30 @@ impl<'t> Rebuild<'t> {
             self.task.sector.deals.as_ref()
         };
 
-        let pieces =
-            common::add_pieces(self.task, maybe_deals.unwrap_or(&Vec::new()))?;
+        let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
+        let pieces = common::add_pieces(
+            &self.task.sealing_ctrl,
+            *proof_type,
+            self.task.staged_file(sector_id),
+            maybe_deals.unwrap_or(&Vec::new()),
+        )?;
 
         Ok(Event::AddPiece(pieces))
     }
 
     fn build_tree_d_for_sealing(&self) -> Result<Event, Failure> {
-        common::build_tree_d(self.task, true)?;
+        let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
+
+        common::build_tree_d(
+            &self.task.sealing_ctrl,
+            *proof_type,
+            self.task.prepared_dir(sector_id),
+            self.task.staged_file(sector_id),
+            true,
+            self.task.is_cc(),
+        )?;
         Ok(Event::BuildTreeD)
     }
 
@@ -235,11 +251,30 @@ impl<'t> Rebuild<'t> {
 
         field_required!(deals, self.task.sector.deals.as_ref());
 
-        common::add_pieces(self.task, deals).map(Event::AddPiece)
+        let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
+        common::add_pieces(
+            &self.task.sealing_ctrl,
+            *proof_type,
+            self.task.staged_file(sector_id),
+            deals,
+        )
+        .map(Event::AddPiece)
     }
 
     fn build_tree_d_for_snapup(&self) -> Result<Event, Failure> {
-        common::build_tree_d(self.task, false).map(|_| Event::BuildTreeD)
+        let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
+
+        common::build_tree_d(
+            &self.task.sealing_ctrl,
+            *proof_type,
+            self.task.prepared_dir(sector_id),
+            self.task.staged_file(sector_id),
+            false,
+            self.task.is_cc(),
+        )
+        .map(|_| Event::BuildTreeD)
     }
 
     fn snap_encode(&self) -> Result<Event, Failure> {
@@ -256,6 +291,7 @@ impl<'t> Rebuild<'t> {
 
     fn persist(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
 
         let (cache_dir, sealed_file) = if self.is_snapup() {
             (
@@ -269,8 +305,15 @@ impl<'t> Rebuild<'t> {
             )
         };
 
-        common::persist_sector_files(self.task, cache_dir, sealed_file)
-            .map(Event::Persist)
+        common::persist_sector_files(
+            &self.task.sealing_ctrl,
+            *proof_type,
+            sector_id,
+            cache_dir,
+            sealed_file,
+            true,
+        )
+        .map(Event::Persist)
     }
 
     fn submit_persist(&self) -> Result<Event, Failure> {

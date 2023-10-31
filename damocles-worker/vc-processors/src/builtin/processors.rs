@@ -22,10 +22,21 @@ use crate::fil_proofs::{
 };
 
 pub mod piece;
+mod supra;
 mod transfer;
 
 #[derive(Copy, Clone, Default, Debug)]
 pub struct BuiltinProcessor;
+
+impl Processor<()> for BuiltinProcessor {
+    fn name(&self) -> String {
+        String::new()
+    }
+
+    fn process(&self, _: ()) -> Result<<() as Task>::Output> {
+        Ok(())
+    }
+}
 
 impl Processor<AddPieces> for BuiltinProcessor {
     fn name(&self) -> String {
@@ -84,7 +95,6 @@ impl Processor<TreeD> for BuiltinProcessor {
             Some(task.staged_file),
             task.cache_dir,
         )
-        .map(|_| true)
     }
 }
 

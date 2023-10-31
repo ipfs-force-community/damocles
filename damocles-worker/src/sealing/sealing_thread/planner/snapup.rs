@@ -166,13 +166,30 @@ impl<'t> SnapUp<'t> {
     fn add_piece(&self) -> Result<Event, Failure> {
         field_required!(deals, self.task.sector.deals.as_ref());
 
-        let pieces = common::add_pieces(self.task, deals)?;
+        let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
+        let pieces = common::add_pieces(
+            &self.task.sealing_ctrl,
+            *proof_type,
+            self.task.staged_file(sector_id),
+            deals,
+        )?;
 
         Ok(Event::AddPiece(pieces))
     }
 
     fn build_tree_d(&self) -> Result<Event, Failure> {
-        common::build_tree_d(self.task, false)?;
+        let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
+
+        common::build_tree_d(
+            &self.task.sealing_ctrl,
+            *proof_type,
+            self.task.prepared_dir(sector_id),
+            self.task.staged_file(sector_id),
+            false,
+            self.task.is_cc(),
+        )?;
         Ok(Event::BuildTreeD)
     }
 
@@ -217,36 +234,37 @@ impl<'t> SnapUp<'t> {
 
         let cache_dir = self.task.cache_dir(sector_id);
 
-        let cached_file_routes = cached_filenames_for_sector(proof_type.into())
-            .into_iter()
-            .map(|fname| {
-                let cached_file = cache_dir.join(fname);
-                let cached_rel = cached_file.rel();
+        let cached_file_routes =
+            cached_filenames_for_sector(proof_type.into(), true)
+                .into_iter()
+                .map(|fname| {
+                    let cached_file = cache_dir.join(fname);
+                    let cached_rel = cached_file.rel();
 
-                Ok(TransferRoute {
-                    src: TransferItem {
-                        store_name: Some(access_instance.clone()),
-                        uri: access_store
-                            .uri(cached_rel)
-                            .with_context(|| {
-                                format!(
-                                    "get uri for cache dir {:?} in {}",
-                                    cached_rel, access_instance
-                                )
-                            })
-                            .perm()?,
-                    },
-                    dest: TransferItem {
-                        store_name: None,
-                        uri: cached_file.full().clone(),
-                    },
-                    opt: Some(TransferOption {
-                        is_dir: false,
-                        allow_link: true,
-                    }),
+                    Ok(TransferRoute {
+                        src: TransferItem {
+                            store_name: Some(access_instance.clone()),
+                            uri: access_store
+                                .uri(cached_rel)
+                                .with_context(|| {
+                                    format!(
+                                        "get uri for cache dir {:?} in {}",
+                                        cached_rel, access_instance
+                                    )
+                                })
+                                .perm()?,
+                        },
+                        dest: TransferItem {
+                            store_name: None,
+                            uri: cached_file.full().clone(),
+                        },
+                        opt: Some(TransferOption {
+                            is_dir: false,
+                            allow_link: true,
+                        }),
+                    })
                 })
-            })
-            .collect::<Result<Vec<_>, Failure>>()?;
+                .collect::<Result<Vec<_>, Failure>>()?;
 
         let mut transfer_routes = vec![TransferRoute {
             src: TransferItem {
@@ -304,13 +322,17 @@ impl<'t> SnapUp<'t> {
 
     fn persist(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
         let update_cache_dir = self.task.update_cache_dir(sector_id);
         let update_file = self.task.update_file(sector_id);
 
         let ins_name = common::persist_sector_files(
-            self.task,
+            &self.task.sealing_ctrl,
+            *proof_type,
+            sector_id,
             update_cache_dir,
             update_file,
+            true,
         )?;
 
         Ok(Event::Persist(ins_name))

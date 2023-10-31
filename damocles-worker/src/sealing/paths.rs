@@ -25,3 +25,7 @@ pub fn update_cache_dir(sector_id: &SectorID) -> PathBuf {
 pub fn pc2_running_file(sector_id: &SectorID) -> PathBuf {
     cache_dir(sector_id).join(".pc2_running")
 }
+
+pub fn unsealed_file(sector_id: &SectorID) -> PathBuf {
+    PathBuf::from("unsealed").join(sector_path(sector_id))
+}

@@ -42,7 +42,7 @@ impl Processor<TreeD> for TreeDProc {
     fn process(&self, task: TreeD) -> Result<<TreeD as Task>::Output> {
         info!(dir = ?task.cache_dir, "process tree_d task");
         std::thread::sleep(Duration::from_secs(3));
-        Ok(false)
+        Ok(Default::default())
     }
 }
 

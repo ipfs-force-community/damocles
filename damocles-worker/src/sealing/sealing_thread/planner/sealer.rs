@@ -244,8 +244,12 @@ impl<'t> Sealer<'t> {
     }
 
     fn handle_deals_acquired(&self) -> Result<Event, Failure> {
+        let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
         let pieces = common::add_pieces(
-            self.task,
+            &self.task.sealing_ctrl,
+            *proof_type,
+            self.task.staged_file(sector_id),
             self.task.sector.deals.as_ref().unwrap_or(&Vec::new()),
         )?;
 
@@ -253,7 +257,18 @@ impl<'t> Sealer<'t> {
     }
 
     fn handle_piece_added(&self) -> Result<Event, Failure> {
-        common::build_tree_d(self.task, true)?;
+        let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
+
+        common::build_tree_d(
+            &self.task.sealing_ctrl,
+            *proof_type,
+            self.task.prepared_dir(sector_id),
+            self.task.staged_file(sector_id),
+            true,
+            self.task.is_cc(),
+        )?;
+
         Ok(Event::BuildTreeD)
     }
 
@@ -408,11 +423,18 @@ impl<'t> Sealer<'t> {
 
     fn handle_pc_landed(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
         let cache_dir = self.task.cache_dir(sector_id);
         let sealed_file = self.task.sealed_file(sector_id);
 
-        let ins_name =
-            common::persist_sector_files(self.task, cache_dir, sealed_file)?;
+        let ins_name = common::persist_sector_files(
+            &self.task.sealing_ctrl,
+            *proof_type,
+            sector_id,
+            cache_dir,
+            sealed_file,
+            true,
+        )?;
 
         Ok(Event::Persist(ins_name))
     }

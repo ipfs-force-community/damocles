@@ -183,7 +183,8 @@ where
                 },
 
                 Err(Failure(Level::Abort, aerr)) => {
-                    if let Err(rerr) = self.job.report_aborted(aerr.to_string())
+                    if let Err(rerr) =
+                        self.job.report_aborted(format!("{:#}", aerr))
                     {
                         tracing::error!(
                             "report aborted sector failed: {:?}",

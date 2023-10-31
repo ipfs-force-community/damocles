@@ -6,11 +6,13 @@ pub const PLANNER_NAME_SNAPUP: &str = "snapup";
 pub const PLANNER_NAME_REBUILD: &str = "rebuild";
 pub const PLANNER_NAME_UNSEAL: &str = "unseal";
 pub const PLANNER_NAME_WDPOST: &str = "wdpost";
+pub const PLANNER_NAME_SUPRA: &str = "supra";
 
 mod common;
 mod rebuild;
 mod sealer;
 mod snapup;
+mod supra;
 mod unseal;
 mod wdpost;
 
@@ -41,7 +43,8 @@ use plan;
 
 use self::{
     common::CommonSealer, rebuild::RebuildPlanner, sealer::SealerPlanner,
-    snapup::SnapUpPlanner, unseal::UnsealPlanner, wdpost::WdPostSealer,
+    snapup::SnapUpPlanner, supra::SupraSealer, unseal::UnsealPlanner,
+    wdpost::WdPostSealer,
 };
 
 use super::{Sealer, SealingThread};
@@ -88,6 +91,7 @@ pub(crate) fn create_sealer(
         PLANNER_NAME_WDPOST => {
             Ok(Box::new(WdPostSealer::new(st.sealing_ctrl(ctx))))
         }
+        PLANNER_NAME_SUPRA => Ok(Box::new(SupraSealer::new(ctx, st)?)),
         unknown => Err(anyhow!("unknown planner: {}", unknown)),
     }
 }

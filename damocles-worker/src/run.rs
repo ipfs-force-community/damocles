@@ -69,11 +69,23 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
     for (sidx, scfg) in cfg.attached()?.into_iter().enumerate() {
         let attached_store = Box::new(
             FileStore::open(
-                scfg.location,
-                scfg.name,
+                scfg.location.clone(),
+                scfg.name.clone(),
                 scfg.readonly.unwrap_or(false),
             )
-            .with_context(|| format!("open attached filestore #{}", sidx))?,
+            .with_context(|| {
+                if let Some(name) = scfg.name.as_ref() {
+                    format!(
+                        "open attached filestore #{}, {}({})",
+                        sidx, name, scfg.location
+                    )
+                } else {
+                    format!(
+                        "open attached filestore #{}, ({})",
+                        sidx, scfg.location
+                    )
+                }
+            })?,
         );
 
         attached.push(attached_store);
@@ -328,6 +340,10 @@ fn start_processors(
         transfer: construct_sub_processor!(transfer, cfg, limit),
         unseal: construct_sub_processor!(unseal, cfg, limit),
         window_post: construct_sub_processor!(window_post, cfg, limit),
+        supra_pc1: construct_sub_processor!(supra_pc1, cfg, limit),
+        supra_pc2: construct_sub_processor!(supra_pc2, cfg, limit),
+        supra_c1: construct_sub_processor!(supra_c1, cfg, limit),
+        sealing_daemons: construct_sub_processor!(sealing_daemons, cfg, limit),
     })
 }
 

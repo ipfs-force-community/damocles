@@ -17,8 +17,8 @@ use crate::{
         processor::{
             self, external::Proc as ExtProc, AddPiecesInput, C2Input,
             NoLockProcessor, PC1Input, PC2Input, SnapEncodeInput,
-            SnapProveInput, TransferInput, TreeDInput, UnsealInput,
-            WindowPoStInput,
+            SnapProveInput, SupraC1Input, SupraPC1Input, SupraPC2Input,
+            TransferInput, TreeDInput, UnsealInput, WindowPoStInput,
         },
         CtrlProcessor,
     },
@@ -67,6 +67,11 @@ pub(crate) struct GlobalProcessors {
     pub transfer: Proc<TransferInput>,
     pub unseal: Proc<UnsealInput>,
     pub window_post: Proc<WindowPoStInput>,
+    pub supra_pc1: Proc<SupraPC1Input>,
+    pub supra_pc2: Proc<SupraPC2Input>,
+    pub supra_c1: Proc<SupraC1Input>,
+    #[allow(dead_code)]
+    pub sealing_daemons: Proc<()>,
 }
 
 impl Module for Box<dyn Module> {

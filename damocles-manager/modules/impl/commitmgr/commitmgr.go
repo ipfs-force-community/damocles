@@ -791,7 +791,8 @@ func (c *CommitmentMgrImpl) handleMessage(_ context.Context, mid abi.ActorID, ms
 	var maybeMsg *string
 	if msg.Receipt != nil {
 		recepitStr := msg.Receipt.String()
-		maybeMsg = &recepitStr
+		tmp := fmt.Sprintf("msg-cid: %s, recepit: %s", msg.ID, recepitStr)
+		maybeMsg = &tmp
 		if msg.State != messager.MessageState.OnChainMsg && msg.State != messager.MessageState.NonceConflictMsg {
 			mlog.Warnf("MAYBE WARN from off-chain msg receipt: %s", msg.Receipt)
 		}

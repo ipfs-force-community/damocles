@@ -494,7 +494,7 @@ impl WdPost<'_> {
         if let Err(e) = &res {
             tracing::error!(err=?e, job_id=wdpost_job.id,"wdpost error");
         }
-        Ok(WdPostEvent::Generate(res.map_err(|e| e.to_string())))
+        Ok(WdPostEvent::Generate(res.map_err(|e| format!("{:#}", e))))
     }
 
     fn report_result(&self) -> Result<WdPostEvent, Failure> {

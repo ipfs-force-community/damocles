@@ -62,6 +62,9 @@ pub struct Sealing {
 
     /// max retry times for request task from sector manager
     pub request_task_max_retries: u32,
+
+    /// custom configurations
+    pub meta: HashMap<String, String>,
 }
 
 impl Default for Sealing {
@@ -79,6 +82,7 @@ impl Default for Sealing {
             rpc_polling_interval: Duration::from_secs(180),
             ignore_proof_check: false,
             request_task_max_retries: 3,
+            meta: HashMap::new(),
         }
     }
 }
@@ -127,6 +131,10 @@ pub struct SealingOptional {
 
     /// max retry times for request task from sector manager
     pub request_task_max_retries: Option<u32>,
+
+    /// custom configurations
+    #[serde(default)]
+    pub meta: HashMap<String, String>,
 }
 
 /// configuration for remote store
@@ -222,6 +230,18 @@ pub struct Processors {
 
     /// section for window_post processor
     pub window_post: Option<Vec<Ext>>,
+
+    /// section for supra_pc1 processor
+    pub supra_pc1: Option<Vec<Ext>>,
+
+    /// section for supra_pc2 processor
+    pub supra_pc2: Option<Vec<Ext>>,
+
+    /// section for supra_c1 processor
+    pub supra_c1: Option<Vec<Ext>>,
+
+    /// section for sealing_daemons processor
+    pub sealing_daemons: Option<Vec<Ext>>,
 }
 
 impl Processors {

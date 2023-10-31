@@ -6,9 +6,15 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
-use vc_processors::builtin::tasks::{
-    Piece, PieceFile, STAGE_NAME_ADD_PIECES, STAGE_NAME_SYNTHETIC_PROOF,
-    STAGE_NAME_TREED,
+use vc_processors::{
+    builtin::{
+        processors::piece::get_all_zero_commitment,
+        tasks::{
+            Piece, PieceFile, STAGE_NAME_ADD_PIECES,
+            STAGE_NAME_SYNTHETIC_PROOF, STAGE_NAME_TREED,
+        },
+    },
+    fil_proofs::Commitment,
 };
 
 use crate::{
@@ -30,6 +36,7 @@ use crate::{
         sealing_thread::{
             entry::Entry,
             util::{call_rpc, cloned_required, field_required},
+            SealingCtrl,
         },
     },
     types::SIZE_32G,
@@ -41,29 +48,26 @@ use super::task::Task;
 const SYNTHETIC_PROOF_CHECK_ROUND: i32 = 3;
 
 pub(crate) fn add_pieces(
-    task: &Task,
+    sealing_ctrl: &SealingCtrl<'_>,
+    seal_proof: SealProof,
+    unsealed_filepath: Entry,
     deals: &Deals,
 ) -> Result<Vec<PieceInfo>, Failure> {
-    let _token = task
-        .sealing_ctrl
-        .ctrl_ctx()
-        .wait(STAGE_NAME_ADD_PIECES)
-        .crit()?;
+    let _token = sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_ADD_PIECES).crit()?;
 
-    let seal_proof_type = task.sector_proof_type()?.into();
-    let staged_filepath = task.staged_file(task.sector_id()?);
-    if staged_filepath.full().exists() {
-        remove_file(&staged_filepath)
-            .context("remove the existing staged file")
+    let seal_proof_type = seal_proof.into();
+    if unsealed_filepath.full().exists() {
+        remove_file(&unsealed_filepath)
+            .context("remove the existing unseal file")
             .perm()?;
     } else {
-        staged_filepath
+        unsealed_filepath
             .prepare()
-            .context("prepare staged file")
+            .context("prepare unseal file")
             .perm()?;
     }
 
-    let piece_store = task.sealing_ctrl.ctx().global.piece_store.as_ref();
+    let piece_store = sealing_ctrl.ctx().global.piece_store.as_ref();
 
     let mut pieces = Vec::with_capacity(deals.len());
 
@@ -86,17 +90,17 @@ pub(crate) fn add_pieces(
         })
     }
 
-    task.sealing_ctrl
+    sealing_ctrl
         .ctx()
         .global
         .processors
         .add_pieces
         .process(
-            task.sealing_ctrl.ctrl_ctx(),
+            sealing_ctrl.ctrl_ctx(),
             AddPiecesInput {
                 seal_proof_type,
                 pieces,
-                staged_filepath: staged_filepath.into(),
+                staged_filepath: unsealed_filepath.into(),
             },
         )
         .context("add pieces")
@@ -105,17 +109,15 @@ pub(crate) fn add_pieces(
 
 // build tree_d inside `prepare_dir` if necessary
 pub(crate) fn build_tree_d(
-    task: &Task,
+    sealing_ctrl: &SealingCtrl<'_>,
+    proof_type: SealProof,
+    prepared_dir: Entry,
+    unsealed_filepath: Entry,
     allow_static: bool,
-) -> Result<(), Failure> {
-    let sector_id = task.sector_id()?;
-    let proof_type = task.sector_proof_type()?;
-
-    let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_TREED).crit()?;
-
-    let prepared_dir = task.prepared_dir(sector_id);
+    is_cc: bool,
+) -> Result<Commitment, Failure> {
+    let _token = sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_TREED).crit()?;
     prepared_dir.prepare().perm()?;
-
     let tree_d_path = tree_d_path_in_dir(prepared_dir.as_ref());
     if tree_d_path.exists() {
         remove_file(&tree_d_path)
@@ -126,11 +128,8 @@ pub(crate) fn build_tree_d(
     }
 
     // pledge sector
-    if allow_static
-        && task.sector.deals.as_ref().map(|d| d.len()).unwrap_or(0) == 0
-    {
-        if let Some(static_tree_path) = task
-            .sealing_ctrl
+    if allow_static && is_cc {
+        if let Some(static_tree_path) = sealing_ctrl
             .ctx()
             .global
             .static_tree_d
@@ -141,28 +140,27 @@ pub(crate) fn build_tree_d(
                 tree_d_path_in_dir(prepared_dir.as_ref()),
             )
             .crit()?;
-            return Ok(());
+            return get_all_zero_commitment(proof_type.sector_size()).crit();
         }
     }
 
-    let staged_file = task.staged_file(sector_id);
-
-    task.sealing_ctrl
+    prepared_dir.prepare().perm()?;
+    let comm_d = sealing_ctrl
         .ctx()
         .global
         .processors
         .tree_d
         .process(
-            task.sealing_ctrl.ctrl_ctx(),
+            sealing_ctrl.ctrl_ctx(),
             TreeDInput {
-                registered_proof: (*proof_type).into(),
-                staged_file: staged_file.into(),
+                registered_proof: proof_type.into(),
+                staged_file: unsealed_filepath.into(),
                 cache_dir: prepared_dir.into(),
             },
         )
         .perm()?;
 
-    Ok(())
+    Ok(comm_d)
 }
 
 fn cleanup_before_pc1(cache_dir: &Entry, sealed_file: &Entry) -> Result<()> {
@@ -520,12 +518,13 @@ pub(crate) fn snap_prove(task: &Task) -> Result<SnapProveOutput, Failure> {
 // acquire a persist store for sector files, copy the files and return the instance name of the
 // acquired store
 pub(crate) fn persist_sector_files(
-    task: &Task,
+    sealing_ctrl: &SealingCtrl<'_>,
+    proof_type: SealProof,
+    sector_id: &SectorID,
     cache_dir: Entry,
     sealed_file: Entry,
+    t_aux: bool,
 ) -> Result<String, Failure> {
-    let sector_id = task.sector_id()?;
-    let proof_type = task.sector_proof_type()?;
     let sector_size = proof_type.sector_size();
     // 1.02 * sector size
     let required_size = if sector_size < SIZE_32G {
@@ -536,12 +535,7 @@ pub(crate) fn persist_sector_files(
         sector_size + sector_size / 50
     };
 
-    let candidates = task
-        .sealing_ctrl
-        .ctx()
-        .global
-        .attached
-        .available_instances();
+    let candidates = sealing_ctrl.ctx().global.attached.available_instances();
     if candidates.is_empty() {
         return Err(anyhow!("no available local persist store candidate"))
             .perm();
@@ -549,7 +543,7 @@ pub(crate) fn persist_sector_files(
 
     let ins_info = loop {
         let res = call_rpc! {
-            task.rpc() => store_reserve_space(sector_id.clone(), required_size, candidates.clone(),)
+            sealing_ctrl.ctx.global.rpc.as_ref() => store_reserve_space(sector_id.clone(), required_size, candidates.clone(),)
         }?;
 
         if let Some(selected) = res {
@@ -562,13 +556,11 @@ pub(crate) fn persist_sector_files(
             candidates=?candidates,
             "no persist store selected, wait for next polling"
         );
-        task.sealing_ctrl.wait_or_interrupted(
-            task.sealing_ctrl.config().rpc_polling_interval,
-        )?;
+        sealing_ctrl
+            .wait_or_interrupted(sealing_ctrl.config().rpc_polling_interval)?;
     };
 
-    let persist_store = task
-        .sealing_ctrl
+    let persist_store = sealing_ctrl
         .ctx()
         .global
         .attached
@@ -581,7 +573,7 @@ pub(crate) fn persist_sector_files(
 
     let mut wanted = vec![sealed_file];
     wanted.extend(
-        cached_filenames_for_sector(proof_type.into())
+        cached_filenames_for_sector(proof_type.into(), t_aux)
             .into_iter()
             .map(|fname| cache_dir.join(fname)),
     );
@@ -619,12 +611,12 @@ pub(crate) fn persist_sector_files(
         routes: transfer_routes,
     };
 
-    task.sealing_ctrl
+    sealing_ctrl
         .ctx()
         .global
         .processors
         .transfer
-        .process(task.sealing_ctrl.ctrl_ctx(), transfer)
+        .process(sealing_ctrl.ctrl_ctx(), transfer)
         .context("transfer persist sector files")
         .perm()?;
 
@@ -643,7 +635,7 @@ pub(crate) fn submit_persisted(
     }
 
     let checked = call_rpc! {
-        task.rpc() => submit_persisted_ex(sector_id.clone(), instance,is_upgrade,)
+        task.rpc() => submit_persisted_ex(sector_id.clone(), instance, is_upgrade,)
     }?;
 
     if checked {

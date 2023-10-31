@@ -55,6 +55,20 @@ pub const STAGE_NAME_UNSEAL: &str = "unseal";
 /// name str for synthetic proof
 pub const STAGE_NAME_SYNTHETIC_PROOF: &str = "synth_proof";
 
+/// name str for supra_pc1
+pub const STAGE_NAME_SUPRA_PC1: &str = "supra_pc1";
+
+/// name str for supra_pc2
+pub const STAGE_NAME_SUPRA_PC2: &str = "supra_pc2";
+
+/// name str for supra_c1
+pub const STAGE_NAME_SUPRA_C1: &str = "supra_c1";
+
+impl Task for () {
+    const STAGE: &'static str = "";
+    type Output = ();
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PieceFile {
@@ -94,7 +108,7 @@ pub struct TreeD {
 
 impl Task for TreeD {
     const STAGE: &'static str = STAGE_NAME_TREED;
-    type Output = bool;
+    type Output = Commitment;
 }
 
 /// Task of pre-commit phase1
@@ -290,4 +304,51 @@ impl Task for Unseal {
     const STAGE: &'static str = STAGE_NAME_UNSEAL;
 
     type Output = UnpaddedBytesAmount;
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SupraPC1 {
+    pub registered_proof: RegisteredSealProof,
+    pub block_offset: u64,
+    pub num_sectors: usize,
+    pub replica_ids: Vec<[u8; 32]>,
+}
+
+impl Task for SupraPC1 {
+    const STAGE: &'static str = STAGE_NAME_SUPRA_PC1;
+    type Output = bool;
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SupraPC2 {
+    pub registered_proof: RegisteredSealProof,
+    pub block_offset: u64,
+    pub num_sectors: usize,
+    pub output_dir: PathBuf,
+    pub data_filenames: Vec<PathBuf>,
+}
+
+impl Task for SupraPC2 {
+    const STAGE: &'static str = STAGE_NAME_SUPRA_PC2;
+    type Output = Vec<Commitment>;
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SupraC1 {
+    pub registered_proof: RegisteredSealProof,
+    pub block_offset: u64,
+    pub num_sectors: usize,
+    pub sector_slot: usize,
+    pub pc1_replica_id: [u8; 32],
+    pub ticket: [u8; 32],
+    /// raw seed data
+    pub seed: [u8; 32],
+    pub cache_path: PathBuf,
+    // store sealed file
+    pub replica_path: PathBuf,
+}
+
+impl Task for SupraC1 {
+    const STAGE: &'static str = STAGE_NAME_SUPRA_C1;
+    type Output = SealCommitPhase1Output;
 }

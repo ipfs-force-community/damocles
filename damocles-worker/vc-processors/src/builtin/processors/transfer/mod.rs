@@ -46,9 +46,13 @@ pub fn do_transfer_inner(
         }
 
         if dest_is_dir {
-            remove_dir_all(&route.dest.uri).context("remove exist dest dir")?;
+            remove_dir_all(&route.dest.uri).with_context(|| {
+                format!("remove exist dest dir: {}", route.dest.uri.display())
+            })?;
         } else {
-            remove_file(&route.dest.uri).context("remove exist dest file")?;
+            remove_file(&route.dest.uri).with_context(|| {
+                format!("remove exist dest file: {}", route.dest.uri.display())
+            })?;
         }
     }
 

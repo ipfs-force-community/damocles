@@ -200,7 +200,7 @@ fn sector_size_to_commitment_index(sector_size: u64) -> Result<usize> {
 }
 
 /// Gets commitment for all-zero piece of sector size
-fn get_all_zero_commitment(sector_size: u64) -> Result<Commitment> {
+pub fn get_all_zero_commitment(sector_size: u64) -> Result<Commitment> {
     let idx = sector_size_to_commitment_index(sector_size)?;
 
     Ok(ALL_ZERO_PIECE_COMMS[idx])

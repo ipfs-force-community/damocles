@@ -8,8 +8,8 @@ use std::{fmt, io};
 
 use anyhow::{Context, Result};
 use filecoin_proofs::{
-    get_base_tree_leafs, get_base_tree_size, DefaultBinaryTree,
-    DefaultPieceHasher, StoreConfig, BINARY_ARITY,
+    commitment_from_fr, get_base_tree_leafs, get_base_tree_size,
+    DefaultBinaryTree, DefaultPieceHasher, StoreConfig, BINARY_ARITY,
 };
 use filecoin_proofs_api::post;
 use filecoin_proofs_api::seal;
@@ -25,8 +25,9 @@ use storage_proofs_core::{
 // re-exported
 pub use filecoin_proofs_api::{
     seal::{
-        clear_cache, Labels, SealCommitPhase1Output, SealCommitPhase2Output,
-        SealPreCommitPhase1Output, SealPreCommitPhase2Output,
+        clear_cache, compute_comm_d, Labels, SealCommitPhase1Output,
+        SealCommitPhase2Output, SealPreCommitPhase1Output,
+        SealPreCommitPhase2Output,
     },
     update::{
         empty_sector_update_encode_into,
@@ -331,7 +332,7 @@ pub fn create_tree_d(
     sector_size: u64,
     in_path: Option<PathBuf>,
     cache_path: PathBuf,
-) -> Result<()> {
+) -> Result<Commitment> {
     safe_call! {
         create_tree_d_inner(
             sector_size,
@@ -345,7 +346,7 @@ fn create_tree_d_inner(
     sector_size: u64,
     in_path: Option<PathBuf>,
     cache_path: PathBuf,
-) -> Result<()> {
+) -> Result<Commitment> {
     let tree_size =
         get_base_tree_size::<DefaultBinaryTree>(sector_size.into())?;
     let tree_leafs = get_base_tree_leafs::<DefaultBinaryTree>(tree_size)?;
@@ -375,17 +376,19 @@ fn create_tree_d_inner(
         default_rows_to_discard(tree_leafs, BINARY_ARITY),
     );
 
-    create_base_merkle_tree::<BinaryMerkleTree<DefaultPieceHasher>>(
-        Some(cfg),
-        tree_leafs,
-        data.as_ref(),
-    )?;
+    let data_tree = create_base_merkle_tree::<
+        BinaryMerkleTree<DefaultPieceHasher>,
+    >(Some(cfg), tree_leafs, data.as_ref())?;
 
-    Ok(())
+    let comm_d = commitment_from_fr(data_tree.root().into());
+    drop(data_tree);
+
+    Ok(comm_d)
 }
 
 pub fn cached_filenames_for_sector(
     registered_proof: RegisteredSealProof,
+    t_aux: bool,
 ) -> Vec<PathBuf> {
     use RegisteredSealProof::*;
     let mut trees = match registered_proof {
@@ -415,7 +418,9 @@ pub fn cached_filenames_for_sector(
     };
 
     trees.push("p_aux".into());
-    trees.push("t_aux".into());
+    if t_aux {
+        trees.push("t_aux".into());
+    }
 
     trees
 }

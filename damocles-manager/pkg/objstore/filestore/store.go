@@ -238,10 +238,11 @@ func (s *Store) Stat(ctx context.Context, p string) (objstore.Stat, error) {
 		finfo, err := os.Stat(s.FullPath(ctx, p))
 		if err == nil {
 			res.Stat.Size = finfo.Size()
+		} else if errors.Is(err, fs.ErrNotExist) {
+			res.Err = fmt.Errorf("obj %s: %w", p, objstore.ErrObjectNotFound)
 		} else {
 			res.Err = err
 		}
-
 		resCh <- res
 	}()
 

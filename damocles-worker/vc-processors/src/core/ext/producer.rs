@@ -101,7 +101,7 @@ fn dump(dt: &DumpType, child_pid: u32, data: &str) {
 
     match dt {
         DumpType::ToLog => {
-            error!(
+            info!(
                 child_pid = child_pid,
                 "failed to unmarshal response string: '{}'.",
                 truncate(data)
@@ -110,14 +110,14 @@ fn dump(dt: &DumpType, child_pid: u32, data: &str) {
         DumpType::ToFile(dir) => {
             match dump_to_file(child_pid, dir, data.as_bytes()) {
                 Ok(dump_file_path) => {
-                    error!(
+                    info!(
                     child_pid = child_pid,
                     "failed to unmarshal response string. dump file '{}' generated.",
                     dump_file_path.display()
                 )
                 }
                 Err(e) => {
-                    error!(
+                    info!(
                     child_pid = child_pid,
                     "failed to unmarshal response string; failed to generate dump file: '{}'.", e
                 );
@@ -317,18 +317,30 @@ fn wait_for_stable(
             let mut line = String::with_capacity(expected.len() + 1);
 
             let mut buf = BufReader::new(stdout);
-            let res =
-                buf.read_line(&mut line)
-                    .map_err(|e| e.into())
-                    .and_then(|_| {
-                        if line.as_str().trim() == expected.as_str() {
-                            Ok(())
-                        } else {
-                            Err(anyhow!("unexpected first line: {}", line))
-                        }
-                    });
 
-            let _ = res_tx.send(res);
+            loop {
+                match buf.read_line(&mut line) {
+                    Ok(0) => {
+                        let _ = res_tx.send(Err(anyhow!("process unexpectedly exited")));
+                        break;
+                    }
+                    Ok(_)
+                        if line.as_str().trim() == expected.as_str().trim() =>
+                    {
+                        let _ = res_tx.send(Ok(()));
+                        break;
+                    }
+                    Err(e) => {
+                        let _ = res_tx.send(Err(e.into()));
+                        break;
+                    }
+                    _ => {
+                        info!(line, "wait for stable");
+                    }
+                }
+                line.clear();
+            }
+
             buf.into_inner()
         })
     }

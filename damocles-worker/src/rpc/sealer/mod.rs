@@ -106,7 +106,7 @@ fn default_padded_byte_amount() -> PaddedBytesAmount {
 pub type Deals = Vec<DealInfo>;
 
 /// rules for acquiring deal pieces within specified sector
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct AcquireDealsSpec {
     /// max deal count
@@ -290,7 +290,7 @@ pub struct SectorStateChange {
     pub event: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct SectorFailure {
     pub level: String,

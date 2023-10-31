@@ -138,11 +138,13 @@ pub(crate) fn merge_sealing_fields(
                 $(
                     $field: $merged.$field.take().unwrap_or($def.$field),
                 )*
+
+                meta: std::collections::HashMap::new(),
             }
         };
     }
 
-    merge_fields! {
+    let mut new = merge_fields! {
         default_sealing,
         customized,
         {
@@ -161,7 +163,16 @@ pub(crate) fn merge_sealing_fields(
             ignore_proof_check,
             request_task_max_retries,
         },
+    };
+
+    for (k, v) in default_sealing.meta {
+        if let Some(v) = customized.meta.remove(&k) {
+            new.meta.insert(k, v);
+        } else {
+            new.meta.insert(k, v);
+        }
     }
+    new
 }
 
 /// sealing config with plan
@@ -347,6 +358,7 @@ where
 #[cfg(test)]
 mod tests {
     use std::{
+        collections::HashMap,
         fs,
         path::{Path, PathBuf},
         time::Duration,
@@ -396,6 +408,10 @@ mod tests {
                         rpc_polling_interval: ms(1000),
                         ignore_proof_check: true,
                         request_task_max_retries: 10,
+                        meta: HashMap::from_iter([
+                            ("a".to_string(), "aa".to_string()),
+                            ("b".to_string(), "bb".to_string()),
+                        ]),
                     },
                 },
                 SealingThreadInner {
@@ -413,6 +429,10 @@ mod tests {
                         rpc_polling_interval: Some(ms(1000)),
                         ignore_proof_check: None,
                         request_task_max_retries: Some(11),
+                        meta: HashMap::from_iter([
+                            ("a".to_string(), "aaa".to_string()),
+                            ("c".to_string(), "ccc".to_string()),
+                        ]),
                     }),
                 },
                 SealingWithPlan {
@@ -430,6 +450,11 @@ mod tests {
                         rpc_polling_interval: ms(1000),
                         ignore_proof_check: true,
                         request_task_max_retries: 11,
+                        meta: HashMap::from_iter([
+                            ("a".to_string(), "aaa".to_string()),
+                            ("b".to_string(), "bb".to_string()),
+                            ("c".to_string(), "ccc".to_string()),
+                        ]),
                     },
                 },
             ),

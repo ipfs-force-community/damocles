@@ -70,6 +70,28 @@ impl Entry {
         Entry::File(full, (base.to_path_buf(), rel))
     }
 
+    pub fn supra_dir(
+        local_base: impl Into<PathBuf>,
+        local_rel: impl Into<PathBuf>,
+        target_rel: impl Into<PathBuf>,
+    ) -> Self {
+        let local_base = local_base.into();
+        let local_rel = local_rel.into();
+        let local_full = local_base.join(&local_rel);
+        Entry::Dir(local_full, (local_base, target_rel.into()))
+    }
+
+    pub fn supra_file(
+        local_base: impl Into<PathBuf>,
+        local_rel: impl Into<PathBuf>,
+        target_rel: impl Into<PathBuf>,
+    ) -> Self {
+        let local_base = local_base.into();
+        let local_rel = local_rel.into();
+        let local_full = local_base.join(&local_rel);
+        Entry::File(local_full, (local_base, target_rel.into()))
+    }
+
     pub fn base(&self) -> &PathBuf {
         match self {
             Entry::Dir(_, (p, _)) => p,
