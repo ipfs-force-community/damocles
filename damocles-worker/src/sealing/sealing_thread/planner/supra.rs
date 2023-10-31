@@ -438,8 +438,8 @@ impl PlannerTrait for SupraPlanner {
                     end_slot,
                 },
             ) => State::PCSubmitted {
-                start_slot: *start_slot,
-                end_slot: *end_slot,
+                start_slot: *start_slot - (*end_slot - *start_slot),
+                end_slot: *start_slot,
             },
 
             (

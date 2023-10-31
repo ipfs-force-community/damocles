@@ -290,7 +290,9 @@ impl Event {
             } => {
                 for slot in start_slot..end_slot {
                     if let Some(sector) = s.sectors.get_mut(slot) {
-                        sector.phases.pc2_re_submit = true
+                        if !sector.phases.pc2_landed {
+                            sector.phases.pc2_re_submit = true
+                        }
                     }
                 }
             }
@@ -301,7 +303,9 @@ impl Event {
             } => {
                 for slot in start_slot..end_slot {
                     if let Some(sector) = s.sectors.get_mut(slot) {
-                        sector.phases.c2_re_submit = false
+                        if !sector.phases.c2_landed {
+                            sector.phases.c2_re_submit = true
+                        }
                     }
                 }
             }
