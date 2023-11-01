@@ -172,6 +172,10 @@ pub(crate) fn merge_sealing_fields(
             new.meta.insert(k, v);
         }
     }
+
+    for (k, v) in customized.meta {
+        new.meta.insert(k, v);
+    }
     new
 }
 
