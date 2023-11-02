@@ -2,6 +2,10 @@
 
 ## 0.10.0-dev
 
+## v0.9.0-rc5
+  - damocles-manager
+    - 升级 venus 依赖: v1.14.0-rc3 -> v1.14.0-rc4
+
 ## v0.9.0-rc4
 
 - damocles-manager
