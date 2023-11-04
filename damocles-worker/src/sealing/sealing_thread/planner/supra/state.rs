@@ -37,7 +37,7 @@ impl State {
     pub fn pure(&self) -> String {
         let mut s = self.to_string();
 
-        if let Some(new_len) = s.find("[") {
+        if let Some(new_len) = s.find('[') {
             s.truncate(new_len)
         }
 
@@ -47,9 +47,7 @@ impl State {
     pub fn range<'a>(&self, sectors: &'a [Sector]) -> &'a [Sector] {
         use State::*;
         match *self {
-            Empty | Allocated | PC1Done | PC2Done | C1Done | Aborted => {
-                &sectors[..]
-            }
+            Empty | Allocated | PC1Done | PC2Done | C1Done | Aborted => sectors,
             DealsAcquired {
                 start_slot,
                 end_slot,

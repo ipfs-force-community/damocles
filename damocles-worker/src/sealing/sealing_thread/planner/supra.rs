@@ -1,5 +1,7 @@
 use once_cell::sync::Lazy;
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+use rayon::prelude::{
+    IndexedParallelIterator, IntoParallelIterator, ParallelIterator,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -727,11 +729,11 @@ impl BatchSealer<'_> {
                 .map(|b| b.get_bytes() as usize),
         };
 
-        let chunk_deals = (start_slot..end_slot)
+        let chunk_deals = self.job.sectors.sectors[start_slot..end_slot]
             .into_par_iter()
-            .map(|slot| {
+            .enumerate()
+            .map(|(slot, sector)| {
                 let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
-                let sector = self.job.sector(slot).crit()?;
 
                 let deals = call_rpc! {
                     self.job.rpc()=>acquire_deals(
@@ -740,11 +742,7 @@ impl BatchSealer<'_> {
                     )
                 }?;
                 let deals_count = deals.as_ref().map(|d| d.len()).unwrap_or(0);
-                tracing::debug!(
-                    slot = slot,
-                    count = deals_count,
-                    "pieces acquired"
-                );
+                tracing::debug!(slot, count = deals_count, "pieces acquired");
                 Ok(if disable_cc || deals_count > 0 {
                     Some(deals)
                 } else {
@@ -769,10 +767,10 @@ impl BatchSealer<'_> {
         end_slot: usize,
     ) -> Result<Event, Failure> {
         let seal_proof = self.job.sectors.seal_proof;
-        let chunk_pieces = (start_slot..end_slot)
+        let chunk_pieces = self.job.sectors.sectors[start_slot..end_slot]
             .into_par_iter()
-            .map(|slot| {
-                let sector = self.job.sector(slot).crit()?;
+            .enumerate()
+            .map(|(slot, sector)| {
                 common::add_pieces(
                     &self.job.sealing_ctrl,
                     seal_proof,
@@ -798,10 +796,10 @@ impl BatchSealer<'_> {
         start_slot: usize,
         end_slot: usize,
     ) -> Result<Event, Failure> {
-        let chunk_comm_d = (start_slot..end_slot)
+        let chunk_comm_d = self.job.sectors.sectors[start_slot..end_slot]
             .into_par_iter()
-            .map(|slot| {
-                let sector = self.job.sector(slot).crit()?;
+            .enumerate()
+            .map(|(slot, sector)| {
                 common::build_tree_d(
                     &self.job.sealing_ctrl,
                     self.job.sectors.seal_proof,
@@ -833,11 +831,8 @@ impl BatchSealer<'_> {
         start_slot: usize,
         end_slot: usize,
     ) -> Result<Event, Failure> {
-        let chunk_ticket = (start_slot..end_slot).into_par_iter().map(|slot| {
+        let chunk_ticket = self.job.sectors.sectors[start_slot..end_slot].into_par_iter().map(|sector| {
             let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
-
-            let sector = self.job.sector(slot).crit()?;
-
             let ticket = match &sector.phases.ticket {
                 // Use the existing ticket when rebuilding sectors
                 Some(ticket) => ticket.clone(),
@@ -896,9 +891,13 @@ impl BatchSealer<'_> {
         let data_filenames = if self.job.sector(0).crit()?.is_cc() {
             vec![]
         } else {
-            (0..self.job.sectors.num_sectors)
-                .map(|slot| {
-                    let sector = self.job.sector(slot)?;
+            self.job
+                .sectors
+                .sectors
+                .as_slice()
+                .into_par_iter()
+                .enumerate()
+                .map(|(slot, sector)| {
                     Ok(path_unsealed_file(
                         self.job.store.data_path.clone(),
                         slot,
@@ -941,8 +940,9 @@ impl BatchSealer<'_> {
         (start_slot..end_slot)
             .into_par_iter()
             .map(|slot| {
+                // Safety: We will not update different sectors concurrently
                 let sector = unsafe {
-                    (&mut *(job_ref as *const Job as *mut Job)).sector_mut(slot).crit()?
+                    (*(job_ref as *const Job as *mut Job)).sector_mut(slot).crit()?
                 };
                 if sector.aborted {
                     return Ok(());
@@ -1000,7 +1000,7 @@ impl BatchSealer<'_> {
                             sector.sector_id
                         );
                         sector.aborted = true;
-                        return Ok(());
+                        Ok(())
                     }
 
                     SubmitResult::FilesMissed => Err(anyhow!(
@@ -1027,15 +1027,15 @@ impl BatchSealer<'_> {
             let chunk_state = (start_slot..end_slot)
             .into_par_iter()
             .map(|slot| {
-                let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
-
                 let sector = self.job.sector(slot).crit()?;
-                if sector.phases.pc2_landed {
+                if sector.phases.pc2_landed || sector.aborted {
                     return Ok(PollPreCommitStateResp{
                         state: OnChainState::Landed,
                         desc: None,
                     })
                 }
+
+                let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
                 call_rpc! {
                     self.job.rpc()=>poll_pre_commit_state(sector.sector_id.clone(), )
                 }
@@ -1079,20 +1079,23 @@ impl BatchSealer<'_> {
 
                     OnChainState::PermFailed => {
                         return Err(anyhow!(
-                        "pre commit on-chain info permanent failed: {}, {:?}",
-                        slot,
-                        state.desc
-                    )
+                            "pre commit on-chain info permanent failed: {}, {:?}. sector_id: {}",
+                            slot,
+                            state.desc,
+                            sector.sector_id,
+                        )
                         .perm())
                     }
 
                     OnChainState::ShouldAbort => {
-                        return Err(anyhow!(
-                            "pre commit info will not get on-chain: {}, {:?}",
+                        tracing::error!(
+                            "pre commit info will not get on-chain: {}, {:?}. Abort it: {}",
                             slot,
-                            state.desc
-                        )
-                        .abort())
+                            state.desc,
+                            sector.sector_id
+                        );
+                        sector.aborted = true;
+                        landed += 1;
                     }
 
                     OnChainState::Pending | OnChainState::Packed => {}
@@ -1131,9 +1134,13 @@ impl BatchSealer<'_> {
         let chunk_instance = (start_slot..end_slot)
             .into_par_iter()
             .map(|slot| {
+                let sector = self.job.sector(slot).crit()?;
+                if sector.aborted {
+                    return Ok(Default::default());
+                }
+
                 let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
 
-                let sector = self.job.sector(slot).crit()?;
                 let p_sector = path_cache_dir(
                     self.job.store.data_path.clone(),
                     slot,
@@ -1170,14 +1177,15 @@ impl BatchSealer<'_> {
         (start_slot..end_slot)
             .into_par_iter()
             .map(|slot| {
-                let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
-
                 let sector = self.job.sector(slot).crit()?;
-
+                if sector.aborted {
+                    return Ok(());
+                }
                 cloned_required! {
                     persist_instance,
                     sector.phases.persist_instance
                 }
+                let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
 
                 let checked = call_rpc! {
                     self.job.rpc() => submit_persisted_ex(sector.sector_id.clone(), persist_instance, false,)
@@ -1208,10 +1216,13 @@ impl BatchSealer<'_> {
             let chunk_res = (start_slot..end_slot)
                 .into_par_iter()
                 .map(|slot| {
+                    let sector = self.job.sector(slot).crit()?;
+                    if sector.aborted {
+                        return Ok(WaitSeed::Seed(Default::default()));
+                    }
+
                     let _rt_guard =
                         self.job.sealing_ctrl.ctx().global.rt.enter();
-
-                    let sector = self.job.sector(slot).crit()?;
 
                     let wait = call_rpc! {
                         self.job.rpc()=>wait_seed(sector.sector_id.clone(), )
@@ -1228,9 +1239,7 @@ impl BatchSealer<'_> {
                         .temp());
                     }
 
-                    return Ok(WaitSeed::Delay(Duration::from_secs(
-                        wait.delay,
-                    )));
+                    Ok(WaitSeed::Delay(Duration::from_secs(wait.delay)))
                 })
                 .collect::<Result<Vec<WaitSeed>, Failure>>()?;
 
@@ -1324,7 +1333,12 @@ impl BatchSealer<'_> {
 
     fn commit2(&self, slot: usize) -> Result<Event, Failure> {
         let sector = self.job.sector(slot).crit()?;
-
+        if sector.aborted {
+            return Ok(Event::C2 {
+                slot,
+                out: SealCommitPhase2Output { proof: Vec::new() },
+            });
+        }
         cloned_required! {
             c1out,
             sector.phases.c1out
@@ -1355,24 +1369,22 @@ impl BatchSealer<'_> {
         start_slot: usize,
         end_slot: usize,
     ) -> Result<Event, Failure> {
-        (start_slot..end_slot)
-            .into_par_iter()
-            .map(|slot| {
-                let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
-
-                let sector = self.job.sector(slot).crit()?;
-
+        self.job.sectors.sectors[start_slot..end_slot].into_par_iter()
+            .map(|sector| {
+                if sector.aborted {
+                    return Ok(());
+                }
                 let proof = sector
                     .phases
                     .c2out
                     .clone()
                     .context("c2out required")
                     .crit()?;
-
                 let info = ProofOnChainInfo {
                     proof: proof.proof.into(),
                 };
 
+                let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
                 let res = call_rpc! {
                     self.job.rpc()=>submit_proof(sector.sector_id.clone(), info, sector.phases.c2_re_submit,)
                 }?;
@@ -1416,16 +1428,14 @@ impl BatchSealer<'_> {
             });
         }
         loop {
-            let chunk_resp = (start_slot..end_slot).into_par_iter().map(|slot| {
-                let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
-
-                let sector = self.job.sector(slot).crit()?;
-                if sector.phases.c2_landed {
+            let chunk_resp = self.job.sectors.sectors[start_slot..end_slot].into_par_iter().map(|sector| {
+                if sector.phases.c2_landed || sector.aborted {
                     return Ok(PollProofStateResp{
                         state: OnChainState::Landed,
                         desc: None,
                     })
                 }
+                let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
                 call_rpc! {
                     self.job.rpc() => poll_proof_state(sector.sector_id.clone(),)
                 }
@@ -1433,7 +1443,7 @@ impl BatchSealer<'_> {
             let mut landed = 0;
             for (slot, (state, sector)) in chunk_resp
                 .into_iter()
-                .zip(self.job.sectors.sectors.iter_mut())
+                .zip(self.job.sectors.sectors[start_slot..end_slot].iter_mut())
                 .enumerate()
             {
                 match state.state {
@@ -1475,12 +1485,13 @@ impl BatchSealer<'_> {
                     }
 
                     OnChainState::ShouldAbort => {
-                        return Err(anyhow!(
+                        tracing::error!(
                             "sector will not get on-chain: {}, {:?}",
                             slot,
                             state.desc
-                        )
-                        .abort())
+                        );
+                        sector.aborted = true;
+                        landed += 1;
                     }
 
                     OnChainState::Pending | OnChainState::Packed => {}
@@ -1564,7 +1575,7 @@ pub fn generate_replica_id<T: AsRef<[u8]>>(
         .chain_update(porep_seed)
         .finalize();
 
-    bytes_into_fr_repr_safe(hash.as_ref()).into()
+    bytes_into_fr_repr_safe(hash.as_ref())
 }
 
 fn bytes_into_fr_repr_safe(le_bytes: &[u8]) -> [u8; 32] {

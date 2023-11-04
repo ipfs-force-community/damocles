@@ -77,7 +77,7 @@ impl Entry {
     ) -> Self {
         let local_base = local_base.into();
         let local_rel = local_rel.into();
-        let local_full = local_base.join(&local_rel);
+        let local_full = local_base.join(local_rel);
         Entry::Dir(local_full, (local_base, target_rel.into()))
     }
 
@@ -88,7 +88,7 @@ impl Entry {
     ) -> Self {
         let local_base = local_base.into();
         let local_rel = local_rel.into();
-        let local_full = local_base.join(&local_rel);
+        let local_full = local_base.join(local_rel);
         Entry::File(local_full, (local_base, target_rel.into()))
     }
 

@@ -321,7 +321,8 @@ fn wait_for_stable(
             loop {
                 match buf.read_line(&mut line) {
                     Ok(0) => {
-                        let _ = res_tx.send(Err(anyhow!("process unexpectedly exited")));
+                        let _ = res_tx
+                            .send(Err(anyhow!("process unexpectedly exited")));
                         break;
                     }
                     Ok(_)
