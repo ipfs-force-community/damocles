@@ -89,6 +89,8 @@ pub struct Sector {
     pub prover_id: ProverId,
     pub sector_id: SectorID,
 
+    pub aborted: bool,
+
     // deal pieces
     pub deals: Option<Deals>,
     pub phases: Phases,
@@ -99,6 +101,7 @@ impl Sector {
         Self {
             prover_id,
             sector_id,
+            aborted: false,
             deals: None,
             phases: Phases {
                 pieces: None,

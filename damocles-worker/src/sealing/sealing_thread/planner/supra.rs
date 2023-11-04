@@ -933,17 +933,21 @@ impl BatchSealer<'_> {
     }
 
     fn submit_pre_commit(
-        &self,
+        &mut self,
         start_slot: usize,
         end_slot: usize,
     ) -> Result<Event, Failure> {
+        let job_ref = &*self.job;
         (start_slot..end_slot)
             .into_par_iter()
             .map(|slot| {
+                let sector = unsafe {
+                    (&mut *(job_ref as *const Job as *mut Job)).sector_mut(slot).crit()?
+                };
+                if sector.aborted {
+                    return Ok(());
+                }
                 let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
-
-                let sector = self.job.sector(slot).crit()?;
-
                 let (comm_r, comm_d, ticket) =
                     if let (Some(comm_r), Some(comm_d), Some(ticket)) = (
                         sector.phases.comm_r,
@@ -953,8 +957,8 @@ impl BatchSealer<'_> {
                         (comm_r, comm_d, ticket)
                     } else {
                         return Err(anyhow!(
-                            "PC2 not completed. slot:{}",
-                            slot
+                            "PC2 not completed: {}",
+                            sector.sector_id
                         )
                         .crit());
                     };
@@ -989,17 +993,24 @@ impl BatchSealer<'_> {
                     }
 
                     SubmitResult::Rejected => {
-                        Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort())
+                        tracing::error!(
+                            "{:?}: {:?}. sector_id: {}",
+                            res.res,
+                            res.desc,
+                            sector.sector_id
+                        );
+                        sector.aborted = true;
+                        return Ok(());
                     }
 
                     SubmitResult::FilesMissed => Err(anyhow!(
-                    "FilesMissed should not happen for pc2 submission: {:?}",
-                    res.desc
-                )
-                    .perm()),
+                    "FilesMissed should not happen for pc2 submission: {:?}; sector_id: {}",
+                        res.desc,
+                        sector.sector_id,
+                    ).perm()),
                 }
             })
-            .collect::<Result<(), Failure>>()?;
+            .collect::<Result<_, Failure>>()?;
 
         Ok(Event::SubmitPC {
             start_slot,
