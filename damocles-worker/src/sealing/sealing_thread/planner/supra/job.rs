@@ -103,7 +103,7 @@ impl Job {
             .with_context(|| format!("sector slot out of bounds: {}", slot))
     }
 
-    pub fn sector_mut(&self, slot: usize) -> Result<&mut Sector> {
+    pub fn sector_mut(&mut self, slot: usize) -> Result<&mut Sector> {
         self.sectors
             .sectors
             .get_mut(slot)
