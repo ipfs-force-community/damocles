@@ -89,7 +89,7 @@ pub struct Sector {
     pub prover_id: ProverId,
     pub sector_id: SectorID,
 
-    pub aborted: bool,
+    pub aborted_reason: Option<String>,
 
     // deal pieces
     pub deals: Option<Deals>,
@@ -101,7 +101,7 @@ impl Sector {
         Self {
             prover_id,
             sector_id,
-            aborted: false,
+            aborted_reason: None,
             deals: None,
             phases: Phases {
                 pieces: None,
@@ -123,5 +123,9 @@ impl Sector {
 
     pub fn is_cc(&self) -> bool {
         self.deals.as_ref().map(|d| d.len()).unwrap_or(0) == 0
+    }
+
+    pub fn aborted(&self) -> bool {
+        self.aborted_reason.is_some()
     }
 }

@@ -944,7 +944,7 @@ impl BatchSealer<'_> {
                 let sector = unsafe {
                     (*(job_ref as *const Job as *mut Job)).sector_mut(slot).crit()?
                 };
-                if sector.aborted {
+                if sector.aborted() {
                     return Ok(());
                 }
                 let _rt_guard = self.job.sealing_ctrl.ctx().global.rt.enter();
@@ -999,7 +999,7 @@ impl BatchSealer<'_> {
                             res.desc,
                             sector.sector_id
                         );
-                        sector.aborted = true;
+                        sector.aborted_reason = Some(format!("{:?}: {:?}", res.res, res.desc));
                         Ok(())
                     }
 
@@ -1028,7 +1028,7 @@ impl BatchSealer<'_> {
             .into_par_iter()
             .map(|slot| {
                 let sector = self.job.sector(slot).crit()?;
-                if sector.phases.pc2_landed || sector.aborted {
+                if sector.phases.pc2_landed || sector.aborted() {
                     return Ok(PollPreCommitStateResp{
                         state: OnChainState::Landed,
                         desc: None,
@@ -1089,12 +1089,13 @@ impl BatchSealer<'_> {
 
                     OnChainState::ShouldAbort => {
                         tracing::error!(
-                            "pre commit info will not get on-chain: {}, {:?}. Abort it: {}",
                             slot,
+                            "pre commit info will not get on-chain: {:?}. Abort it: {}",
                             state.desc,
                             sector.sector_id
                         );
-                        sector.aborted = true;
+
+                        sector.aborted_reason = Some(format!( "pre commit info will not get on-chain: {:?}", state.desc));
                         landed += 1;
                     }
 
@@ -1135,7 +1136,7 @@ impl BatchSealer<'_> {
             .into_par_iter()
             .map(|slot| {
                 let sector = self.job.sector(slot).crit()?;
-                if sector.aborted {
+                if sector.aborted() {
                     return Ok(Default::default());
                 }
 
@@ -1178,7 +1179,7 @@ impl BatchSealer<'_> {
             .into_par_iter()
             .map(|slot| {
                 let sector = self.job.sector(slot).crit()?;
-                if sector.aborted {
+                if sector.aborted() {
                     return Ok(());
                 }
                 cloned_required! {
@@ -1217,7 +1218,7 @@ impl BatchSealer<'_> {
                 .into_par_iter()
                 .map(|slot| {
                     let sector = self.job.sector(slot).crit()?;
-                    if sector.aborted {
+                    if sector.aborted() {
                         return Ok(WaitSeed::Seed(Default::default()));
                     }
 
@@ -1333,7 +1334,7 @@ impl BatchSealer<'_> {
 
     fn commit2(&self, slot: usize) -> Result<Event, Failure> {
         let sector = self.job.sector(slot).crit()?;
-        if sector.aborted {
+        if sector.aborted() {
             return Ok(Event::C2 {
                 slot,
                 out: SealCommitPhase2Output { proof: Vec::new() },
@@ -1371,7 +1372,7 @@ impl BatchSealer<'_> {
     ) -> Result<Event, Failure> {
         self.job.sectors.sectors[start_slot..end_slot].into_par_iter()
             .map(|sector| {
-                if sector.aborted {
+                if sector.aborted() {
                     return Ok(());
                 }
                 let proof = sector
@@ -1429,7 +1430,7 @@ impl BatchSealer<'_> {
         }
         loop {
             let chunk_resp = self.job.sectors.sectors[start_slot..end_slot].into_par_iter().map(|sector| {
-                if sector.phases.c2_landed || sector.aborted {
+                if sector.phases.c2_landed || sector.aborted() {
                     return Ok(PollProofStateResp{
                         state: OnChainState::Landed,
                         desc: None,
@@ -1486,11 +1487,14 @@ impl BatchSealer<'_> {
 
                     OnChainState::ShouldAbort => {
                         tracing::error!(
-                            "sector will not get on-chain: {}, {:?}",
                             slot,
+                            "sector will not get on-chain: {:?}",
                             state.desc
                         );
-                        sector.aborted = true;
+                        sector.aborted_reason = Some(format!(
+                            "sector will not get on-chain: {:?}",
+                            state.desc
+                        ));
                         landed += 1;
                     }
 

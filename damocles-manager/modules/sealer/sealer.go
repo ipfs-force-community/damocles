@@ -432,6 +432,9 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Me
 
 func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason string) (core.Meta, error) {
 	err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
+		if st.Finalized {
+			return false, nil
+		}
 		if dealCount := len(st.Pieces); dealCount > 0 {
 			err := s.deal.Release(ctx, sid, st.Pieces)
 			if err != nil {

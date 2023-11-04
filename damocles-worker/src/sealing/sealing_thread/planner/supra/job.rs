@@ -118,28 +118,40 @@ impl Job {
         fail: Option<SectorFailure>,
     ) -> Result<(), Failure> {
         for sector in prev.range(&self.sectors.sectors) {
-            let req = ReportStateReq {
-                worker: self.ident.clone(),
-                state_change: SectorStateChange {
-                    prev: prev.pure(),
-                    next: next.pure(),
-                    event: event.clone(),
-                },
-                failure: fail.clone(),
-            };
+            match &sector.aborted_reason {
+                Some(reason) => call_rpc! {
+                    self.sealing_ctrl.ctx.global.rpc => report_aborted(sector.sector_id.clone(), reason.clone(),)
+                }?,
+                None => {
+                    let req = ReportStateReq {
+                        worker: self.ident.clone(),
+                        state_change: SectorStateChange {
+                            prev: prev.pure(),
+                            next: next.pure(),
+                            event: event.clone(),
+                        },
+                        failure: fail.clone(),
+                    };
 
-            let _ = call_rpc! {
-                self.sealing_ctrl.ctx().global.rpc=>report_state(sector.sector_id.clone(), req,)
-            }?;
+                    let _ = call_rpc! {
+                        self.sealing_ctrl.ctx().global.rpc=>report_state(sector.sector_id.clone(), req,)
+                    }?;
+                }
+            }
         }
         Ok(())
     }
 
     pub fn report_finalized(&self, sectors: &[Sector]) -> Result<(), Failure> {
         for sector in sectors {
-            call_rpc! {
-                self.sealing_ctrl.ctx.global.rpc => report_finalized(sector.sector_id.clone(),)
-            }?;
+            match &sector.aborted_reason {
+                Some(reason) => call_rpc! {
+                    self.sealing_ctrl.ctx.global.rpc => report_aborted(sector.sector_id.clone(), reason.clone(),)
+                }?,
+                None => call_rpc! {
+                    self.sealing_ctrl.ctx.global.rpc => report_finalized(sector.sector_id.clone(),)
+                }?,
+            }
         }
         Ok(())
     }
