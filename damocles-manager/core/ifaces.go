@@ -10,7 +10,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 )
 
 type SectorManager interface {
@@ -57,7 +57,7 @@ type SectorTypedIndexer interface {
 type SectorIndexer interface {
 	Normal() SectorTypedIndexer
 	Upgrade() SectorTypedIndexer
-	StoreMgr() objstore.Manager
+	StoreMgr() filestore.Manager
 }
 
 type SectorTracker interface {

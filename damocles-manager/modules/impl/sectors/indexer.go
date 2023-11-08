@@ -8,13 +8,13 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 )
 
 var _ core.SectorIndexer = (*Indexer)(nil)
 
-func NewIndexer(storeMgr objstore.Manager, normal kvstore.KVStore, upgrade kvstore.KVStore) (*Indexer, error) {
+func NewIndexer(storeMgr filestore.Manager, normal kvstore.KVStore, upgrade kvstore.KVStore) (*Indexer, error) {
 	return &Indexer{
 		storeMgr: storeMgr,
 		normal:   &innerIndexer{kv: normal},
@@ -25,7 +25,7 @@ func NewIndexer(storeMgr objstore.Manager, normal kvstore.KVStore, upgrade kvsto
 type Indexer struct {
 	normal   *innerIndexer
 	upgrade  *innerIndexer
-	storeMgr objstore.Manager
+	storeMgr filestore.Manager
 }
 
 func (i *Indexer) Normal() core.SectorTypedIndexer {
@@ -36,7 +36,7 @@ func (i *Indexer) Upgrade() core.SectorTypedIndexer {
 	return i.upgrade
 }
 
-func (i *Indexer) StoreMgr() objstore.Manager {
+func (i *Indexer) StoreMgr() filestore.Manager {
 	return i.storeMgr
 }
 

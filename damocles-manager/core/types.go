@@ -9,7 +9,7 @@ import (
 	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs/go-cid"
 )
 
@@ -346,7 +346,7 @@ type StoreDetailedInfo struct {
 	ReservedBy  []ReservedItem
 }
 
-type ReservedItem = objstore.StoreReserved
+type ReservedItem = filestore.StoreReserved
 
 type RebuildOptions struct {
 	PiecesAvailable bool

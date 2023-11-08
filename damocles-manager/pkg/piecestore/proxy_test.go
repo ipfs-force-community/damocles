@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
+	filestorebuiltin "github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore/builtin"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/market"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore/filestore"
 	"github.com/jbenet/go-random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,19 +26,21 @@ var (
 )
 
 func setupStoreProxy(t *testing.T, resourceEndPoint string) *Proxy {
-	st, err := filestore.Open(objstore.Config{
+	st, err := filestorebuiltin.New(filestore.Config{
 		Name: "mock test",
 		Path: t.TempDir(),
-	}, false)
+	})
 
 	require.NoError(t, err, "open mock store")
+
+	stExt := filestore.NewExt(st)
 
 	mc := gomock.NewController(t)
 	marketAPI := &market.WrappedAPI{
 		IMarket:          mock.NewMockIMarket(mc),
 		ResourceEndpoint: resourceEndPoint,
 	}
-	return NewProxy([]objstore.Store{st}, marketAPI)
+	return NewProxy([]filestore.Ext{stExt}, marketAPI)
 }
 
 func TestStorePoxy(t *testing.T) {
@@ -47,14 +49,17 @@ func TestStorePoxy(t *testing.T) {
 	t.Run("download for common piece store", func(t *testing.T) {
 		storeProxy := setupStoreProxy(t, "mock")
 		resourceID := "bafy2bzacea2a75bbdhr6gjozglrmp4akkgzsw3xh3s62j3hga5uhmkxwne5b6"
-		tmpFile, err := os.CreateTemp(os.TempDir(), "piece_proxy")
+		tmpFile, err := os.CreateTemp(t.TempDir(), "piece_proxy")
 		require.NoError(t, err)
 		require.NoError(t, random.WriteRandomBytes(100, tmpFile))
 		tmpFile.Seek(0, io.SeekStart) //nolint
 		expectBytes, err := io.ReadAll(tmpFile)
 		require.NoError(t, err)
 		tmpFile.Seek(0, io.SeekStart) //nolint
-		_, err = storeProxy.locals[0].Put(ctx, resourceID, tmpFile)
+
+		_, subPath, err := storeProxy.locals[0].FullPath(ctx, filestore.PathTypeCustom, nil, &resourceID)
+		require.NoError(t, err)
+		_, err = storeProxy.locals[0].Write(ctx, subPath, tmpFile)
 		require.NoError(t, err)
 		require.NoError(t, tmpFile.Close())
 
@@ -101,28 +106,32 @@ func TestParsePieceName(t *testing.T) {
 }
 
 func TestStoreRead(t *testing.T) {
-	storePath := os.TempDir()
-	st, err := filestore.Open(objstore.Config{
+	storePath := t.TempDir()
+	st, err := filestorebuiltin.New(filestore.Config{
 		Name: "mock test",
 		Path: storePath,
-	}, false)
+	})
 	require.NoError(t, err, "open mock store")
+
+	stExt := filestore.NewExt(st)
 
 	ctx := context.Background()
 	resourceID := "bafy2bzacecc4iu4nsmm5vqkj427xtkqjedcclo77glct2j5rhrrohe3xj7zpw"
-	tmpFile, err := os.CreateTemp(os.TempDir(), "piece_proxy")
+	_, subPath, err := stExt.FullPath(ctx, filestore.PathTypeCustom, nil, &resourceID)
+	require.NoError(t, err)
+	tmpFile, err := os.CreateTemp(t.TempDir(), "piece_proxy")
 	require.NoError(t, err)
 	require.NoError(t, random.WriteRandomBytes(100, tmpFile))
 	tmpFile.Seek(0, io.SeekStart) //nolint
 	expectBytes, err := io.ReadAll(tmpFile)
 	require.NoError(t, err)
 	tmpFile.Seek(0, io.SeekStart) //nolint
-	_, err = st.Put(ctx, resourceID, tmpFile)
+	_, err = stExt.Write(ctx, resourceID, tmpFile)
 	require.NoError(t, err)
 	require.NoError(t, tmpFile.Close())
 
 	t.Run("read from local store", func(t *testing.T) {
-		r, err := st.Get(ctx, resourceID)
+		r, err := stExt.Read(ctx, subPath)
 		require.NoError(t, err)
 		result, err := io.ReadAll(r)
 		assert.Nil(t, err)

@@ -18,6 +18,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/ver"
 )
 
@@ -25,24 +26,27 @@ var _ core.SealerAPI = (*Sealer)(nil)
 
 func NewSealer(rand core.RandomnessAPI, sector core.SectorManager, deal core.DealManager, commit core.CommitmentManager,
 	api chainAPI.API, scfg modules.SafeConfig,
+	persistedStoreManager filestore.Manager,
 ) (*Sealer, error) {
 	return &Sealer{
-		rand:   rand,
-		sector: sector,
-		deal:   deal,
-		commit: commit,
-		api:    api,
-		scfg:   scfg,
+		rand:                  rand,
+		sector:                sector,
+		deal:                  deal,
+		commit:                commit,
+		api:                   api,
+		scfg:                  scfg,
+		persistedStoreManager: persistedStoreManager,
 	}, nil
 }
 
 type Sealer struct {
-	rand   core.RandomnessAPI
-	sector core.SectorManager
-	deal   core.DealManager
-	commit core.CommitmentManager
-	api    chainAPI.API
-	scfg   modules.SafeConfig
+	rand                  core.RandomnessAPI
+	sector                core.SectorManager
+	deal                  core.DealManager
+	commit                core.CommitmentManager
+	api                   chainAPI.API
+	scfg                  modules.SafeConfig
+	persistedStoreManager filestore.Manager
 }
 
 func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.AllocatedSector, error) {
@@ -314,4 +318,37 @@ func (s *Sealer) AcquireUnsealDest(context.Context, abi.SectorID, cid.Cid) ([]st
 
 func (s *Sealer) Version(context.Context) (string, error) {
 	return ver.VersionStr(), nil
+}
+
+func (s *Sealer) StoreSectorSubPaths(ctx context.Context, storeName string, pathType filestore.PathType, minerID uint64, sectorNumbers []abi.SectorNumber) ([]string, error) {
+	store, err := s.persistedStoreManager.GetInstance(ctx, storeName)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, len(sectorNumbers))
+	for i, sectorNumber := range sectorNumbers {
+		subPath, err := store.SubPath(ctx, pathType, &filestore.SectorID{
+			Miner:  minerID,
+			Number: uint64(sectorNumber),
+		}, nil)
+		if err != nil {
+			return nil, fmt.Errorf("get subPath(%s, %s, nil) for %s: %w", pathType, fmt.Sprintf("%d-%d", minerID, uint64(sectorNumber)), storeName, err)
+		}
+		paths[i] = subPath
+	}
+
+	return paths, nil
+}
+
+func (s *Sealer) StoreCustomSubPath(ctx context.Context, storeName string, custom string) (string, error) {
+	store, err := s.persistedStoreManager.GetInstance(ctx, storeName)
+	if err != nil {
+		return "", err
+	}
+	subPath, err := store.SubPath(ctx, filestore.PathTypeCustom, nil, nil)
+	if err != nil {
+		return "", fmt.Errorf("get subPath(%s, nil, %s) for %s: %w", filestore.PathTypeCustom, custom, storeName, err)
+	}
+
+	return subPath, nil
 }

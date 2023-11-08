@@ -22,8 +22,8 @@ import (
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/ver"
 )
 
@@ -232,42 +232,48 @@ func (s *Sealer) RemoveSector(ctx context.Context, sid abi.SectorID) error {
 
 	access, has, err := dest.Find(ctx, sid)
 	if err != nil {
-		return fmt.Errorf("find objstore instance: %w", err)
+		return fmt.Errorf("find filestore instance: %w", err)
 	}
 	if !has {
 		return fmt.Errorf("object not found")
 	}
 
-	sealedFile, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, access.SealedFile)
+	sealedFileStore, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, access.SealedFile)
 	if err != nil {
-		return fmt.Errorf("get objstore instance %s for sealed file: %w", access.SealedFile, err)
+		return fmt.Errorf("get filestore instance %s for sealed file: %w", access.SealedFile, err)
 	}
 
-	cacheDir, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, access.CacheDir)
+	cacheDirStore, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, access.CacheDir)
 	if err != nil {
-		return fmt.Errorf("get objstore instance %s for cache dir: %w", access.CacheDir, err)
+		return fmt.Errorf("get filestore instance %s for cache dir: %w", access.CacheDir, err)
 	}
 
-	var cache string
-	var sealed string
+	var sealedPathType filestore.PathType
+	var cachePathType filestore.PathType
 	if state.Upgraded {
-		cache = util.SectorPath(util.SectorPathTypeUpdateCache, state.ID)
-		sealed = util.SectorPath(util.SectorPathTypeUpdate, state.ID)
+		sealedPathType = filestore.PathTypeUpdate
+		cachePathType = filestore.PathTypeUpdateCache
 	} else {
-		cache = util.SectorPath(util.SectorPathTypeCache, state.ID)
-		sealed = util.SectorPath(util.SectorPathTypeSealed, state.ID)
+		sealedPathType = filestore.PathTypeSealed
+		cachePathType = filestore.PathTypeCache
 	}
 
-	cachePath := cacheDir.FullPath(ctx, cache)
-	err = os.RemoveAll(cachePath)
+	cacheFullPath, _, err := sealedFileStore.FullPath(ctx, cachePathType, &sid, nil)
 	if err != nil {
-		return fmt.Errorf("remove cache: %w", err)
+		return fmt.Errorf("get sealed fullpath(%s): %w", sid, err)
+	}
+	err = os.RemoveAll(cacheFullPath)
+	if err != nil {
+		return fmt.Errorf("remove cache(%s): %w", cacheFullPath, err)
 	}
 
-	sealedPath := sealedFile.FullPath(ctx, sealed)
-	err = os.Remove(sealedPath)
+	sealedFullPath, _, err := cacheDirStore.FullPath(ctx, sealedPathType, &sid, nil)
 	if err != nil {
-		return fmt.Errorf("remove sealed file: %w", err)
+		return fmt.Errorf("get cache fullpath(%s): %w", sid, err)
+	}
+	err = os.Remove(sealedFullPath)
+	if err != nil {
+		return fmt.Errorf("remove sealed file(%s): %w", sealedFullPath, err)
 	}
 
 	state.Removed = true
@@ -355,7 +361,7 @@ func (s *Sealer) StoreList(ctx context.Context) ([]core.StoreDetailedInfo, error
 	return details, nil
 }
 
-func storeConfig2StoreBasic(ocfg *objstore.Config) core.StoreBasicInfo {
+func storeConfig2StoreBasic(ocfg *filestore.Config) core.StoreBasicInfo {
 	return core.StoreBasicInfo{
 		Name:     ocfg.Name,
 		Path:     ocfg.Path,

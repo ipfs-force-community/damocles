@@ -20,9 +20,9 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/piecestore"
 )
 
@@ -544,7 +544,7 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 	if err != nil {
 		ierr := s.state.InitWith(ctx, []*core.AllocatedSector{{ID: candidateSector.Sector.ID, ProofType: candidateSector.Sector.ProofType}}, core.WorkerOnline, core.SectorUpgraded(true), pieces, &upgradePublic)
 		if ierr != nil {
-			return nil, fmt.Errorf("init non-exist snapup sector: %w", ierr)
+			return nil, fmt.Errorf("init non-exist snapup sector(%s): %w", util.FormatSectorID(candidateSector.Sector.ID), ierr)
 		}
 	}
 
@@ -660,7 +660,7 @@ func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proo
 	}
 	err = s.sectorProving.SingleProvable(ctx, ppt, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false, false)
 	if err != nil {
-		if errors.Is(err, objstore.ErrObjectNotFound) {
+		if errors.Is(err, filestore.ErrFileNotFound) {
 			return false, nil
 		}
 
@@ -756,7 +756,7 @@ func (s *Sealer) StoreReserveSpace(ctx context.Context, sid abi.SectorID, size u
 func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core.StoreBasicInfo, error) {
 	store, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, instanceName)
 	if err != nil {
-		if errors.Is(err, objstore.ErrObjectStoreInstanceNotFound) {
+		if errors.Is(err, filestore.ErrFileStoreInstanceNotFound) {
 			return nil, nil
 		}
 
@@ -838,4 +838,37 @@ func (s *Sealer) AchieveUnsealSector(ctx context.Context, sid abi.SectorID, piec
 
 func (s *Sealer) AcquireUnsealDest(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error) {
 	return s.unseal.AcquireDest(ctx, sid, pieceCid)
+}
+
+func (s *Sealer) StoreSectorSubPaths(ctx context.Context, storeName string, pathType filestore.PathType, minerID uint64, sectorNumbers []abi.SectorNumber) ([]string, error) {
+	store, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, storeName)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, len(sectorNumbers))
+	for i, sectorNumber := range sectorNumbers {
+		subPath, err := store.SubPath(ctx, pathType, &filestore.SectorID{
+			Miner:  minerID,
+			Number: uint64(sectorNumber),
+		}, nil)
+		if err != nil {
+			return nil, fmt.Errorf("get subPath(%s, %s, nil) for %s: %w", pathType, fmt.Sprintf("%d-%d", minerID, uint64(sectorNumber)), storeName, err)
+		}
+		paths[i] = subPath
+	}
+
+	return paths, nil
+}
+
+func (s *Sealer) StoreCustomSubPath(ctx context.Context, storeName string, custom string) (string, error) {
+	store, err := s.sectorIdxer.StoreMgr().GetInstance(ctx, storeName)
+	if err != nil {
+		return "", err
+	}
+	subPath, err := store.SubPath(ctx, filestore.PathTypeCustom, nil, nil)
+	if err != nil {
+		return "", fmt.Errorf("get subPath(%s, nil, %s) for %s: %w", filestore.PathTypeCustom, custom, storeName, err)
+	}
+
+	return subPath, nil
 }

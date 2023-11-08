@@ -9,9 +9,9 @@ import (
 
 	"github.com/ipfs/go-cid"
 
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/market"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 )
 
 var log = logging.New("piecestore")
@@ -32,7 +32,7 @@ type PieceStore interface {
 
 var _ PieceStore = (*Proxy)(nil)
 
-func NewProxy(locals []objstore.Store, mapi market.API) *Proxy {
+func NewProxy(locals []filestore.Ext, mapi market.API) *Proxy {
 	return &Proxy{
 		locals: locals,
 		market: mapi,
@@ -40,7 +40,7 @@ func NewProxy(locals []objstore.Store, mapi market.API) *Proxy {
 }
 
 type Proxy struct {
-	locals []objstore.Store
+	locals []filestore.Ext
 	market market.API
 }
 
@@ -66,11 +66,18 @@ func (p *Proxy) handleGet(rw http.ResponseWriter, req *http.Request) {
 
 	for _, store := range p.locals {
 		for _, p := range []string{cidStr, cidWithDotCar} {
-			if r, err := store.Get(req.Context(), p); err == nil {
+
+			_, subPath, err := store.FullPath(req.Context(), filestore.PathTypeCustom, nil, &p)
+			if err != nil {
+				log.Debug("get FullPath for custom(%s): %w", subPath, err)
+				continue
+			}
+
+			if r, err := store.Read(req.Context(), subPath); err == nil {
 				defer r.Close()
 				_, err := io.Copy(rw, r)
 				if err != nil {
-					log.Warnw("transfer piece data for %s: %s", p, err)
+					log.Warnw("transfer piece data for %s: %s", path, err)
 				}
 				return
 			}
@@ -95,15 +102,21 @@ func (p *Proxy) handlePut(rw http.ResponseWriter, req *http.Request) {
 			continue
 		}
 
+		_, subPath, err := store.FullPath(req.Context(), filestore.PathTypeCustom, nil, &path)
+		if err != nil {
+			log.Debug("get FullPath for custom(%s): %w", subPath, err)
+			continue
+		}
+
 		// todo : we can't get the free space of the store some time, so there is compromise when free == 0
 		if storeInfo.Free > uint64(dataSize) || storeInfo.Free == 0 {
-			count, err := store.Put(req.Context(), path, req.Body)
+			count, err := store.Write(req.Context(), subPath, req.Body)
 			if err != nil {
-				log.Errorw("put piece data", "path", path, "store", storeInfo.Config.Name, "count", count, "err", err)
+				log.Errorw("put piece data", "path", path, "subPath", subPath, "store", storeInfo.Config.Name, "count", count, "err", err)
 				http.Error(rw, fmt.Sprintf("put piece data: %s", err), http.StatusInternalServerError)
 			}
 
-			log.Infow("put piece data", "path", path, "count", count)
+			log.Infow("put piece data", "path", path, "subPath", subPath, "count", count)
 			return
 		}
 	}
@@ -114,7 +127,12 @@ func (p *Proxy) handlePut(rw http.ResponseWriter, req *http.Request) {
 func (p *Proxy) Get(ctx context.Context, pieceCid cid.Cid) (io.ReadCloser, error) {
 	key := pieceCid.String()
 	for _, store := range p.locals {
-		if r, err := store.Get(ctx, key); err == nil {
+		_, subPath, err := store.FullPath(ctx, filestore.PathTypeCustom, nil, &key)
+		if err != nil {
+			log.Debug("get FullPath for custom(%s): %w", key, err)
+			continue
+		}
+		if r, err := store.Read(ctx, subPath); err == nil {
 			return r, nil
 		}
 	}
@@ -135,7 +153,13 @@ func (p *Proxy) Put(ctx context.Context, pieceCid cid.Cid, data io.Reader) (int6
 			continue
 		}
 
-		count, err := store.Put(ctx, key, data)
+		_, subPath, err := store.FullPath(ctx, filestore.PathTypeCustom, nil, &key)
+		if err != nil {
+			log.Debug("get FullPath for custom(%s): %w", key, err)
+			continue
+		}
+
+		count, err := store.Write(ctx, subPath, data)
 		if err != nil {
 			log.Errorw("put piece data", "path", key, "store", storeInfo.Config.Name, "count", count, "err", err)
 			return 0, err

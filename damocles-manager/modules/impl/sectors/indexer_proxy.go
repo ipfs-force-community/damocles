@@ -6,7 +6,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 )
 
 var ErrProxiedTypedIndexerUnableForUpdating = fmt.Errorf("proxied typed indexer is unable for updating")
@@ -31,7 +31,7 @@ func (p *proxiedTypeIndexer) Update(_ context.Context, _ abi.SectorID, _ core.Se
 	return ErrProxiedTypedIndexerUnableForUpdating
 }
 
-func NewProxiedIndexer(client *core.SealerCliAPIClient, storeMgr objstore.Manager) (core.SectorIndexer, error) {
+func NewProxiedIndexer(client *core.SealerCliAPIClient, storeMgr filestore.Manager) (core.SectorIndexer, error) {
 	return &proxiedIndexer{
 		client:   client,
 		storeMgr: storeMgr,
@@ -40,7 +40,7 @@ func NewProxiedIndexer(client *core.SealerCliAPIClient, storeMgr objstore.Manage
 
 type proxiedIndexer struct {
 	client   *core.SealerCliAPIClient
-	storeMgr objstore.Manager
+	storeMgr filestore.Manager
 }
 
 func (p *proxiedIndexer) Normal() core.SectorTypedIndexer {
@@ -57,6 +57,6 @@ func (p *proxiedIndexer) Upgrade() core.SectorTypedIndexer {
 	}
 }
 
-func (p *proxiedIndexer) StoreMgr() objstore.Manager {
+func (p *proxiedIndexer) StoreMgr() filestore.Manager {
 	return p.storeMgr
 }

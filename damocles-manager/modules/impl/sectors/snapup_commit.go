@@ -25,8 +25,8 @@ import (
 	mpolicy "github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 )
 
 func NewSnapUpCommitter(
@@ -591,7 +591,6 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 		ID:        h.state.ID,
 		ProofType: h.state.SectorType,
 	}
-
 	privateInfo, err := h.committer.tracker.SinglePrivateInfo(h.committer.ctx, sref, false, nil)
 	if err != nil {
 		return fmt.Errorf("get private info from tracker: %w", err)
@@ -603,11 +602,11 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 	}{
 		{
 			storeInstance: privateInfo.Accesses.SealedFile,
-			fileURIs:      []string{privateInfo.SealedSectorURI},
+			fileURIs:      []string{privateInfo.SealedSubPath},
 		},
 		{
 			storeInstance: privateInfo.Accesses.CacheDir,
-			fileURIs:      util.CachedFilesForSectorSize(privateInfo.CacheDirURI, h.ssize),
+			fileURIs:      util.CachedFilesForSectorSize(privateInfo.CacheDirSubPath, h.ssize),
 		},
 	}
 
@@ -629,7 +628,7 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 					return nil
 				}
 
-				if errors.Is(delErr, objstore.ErrObjectNotFound) {
+				if errors.Is(delErr, filestore.ErrFileNotFound) {
 					return nil
 				}
 

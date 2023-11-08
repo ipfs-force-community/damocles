@@ -23,7 +23,7 @@ pub mod entry;
 #[macro_use]
 mod util;
 
-use util::*;
+pub use util::*;
 
 mod ctrl;
 

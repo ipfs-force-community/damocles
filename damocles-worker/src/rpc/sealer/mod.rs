@@ -440,6 +440,15 @@ pub struct AllocatedWdPoStJob {
     pub input: WdPoStInput,
 }
 
+#[derive(Deserialize, Serialize, Debug, Copy, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub enum PathType {
+    Sealed,
+    Update,
+    Cache,
+    UpdateCache,
+}
+
 /// defines the SealerRpc service
 #[rpc]
 pub trait Sealer {
@@ -616,4 +625,20 @@ pub trait Sealer {
         output: Option<WindowPoStOutput>,
         error_reason: String,
     ) -> Result<()>;
+
+    #[rpc(name = "Venus.StoreSectorSubPaths")]
+    fn store_sector_sub_paths(
+        &self,
+        store_name: String,
+        path_type: PathType,
+        miner_id: u64,
+        sector_ids: Vec<SectorId>,
+    ) -> Result<Vec<PathBuf>>;
+
+    #[rpc(name = "Venus.StoreCustomSubPath")]
+    fn store_custom_sub_path(
+        &self,
+        store_name: String,
+        custom: String,
+    ) -> Result<PathBuf>;
 }

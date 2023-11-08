@@ -1,4 +1,4 @@
-package objstore
+package filestore
 
 import (
 	"context"
@@ -47,7 +47,7 @@ func TestStoreManagerReserverSpace(t *testing.T) {
 	}, 1<<30)
 	require.NoError(t, err, "construct store-RO")
 
-	mgr, err := NewStoreManager([]Store{store4K, store1M, storeRO}, nil, kvs)
+	mgr, err := NewStoreManager([]Ext{NewExt(store4K), NewExt(store1M), NewExt(storeRO)}, nil, kvs)
 	require.NoError(t, err, "construct store mgr")
 
 	// selection
@@ -209,7 +209,7 @@ func TestStoreManagerReserverSpaceWeighed(t *testing.T) {
 	}, 1<<30)
 	require.NoError(t, err, "construct store-RO")
 
-	mgr, err := NewStoreManager([]Store{store1, store1K, storeRO}, nil, kvs)
+	mgr, err := NewStoreManager([]Ext{NewExt(store1), NewExt(store1K), NewExt(storeRO)}, nil, kvs)
 	require.NoError(t, err, "construct store mgr")
 
 	// selection

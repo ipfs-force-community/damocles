@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -11,9 +12,14 @@ use tokio::runtime::Handle;
 use vc_processors::builtin::tasks::{
     PoStReplicaInfo, WindowPoSt, WindowPoStOutput, STAGE_NAME_WINDOW_POST,
 };
+use vc_processors::fil_proofs::{ActorID, SectorId};
 
+use crate::filestore::FileStore;
+use crate::infra::filestore::FileStoreExt;
 use crate::logging::warn;
-use crate::rpc::sealer::{AllocatePoStSpec, AllocatedWdPoStJob, SectorID};
+use crate::rpc::sealer::{
+    AllocatePoStSpec, AllocatedWdPoStJob, PathType, SectorID, WdPoStInput,
+};
 use crate::sealing::failure::*;
 use crate::sealing::paths;
 use crate::sealing::sealing_thread::{planner::plan, Sealer, SealingCtrl, R};
@@ -326,6 +332,12 @@ impl PlannerTrait for WdPostPlanner {
     }
 }
 
+#[derive(Debug)]
+struct PostPath {
+    cache_dir: PathBuf,
+    sealed_file: PathBuf,
+}
+
 struct WdPost<'a> {
     job: &'a mut WdPostJob,
 }
@@ -400,82 +412,30 @@ impl WdPost<'_> {
             .context("wdpost info not found")
             .abort()?;
 
-        let mut instances = HashMap::new();
-        for access in wdpost_job
-            .input
-            .sectors
-            .iter()
-            .flat_map(|x| [&x.accesses.cache_dir, &x.accesses.sealed_file])
-        {
-            if let std::collections::hash_map::Entry::Vacant(e) =
-                instances.entry(access)
-            {
-                let instance = self
-                    .job
-                    .sealing_ctrl
-                    .ctx()
-                    .global
-                    .attached
-                    .get(access)
-                    .with_context(|| {
-                        format!("get access store instance named {}", access)
-                    })
-                    .abort()?;
-                e.insert(instance);
-            }
-        }
-
+        let paths = self
+            .build_paths(&wdpost_job.input)
+            .context("build paths")
+            .abort()?;
         // get sealed path and cache path
         let replica = wdpost_job
             .input
             .sectors
             .iter()
             .map(|sector| {
-                let sector_id = &SectorID {
-                    miner: wdpost_job.input.miner_id,
-                    number: sector.sector_id.into(),
-                };
-
-                let sealed_file = if sector.upgrade {
-                    paths::update_file(sector_id)
-                } else {
-                    paths::sealed_file(sector_id)
-                };
-                let sealed_path = instances[&sector.accesses.sealed_file]
-                    .uri(&sealed_file)
-                    .with_context(|| {
-                        format!(
-                            "get uri for sealed file {} in {}",
-                            sealed_file.display(),
-                            sector.accesses.sealed_file
-                        )
-                    })?;
-                let cache_dir = if sector.upgrade {
-                    paths::update_cache_dir(sector_id)
-                } else {
-                    paths::cache_dir(sector_id)
-                };
-                let cache_path = instances[&sector.accesses.cache_dir]
-                    .uri(&cache_dir)
-                    .with_context(|| {
-                        format!(
-                            "get uri for cache file {} in {}",
-                            cache_dir.display(),
-                            sector.accesses.cache_dir
-                        )
-                    })?;
-
-                let sector_id = sector.sector_id;
+                let p = paths.get(&sector.sector_id).with_context(|| {
+                    format!("get path for {}", sector.sector_id)
+                })?;
                 let replica = PoStReplicaInfo {
-                    sector_id,
+                    sector_id: sector.sector_id,
                     comm_r: sector.comm_r,
-                    cache_dir: cache_path,
-                    sealed_file: sealed_path,
+                    cache_dir: p.cache_dir.clone(),
+                    sealed_file: p.sealed_file.clone(),
                 };
                 Ok(replica)
             })
             .collect::<Result<Vec<_>>>()
             .abort()?;
+        drop(paths);
 
         let post_in = WindowPoSt {
             miner_id: wdpost_job.input.miner_id,
@@ -525,6 +485,70 @@ impl WdPost<'_> {
         Ok(WdPostEvent::Finish)
     }
 
+    fn build_paths(
+        &self,
+        input: &WdPoStInput,
+    ) -> Result<HashMap<SectorId, PostPath>> {
+        #[derive(Debug, Default)]
+        struct Resources {
+            cache_dir: Vec<SectorId>,
+            update_cache_dir: Vec<SectorId>,
+            sealed: Vec<SectorId>,
+            update: Vec<SectorId>,
+        }
+
+        let mut resources_by_store = HashMap::new();
+        for sector in input.sectors.iter() {
+            let resources = resources_by_store
+                .entry(sector.accesses.sealed_file.clone())
+                .or_insert_with(Resources::default);
+            if sector.upgrade {
+                resources.update.push(sector.sector_id)
+            } else {
+                resources.sealed.push(sector.sector_id)
+            }
+
+            let resources = resources_by_store
+                .entry(sector.accesses.cache_dir.clone())
+                .or_insert_with(Default::default);
+            if sector.upgrade {
+                resources.update_cache_dir.push(sector.sector_id)
+            } else {
+                resources.cache_dir.push(sector.sector_id)
+            }
+        }
+        let mut all_paths: HashMap<SectorId, PostPath> = HashMap::new();
+        for (ins, res) in resources_by_store {
+            let instance = self
+                .job
+                .sealing_ctrl
+                .ctx()
+                .global
+                .attached
+                .get(&ins)
+                .with_context(|| {
+                    format!("get access store instance named {}", ins)
+                })?;
+
+            let mut curried_get_paths = |path_type: PathType,
+                                         sector_ids: Vec<SectorId>|
+             -> Result<()> {
+                get_paths(
+                    &mut all_paths,
+                    instance,
+                    input.miner_id,
+                    path_type,
+                    sector_ids,
+                )
+            };
+            curried_get_paths(PathType::Sealed, res.sealed)?;
+            curried_get_paths(PathType::Update, res.update)?;
+            curried_get_paths(PathType::Cache, res.cache_dir)?;
+            curried_get_paths(PathType::UpdateCache, res.update_cache_dir)?;
+        }
+        Ok(all_paths)
+    }
+
     fn start_heartbeat(
         rpc: Arc<crate::rpc::sealer::SealerClient>,
         job_id: String,
@@ -555,4 +579,47 @@ impl WdPost<'_> {
             }
         });
     }
+}
+
+fn get_paths(
+    all_paths: &mut HashMap<SectorId, PostPath>,
+    instance: &dyn FileStore,
+    miner_id: ActorID,
+    path_type: PathType,
+    sector_ids: Vec<SectorId>,
+) -> Result<()> {
+    let paths = instance
+        .sector_paths(path_type, miner_id, sector_ids.clone())
+        .with_context(|| {
+            format!(
+                "get sector paths for (path_type:{:?}, minr_id: {} ins: {})",
+                path_type,
+                miner_id,
+                instance.instance()
+            )
+        })?;
+    for (sector_id, path) in sector_ids.into_iter().zip(paths) {
+        let mut path = Some(path);
+        all_paths
+            .entry(sector_id)
+            .and_modify(|e| match path_type {
+                PathType::Sealed | PathType::Update => {
+                    e.sealed_file = path.take().unwrap();
+                }
+                PathType::Cache | PathType::UpdateCache => {
+                    e.cache_dir = path.take().unwrap();
+                }
+            })
+            .or_insert_with(|| match path_type {
+                PathType::Sealed | PathType::Update => PostPath {
+                    cache_dir: PathBuf::new(),
+                    sealed_file: path.take().unwrap(),
+                },
+                PathType::Cache | PathType::UpdateCache => PostPath {
+                    cache_dir: path.take().unwrap(),
+                    sealed_file: PathBuf::new(),
+                },
+            });
+    }
+    Ok(())
 }

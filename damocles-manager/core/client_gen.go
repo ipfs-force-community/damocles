@@ -38,6 +38,7 @@ type SealerAPIClient struct {
 	AllocateUnsealSector  func(ctx context.Context, spec AllocateSectorSpec) (*SectorUnsealInfo, error)
 	AchieveUnsealSector   func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (Meta, error)
 	AcquireUnsealDest     func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error)
+	StoreUri              func(ctx context.Context, storeName, resource []string) (map[string]string, error)
 }
 
 var UnavailableSealerAPIClient = SealerAPIClient{
@@ -106,6 +107,9 @@ var UnavailableSealerAPIClient = SealerAPIClient{
 		panic("SealerAPI client unavailable")
 	},
 	AcquireUnsealDest: func(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid) ([]string, error) {
+		panic("SealerAPI client unavailable")
+	},
+	StoreUri: func(ctx context.Context, storeName, resource []string) (map[string]string, error) {
 		panic("SealerAPI client unavailable")
 	},
 }

@@ -86,14 +86,8 @@ fn transfer_failure_test() {
     let rel_dest = "dest/dir";
 
     let res = do_transfer(&TransferRoute {
-        src: TransferItem {
-            store_name: None,
-            uri: rel_src.into(),
-        },
-        dest: TransferItem {
-            store_name: None,
-            uri: rel_dest.into(),
-        },
+        src: TransferItem::Local(rel_src.into()),
+        dest: TransferItem::Local(rel_dest.into()),
         opt: None,
     });
     assert!(
@@ -105,14 +99,8 @@ fn transfer_failure_test() {
 
     let src_path = tmp.0.join(rel_src);
     let res = do_transfer(&TransferRoute {
-        src: TransferItem {
-            store_name: None,
-            uri: src_path.clone(),
-        },
-        dest: TransferItem {
-            store_name: None,
-            uri: rel_dest.into(),
-        },
+        src: TransferItem::Local(src_path.clone()),
+        dest: TransferItem::Local(rel_dest.into()),
         opt: None,
     });
     assert!(
@@ -122,14 +110,8 @@ fn transfer_failure_test() {
 
     tmp.create_dir(rel_src);
     let res = do_transfer(&TransferRoute {
-        src: TransferItem {
-            store_name: None,
-            uri: src_path.clone(),
-        },
-        dest: TransferItem {
-            store_name: None,
-            uri: "b/dir".into(),
-        },
+        src: TransferItem::Local(src_path.clone()),
+        dest: TransferItem::Local("b/dir".into()),
         opt: None,
     });
     assert!(
@@ -141,14 +123,8 @@ fn transfer_failure_test() {
 
     let dest_path = tmp.touch(rel_dest, None);
     let res = do_transfer(&TransferRoute {
-        src: TransferItem {
-            store_name: None,
-            uri: src_path.clone(),
-        },
-        dest: TransferItem {
-            store_name: None,
-            uri: dest_path.clone(),
-        },
+        src: TransferItem::Local(src_path.clone()),
+        dest: TransferItem::Local(dest_path.clone()),
         opt: None,
     });
     assert!(
@@ -162,14 +138,8 @@ fn transfer_failure_test() {
     create_dir_all(&dest_path).expect("create dest dir");
 
     let res = do_transfer(&TransferRoute {
-        src: TransferItem {
-            store_name: None,
-            uri: src_path,
-        },
-        dest: TransferItem {
-            store_name: None,
-            uri: dest_path,
-        },
+        src: TransferItem::Local(src_path),
+        dest: TransferItem::Local(dest_path),
         opt: None,
     });
 
@@ -202,14 +172,8 @@ fn transfer_test() {
 
     // link dir
     let res = do_transfer(&TransferRoute {
-        src: TransferItem {
-            store_name: None,
-            uri: src_path.clone(),
-        },
-        dest: TransferItem {
-            store_name: None,
-            uri: dest_path.clone(),
-        },
+        src: TransferItem::Local(src_path.clone()),
+        dest: TransferItem::Local(dest_path.clone()),
         opt: Some(TransferOption {
             is_dir: true,
             allow_link: true,
@@ -236,14 +200,8 @@ fn transfer_test() {
     remove_dir_all(&dest_path).expect("clean up dest dir");
     for (sfp, dfp) in file_pairs.iter() {
         let res = do_transfer(&TransferRoute {
-            src: TransferItem {
-                store_name: None,
-                uri: sfp.clone(),
-            },
-            dest: TransferItem {
-                store_name: None,
-                uri: dfp.clone(),
-            },
+            src: TransferItem::Local(sfp.clone()),
+            dest: TransferItem::Local(dfp.clone()),
             opt: Some(TransferOption {
                 is_dir: false,
                 allow_link: true,
@@ -269,14 +227,8 @@ fn transfer_test() {
     // copy dir
     remove_dir_all(&dest_path).expect("clean up dest dir");
     let res = do_transfer(&TransferRoute {
-        src: TransferItem {
-            store_name: None,
-            uri: src_path.clone(),
-        },
-        dest: TransferItem {
-            store_name: None,
-            uri: dest_path.clone(),
-        },
+        src: TransferItem::Local(src_path.clone()),
+        dest: TransferItem::Local(dest_path.clone()),
         opt: None,
     });
 
@@ -300,14 +252,8 @@ fn transfer_test() {
     remove_dir_all(&dest_path).expect("clean up dest dir");
     for (sfp, dfp) in file_pairs.iter().take(3) {
         let res = do_transfer(&TransferRoute {
-            src: TransferItem {
-                store_name: None,
-                uri: sfp.clone(),
-            },
-            dest: TransferItem {
-                store_name: None,
-                uri: dfp.clone(),
-            },
+            src: TransferItem::Local(sfp.clone()),
+            dest: TransferItem::Local(dfp.clone()),
             opt: None,
         });
         assert!(

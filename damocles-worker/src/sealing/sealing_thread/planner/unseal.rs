@@ -4,8 +4,11 @@ use super::{
     plan, PlannerTrait, PLANNER_NAME_UNSEAL,
 };
 use crate::logging::warn;
-use crate::rpc::sealer::AllocateSectorSpec;
 use crate::sealing::failure::*;
+use crate::{
+    infra::filestore::FileStoreExt,
+    rpc::sealer::{AllocateSectorSpec, PathType},
+};
 use anyhow::{anyhow, Context, Result};
 use forest_cid::Cid;
 use std::{
@@ -154,27 +157,21 @@ impl<'t> Unseal<'t> {
             })
             .perm()?;
 
-        let sealed_temp = self.task.sealed_file(sector_id);
-        let sealed_rel = sealed_temp.rel();
-
-        let cache_temp = self.task.cache_dir(sector_id);
-        let cache_rel = cache_temp.rel();
-
         let sealed_path = instance
-            .uri(sealed_rel)
+            .sector_path(PathType::Sealed, sector_id.clone())
             .with_context(|| {
                 format!(
-                    "get uri for sealed file {:?} in {}",
-                    sealed_rel, instance_name
+                    "get path for sealed({}) in {}",
+                    sector_id, instance_name
                 )
             })
             .perm()?;
         let cache_path = instance
-            .uri(cache_rel)
+            .sector_path(PathType::Cache, sector_id.clone())
             .with_context(|| {
                 format!(
-                    "get uri for cache file {:?} in {}",
-                    cache_rel, instance_name
+                    "get path for cache({}) in {}",
+                    sector_id, instance_name
                 )
             })
             .perm()?;
@@ -362,7 +359,7 @@ impl<'t> Unseal<'t> {
                         return Err(anyhow!("path not found in {}", raw_url))
                             .perm();
                     }
-                    let des_path = PathBuf::from(p);
+                    let des_path = p;
 
                     match access_instance {
                         Some(ins_name) => {
@@ -393,13 +390,14 @@ impl<'t> Unseal<'t> {
                             .perm()?;
 
                             let transfer_routes = vec![TransferRoute {
-                                src: TransferItem {
-                                    store_name: None,
-                                    uri: piece_file.full().clone(),
-                                },
-                                dest: TransferItem {
-                                    store_name: Some(ins_name.clone()),
-                                    uri: access_store.uri(&des_path).perm()?,
+                                src: TransferItem::Local(
+                                    piece_file.full().clone(),
+                                ),
+                                dest: TransferItem::Store {
+                                    store: ins_name.clone(),
+                                    path: access_store
+                                        .custom_path(des_path.to_string())
+                                        .perm()?,
                                 },
                                 opt: None,
                             }];

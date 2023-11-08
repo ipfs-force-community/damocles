@@ -15,8 +15,8 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 )
 
 var log = logging.New("config")
@@ -152,8 +152,8 @@ type PieceStoreConfig struct {
 }
 
 type PersistStoreConfig struct {
-	objstore.Config
-	objstore.StoreSelectPolicy
+	filestore.Config
+	filestore.StoreSelectPolicy
 
 	Plugin     string // For compatibility with v0.5
 	PluginName string
@@ -312,14 +312,14 @@ func (c CommonConfig) GetPersistStores() []PersistStoreConfig {
 				} else {
 					for _, lp := range cfg.StoragePaths {
 						psc := PersistStoreConfig{
-							Config: objstore.Config{
+							Config: filestore.Config{
 								Path:     lp.Path,
 								Meta:     preset.Meta,
 								Strict:   preset.Strict,
 								ReadOnly: preset.ReadOnly,
 								Weight:   preset.Weight,
 							},
-							StoreSelectPolicy: objstore.StoreSelectPolicy{
+							StoreSelectPolicy: filestore.StoreSelectPolicy{
 								AllowMiners: preset.AllowMiners,
 								DenyMiners:  preset.DenyMiners,
 							},
@@ -368,8 +368,8 @@ func mergeMapInto[T comparable, V any](from, into map[T]V) map[T]V {
 	return into
 }
 
-func exampleFilestoreConfig() objstore.Config {
-	cfg := objstore.DefaultConfig("{store_path}", false)
+func exampleFilestoreConfig() filestore.Config {
+	cfg := filestore.DefaultConfig("{store_path}", false)
 	cfg.Name = "{store_name}"
 	cfg.Meta["SomeKey"] = "SomeValue"
 	return cfg
@@ -409,12 +409,12 @@ func defaultCommonConfig(example bool) CommonConfig {
 		*cfg.PieceStorePreset.StorageConfigPath = "/optional/path/to/your/storage.json"
 
 		cfg.PersistStores = append(cfg.PersistStores, PersistStoreConfig{
-			Config: objstore.Config{
+			Config: filestore.Config{
 				Name: exampleCfg.Name,
 				Path: exampleCfg.Path,
 				Meta: exampleCfg.Meta,
 			},
-			StoreSelectPolicy: objstore.StoreSelectPolicy{AllowMiners: []abi.ActorID{1, 2}, DenyMiners: []abi.ActorID{3, 4}},
+			StoreSelectPolicy: filestore.StoreSelectPolicy{AllowMiners: []abi.ActorID{1, 2}, DenyMiners: []abi.ActorID{3, 4}},
 			PluginName:        "s3store",
 		})
 	}

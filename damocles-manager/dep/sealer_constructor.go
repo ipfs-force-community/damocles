@@ -24,28 +24,28 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/confmgr"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore"
+	filestorebuiltin "github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore/builtin"
+	filestoreplugin "github.com/ipfs-force-community/damocles/damocles-manager/pkg/filestore/plugin"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/homedir"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/market"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore/filestore"
-	objstoreplugin "github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore/plugin"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/piecestore"
 )
 
 type (
-	UnderlyingDB                kvstore.DB
-	OnlineMetaStore             kvstore.KVStore
-	OfflineMetaStore            kvstore.KVStore
-	PersistedObjectStoreManager objstore.Manager
-	SectorIndexMetaStore        kvstore.KVStore
-	SnapUpMetaStore             kvstore.KVStore
-	ListenAddress               string
-	ProxyAddress                string
-	WorkerMetaStore             kvstore.KVStore
-	ConfDirPath                 string
-	CommonMetaStore             kvstore.KVStore
+	UnderlyingDB              kvstore.DB
+	OnlineMetaStore           kvstore.KVStore
+	OfflineMetaStore          kvstore.KVStore
+	PersistedFileStoreManager filestore.Manager
+	SectorIndexMetaStore      kvstore.KVStore
+	SnapUpMetaStore           kvstore.KVStore
+	ListenAddress             string
+	ProxyAddress              string
+	WorkerMetaStore           kvstore.KVStore
+	ConfDirPath               string
+	CommonMetaStore           kvstore.KVStore
 )
 
 func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
@@ -444,38 +444,40 @@ func BuildSnapUpMetaStore(gctx GlobalContext, db UnderlyingDB) (SnapUpMetaStore,
 	return db.OpenCollection(gctx, "snapup")
 }
 
-func openObjStore(cfg objstore.Config, pluginName string, loadedPlugins *managerplugin.LoadedPlugins) (st objstore.Store, err error) {
+func openFileStore(cfg filestore.Config, pluginName string, loadedPlugins *managerplugin.LoadedPlugins) (st filestore.Ext, err error) {
 	if cfg.Name == "" {
 		cfg.Name = cfg.Path
 	}
 
+	var innerStore filestore.Store
 	if pluginName == "" {
-		// use embed fs objstore
-		st, err = filestore.Open(cfg, false)
+		// use embed fs filestore
+		innerStore, err = filestorebuiltin.New(cfg)
 	} else {
-		// use plugin objstore
-		st, err = objstoreplugin.OpenPluginObjStore(pluginName, cfg, loadedPlugins)
+		// use plugin filestore
+		innerStore, err = filestoreplugin.OpenPluginFileStore(pluginName, cfg, loadedPlugins)
 	}
 
 	if err != nil {
 		return
 	}
+	st = filestore.NewExt(innerStore)
 	log.Infow("store constructed", "type", st.Type(), "ver", st.Version(), "instance", st.Instance(context.Background()))
 
 	return
 }
 
-func BuildPersistedFileStoreMgr(scfg *modules.SafeConfig, globalStore CommonMetaStore, loadedPlugins *managerplugin.LoadedPlugins) (PersistedObjectStoreManager, error) {
+func BuildPersistedFileStoreMgr(scfg *modules.SafeConfig, globalStore CommonMetaStore, loadedPlugins *managerplugin.LoadedPlugins) (PersistedFileStoreManager, error) {
 	persistCfg := scfg.MustCommonConfig().GetPersistStores()
 
-	stores := make([]objstore.Store, 0, len(persistCfg))
-	policy := map[string]objstore.StoreSelectPolicy{}
+	stores := make([]filestore.Ext, 0, len(persistCfg))
+	policy := map[string]filestore.StoreSelectPolicy{}
 	for pi := range persistCfg {
 		// For compatibility with v0.5
 		if persistCfg[pi].PluginName == "" && persistCfg[pi].Plugin != "" {
 			persistCfg[pi].PluginName = persistCfg[pi].Plugin
 		}
-		st, err := openObjStore(persistCfg[pi].Config, persistCfg[pi].PluginName, loadedPlugins)
+		st, err := openFileStore(persistCfg[pi].Config, persistCfg[pi].PluginName, loadedPlugins)
 		if err != nil {
 			return nil, fmt.Errorf("construct #%d persist store: %w", pi, err)
 		}
@@ -486,13 +488,13 @@ func BuildPersistedFileStoreMgr(scfg *modules.SafeConfig, globalStore CommonMeta
 
 	wrapped, err := kvstore.NewWrappedKVStore([]byte("objstore"), globalStore)
 	if err != nil {
-		return nil, fmt.Errorf("construct wrapped kv store for objstore: %w", err)
+		return nil, fmt.Errorf("construct wrapped kv store for filestore: %w", err)
 	}
 
-	return objstore.NewStoreManager(stores, policy, wrapped)
+	return filestore.NewStoreManager(stores, policy, wrapped)
 }
 
-func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (core.SectorIndexer, error) {
+func BuildSectorIndexer(storeMgr PersistedFileStoreManager, kv SectorIndexMetaStore) (core.SectorIndexer, error) {
 	upgrade, err := kvstore.NewWrappedKVStore([]byte("sector-upgrade"), kv)
 	if err != nil {
 		return nil, fmt.Errorf("wrap kvstore for sector-upgrade: %w", err)
@@ -501,7 +503,7 @@ func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMeta
 	return sectors.NewIndexer(storeMgr, kv, upgrade)
 }
 
-func BuildSectorProving(tracker core.SectorTracker, state core.SectorStateManager, storeMgr PersistedObjectStoreManager, prover core.Prover, capi chain.API, scfg *modules.SafeConfig) (core.SectorProving, error) {
+func BuildSectorProving(tracker core.SectorTracker, state core.SectorStateManager, storeMgr PersistedFileStoreManager, prover core.Prover, capi chain.API, scfg *modules.SafeConfig) (core.SectorProving, error) {
 	return sectors.NewProving(tracker, state, storeMgr, prover, capi, scfg.MustCommonConfig().Proving)
 }
 
@@ -568,10 +570,10 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 	pieceStoreCfg := scfg.Common.PieceStores
 	scfg.Unlock()
 
-	stores := make([]objstore.Store, 0, len(pieceStoreCfg))
+	stores := make([]filestore.Ext, 0, len(pieceStoreCfg))
 	for pi := range pieceStoreCfg {
 		pcfg := pieceStoreCfg[pi]
-		cfg := objstore.Config{
+		cfg := filestore.Config{
 			Name:     pcfg.Name,
 			Path:     pcfg.Path,
 			Meta:     pcfg.Meta,
@@ -581,7 +583,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 		if pcfg.PluginName == "" && pcfg.Plugin != "" {
 			pcfg.PluginName = pcfg.Plugin
 		}
-		st, err := openObjStore(cfg, pcfg.PluginName, loadedPlugins)
+		st, err := openFileStore(cfg, pcfg.PluginName, loadedPlugins)
 		if err != nil {
 			return MarketAPIRelatedComponents{}, fmt.Errorf("construct #%d piece store: %w", pi, err)
 		}
@@ -688,7 +690,7 @@ func BuildWorkerManager(meta WorkerMetaStore) (core.WorkerManager, error) {
 	return worker.NewManager(meta)
 }
 
-func BuildProxiedSectorIndex(client *core.SealerCliAPIClient, storeMgr PersistedObjectStoreManager) (core.SectorIndexer, error) {
+func BuildProxiedSectorIndex(client *core.SealerCliAPIClient, storeMgr PersistedFileStoreManager) (core.SectorIndexer, error) {
 	log.Debug("build proxied sector indexer")
 	return sectors.NewProxiedIndexer(client, storeMgr)
 }
