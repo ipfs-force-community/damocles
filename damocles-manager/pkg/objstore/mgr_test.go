@@ -10,11 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	TRUE      = true
-	THOUNSAND = uint(1000)
-)
-
 func (m *StoreManager) resetReserved(ctx context.Context) error {
 	err := m.metadb.Del(ctx, storeReserveSummaryKey)
 	if err != nil {
@@ -43,7 +38,7 @@ func TestStoreManagerReserverSpace(t *testing.T) {
 
 	storeRO, err := NewMockStore(Config{
 		Name:     storeNameReadOnly,
-		ReadOnly: &TRUE,
+		ReadOnly: true,
 	}, 1<<30)
 	require.NoError(t, err, "construct store-RO")
 
@@ -199,13 +194,13 @@ func TestStoreManagerReserverSpaceWeighed(t *testing.T) {
 
 	store1K, err := NewMockStore(Config{
 		Name:   storeName1K,
-		Weight: &THOUNSAND,
+		Weight: 1000,
 	}, 1<<20)
 	require.NoError(t, err, "construct store-1K")
 
 	storeRO, err := NewMockStore(Config{
 		Name:     storeNameReadOnly,
-		ReadOnly: &TRUE,
+		ReadOnly: true,
 	}, 1<<30)
 	require.NoError(t, err, "construct store-RO")
 

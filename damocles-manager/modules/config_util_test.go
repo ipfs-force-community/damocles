@@ -3,6 +3,8 @@ package modules_test
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/BurntSushi/toml"
@@ -74,7 +76,7 @@ func TestStructWithNilField(t *testing.T) {
 	enc.Indent = ""
 	err := enc.Encode(a)
 	require.NoError(t, err)
-	fmt.Println(string(buf.Bytes()))
+	fmt.Println(buf.String())
 
 }
 
@@ -179,4 +181,45 @@ func TestParseFIL(t *testing.T) {
 		require.True(t, empty.IsZero())
 		require.False(t, modules.OneFIL.IsZero())
 	})
+}
+
+func TestScanPersistStores(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "1"), 0755))
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "2"), 0755))
+	require.NoError(t, os.Mkdir(filepath.Join(tmpDir, "3"), 0755))
+
+	jsonConf1 := `{
+		"ID": "123",
+		"Name": "",
+		"Strict": false,
+		"ReadOnly": false,
+		"Weight": 0,
+		"AllowMiners": [1],
+		"DenyMiners": [2],
+		"PluginName": "2234234",
+		"Meta": {},
+		"CanSeal": true
+	}`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "1", modules.FilenameSectorStoreJSON), []byte(jsonConf1), 0644))
+
+	jsonConf2 := `{
+		"Name": "456",
+		"Meta": {},
+		"Strict": true,
+		"ReadOnly": false,
+		"AllowMiners": [1],
+		"DenyMiners": [2],
+		"PluginName": "2234234",
+		"CanSeal": true
+	}`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "2", modules.FilenameSectorStoreJSON), []byte(jsonConf2), 0644))
+
+	cfgs, err := modules.ScanPersistStores([]string{filepath.Join(tmpDir, "*")})
+	require.NoError(t, err)
+	require.Len(t, cfgs, 2)
+
+	require.Equal(t, "123", cfgs[0].Name)
+	require.Equal(t, "456", cfgs[1].Name)
 }
