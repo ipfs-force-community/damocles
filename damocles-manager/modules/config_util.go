@@ -3,9 +3,12 @@ package modules
 import (
 	"bytes"
 	"encoding"
+	"encoding/json"
 	"fmt"
 	"math"
 	mbig "math/big"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -219,4 +222,43 @@ func (f *FIL) UnmarshalJSON(text []byte) error {
 		return f.UnmarshalText([]byte{})
 	}
 	return f.UnmarshalText(text)
+}
+
+const FilenameSectorStoreJSON = "sectorstore.json"
+
+func ScanPersistStores(patterns []string) ([]PersistStoreConfig, error) {
+	var stores []PersistStoreConfig
+	for _, pattern := range patterns {
+
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("glob pattern `%s`: %w", pattern, err)
+		}
+
+		for _, path := range matches {
+			sectorStoreJSONFile := filepath.Join(path, FilenameSectorStoreJSON)
+			b, err := os.ReadFile(sectorStoreJSONFile)
+			if os.IsNotExist(err) {
+				continue
+			}
+			if err != nil {
+				return nil, fmt.Errorf("read `%s`: %w", sectorStoreJSONFile, err)
+			}
+
+			var conf SectorStoreJSON
+			if err := json.Unmarshal(b, &conf); err != nil {
+				return nil, fmt.Errorf("unmarshal json file `%s`: %w", sectorStoreJSONFile, err)
+			}
+
+			if conf.Name == "" {
+				conf.Name = conf.ID
+			}
+
+			conf.Path = path
+			log.Infof("scanned persist store: %s, path: %s", conf.Name, conf.Path)
+			stores = append(stores, conf.PersistStoreConfig)
+		}
+	}
+
+	return stores, nil
 }

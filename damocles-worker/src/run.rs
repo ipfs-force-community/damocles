@@ -65,53 +65,22 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
         .map_err(|e| anyhow!("jsonrpc connect to {}: {:?}", &dial_addr, e))?;
 
     let mut attached: Vec<Box<dyn ObjectStore>> = Vec::new();
-    let mut attached_writable = 0;
-    if let Some(remote_cfg) = cfg.remote_store.as_ref() {
-        let remote_store = Box::new(
+
+    for (sidx, scfg) in cfg.attached()?.into_iter().enumerate() {
+        let attached_store = Box::new(
             FileStore::open(
-                remote_cfg.location.clone(),
-                remote_cfg.name.clone(),
-                remote_cfg.readonly.unwrap_or(false),
+                scfg.location,
+                scfg.name,
+                scfg.readonly.unwrap_or(false),
             )
-            .with_context(|| {
-                format!("open remote filestore {}", remote_cfg.location)
-            })?,
+            .with_context(|| format!("open attached filestore #{}", sidx))?,
         );
 
-        if !remote_store.readonly() {
-            attached_writable += 1;
-        }
-
-        attached.push(remote_store);
-    }
-
-    if let Some(attach_cfgs) = cfg.attached.as_ref() {
-        for (sidx, scfg) in attach_cfgs.iter().enumerate() {
-            let attached_store = Box::new(
-                FileStore::open(
-                    scfg.location.clone(),
-                    scfg.name.clone(),
-                    scfg.readonly.unwrap_or(false),
-                )
-                .with_context(|| {
-                    format!("open attached filestore #{}", sidx)
-                })?,
-            );
-
-            if !attached_store.readonly() {
-                attached_writable += 1;
-            }
-
-            attached.push(attached_store);
-        }
+        attached.push(attached_store);
     }
 
     if attached.is_empty() {
         return Err(anyhow!("no attached store available"));
-    }
-
-    if attached_writable == 0 {
-        return Err(anyhow!("no attached store available for writing"));
     }
 
     // check all persist store exist in damocles-manager
@@ -135,11 +104,7 @@ pub fn start_daemon(cfg_path: impl AsRef<Path>) -> Result<()> {
         }
     }
 
-    info!(
-        "{} stores attached, {} writable",
-        attached.len(),
-        attached_writable
-    );
+    info!("{} stores attached", attached.len(),);
 
     let attached_mgr =
         AttachedManager::init(attached).context("init attached manager")?;

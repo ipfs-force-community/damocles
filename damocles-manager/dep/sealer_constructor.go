@@ -466,11 +466,20 @@ func openObjStore(cfg objstore.Config, pluginName string, loadedPlugins *manager
 }
 
 func BuildPersistedFileStoreMgr(scfg *modules.SafeConfig, globalStore CommonMetaStore, loadedPlugins *managerplugin.LoadedPlugins) (PersistedObjectStoreManager, error) {
-	persistCfg := scfg.MustCommonConfig().GetPersistStores()
+	persistCfg, err := scfg.MustCommonConfig().GetPersistStores()
+	if err != nil {
+		return nil, fmt.Errorf("get persist store config: %w", err)
+	}
 
 	stores := make([]objstore.Store, 0, len(persistCfg))
 	policy := map[string]objstore.StoreSelectPolicy{}
+	checkName := make(map[string]struct{})
 	for pi := range persistCfg {
+		if _, ok := checkName[persistCfg[pi].Name]; ok {
+			return nil, fmt.Errorf("duplicate persist store name %s", persistCfg[pi].Name)
+		}
+		checkName[persistCfg[pi].Name] = struct{}{}
+
 		// For compatibility with v0.5
 		if persistCfg[pi].PluginName == "" && persistCfg[pi].Plugin != "" {
 			persistCfg[pi].PluginName = persistCfg[pi].Plugin
@@ -575,7 +584,7 @@ func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Sa
 			Name:     pcfg.Name,
 			Path:     pcfg.Path,
 			Meta:     pcfg.Meta,
-			ReadOnly: &pcfg.ReadOnly,
+			ReadOnly: pcfg.ReadOnly,
 		}
 		// For compatibility with v0.5
 		if pcfg.PluginName == "" && pcfg.Plugin != "" {

@@ -81,7 +81,7 @@ func (ms *MockStore) Get(_ context.Context, p string) (io.ReadCloser, error) {
 }
 
 func (ms *MockStore) Del(_ context.Context, p string) error {
-	if ms.cfg.GetReadOnly() {
+	if ms.cfg.ReadOnly {
 		return ErrReadOnlyStore
 	}
 
@@ -114,7 +114,7 @@ func (ms *MockStore) Stat(_ context.Context, p string) (Stat, error) {
 }
 
 func (ms *MockStore) Put(_ context.Context, p string, r io.Reader) (int64, error) {
-	if ms.cfg.GetReadOnly() {
+	if ms.cfg.ReadOnly {
 		return 0, ErrReadOnlyStore
 	}
 

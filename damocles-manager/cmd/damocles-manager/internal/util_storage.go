@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -17,13 +18,16 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/venus/venus-shared/types"
+	"github.com/google/uuid"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/dep"
+	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore/filestore"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/slices"
 	"github.com/urfave/cli/v2"
 )
 
@@ -31,10 +35,75 @@ var utilStorageCmd = &cli.Command{
 	Name:  "storage",
 	Usage: "Manage persistent storage for sealed sectors",
 	Subcommands: []*cli.Command{
+		utilStorageGenSectorStoreJSONCmd,
 		utilStorageAttachCmd,
 		utilStorageFindCmd,
 		utilStorageListCmd,
 		utilStorageReleaseReservedCmd,
+	},
+}
+
+var utilStorageGenSectorStoreJSONCmd = &cli.Command{
+	Name: "gen-sectorstore-json",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "strict",
+			Value: true,
+		},
+		&cli.BoolFlag{
+			Name:    "readonly",
+			Aliases: []string{"read-only"},
+			Value:   false,
+		},
+		&cli.UintFlag{
+			Name:  "weight",
+			Value: 1,
+		},
+		&cli.StringFlag{
+			Name:    "plugin-name",
+			Aliases: []string{"plugin"},
+		},
+		&cli.Uint64SliceFlag{
+			Name: "allow-miners",
+		},
+		&cli.Uint64SliceFlag{
+			Name: "deny-miners",
+		},
+	},
+	Usage:     "generate the `sectorstore.json` file",
+	ArgsUsage: "[sectorstore.json path]",
+	Action: func(cctx *cli.Context) error {
+		cfg := modules.SectorStoreJSON{
+			ID: uuid.New().String(),
+			PersistStoreConfig: modules.PersistStoreConfig{
+				Config: objstore.Config{
+					Strict:   cctx.Bool("strict"),
+					ReadOnly: cctx.Bool("readonly"),
+					Weight:   cctx.Uint("weight"),
+				},
+				StoreSelectPolicy: objstore.StoreSelectPolicy{
+					AllowMiners: slices.Map(cctx.Uint64Slice("allow-miners"), func(x uint64) abi.ActorID { return abi.ActorID(x) }),
+					DenyMiners:  slices.Map(cctx.Uint64Slice("deny-miners"), func(x uint64) abi.ActorID { return abi.ActorID(x) }),
+				},
+				PluginName: cctx.String("plugin-name"),
+			},
+		}
+
+		b, err := json.MarshalIndent(cfg, "", "\t")
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+
+		targetPath := cctx.Args().First()
+		if targetPath == "" {
+			fmt.Println(string(b))
+			return nil
+		}
+
+		if filepath.Base(targetPath) != modules.FilenameSectorStoreJSON {
+			targetPath = filepath.Join(targetPath, modules.FilenameSectorStoreJSON)
+		}
+		return os.WriteFile(targetPath, b, 0644)
 	},
 }
 
@@ -88,7 +157,7 @@ var utilStorageAttachCmd = &cli.Command{
 
 		scfg := objstore.DefaultConfig(abs, readOnly)
 		scfg.Name = name
-		scfg.Strict = &strict
+		scfg.Strict = strict
 
 		store, err := filestore.Open(scfg, false)
 		if err != nil {

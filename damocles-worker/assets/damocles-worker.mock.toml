@@ -2,6 +2,7 @@
 # name = "worker-#1"
 # rpc_server.host = "192.168.1.100"
 # rpc_server.port = 17891
+scan_persist_stores = []
 
 [metrics]
 enable = true
