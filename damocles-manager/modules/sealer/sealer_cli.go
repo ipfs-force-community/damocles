@@ -360,9 +360,9 @@ func storeConfig2StoreBasic(ocfg *objstore.Config) core.StoreBasicInfo {
 		Name:     ocfg.Name,
 		Path:     ocfg.Path,
 		Meta:     ocfg.Meta,
-		Strict:   ocfg.GetStrict(),
-		ReadOnly: ocfg.GetReadOnly(),
-		Weight:   ocfg.GetWeight(),
+		Strict:   ocfg.Strict,
+		ReadOnly: ocfg.ReadOnly,
+		Weight:   ocfg.Weight,
 	}
 }
 

@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.10.0-dev
+## v0.9.0-rc6
+  - damocles-manager
+    - 简化扇区存储配置 [#1010](https://github.com/ipfs-force-community/damocles/pull/1010)
 
 ## v0.9.0-rc5
   - damocles-manager

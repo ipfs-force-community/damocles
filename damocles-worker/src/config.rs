@@ -1,16 +1,18 @@
 //! config for damocles-worker
 
-use std::collections::HashMap;
-use std::fs;
+use std::collections::{HashMap, HashSet};
+use std::fs::{self, File};
+use std::io;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::str;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use byte_unit::Byte;
 use serde::{Deserialize, Serialize};
 
+use crate::objstore::attached;
 use crate::sealing::processor::external::config::Ext;
 
 /// Default worker server port
@@ -19,6 +21,8 @@ pub const DEFAULT_WORKER_SERVER_HOST: &str = "0.0.0.0";
 /// The localhost addr
 pub const LOCAL_HOST: &str = "127.0.0.1";
 pub const DEFAULT_WORKER_PING_INTERVAL: Duration = Duration::from_secs(30);
+
+pub const FILENAME_SECTORSTORE_JSON: &str = "sectorstore.json";
 
 /// configurations for sealing sectors
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -126,13 +130,19 @@ pub struct SealingOptional {
 }
 
 /// configuration for remote store
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Attached {
     pub name: Option<String>,
     /// store path, if we are using fs based store
     pub location: String,
 
     pub readonly: Option<bool>,
+}
+
+impl Attached {
+    pub fn name(&self) -> &String {
+        self.name.as_ref().unwrap_or(&self.location)
+    }
 }
 
 /// configurations for local sealing store
@@ -245,6 +255,11 @@ pub struct WorkerInstanceConfig {
     /// otherwise it will load the remote piece file from damocles-manager
     pub local_pieces_dir: Option<PathBuf>, // For compatibility
     pub local_pieces_dirs: Option<Vec<PathBuf>>,
+
+    /// Configure directories for scanning persistence store
+    #[serde(default)]
+    #[serde(alias = "ScanPersistStores")]
+    pub scan_persist_stores: Vec<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -279,9 +294,6 @@ pub struct Config {
 
     /// section for list of local sealing stores
     pub sealing_thread: Vec<SealingThread>,
-
-    /// section for remote store, deprecated
-    pub remote_store: Option<Attached>,
 
     /// section for attached store
     pub attached: Option<Vec<Attached>>,
@@ -384,5 +396,153 @@ impl Config {
         let mut buf = Vec::new();
         writeln!(&mut buf, "{:#?}", self)?;
         Ok(String::from_utf8(buf)?)
+    }
+
+    /// attached returns all attached persist stores
+    pub fn attached(&self) -> Result<Vec<Attached>> {
+        let mut attached = self.attached.clone().unwrap_or(Vec::new());
+        if let Some(worker) = &self.worker {
+            if !worker.scan_persist_stores.is_empty() {
+                attached.extend(
+                    scan_persist_stores(&worker.scan_persist_stores)
+                        .context("scan persist stores")?,
+                );
+            }
+        }
+
+        let mut unique_names = HashSet::new();
+        for x in &attached {
+            let name = x.name();
+            if unique_names.contains(name) {
+                return Err(anyhow!("duplicate persist name: {}", name));
+            }
+            unique_names.insert(name.clone());
+        }
+        Ok(attached)
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct SectorStoreJson {
+    #[serde(rename = "ID")]
+    pub id: Option<String>,
+    pub name: Option<String>,
+    pub read_only: Option<bool>,
+}
+
+pub fn scan_persist_stores(patterns: &[String]) -> Result<Vec<Attached>> {
+    let mut attached = Vec::new();
+    for pattern in patterns {
+        for path in glob::glob(pattern)
+            .with_context(|| format!("invalid glob pattern: {}", pattern))?
+            .filter_map(Result::ok)
+        {
+            let cfg_path = path.join(FILENAME_SECTORSTORE_JSON);
+            match fs::metadata(&cfg_path) {
+                Ok(m) => {
+                    if !m.is_file() {
+                        continue;
+                    }
+                }
+                Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                    continue;
+                }
+                Err(e) => {
+                    return Err(anyhow!(
+                        "open file {}: {:?}",
+                        path.display(),
+                        e
+                    ));
+                }
+            }
+
+            let f = File::open(&cfg_path).with_context(|| {
+                format!("open file: {}", cfg_path.display())
+            })?;
+            let cfg: SectorStoreJson = serde_json::from_reader(f)
+                .with_context(|| {
+                    format!("deserialize json: {}", cfg_path.display())
+                })?;
+
+            let name = match (cfg.name, cfg.id) {
+                (Some(name), _) if !name.is_empty() => Some(name),
+                (_, Some(id)) if !id.is_empty() => Some(id),
+                _ => None,
+            };
+
+            tracing::info!(
+                "scanned persist store: {}, path: {}",
+                name.as_deref().unwrap_or("None"),
+                path.display()
+            );
+
+            attached.push(Attached {
+                name,
+                location: path.display().to_string(),
+                readonly: cfg.read_only,
+            })
+        }
+    }
+    Ok(attached)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use pretty_assertions::assert_eq;
+
+    use super::FILENAME_SECTORSTORE_JSON;
+
+    #[test]
+    fn test_scan_persist_stores() {
+        let tmpdir = tempfile::tempdir().unwrap();
+
+        fs::create_dir(tmpdir.path().join("1")).unwrap();
+        fs::create_dir(tmpdir.path().join("2")).unwrap();
+        fs::create_dir(tmpdir.path().join("3")).unwrap();
+
+        fs::write(
+            tmpdir.path().join("1").join(FILENAME_SECTORSTORE_JSON),
+            r#"{
+            	"ID": "123",
+            	"Name": "",
+            	"Strict": false,
+            	"ReadOnly": false,
+            	"Weight": 0,
+            	"AllowMiners": [1],
+            	"DenyMiners": [2],
+            	"PluginName": "2234234",
+            	"Meta": {},
+            	"CanSeal": true
+            }"#,
+        )
+        .unwrap();
+
+        fs::write(
+            tmpdir.path().join("2").join(FILENAME_SECTORSTORE_JSON),
+            r#"{
+            	"Name": "456",
+                "Meta": {},
+                "Strict": true,
+                "ReadOnly": false,
+                "AllowMiners": [1],
+                "DenyMiners": [2],
+                "PluginName": "2234234",
+                "CanSeal": true
+            }"#,
+        )
+        .unwrap();
+
+        let attached = super::scan_persist_stores(&[tmpdir
+            .path()
+            .join("*")
+            .display()
+            .to_string()])
+        .unwrap();
+        assert_eq!(attached.len(), 2);
+        assert_eq!(attached[0].name, Some("123".to_string()));
+        assert_eq!(attached[1].name, Some("456".to_string()));
     }
 }

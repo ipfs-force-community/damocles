@@ -208,11 +208,11 @@ func (m *StoreManager) ReserveSpace(ctx context.Context, sid abi.SectorID, size 
 				}
 
 				// readonly, or not enough space
-				if info.Config.GetReadOnly() || info.Free < resSize+size {
+				if info.Config.ReadOnly || info.Free < resSize+size {
 					continue
 				}
 
-				weight := info.Config.GetWeight()
+				weight := info.Config.Weight
 				if weight == 0 {
 					weight = 1
 				}
