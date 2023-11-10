@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.10.0-dev
+## v0.9.0-rc6
+  - damocles-manager
+    - 简化扇区存储配置 [#1010](https://github.com/ipfs-force-community/damocles/pull/1010)
 
 ## v0.9.0-rc5
   - damocles-manager
@@ -11,7 +13,6 @@
 - damocles-manager
   - 新增根据 `basefee` 启用聚合的功能 [#1012](https://github.com/ipfs-force-community/damocles/pull/1012)
     - 新增配置项 `Miners.Commitment.Pre.Batch.BatchCommitAboveBaseFee`
-  - 简化扇区存储配置 [#1010](https://github.com/ipfs-force-community/damocles/pull/1010)
 
 ## v0.9.0-rc3
 
