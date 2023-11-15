@@ -239,7 +239,8 @@ WAIT_RET:
 		case messager.MessageState.OnChainMsg, messager.MessageState.NonceConflictMsg:
 			mret = ret
 			break WAIT_RET
-
+		case messager.MessageState.FailedMsg:
+			return fmt.Errorf("message failed %s: %s", mid, ret.ErrorMsg)
 		default:
 			mlog.Debugf("msg state: %s", messager.MessageStateToString(ret.State))
 		}
