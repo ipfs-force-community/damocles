@@ -2420,13 +2420,6 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			Aliases:  []string{"sector-id"},
 			Required: false,
 		},
-		&cli.BoolFlag{
-			Name:     "piece-info-from-droplet",
-			Usage:    "get piece info from droplet, which come from damocles db by default .",
-			Value:    false,
-			Aliases:  []string{"from-droplet"},
-			Required: false,
-		},
 		&cli.StringFlag{
 			Name:     "unseal-file",
 			Usage:    "unseal piece from unseal file",
