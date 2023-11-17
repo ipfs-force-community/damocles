@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -39,6 +40,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
+	marketTypes "github.com/filecoin-project/venus/venus-shared/types/market"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
@@ -2496,39 +2498,40 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		}
 
 		// get piece-info
-		var offsetPadded, sizePadded abi.PaddedPieceSize
-		if cctx.Bool("piece-info-from-droplet") {
-			// get piece info from market
-			pieceInfo, err := cli.Market.PiecesGetPieceInfo(gctx, pieceCid)
+		offsetPadded, sizePadded := abi.PaddedPieceSize(math.MaxUint64), abi.PaddedPieceSize(math.MaxUint64)
+		{
+			deals, err := cli.Market.MarketListIncompleteDeals(gctx, &marketTypes.StorageDealQueryParams{
+				PieceCID: pieceCid.String(),
+			})
 			if err != nil {
-				return fmt.Errorf("get piece info from market: %w", err)
-			}
-			if pieceInfo == nil {
-				return fmt.Errorf("no piece info found in market with piece %s", pieceCid)
-			}
-			var matched bool
-		CHECK_LOOP:
-			for _, deal := range pieceInfo.Deals {
-				// check miner and sector
-				for _, dealInSectorState := range sectorState.Pieces {
-					if deal.DealID == dealInSectorState.ID {
-						matched = true
-						offsetPadded = deal.Offset
-						sizePadded = deal.Length
-						break CHECK_LOOP
+				Log.Warnf("retrival deal info: %s", err)
+			} else {
+			CHECK_LOOP:
+				for _, deal := range deals {
+					for _, dealInSectorState := range sectorState.Pieces {
+						if deal.DealID == dealInSectorState.ID {
+							offsetPadded = deal.Offset
+							playloadSize := abi.UnpaddedPieceSize(deal.PayloadSize)
+							sizePadded = playloadSize.Padded()
+							break CHECK_LOOP
+						}
 					}
 				}
 			}
-			if !matched {
-				return fmt.Errorf("no matched deal found in market with sector %d and piece %s", sectorState.ID.Number, pieceCid)
-			}
-		} else {
-			// get piece info from sector state
-			for _, p := range sectorState.Pieces {
-				if pieceCid.Equals(p.Piece.Cid) {
-					offsetPadded = p.Piece.Offset
-					sizePadded = p.Piece.Size
-					break
+
+			if offsetPadded == math.MaxUint64 || sizePadded == math.MaxUint64 {
+				Log.Warnf("no matched deal found in market with sector %d and piece %s", sectorState.ID.Number, pieceCid)
+				// get piece info from sector state
+				for _, p := range sectorState.Pieces {
+					if pieceCid.Equals(p.Piece.Cid) {
+						if offsetPadded == math.MaxUint64 {
+							offsetPadded = p.Piece.Offset
+						}
+						if sizePadded == math.MaxUint64 {
+							sizePadded = p.Piece.Size
+						}
+						break
+					}
 				}
 			}
 		}
