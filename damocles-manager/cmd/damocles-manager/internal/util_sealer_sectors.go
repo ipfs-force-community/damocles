@@ -2432,7 +2432,13 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			Required: false,
 		},
 		&cli.Uint64Flag{
-			Name:     "size",
+			Name:     "payload-size",
+			Usage:    "specify size of playload manually.",
+			Value:    0,
+			Required: false,
+		},
+		&cli.Uint64Flag{
+			Name:     "piece-size",
 			Usage:    "specify size of piece manually",
 			Value:    0,
 			Required: false,
@@ -2504,8 +2510,12 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 					for _, dealInSectorState := range sectorState.Pieces {
 						if deal.DealID == dealInSectorState.ID {
 							offsetPadded = deal.Offset
-							playloadSize := abi.UnpaddedPieceSize(deal.PayloadSize)
-							sizePadded = playloadSize.Padded()
+							payloadSize := abi.UnpaddedPieceSize(deal.PayloadSize)
+							if payloadSize != 0 && payloadSize != 1 {
+								sizePadded = payloadSize.Padded()
+							} else {
+								sizePadded = dealInSectorState.Piece.Size
+							}
 							break CHECK_LOOP
 						}
 					}
@@ -2533,8 +2543,11 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		if cctx.IsSet("offset") {
 			offsetPadded = abi.PaddedPieceSize(cctx.Uint64("offset"))
 		}
-		if cctx.IsSet("size") {
+		if cctx.IsSet("piece-size") {
 			sizePadded = abi.PaddedPieceSize(cctx.Uint64("size"))
+		}
+		if cctx.IsSet("payload-size") {
+			sizePadded = abi.UnpaddedPieceSize(cctx.Uint64("payload-size")).Padded()
 		}
 
 		offset := offsetPadded.Unpadded()
