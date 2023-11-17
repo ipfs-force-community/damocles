@@ -100,7 +100,9 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsRebuildCmd,
 		utilSealerSectorsExportCmd,
 		utilSealerSectorsUnsealCmd,
-		utilSealerSectorsMovePartitionsCmd,
+
+		// todo: consider add this command back until next update in which FIP0070 maybe be in scope
+		// utilSealerSectorsMovePartitionsCmd,
 	},
 }
 
