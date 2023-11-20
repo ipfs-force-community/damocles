@@ -1068,6 +1068,10 @@ var utilSealerProvingRecoverFaultsCmd = &cli.Command{
 			Name:  "from",
 			Usage: "Specify the address of the address to send message, default miner's worker",
 		},
+		&cli.StringFlag{
+			Name:  "exid",
+			Usage: "external identifier of the message, ensure that we could make the message unique, or we could catch up with a previous message",
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		api, actx, astop, err := extractAPI(cctx)
