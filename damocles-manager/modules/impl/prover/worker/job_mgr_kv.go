@@ -29,7 +29,7 @@ type kvJobManager struct {
 // TODO(0x5459): Consider putting `txn` into context?
 func (tm *kvJobManager) filter(ctx context.Context, txn kvstore.TxnExt, state core.WdPoStJobState, limit uint32, f func(*core.WdPoStJob) bool) (jobs []*core.WdPoStJob, err error) {
 	var it kvstore.Iter
-	it, err = txn.Scan([]byte(makeWdPoStPrefix(state)))
+	it, err = txn.Scan(kvstore.Prefix(makeWdPoStPrefix(state)))
 	if err != nil {
 		return
 	}
@@ -134,7 +134,7 @@ func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, partitio
 			CreatedAt:   uint64(now),
 			UpdatedAt:   uint64(now),
 		}
-		return txn.PutJson([]byte(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)), &job)
+		return txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)), &job)
 	})
 
 	if err == nil {
@@ -163,7 +163,7 @@ func (tm *kvJobManager) AllocateJobs(ctx context.Context, spec core.AllocateWdPo
 		now := uint64(time.Now().Unix())
 		for _, job := range readyToRun {
 			// Moving ready to run jobs to running jobs
-			if err := txn.Del([]byte(makeWdPoStKey(core.WdPoStJobReadyToRun, job.ID))); err != nil {
+			if err := txn.Del(kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, job.ID))); err != nil {
 				return err
 			}
 			job.State = string(core.WdPoStJobRunning)
@@ -172,7 +172,7 @@ func (tm *kvJobManager) AllocateJobs(ctx context.Context, spec core.AllocateWdPo
 			job.WorkerName = workerName
 			job.HeartbeatAt = now
 			job.UpdatedAt = now
-			if err := txn.PutJson([]byte(makeWdPoStKey(core.WdPoStJobRunning, job.ID)), job); err != nil {
+			if err := txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, job.ID)), job); err != nil {
 				return err
 			}
 			allocatedJobs = append(allocatedJobs, &core.WdPoStAllocatedJob{
@@ -196,16 +196,28 @@ func (tm *kvJobManager) Heartbeat(ctx context.Context, jobIDs []string, workerNa
 	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		for _, jobID := range jobIDs {
 			var job core.WdPoStJob
-			if err := txn.Peek([]byte(makeWdPoStKey(core.WdPoStJobRunning, jobID)), kvstore.LoadJSON(&job)); err != nil {
+			key, err := txn.PeekAny(
+				kvstore.LoadJSON(&job),
+				kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, jobID)),
+				kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)),
+				kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, jobID)),
+			)
+			if err != nil {
 				return err
 			}
+
+			if err := txn.Del(key); err != nil {
+				return err
+			}
+
 			if job.StartedAt == 0 {
 				job.StartedAt = now
 			}
 			job.HeartbeatAt = now
 			job.WorkerName = workerName
+			job.State = string(core.WdPoStJobRunning)
 			job.UpdatedAt = now
-			if err := txn.PutJson([]byte(makeWdPoStKey(core.WdPoStJobRunning, jobID)), &job); err != nil {
+			if err := txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, jobID)), &job); err != nil {
 				return err
 			}
 		}
@@ -219,12 +231,17 @@ func (tm *kvJobManager) Heartbeat(ctx context.Context, jobIDs []string, workerNa
 
 func (tm *kvJobManager) Finish(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) error {
 	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
-		runningKey := []byte(makeWdPoStKey(core.WdPoStJobRunning, jobID))
 		var job core.WdPoStJob
-		if err := txn.Peek(runningKey, kvstore.LoadJSON(&job)); err != nil {
+		key, err := txn.PeekAny(
+			kvstore.LoadJSON(&job),
+			kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, jobID)),
+			kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)),
+			kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, jobID)),
+		)
+		if err != nil {
 			return err
 		}
-		if err := txn.Del(runningKey); err != nil {
+		if err := txn.Del(key); err != nil {
 			return err
 		}
 		now := uint64(time.Now().Unix())
@@ -233,7 +250,7 @@ func (tm *kvJobManager) Finish(ctx context.Context, jobID string, output *stage.
 		job.ErrorReason = errorReason
 		job.FinishedAt = now
 		job.UpdatedAt = now
-		return txn.PutJson([]byte(makeWdPoStKey(core.WdPoStJobFinished, jobID)), &job)
+		return txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, jobID)), &job)
 	})
 
 	if err == nil {
@@ -260,7 +277,7 @@ func (tm *kvJobManager) MakeJobsDie(ctx context.Context, heartbeatTimeout time.D
 		}
 		now := uint64(time.Now().Unix())
 		for _, job := range shouldDead {
-			if err := txn.Del([]byte(makeWdPoStKey(core.WdPoStJobRunning, job.ID))); err != nil {
+			if err := txn.Del(kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, job.ID))); err != nil {
 				return err
 			}
 			job.State = string(core.WdPoStJobFinished)
@@ -268,7 +285,7 @@ func (tm *kvJobManager) MakeJobsDie(ctx context.Context, heartbeatTimeout time.D
 			job.Output = nil
 			job.ErrorReason = "heartbeat timeout"
 			job.UpdatedAt = now
-			if err := txn.PutJson([]byte(makeWdPoStKey(core.WdPoStJobFinished, job.ID)), job); err != nil {
+			if err := txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, job.ID)), job); err != nil {
 				return err
 			}
 		}
@@ -297,7 +314,7 @@ func (tm *kvJobManager) CleanupExpiredJobs(ctx context.Context, jobLifetime time
 			return err
 		}
 		for _, job := range shouldClean {
-			if err := txn.Del([]byte(makeWdPoStKey(core.WdPoStJobFinished, job.ID))); err != nil {
+			if err := txn.Del(kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, job.ID))); err != nil {
 				return err
 			}
 		}
@@ -324,7 +341,7 @@ func (tm *kvJobManager) RetryFailedJobs(ctx context.Context, maxTry, limit uint3
 		}
 		now := uint64(time.Now().Unix())
 		for _, job := range shouldRetry {
-			err := txn.Del([]byte(makeWdPoStKey(core.WdPoStJobFinished, job.ID)))
+			err := txn.Del(kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, job.ID)))
 			if err != nil {
 				return err
 			}
@@ -334,7 +351,7 @@ func (tm *kvJobManager) RetryFailedJobs(ctx context.Context, maxTry, limit uint3
 			job.StartedAt = 0
 			job.FinishedAt = 0
 			job.UpdatedAt = now
-			if err := txn.PutJson([]byte(makeWdPoStKey(core.WdPoStJobReadyToRun, job.ID)), job); err != nil {
+			if err := txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, job.ID)), job); err != nil {
 				return err
 			}
 		}
@@ -379,7 +396,7 @@ func (tm *kvJobManager) Reset(ctx context.Context, jobID string) error {
 		if err := txn.Del(key); err != nil {
 			return err
 		}
-		return txn.PutJson([]byte(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)), &job)
+		return txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)), &job)
 	})
 
 	if err == nil {
