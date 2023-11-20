@@ -1,22 +1,24 @@
 # Changelog
 
+## v0.9.0-rc7
+- damocles-manager
+  - 暂时移除 `move partition` 相关的命令 [#1022](https://github.com/ipfs-force-community/damocles/pull/1022) 
+  - 修复 wait for message, 如果消息失败了则不继续等待消息而是直接返回错误。[#1024](https://github.com/ipfs-force-community/damocles/pull/1024)
+  - 优化 wdpost， 允许 worker 向任意状态的任务发送心跳。[#1028](https://github.com/ipfs-force-community/damocles/pull/1028)
+
 ## v0.9.0-rc6
-  - damocles-manager
-    - 简化扇区存储配置 [#1010](https://github.com/ipfs-force-community/damocles/pull/1010)
+- damocles-manager
+  - 简化扇区存储配置 [#1010](https://github.com/ipfs-force-community/damocles/pull/1010)
 
 ## v0.9.0-rc5
-  - damocles-manager
-    - 升级 venus 依赖: v1.14.0-rc3 -> v1.14.0-rc4
+- damocles-manager
+  - 升级 venus 依赖: v1.14.0-rc3 -> v1.14.0-rc4
 
 ## v0.9.0-rc4
 
 - damocles-manager
-  - 暂时移除 `move partition` 相关的命令 [#1022](https://github.com/ipfs-force-community/damocles/pull/1022) 
   - 新增根据 `basefee` 启用聚合的功能 [#1012](https://github.com/ipfs-force-community/damocles/pull/1012)
     - 新增配置项 `Miners.Commitment.Pre.Batch.BatchCommitAboveBaseFee`
-  - 简化扇区存储配置 [#1010](https://github.com/ipfs-force-community/damocles/pull/1010)
-  - 修复 wait for message, 如果消息失败了则不继续等待消息而是直接返回错误。[#1024](https://github.com/ipfs-force-community/damocles/pull/1024)
-  - 优化 wdpost， 允许 worker 向任意状态的任务发送心跳。[#1028](https://github.com/ipfs-force-community/damocles/pull/1028)
 
 ## v0.9.0-rc3
 
