@@ -1,5 +1,7 @@
 # Changelog
 
+## v0.9.0
+
 ## v0.9.0-rc7
 - damocles-manager
   - 暂时移除 `move partition` 相关的命令 [#1022](https://github.com/ipfs-force-community/damocles/pull/1022) 

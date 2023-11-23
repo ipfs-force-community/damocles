@@ -26,7 +26,7 @@ var utilWorkerCmd = &cli.Command{
 		utilWorkerInfoCmd,
 		utilWorkerPauseCmd,
 		utilWorkerResumeCmd,
-		utilWdPostCmd,
+		utilWorkerWdPostCmd,
 	},
 }
 
@@ -306,18 +306,18 @@ func resolveWorkerDest(ctx context.Context, a *APIClient, name string) (string, 
 	return addr.String(), nil
 }
 
-var utilWdPostCmd = &cli.Command{
+var utilWorkerWdPostCmd = &cli.Command{
 	Name:  "wdpost",
 	Usage: "manager wdpost jobs if the jobs is handle by worker",
 	Subcommands: []*cli.Command{
-		utilWdPostListCmd,
-		utilWdPostResetCmd,
-		utilWdPostRemoveCmd,
-		utilWdPostRemoveAllCmd,
+		utilWorkerWdPostListCmd,
+		utilWorkerWdPostResetCmd,
+		utilWorkerWdPostRemoveCmd,
+		utilWorkerWdPostRemoveAllCmd,
 	},
 }
 
-var utilWdPostListCmd = &cli.Command{
+var utilWorkerWdPostListCmd = &cli.Command{
 	Name:  "list",
 	Usage: "list all wdpost job",
 	Flags: []cli.Flag{
@@ -354,12 +354,18 @@ var utilWdPostListCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
+
 		formatDateTime := func(unix_secs uint64) string {
 			if unix_secs == 0 {
 				return "-"
 			}
 			return time.Unix(int64(unix_secs), 0).Format("01-02 15:04:05")
 		}
+
+		formatPartitions := func(partitions []uint64) string {
+			return "[" + strings.Join(partitions, ", ") + "]"
+		}
+
 		for _, job := range allJobs.Jobs {
 			if !cctx.Bool("all") && job.Succeed() {
 				continue
@@ -375,7 +381,7 @@ var utilWdPostListCmd = &cli.Command{
 					job.State,
 					job.Input.MinerID,
 					job.DeadlineIdx,
-					strings.Join(job.Partitions, ","),
+					formatPartitions(job.Partitions),
 					job.Sectors,
 					job.WorkerName,
 					job.DisplayState(),
@@ -406,7 +412,7 @@ var utilWdPostListCmd = &cli.Command{
 					job.ID,
 					job.Input.MinerID,
 					job.DeadlineIdx,
-					strings.Join(job.Partitions, ","),
+					formatPartitions(job.Partitions),
 					job.Sectors,
 					job.WorkerName,
 					job.DisplayState(),
@@ -424,7 +430,7 @@ var utilWdPostListCmd = &cli.Command{
 	},
 }
 
-var utilWdPostResetCmd = &cli.Command{
+var utilWorkerWdPostResetCmd = &cli.Command{
 	Name:      "reset",
 	Usage:     "reset the job status to allow new workers can pick it up",
 	ArgsUsage: "<job id>...",
@@ -451,7 +457,7 @@ var utilWdPostResetCmd = &cli.Command{
 	},
 }
 
-var utilWdPostRemoveCmd = &cli.Command{
+var utilWorkerWdPostRemoveCmd = &cli.Command{
 	Name:      "remove",
 	Usage:     "remove wdpost job",
 	ArgsUsage: "<job id>...",
@@ -477,7 +483,7 @@ var utilWdPostRemoveCmd = &cli.Command{
 	},
 }
 
-var utilWdPostRemoveAllCmd = &cli.Command{
+var utilWorkerWdPostRemoveAllCmd = &cli.Command{
 	Name:  "remove-all",
 	Usage: "remove all wdpost jobs",
 	Flags: []cli.Flag{
