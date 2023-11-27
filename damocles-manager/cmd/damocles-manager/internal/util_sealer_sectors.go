@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -39,6 +40,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
+	marketTypes "github.com/filecoin-project/venus/venus-shared/types/market"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
@@ -2418,13 +2420,6 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			Aliases:  []string{"sector-id"},
 			Required: false,
 		},
-		&cli.BoolFlag{
-			Name:     "piece-info-from-droplet",
-			Usage:    "get piece info from droplet, which come from damocles db by default .",
-			Value:    false,
-			Aliases:  []string{"from-droplet"},
-			Required: false,
-		},
 		&cli.StringFlag{
 			Name:     "unseal-file",
 			Usage:    "unseal piece from unseal file",
@@ -2437,7 +2432,13 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			Required: false,
 		},
 		&cli.Uint64Flag{
-			Name:     "size",
+			Name:     "payload-size",
+			Usage:    "specify size of playload manually.",
+			Value:    0,
+			Required: false,
+		},
+		&cli.Uint64Flag{
+			Name:     "piece-size",
 			Usage:    "specify size of piece manually",
 			Value:    0,
 			Required: false,
@@ -2496,39 +2497,47 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		}
 
 		// get piece-info
-		var offsetPadded, sizePadded abi.PaddedPieceSize
-		if cctx.Bool("piece-info-from-droplet") {
-			// get piece info from market
-			pieceInfo, err := cli.Market.PiecesGetPieceInfo(gctx, pieceCid)
+		offsetPadded, sizePadded := abi.PaddedPieceSize(math.MaxUint64), abi.PaddedPieceSize(0)
+		var payloadSize uint64
+
+		// get piece info from market, or fall back to sector state
+		{
+			deals, err := cli.Market.MarketListIncompleteDeals(gctx, &marketTypes.StorageDealQueryParams{
+				PieceCID: pieceCid.String(),
+				Page: marketTypes.Page{
+					Limit: 100,
+				},
+			})
 			if err != nil {
-				return fmt.Errorf("get piece info from market: %w", err)
-			}
-			if pieceInfo == nil {
-				return fmt.Errorf("no piece info found in market with piece %s", pieceCid)
-			}
-			var matched bool
-		CHECK_LOOP:
-			for _, deal := range pieceInfo.Deals {
-				// check miner and sector
-				for _, dealInSectorState := range sectorState.Pieces {
-					if deal.DealID == dealInSectorState.ID {
-						matched = true
-						offsetPadded = deal.Offset
-						sizePadded = deal.Length
-						break CHECK_LOOP
+				Log.Warnf("retrival deal info: %s", err)
+			} else {
+			CHECK_LOOP:
+				for _, deal := range deals {
+					for _, dealInSectorState := range sectorState.Pieces {
+						if deal.DealID == dealInSectorState.ID {
+							offsetPadded = deal.Offset
+							sizePadded = deal.Proposal.PieceSize
+							payloadSize = deal.PayloadSize
+
+							break CHECK_LOOP
+						}
 					}
 				}
 			}
-			if !matched {
-				return fmt.Errorf("no matched deal found in market with sector %d and piece %s", sectorState.ID.Number, pieceCid)
-			}
-		} else {
-			// get piece info from sector state
-			for _, p := range sectorState.Pieces {
-				if pieceCid.Equals(p.Piece.Cid) {
-					offsetPadded = p.Piece.Offset
-					sizePadded = p.Piece.Size
-					break
+
+			if offsetPadded == math.MaxUint64 || sizePadded == 0 {
+				Log.Warnf("no matched deal found in market with sector %d and piece %s", sectorState.ID.Number, pieceCid)
+				// get piece info from sector state
+				for _, p := range sectorState.Pieces {
+					if pieceCid.Equals(p.Piece.Cid) {
+						if offsetPadded == math.MaxUint64 {
+							offsetPadded = p.Piece.Offset
+						}
+						if sizePadded == 0 {
+							sizePadded = p.Piece.Size
+						}
+						break
+					}
 				}
 			}
 		}
@@ -2537,12 +2546,21 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		if cctx.IsSet("offset") {
 			offsetPadded = abi.PaddedPieceSize(cctx.Uint64("offset"))
 		}
-		if cctx.IsSet("size") {
+		if cctx.IsSet("piece-size") {
 			sizePadded = abi.PaddedPieceSize(cctx.Uint64("size"))
+		}
+		if cctx.IsSet("payload-size") {
+			payloadSize = cctx.Uint64("payload-size")
 		}
 
 		offset := offsetPadded.Unpadded()
 		size := sizePadded.Unpadded()
+		if size == 0 {
+			return fmt.Errorf("invalid piece size: %d", size)
+		}
+		if payloadSize == 0 {
+			payloadSize = uint64(size)
+		}
 
 		if err := offset.Validate(); err != nil && offset != 0 {
 			return fmt.Errorf("invalid offset: %w", err)
@@ -2559,6 +2577,23 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 				return fmt.Errorf("get pwd failed: %w", err)
 			}
 			output = fmt.Sprintf("%s/%s", pwd, pieceCid.String())
+		} else {
+			// make sure it is available
+			err := os.MkdirAll(filepath.Dir(output), 0755)
+			if err != nil {
+				return fmt.Errorf("make output dir failed: %w", err)
+			}
+
+			// check whether the output is a directory
+			fi, err := os.Stat(output)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					return fmt.Errorf("check output failed: %w", err)
+				}
+			}
+			if fi.IsDir() {
+				output = fmt.Sprintf("%s/%s", output, pieceCid.String())
+			}
 		}
 
 		dest := cctx.String("dest")
@@ -2585,12 +2620,12 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 
 			fr32.Unpad(data, res)
 
-			err = os.WriteFile(output, res, 0644)
+			err = os.WriteFile(output, res[:payloadSize], 0644)
 			if err != nil {
 				return fmt.Errorf("write piece file failed: %w", err)
 			}
-
 		} else {
+			// todo: set payloadsize to unseal task
 			stream, err := cli.Damocles.UnsealPiece(gctx, sectorID, pieceCid, types.UnpaddedByteIndex(offset), size, dest)
 			if err != nil {
 				return fmt.Errorf("set task for unseal failed: %w", err)
@@ -2629,6 +2664,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		fmt.Printf("piece cid: %s\n", pieceCid)
 		fmt.Printf("offset: %d\n", offsetPadded)
 		fmt.Printf("size: %d\n", sizePadded)
+		fmt.Printf("payload size: %d\n", payloadSize)
 		fmt.Printf("dest: %s\n", dest)
 
 		return nil
