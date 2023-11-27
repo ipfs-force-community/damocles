@@ -3,6 +3,7 @@
 ## 0.10.0-dev
 
 - damocles-manager
+  - unseal 命令默认去掉 padding [#1026](https://github.com/ipfs-force-community/damocles/pull/1026)
   - 暂时移除 `move partition` 相关的命令 [#1022](https://github.com/ipfs-force-community/damocles/pull/1022) 
   - 新增根据 `basefee` 启用聚合的功能 [#1012](https://github.com/ipfs-force-community/damocles/pull/1012)
     - 新增配置项 `Miners.Commitment.Pre.Batch.BatchCommitAboveBaseFee`

@@ -372,6 +372,9 @@ type SectorUnsealInfo struct {
 	Offset   vtypes.UnpaddedByteIndex
 	Size     abi.UnpaddedPieceSize
 
+	// todo: set payload size to unseal task and droplet request
+	// PayloadSize uint64
+
 	PrivateInfo SectorPrivateInfo
 	Ticket      Ticket
 	CommD       [32]byte
