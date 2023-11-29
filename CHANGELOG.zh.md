@@ -10,6 +10,8 @@
   - 简化扇区存储配置 [#1010](https://github.com/ipfs-force-community/damocles/pull/1010)
   - 修复 wait for message, 如果消息失败了则不继续等待消息而是直接返回错误。[#1024](https://github.com/ipfs-force-community/damocles/pull/1024)
   - 优化 wdpost， 允许 worker 向任意状态的任务发送心跳。[#1028](https://github.com/ipfs-force-community/damocles/pull/1028)
+- damocles-worker
+  - add_pieces 时判断 piece 文件是否存在的逻辑修改为文件必须存在且为 regular file。[#1037](https://github.com/ipfs-force-community/damocles/pull/1037)
 
 ## v0.9.0-rc3
 
