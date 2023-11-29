@@ -20,11 +20,11 @@ impl PieceStore for LocalPieceStore {
             let filename = c.to_string();
             let path = dir.join(&filename);
             tracing::debug!("load local piece: {}", path.display());
-            if path.exists() {
+            if path.is_file() {
                 return Some(PieceFile::Local(path));
             }
             let path = path.with_file_name(format!("{}.car", filename));
-            if path.exists() {
+            if path.is_file() {
                 return Some(PieceFile::Local(path));
             }
         }
