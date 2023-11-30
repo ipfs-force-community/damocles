@@ -633,7 +633,7 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 					return nil
 				}
 
-				return fmt.Errorf("attempt to del obj %q: %w", uri, err)
+				return fmt.Errorf("attempt to del obj %q: %w", uri, delErr)
 			})
 		}
 
