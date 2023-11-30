@@ -1,0 +1,8 @@
+name = "concurrent-limiter"
+description = "concurrent-limit rpc service"
+kind = "RegisterJsonRpc"
+onInit = "OnInit"
+onShutdown = "OnShutdown"
+export = [
+    {extPoint="Handler", impl="Handler"},
+]
