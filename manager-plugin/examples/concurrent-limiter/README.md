@@ -2,8 +2,9 @@
 
 ### 原理
 damocles-manager 全局并发限制插件，实际上是往 damocles-manager 添加了两个新的 jsonrpc api 接口:
-1. 获取锁: DAMOCLES_LIMITER.Acquire
-2. 释放锁: DAMOCLES_LIMITER.Release
+1. 获取锁: `DAMOCLES_LIMITER.Acquire`
+2. 释放锁: `DAMOCLES_LIMITER.Release`
+
 每个 damocles-worker 都请求 damocles-manager 的这两个 rpc 接口实现全局并发限制功能。
 
 ### 编译 (请使用与 damocles-manager 相同版本的 go 编译器)
