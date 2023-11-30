@@ -2,8 +2,17 @@
 
 ## 0.10.0-dev
 
+
 - damocles-manager
+  - 修复 snapup 移除旧扇区文件报错 [#1040](https://github.com/ipfs-force-community/damocles/pull/1040)
   - unseal 命令默认去掉 padding [#1026](https://github.com/ipfs-force-community/damocles/pull/1026)
+
+- damocles-worker
+  - 修复无法从统一链服务入口获取 piece 文件 [#1041](https://github.com/ipfs-force-community/damocles/pull/1041)
+
+## v0.9.0
+
+- damocles-manager
   - 暂时移除 `move partition` 相关的命令 [#1022](https://github.com/ipfs-force-community/damocles/pull/1022) 
   - 新增根据 `basefee` 启用聚合的功能 [#1012](https://github.com/ipfs-force-community/damocles/pull/1012)
     - 新增配置项 `Miners.Commitment.Pre.Batch.BatchCommitAboveBaseFee`
