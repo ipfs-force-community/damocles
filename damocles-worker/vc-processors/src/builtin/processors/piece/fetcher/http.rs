@@ -53,14 +53,16 @@ impl<U: IntoUrl> PieceFetcher<U> for PieceHttpFetcher {
 
             let mut req = self.redirect_client.get(redirect_url);
             if let Some(token) = self.token.as_ref() {
-                req = req.header(
-                    header::AUTHORIZATION,
-                    format!(
-                        "{} {}",
-                        Self::HEADER_AUTHORIZATION_BEARER_PREFIX,
-                        token
-                    ),
-                )
+                req = req
+                    .header(
+                        header::AUTHORIZATION,
+                        format!(
+                            "{} {}",
+                            Self::HEADER_AUTHORIZATION_BEARER_PREFIX,
+                            token
+                        ),
+                    )
+                    .header("X-VENUS-API-NAMESPACE", "v1.IMarket")
             };
             resp = req.send().context("request to redirected location")?;
             status_code = resp.status();
