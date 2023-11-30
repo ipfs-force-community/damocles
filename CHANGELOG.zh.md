@@ -3,11 +3,16 @@
 ## v0.9.1
 
 - damocles-manager
+  - 修复 snapup 移除旧扇区文件报错 [#1040](https://github.com/ipfs-force-community/damocles/pull/1040)
   - unseal 命令默认去掉 padding [#1026](https://github.com/ipfs-force-community/damocles/pull/1026)
+
+- damocles-worker
+  - 修复无法从统一链服务入口获取 piece 文件 [#1041](https://github.com/ipfs-force-community/damocles/pull/1041)
 
 ## v0.9.0
 
 ## v0.9.0-rc7
+- damocles-manager
   - 暂时移除 `move partition` 相关的命令 [#1022](https://github.com/ipfs-force-community/damocles/pull/1022) 
   - 修复 wait for message, 如果消息失败了则不继续等待消息而是直接返回错误。[#1024](https://github.com/ipfs-force-community/damocles/pull/1024)
   - 优化 wdpost， 允许 worker 向任意状态的任务发送心跳。[#1028](https://github.com/ipfs-force-community/damocles/pull/1028)
