@@ -4,6 +4,7 @@
 
 
 - damocles-manager
+  - 修复 terminal batch 时缺少对 enable batch 的检查的问题  [#1044](https://github.com/ipfs-force-community/damocles/pull/1044)
   - 修复 snapup 移除旧扇区文件报错 [#1040](https://github.com/ipfs-force-community/damocles/pull/1040)
   - unseal 命令默认去掉 padding [#1026](https://github.com/ipfs-force-community/damocles/pull/1026)
 
