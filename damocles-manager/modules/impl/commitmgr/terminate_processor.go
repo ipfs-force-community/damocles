@@ -328,6 +328,10 @@ func (tp TerminateProcessor) EnableBatch(mid abi.ActorID) bool {
 }
 
 func (tp TerminateProcessor) ShouldBatch(mid abi.ActorID) bool {
+	if !tp.EnableBatch(mid) {
+		return false
+	}
+
 	bLog := log.With("actor", mid, "type", "terminate")
 
 	basefee, err := func() (abi.TokenAmount, error) {
