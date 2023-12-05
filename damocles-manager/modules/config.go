@@ -242,6 +242,17 @@ func (c CommonConfig) GetPersistStores() (cfgs []PersistStoreConfig, err error) 
 		cfgs = append(cfgs, scanned...)
 	}
 
+	checkName := make(map[string]struct{})
+	for i := range cfgs {
+		if cfgs[i].Name == "" {
+			cfgs[i].Name = cfgs[i].Path
+		}
+		if _, ok := checkName[cfgs[i].Name]; ok {
+			return nil, fmt.Errorf("duplicate persist store name %s", cfgs[i].Name)
+		}
+		checkName[cfgs[i].Name] = struct{}{}
+	}
+
 	return
 }
 
