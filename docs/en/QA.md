@@ -1,20 +1,20 @@
 # damocles-cluster Q&A
 
-## Q: What is the load state: key not found exception? Is it a key configuration issue?
+## Q: What is the `load state: key not found` exception? Is it a key configuration issue?
 
-**A**: `The load state: key not found` occurs during sector sealing or upgrading, and is caused by the state record corresponding to the sector not being found.
+**A**: `The load state: key not found` occurs during sector sealing or upgrading. It's caused by not finding the state record corresponding to the sector.
 
-Here the `key not found` exception is originated from the underlying component, where `key` refers to the key in the kv database.
+Here the `key not found` exception originates from the underlying components, where `key` refers to the key in the kv database.
 
 This exception usually occurs in the following scenarios:
 
 1. The sector has already been terminated on the `damocles-manager` side through commands like `util sealer sectors abort`, but the corresponding `damocles-worker` is still executing tasks for that sector;
-2. The `damocles-manager` has changed its `home` directory, resulting in inability to read previous sector record data;
+2. The `damocles-manager` has changed its `home` directory, resulting in the inability to read previous sector record data;
 3. The `damocles-worker` is connected to the wrong `damocles-manager` instance;
 
-For 1), you can first use the `util sealer sectors list` command to observe the list of terminated sectors, confirm whether there is a record for the problematic sector, and restore it using `util sealer sectors restore` if it exists.
+For 1, you can first use the `util sealer sectors list` command to observe the list of terminated sectors, confirm whether there is a record for the problematic sector, and restore it using `util sealer sectors restore` if it exists.
 
-For other cases, configurations or connection information need to be corrected according to the actual situation.
+For other cases, correct configurations or connection information according to the actual situation.
 
 ## Q: Why is the compiled damocles-worker executable so large?
 
@@ -22,37 +22,38 @@ For other cases, configurations or connection information need to be corrected a
 
 This situation usually occurs when debug information is accidentally enabled during compilation, with several common possibilities:
 
-1. `[profile.\<name\>.debug]` is set in cargo config files at various levels;
-2. Parameters that enable debug info are introduced in the compile command, these parameters may appear in the following locations:
+1. `[profile.<name>.debug]` is set in [cargo config files](https://doc.rust-lang.org/cargo/reference/config.html) at various levels;
+2. Parameters that enable debug info are used in the compilation commands. These parameters may appear in the following locations:
+    - Environment variables: `XXXFLAG` environment variables like `RUSTFLAG`
+    - Compiler parameters: parameters like `rustc`'s `-g`
+    - Compilation configurations: configurations like `rustflags` in cargo config files at various levels
 
-- Environment variables: `XXXFLAG` environment variables like `RUSTFLAG`
-- Compiler parameters: parameters like rustc's `-g`
-- Compile configurations: configurations like `rustflags` in cargo config files at various levels
-
-Regarding this issue, we noticed that the recommended environment variables in the official lotus INSTALL-linux documentation are:
-
+Regarding this issue, we noticed that the recommended environment variables in the official Lotus [INSTALL-linux](https://lotus.filecoin.io/lotus/install/linux/) documentation are:
+```
 export RUSTFLAGS="-C target-cpu=native -g"
- export FFI\_BUILD\_FROM\_SOURCE=1
+export FFI_BUILD_FROM_SOURCE=1
+```
 
-Where `-C target-cpu=native` optimizes for the native CPU, while `-g` enables debug info.
+Where `-C target-cpu=native` optimizes for the native CPU, and `-g` enables debug info.
 
-If users follow `lotus` experience, they may encounter executable files that are particularly large. For such cases, we recommend users only configure:
-
+If users follow the Lotus method, they may end up with an extremely large executable. For such cases, we recommend only configuring
+```
 export RUSTFLAGS="-C target-cpu=native"
+```
 
 Thanks to [caijian76](https://github.com/caijian76) from the community for providing feedback and clues.
 
-## Q: What is the "Once instance has previously been poisoned" error? How to handle it?
+## Q: What is the `Once instance has previously been poisoned` error? How to handle it?
 
 **A**: Fundamentally, `Once` is a programming primitive type introduced for thread safety, often implemented using low-level techniques like OS locks. It is used widely across many occasions and libraries.
 
 The `Once instance has previously been poisoned` exception occurs during system calls, and can have many causes. Here is one verified situation:
 
-- When limiting cores for external processors, we use the **`** cgroup.cpuset` config
-- When the work of the external processor is memory sensitive, like `pc1`, we normally also enable memory affinity i.e. `numa_preferred` config
-- When the above configs are enabled together, and the cpu cores in `cgroup.cpuset` don't match the physical partition specified by `numa_preferred`, there is a high chance of this exception occurring.
+- When limiting cores for external processors, we use the `cgroup.cpuset` config
+- When the work of the external processor is memory sensitive, like `pc1`, we usually also enable memory affinity, i.e. the `numa_preferred` configuration
+- When the above configurations are enabled together, and the CPU cores in `cgroup.cpuset` doesn't match the physical partition specified by `numa_preferred`, there is a high chance of this exception occurring.
 
-Of course, the above situation may be just one of many possibilities. We will supplement here when discovering other cases.
+The above situation may be just one of many possibilities. We will supplement here after discovering other cases.
 
 Thanks to [steven](https://app.slack.com/client/TEHTVS1L6/C028PCH8L31/user_profile/U03C6L8RWP6) from the community for the feedback, and [Dennis Zou](https://app.slack.com/client/TEHTVS1L6/C028PCH8L31/user_profile/U01U2M1GZL7) for the explanation.
 
