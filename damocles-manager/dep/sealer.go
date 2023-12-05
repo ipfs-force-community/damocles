@@ -108,7 +108,9 @@ func Proxy(dest string, opt ProxyOptions) dix.Option {
 	return dix.Options(
 		dix.Override(new(ProxyAddress), ProxyAddress(dest)),
 		dix.Override(new(*core.APIClient), BuildAPIProxyClient),
-		dix.Override(new(*core.SealerCliAPIClient), dix.From(new(*core.APIClient))),
+		dix.Override(new(*core.SealerCliAPIClient), func(a *core.APIClient) *core.SealerCliAPIClient {
+			return &a.SealerCliAPIClient
+		}),
 		dix.If(opt.EnableSectorIndexer,
 			dix.Override(new(core.SectorIndexer), BuildProxiedSectorIndex),
 		),
@@ -137,7 +139,9 @@ func APIClient(target ...interface{}) dix.Option {
 		dix.Override(new(messager.API), BuildMessagerClient),
 		dix.Override(new(market.API), BuildMarketAPI),
 		dix.Override(new(*core.APIClient), MaybeAPIClient),
-		dix.Override(new(*core.SealerCliAPIClient), dix.From(new(*core.APIClient))),
+		dix.Override(new(*core.SealerCliAPIClient), func(a *core.APIClient) *core.SealerCliAPIClient {
+			return &a.SealerCliAPIClient
+		}),
 		dix.If(len(target) > 0, dix.Populate(InvokePopulate, target...)),
 	)
 }

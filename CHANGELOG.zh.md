@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.9.2
+- damocles-manager
+  - 修复对 core.SealerCliAPIClient 错误的依赖注入，导致 damocles-manager 代理模式无法正常启动 [#1047](https://github.com/ipfs-force-community/damocles/pull/1047)
+  - 修复配置多个 Name 为空的 PersistStores 时启动报错的 bug [#1046](https://github.com/ipfs-force-community/damocles/pull/1046)
+
 ## v0.9.1
 
 - damocles-manager
