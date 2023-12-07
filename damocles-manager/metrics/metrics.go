@@ -25,7 +25,7 @@ var (
 )
 
 var (
-	ApiState           = metrics.NewInt64("api/state", "api service state. 0: down, 1: up", "")
+	APIState           = metrics.NewInt64("api/state", "api service state. 0: down, 1: up", "")
 	ThreadCount        = metrics.NewInt64WithCategory("thread/count", "thread count in vary state", "")
 	WorkerLatencyCount = metrics.NewInt64WithCategory("worker/count", "worker count in latency range ('<=60s','<=120s','<=300s','>300s')", "")
 	WdPostJobCount     = metrics.NewCounterWithCategory("wdpost/job/count", "wdpost job count in vary state")

@@ -120,8 +120,8 @@ func serveAPI(ctx context.Context, stopper dix.StopFunc, apiService *APIService,
 	errCh := make(chan error, 1)
 	go func() {
 		log.Infof("trying to listen on %s", httpServer.Addr)
-		metrics.ApiState.Set(ctx, 1)
-		defer metrics.ApiState.Set(ctx, 0)
+		metrics.APIState.Set(ctx, 1)
+		defer metrics.APIState.Set(ctx, 0)
 
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errCh <- fmt.Errorf("http server error: %w", err)
