@@ -393,7 +393,7 @@ func defaultMinerSnapUpRetryConfig(example bool) MinerSnapUpRetryConfig {
 
 type MinerSnapUpConfig struct {
 	Enabled bool
-	Sender  MustAddress
+	Sender  *MustAddress
 	Senders []MustAddress // allows multiple senders to be specified
 
 	SendFund bool
@@ -411,7 +411,10 @@ type MinerSnapUpConfig struct {
 
 func (m *MinerSnapUpConfig) GetSenders() []address.Address {
 	stdSenders := lo.Map(m.Senders, func(item MustAddress, _ int) address.Address { return item.Std() })
-	return lo.Union(stdSenders, []address.Address{m.Sender.Std()})
+	if m.Sender != nil {
+		return lo.Union(stdSenders, []address.Address{m.Sender.Std()})
+	}
+	return lo.Uniq(stdSenders)
 }
 
 func (m *MinerSnapUpConfig) GetMessageConfidence() abi.ChainEpoch {
@@ -442,7 +445,7 @@ func defaultMinerSnapUpConfig(example bool) MinerSnapUpConfig {
 	}
 
 	if example {
-		cfg.Sender = fakeAddress
+		cfg.Senders = []MustAddress{fakeAddress}
 	}
 
 	return cfg
@@ -469,7 +472,7 @@ func defaultMinerCommitmentConfig(example bool) MinerCommitmentConfig {
 }
 
 type MinerCommitmentPolicyConfig struct {
-	Sender  MustAddress
+	Sender  *MustAddress
 	Senders []MustAddress // allows multiple senders to be specified
 
 	SendFund bool
@@ -479,7 +482,10 @@ type MinerCommitmentPolicyConfig struct {
 
 func (m *MinerCommitmentPolicyConfig) GetSenders() []address.Address {
 	stdSenders := lo.Map(m.Senders, func(item MustAddress, _ int) address.Address { return item.Std() })
-	return lo.Union(stdSenders, []address.Address{m.Sender.Std()})
+	if m.Sender != nil {
+		return lo.Union(stdSenders, []address.Address{m.Sender.Std()})
+	}
+	return lo.Uniq(stdSenders)
 }
 
 func defaultMinerCommitmentPolicyConfig(example bool) MinerCommitmentPolicyConfig {
@@ -490,7 +496,7 @@ func defaultMinerCommitmentPolicyConfig(example bool) MinerCommitmentPolicyConfi
 	}
 
 	if example {
-		cfg.Sender = fakeAddress
+		cfg.Senders = []MustAddress{fakeAddress}
 	}
 
 	return cfg
@@ -517,7 +523,7 @@ func defaultMinerCommitmentBatchPolicyConfig() MinerCommitmentBatchPolicyConfig 
 }
 
 type MinerPoStConfig struct {
-	Sender  MustAddress
+	Sender  *MustAddress
 	Senders []MustAddress // allows multiple senders to be specified
 
 	Enabled     bool
@@ -534,7 +540,10 @@ type MinerPoStConfig struct {
 
 func (m *MinerPoStConfig) GetSenders() []address.Address {
 	stdSenders := lo.Map(m.Senders, func(item MustAddress, _ int) address.Address { return item.Std() })
-	return lo.Union(stdSenders, []address.Address{m.Sender.Std()})
+	if m.Sender != nil {
+		return lo.Union(stdSenders, []address.Address{m.Sender.Std()})
+	}
+	return lo.Uniq(stdSenders)
 }
 
 func DefaultMinerPoStConfig(example bool) MinerPoStConfig {
@@ -552,7 +561,7 @@ func DefaultMinerPoStConfig(example bool) MinerPoStConfig {
 	}
 
 	if example {
-		cfg.Sender = fakeAddress
+		cfg.Senders = []MustAddress{fakeAddress}
 	}
 
 	return cfg

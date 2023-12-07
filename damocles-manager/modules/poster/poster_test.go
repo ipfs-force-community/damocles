@@ -48,7 +48,7 @@ func mockTipSet(t *testing.T, height abi.ChainEpoch) *types.TipSet {
 
 type mockSelecotor struct{}
 
-func (mockSelecotor) Select(ctx context.Context, mid abi.ActorID, senders []address.Address) (address.Address, error) {
+func (mockSelecotor) Select(_ context.Context, mid abi.ActorID, senders []address.Address) (address.Address, error) {
 	for _, sender := range senders {
 		if sender != address.Undef {
 			return sender, nil
