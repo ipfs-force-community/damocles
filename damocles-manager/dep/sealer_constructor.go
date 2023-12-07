@@ -687,8 +687,8 @@ func BuildWorkerMetaStore(gctx GlobalContext, db UnderlyingDB) (WorkerMetaStore,
 	return db.OpenCollection(gctx, "worker")
 }
 
-func BuildWorkerManager(meta WorkerMetaStore) (core.WorkerManager, error) {
-	return worker.NewManager(meta)
+func BuildWorkerManager(gctx GlobalContext, meta WorkerMetaStore) (core.WorkerManager, error) {
+	return worker.NewManager(gctx, meta)
 }
 
 func BuildProxiedSectorIndex(client *core.SealerCliAPIClient, storeMgr PersistedObjectStoreManager) (core.SectorIndexer, error) {

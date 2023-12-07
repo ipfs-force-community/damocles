@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/ipfs-force-community/metrics"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
@@ -17,6 +18,18 @@ var (
 	Endpoint, _     = tag.NewKey("endpoint")
 	APIInterface, _ = tag.NewKey("api") // to distinguish between gateway api and full node api endpoint calls
 	Miner, _        = tag.NewKey("miner")
+
+	TagWorkerName = tag.MustNewKey("worker_name")
+	TagDeadline   = tag.MustNewKey("deadline")
+	TagPartition  = tag.MustNewKey("partition")
+)
+
+var (
+	APIState           = metrics.NewInt64("api/state", "api service state. 0: down, 1: up", "")
+	ThreadCount        = metrics.NewInt64WithCategory("thread/count", "thread count in vary state", "")
+	WorkerLatencyCount = metrics.NewInt64WithCategory("worker/count", "worker count in latency range ('<=60s','<=120s','<=300s','>300s')", "")
+	WdPostJobCount     = metrics.NewCounterWithCategory("wdpost/job/count", "wdpost job count in vary state")
+	WdPostJobElapsed   = metrics.NewInt64("wdpost/job/elapsed", "wdpost job elapsed time", "s")
 )
 
 var (

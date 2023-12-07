@@ -48,6 +48,16 @@ type WorkerInfoSummary struct {
 	Errors  uint
 }
 
+func (s WorkerInfoSummary) Map() map[string]uint {
+	return map[string]uint{
+		"empty":   s.Empty,
+		"paused":  s.Paused,
+		"running": s.Running,
+		"waiting": s.Waiting,
+		"errors":  s.Errors,
+	}
+}
+
 type WorkerPingInfo struct {
 	Info     WorkerInfo
 	LastPing int64
