@@ -11,6 +11,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
+	"github.com/samber/lo"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
@@ -391,8 +392,10 @@ func defaultMinerSnapUpRetryConfig(example bool) MinerSnapUpRetryConfig {
 }
 
 type MinerSnapUpConfig struct {
-	Enabled  bool
-	Sender   MustAddress
+	Enabled bool
+	Sender  MustAddress
+	Senders []MustAddress // allows multiple senders to be specified
+
 	SendFund bool
 	FeeConfig
 	CleanupCCData bool
@@ -404,6 +407,11 @@ type MinerSnapUpConfig struct {
 	ReleaseConfidence abi.ChainEpoch
 
 	Retry MinerSnapUpRetryConfig
+}
+
+func (m *MinerSnapUpConfig) GetSenders() []address.Address {
+	stdSenders := lo.Map(m.Senders, func(item MustAddress, _ int) address.Address { return item.Std() })
+	return lo.Union(stdSenders, []address.Address{m.Sender.Std()})
 }
 
 func (m *MinerSnapUpConfig) GetMessageConfidence() abi.ChainEpoch {
@@ -461,10 +469,17 @@ func defaultMinerCommitmentConfig(example bool) MinerCommitmentConfig {
 }
 
 type MinerCommitmentPolicyConfig struct {
-	Sender   MustAddress
+	Sender  MustAddress
+	Senders []MustAddress // allows multiple senders to be specified
+
 	SendFund bool
 	FeeConfig
 	Batch MinerCommitmentBatchPolicyConfig
+}
+
+func (m *MinerCommitmentPolicyConfig) GetSenders() []address.Address {
+	stdSenders := lo.Map(m.Senders, func(item MustAddress, _ int) address.Address { return item.Std() })
+	return lo.Union(stdSenders, []address.Address{m.Sender.Std()})
 }
 
 func defaultMinerCommitmentPolicyConfig(example bool) MinerCommitmentPolicyConfig {
@@ -502,7 +517,9 @@ func defaultMinerCommitmentBatchPolicyConfig() MinerCommitmentBatchPolicyConfig 
 }
 
 type MinerPoStConfig struct {
-	Sender      MustAddress
+	Sender  MustAddress
+	Senders []MustAddress // allows multiple senders to be specified
+
 	Enabled     bool
 	StrictCheck bool
 	Parallel    bool
@@ -513,6 +530,11 @@ type MinerPoStConfig struct {
 	MaxRecoverSectorLimit           uint64
 	MaxPartitionsPerPoStMessage     uint64
 	MaxPartitionsPerRecoveryMessage uint64
+}
+
+func (m *MinerPoStConfig) GetSenders() []address.Address {
+	stdSenders := lo.Map(m.Senders, func(item MustAddress, _ int) address.Address { return item.Std() })
+	return lo.Union(stdSenders, []address.Address{m.Sender.Std()})
 }
 
 func DefaultMinerPoStConfig(example bool) MinerPoStConfig {

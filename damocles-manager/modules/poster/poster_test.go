@@ -46,16 +46,29 @@ func mockTipSet(t *testing.T, height abi.ChainEpoch) *types.TipSet {
 	return ts
 }
 
+type mockSelecotor struct{}
+
+func (mockSelecotor) Select(ctx context.Context, mid abi.ActorID, senders []address.Address) (address.Address, error) {
+	for _, sender := range senders {
+		if sender != address.Undef {
+			return sender, nil
+		}
+	}
+
+	return address.Undef, fmt.Errorf("no valid senders for %d", mid)
+}
+
 func TestPoSterGetEnabledMiners(t *testing.T) {
 	minerCount := 128
+	ctx := context.Background()
 	scfg, wmu := mockSafeConfig(minerCount)
 
 	require.Len(t, scfg.Miners, minerCount, "mocked miners")
 
-	poster, err := newPoSterWithRunnerConstructor(scfg, nil, nil, nil, nil, nil, nil, nil, mockRunnerConstructor(&mockRunner{}))
+	poster, err := newPoSterWithRunnerConstructor(scfg, nil, nil, nil, nil, nil, nil, nil, mockSelecotor{}, mockRunnerConstructor(&mockRunner{}))
 	require.NoError(t, err, "new poster")
 
-	mids := poster.getEnabledMiners(logging.Nop)
+	mids := poster.getEnabledMiners(ctx, logging.Nop)
 	require.Len(t, mids, minerCount, "enabled miners")
 
 	{
@@ -66,7 +79,7 @@ func TestPoSterGetEnabledMiners(t *testing.T) {
 		}
 		wmu.Unlock()
 
-		mids := poster.getEnabledMiners(logging.Nop)
+		mids := poster.getEnabledMiners(ctx, logging.Nop)
 		require.Lenf(t, mids, minerCount-disableCount, "%d disabled", disableCount)
 
 		wmu.Lock()
@@ -75,7 +88,7 @@ func TestPoSterGetEnabledMiners(t *testing.T) {
 		}
 		wmu.Unlock()
 
-		mids = poster.getEnabledMiners(logging.Nop)
+		mids = poster.getEnabledMiners(ctx, logging.Nop)
 		require.Lenf(t, mids, minerCount, "reset after %d disabled", disableCount)
 	}
 
@@ -87,7 +100,7 @@ func TestPoSterGetEnabledMiners(t *testing.T) {
 		}
 		wmu.Unlock()
 
-		mids := poster.getEnabledMiners(logging.Nop)
+		mids := poster.getEnabledMiners(ctx, logging.Nop)
 		require.Lenf(t, mids, minerCount-invalidCount, "%d invalid address", invalidCount)
 
 		wmu.Lock()
@@ -96,7 +109,7 @@ func TestPoSterGetEnabledMiners(t *testing.T) {
 		}
 		wmu.Unlock()
 
-		mids = poster.getEnabledMiners(logging.Nop)
+		mids = poster.getEnabledMiners(ctx, logging.Nop)
 		require.Lenf(t, mids, minerCount, "reset after %d invalid", invalidCount)
 	}
 }
@@ -117,7 +130,7 @@ func TestFetchMinerProvingDeadlineInfos(t *testing.T) {
 		return dl, nil
 	}
 
-	poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, nil, nil, nil, nil, mockRunnerConstructor(&mockRunner{}))
+	poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, nil, nil, nil, nil, nil, mockRunnerConstructor(&mockRunner{}))
 	require.NoError(t, err, "new poster")
 
 	ts := mockTipSet(t, dl.Open)
@@ -216,7 +229,7 @@ func TestHandleHeadChange(t *testing.T) {
 			return dl, nil
 		}
 
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, nil, mockRunnerConstructor(runner))
 		require.NoError(t, err, "new poster")
 
 		cases := []struct {
@@ -319,7 +332,7 @@ func TestHandleHeadChange(t *testing.T) {
 		}
 
 		runner := &mockRunner{}
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, nil, mockRunnerConstructor(runner))
 		require.NoError(t, err, "new poster")
 
 		for di := range dls {
@@ -349,7 +362,7 @@ func TestHandleHeadChange(t *testing.T) {
 			return dl, nil
 		}
 
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, nil, mockRunnerConstructor(runner))
 		require.NoError(t, err, "new poster")
 
 		ts := mockTipSet(t, dl.Open)

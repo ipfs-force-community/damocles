@@ -43,6 +43,8 @@ require (
 	github.com/mroth/weightedrand v0.4.1
 	github.com/multiformats/go-multiaddr v0.11.0
 	github.com/multiformats/go-multihash v0.2.3
+	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/samber/lo v1.39.0
 	github.com/shirou/gopsutil/v3 v3.22.5
 	github.com/stretchr/testify v1.8.4
 	github.com/strikesecurity/strikememongo v0.2.4
@@ -179,7 +181,6 @@ require (
 	github.com/onsi/gomega v1.27.8 // indirect
 	github.com/opencontainers/runtime-spec v1.1.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/petar/GoLLRB v0.0.0-20210522233825-ae3b015fd3e9 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

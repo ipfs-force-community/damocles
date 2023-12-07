@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 
+	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/ipfs/go-cid"
@@ -20,6 +21,10 @@ type SectorManager interface {
 type DealManager interface {
 	Acquire(ctx context.Context, sid abi.SectorID, spec AcquireDealsSpec, lifetime *AcquireDealsLifetime, job SectorWorkerJob) (Deals, error)
 	Release(ctx context.Context, sid abi.SectorID, acquired Deals) error
+}
+
+type SenderSelector interface {
+	Select(ctx context.Context, mid abi.ActorID, senders []address.Address) (address.Address, error)
 }
 
 type CommitmentManager interface {
