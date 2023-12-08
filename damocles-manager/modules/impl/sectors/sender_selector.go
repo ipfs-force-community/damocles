@@ -68,9 +68,14 @@ func (s *SenderSelector) selectInner(ctx context.Context, mid abi.ActorID, sende
 	}
 
 	if len(validAddrs) > 1 {
+		balancesCache := make(map[address.Address]types.BigInt)
 		sort.Slice(validAddrs, func(i, j int) bool {
-			balanceI := s.getBalance(ctx, validAddrs[i], big.Zero())
-			balanceJ := s.getBalance(ctx, validAddrs[j], big.Zero())
+			balanceI := valueOrInsert(balancesCache, validAddrs[i], func() types.BigInt {
+				return s.getBalance(ctx, validAddrs[i], big.Zero())
+			})
+			balanceJ := valueOrInsert(balancesCache, validAddrs[j], func() types.BigInt {
+				return s.getBalance(ctx, validAddrs[j], big.Zero())
+			})
 			return balanceI.GreaterThan(balanceJ)
 		})
 	}
@@ -99,4 +104,13 @@ func cacheKey(mid abi.ActorID, senders []address.Address) string {
 	key := make([]byte, 8)
 	binary.LittleEndian.PutUint64(key, h.Sum64())
 	return base64.StdEncoding.EncodeToString(key)
+}
+
+// valueOrInsert returns the value of the given key or insert the fallback value into map if the key is not present.
+func valueOrInsert[K comparable, V any](in map[K]V, key K, fallback func() V) V {
+	if v, ok := in[key]; ok {
+		return v
+	}
+	in[key] = fallback()
+	return in[key]
 }
