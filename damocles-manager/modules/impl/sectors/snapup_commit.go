@@ -38,19 +38,21 @@ func NewSnapUpCommitter(
 	messagerAPI messager.API,
 	stateMgr core.SectorStateManager,
 	scfg *modules.SafeConfig,
+	senderSelector core.SenderSelector,
 ) (*SnapUpCommitter, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	committer := &SnapUpCommitter{
-		ctx:      ctx,
-		cancel:   cancel,
-		tracker:  tracker,
-		indexer:  indexer,
-		chain:    chainAPI,
-		eventbus: eventbus,
-		messager: messagerAPI,
-		state:    stateMgr,
-		scfg:     scfg,
-		jobs:     map[abi.SectorID]context.CancelFunc{},
+		ctx:            ctx,
+		cancel:         cancel,
+		tracker:        tracker,
+		indexer:        indexer,
+		chain:          chainAPI,
+		eventbus:       eventbus,
+		messager:       messagerAPI,
+		state:          stateMgr,
+		senderSelector: senderSelector,
+		scfg:           scfg,
+		jobs:           map[abi.SectorID]context.CancelFunc{},
 	}
 
 	return committer, nil
@@ -60,13 +62,14 @@ type SnapUpCommitter struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	tracker  core.SectorTracker
-	indexer  core.SectorIndexer
-	chain    chain.API
-	eventbus *chain.EventBus
-	messager messager.API
-	state    core.SectorStateManager
-	scfg     *modules.SafeConfig
+	tracker        core.SectorTracker
+	indexer        core.SectorIndexer
+	chain          chain.API
+	eventbus       *chain.EventBus
+	messager       messager.API
+	state          core.SectorStateManager
+	senderSelector core.SenderSelector
+	scfg           *modules.SafeConfig
 
 	jobs     map[abi.SectorID]context.CancelFunc
 	jobsMu   sync.Mutex
@@ -309,12 +312,13 @@ func (h *snapupCommitHandler) submitMessage() error {
 		return fmt.Errorf("get miner config: %w", err)
 	}
 
-	if !mcfg.SnapUp.Sender.Valid() {
-		return fmt.Errorf("snapup sender address invalid")
-	}
-
 	if !mcfg.SnapUp.Enabled {
 		return fmt.Errorf("snapup disabled")
+	}
+
+	sender, err := h.committer.senderSelector.Select(h.committer.ctx, h.state.ID.Miner, mcfg.PoSt.GetSenders())
+	if err != nil {
+		return fmt.Errorf("select sender for %d: %w", h.state.ID.Miner, err)
 	}
 
 	if err := h.checkUpgradeInfo(); err != nil {
@@ -389,7 +393,7 @@ func (h *snapupCommitHandler) submitMessage() error {
 	}
 
 	msg := types.Message{
-		From:      mcfg.SnapUp.Sender.Std(),
+		From:      sender,
 		To:        h.maddr,
 		Method:    builtin.MethodsMiner.ProveReplicaUpdates,
 		Params:    enc.Bytes(),
