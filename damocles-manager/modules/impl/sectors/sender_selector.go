@@ -67,12 +67,13 @@ func (s *SenderSelector) selectInner(ctx context.Context, mid abi.ActorID, sende
 		return address.Undef, fmt.Errorf("no valid sender found")
 	}
 
-	sort.Slice(validAddrs, func(i, j int) bool {
-		balanceI := s.getBalance(ctx, validAddrs[i], big.Zero())
-		balanceJ := s.getBalance(ctx, validAddrs[j], big.Zero())
-		return balanceI.GreaterThan(balanceJ)
-	})
-
+	if len(validAddrs) > 1 {
+		sort.Slice(validAddrs, func(i, j int) bool {
+			balanceI := s.getBalance(ctx, validAddrs[i], big.Zero())
+			balanceJ := s.getBalance(ctx, validAddrs[j], big.Zero())
+			return balanceI.GreaterThan(balanceJ)
+		})
+	}
 	return validAddrs[0], nil
 }
 
