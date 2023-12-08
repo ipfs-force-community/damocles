@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/cespare/xxhash/v2"
@@ -22,13 +23,22 @@ import (
 
 func NewSenderSelector(chain chain.API) *SenderSelector {
 	cache := cache.New(time.Duration(policy.NetParams.BlockDelaySecs/2), time.Duration(policy.NetParams.BlockDelaySecs))
-	return &SenderSelector{chain: chain, cache: cache}
+	return &SenderSelector{
+		chain: chain,
+		cache: cache,
+
+		toF0mapping: make(map[address.Address]address.Address),
+		mu:          &sync.RWMutex{},
+	}
 }
 
 type SenderSelector struct {
 	chain chain.API
 	cache *cache.Cache
 	group singleflight.Group
+
+	toF0mapping map[address.Address]address.Address
+	mu          *sync.RWMutex
 }
 
 func (s *SenderSelector) Select(ctx context.Context, mid abi.ActorID, senders []address.Address) (address.Address, error) {
@@ -52,6 +62,17 @@ func (s *SenderSelector) Select(ctx context.Context, mid abi.ActorID, senders []
 }
 
 func (s *SenderSelector) selectInner(ctx context.Context, mid abi.ActorID, senders []address.Address) (address.Address, error) {
+	// convert non-f0 address to f0 address
+	for i := range senders {
+		if senders[i].Protocol() != address.ID {
+			var err error
+			senders[i], err = s.addressToF0(ctx, senders[i])
+			if err != nil {
+				return address.Undef, err
+			}
+		}
+	}
+
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
 		return address.Undef, err
@@ -80,6 +101,26 @@ func (s *SenderSelector) selectInner(ctx context.Context, mid abi.ActorID, sende
 		})
 	}
 	return validAddrs[0], nil
+}
+
+func (s *SenderSelector) addressToF0(ctx context.Context, nonF0 address.Address) (address.Address, error) {
+	s.mu.RLock()
+	f0, has := s.toF0mapping[nonF0]
+	s.mu.RUnlock()
+	if has {
+		return f0, nil
+	}
+
+	var err error
+	f0, err = s.chain.StateLookupID(ctx, nonF0, types.EmptyTSK)
+	if err != nil {
+		return address.Undef, fmt.Errorf("convert non-f0 address to f0 address %s: %w", nonF0, err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.toF0mapping[nonF0] = f0
+	return f0, nil
 }
 
 func (s *SenderSelector) getBalance(ctx context.Context, addr address.Address, defaultBalance types.BigInt) types.BigInt {

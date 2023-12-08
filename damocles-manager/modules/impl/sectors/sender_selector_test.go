@@ -30,7 +30,7 @@ func TestSelectSender(t *testing.T) {
 		BlockDelaySecs: 30,
 	}
 
-	mockChain.IMinerStateStruct.Internal.StateMinerInfo = func(_ctx context.Context, _maddr address.Address, _tsk types.TipSetKey) (types.MinerInfo, error) {
+	mockChain.IMinerStateStruct.Internal.StateMinerInfo = func(_ context.Context, _ address.Address, _ types.TipSetKey) (types.MinerInfo, error) {
 		return types.MinerInfo{
 			Owner:            lo.Must(address.NewIDAddress(1000)),
 			Worker:           lo.Must(address.NewIDAddress(2000)),
@@ -38,16 +38,25 @@ func TestSelectSender(t *testing.T) {
 		}, nil
 	}
 
-	mockChain.IActorStruct.Internal.StateGetActor = func(_ctx context.Context, actor address.Address, _tsk types.TipSetKey) (*types.Actor, error) {
+	mockChain.IActorStruct.Internal.StateGetActor = func(_ context.Context, actor address.Address, _ types.TipSetKey) (*types.Actor, error) {
 		return &types.Actor{
 			Balance: balances[actor],
 		}, nil
 	}
 
+	id5000F3 := lo.Must(address.NewBLSAddress(lo.Times(address.BlsPublicKeyBytes, func(_ int) byte { return 0 })))
+	f3f0mapping := map[address.Address]address.Address{
+		id5000F3: lo.Must(address.NewIDAddress(5000)),
+	}
+
+	mockChain.IMinerStateStruct.Internal.StateLookupID = func(_ context.Context, addr address.Address, _ types.TipSetKey) (address.Address, error) {
+		return f3f0mapping[addr], nil
+	}
+
 	ctx := context.TODO()
 
 	sel := sectors.NewSenderSelector(&mockChain)
-	senders := []address.Address{lo.Must(address.NewIDAddress(2000)), lo.Must(address.NewIDAddress(9999)), lo.Must(address.NewIDAddress(5000)), lo.Must(address.NewIDAddress(1000))}
+	senders := []address.Address{lo.Must(address.NewIDAddress(2000)), lo.Must(address.NewIDAddress(9999)), id5000F3, lo.Must(address.NewIDAddress(1000))}
 	sender, err := sel.Select(ctx, 1, senders)
 	require.NoError(t, err)
 	require.Equal(t, lo.Must(address.NewIDAddress(5000)).String(), sender.String())
