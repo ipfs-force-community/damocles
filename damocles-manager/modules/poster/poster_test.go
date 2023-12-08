@@ -29,7 +29,8 @@ var (
 func mockSafeConfig(count int) (*modules.SafeConfig, sync.Locker) {
 	return testmodules.MockSafeConfig(count, func(mcfg *modules.MinerConfig) {
 		mcfg.PoSt.Enabled = true
-		mcfg.PoSt.Sender = modules.GetFakeAddress()
+		fakerAddr := modules.GetFakeAddress()
+		mcfg.PoSt.Sender = &fakerAddr
 	})
 }
 
@@ -96,7 +97,7 @@ func TestPoSterGetEnabledMiners(t *testing.T) {
 		wmu.Lock()
 		invalidCount := rand.Intn(minerCount)
 		for i := 0; i < invalidCount; i++ {
-			scfg.Config.Miners[i].PoSt.Sender = invalidSender
+			scfg.Config.Miners[i].PoSt.Sender = &invalidSender
 		}
 		wmu.Unlock()
 
@@ -104,8 +105,9 @@ func TestPoSterGetEnabledMiners(t *testing.T) {
 		require.Lenf(t, mids, minerCount-invalidCount, "%d invalid address", invalidCount)
 
 		wmu.Lock()
+		fakerAddr := modules.GetFakeAddress()
 		for i := 0; i < invalidCount; i++ {
-			scfg.Config.Miners[i].PoSt.Sender = modules.GetFakeAddress()
+			scfg.Config.Miners[i].PoSt.Sender = &fakerAddr
 		}
 		wmu.Unlock()
 
