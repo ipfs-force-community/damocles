@@ -12,6 +12,7 @@
   - unseal 命令默认去掉 padding [#1026](https://github.com/ipfs-force-community/damocles/pull/1026)
 
 - damocles-worker
+  - 修复worker程序更新之后状态不一致的问题 [#1052](https://github.com/ipfs-force-community/damocles/pull/1052)
   - 修复无法从统一链服务入口获取 piece 文件 [#1041](https://github.com/ipfs-force-community/damocles/pull/1041)
 
 ## v0.9.0
