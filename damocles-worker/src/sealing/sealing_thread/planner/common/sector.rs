@@ -113,7 +113,6 @@ def_state! {
     TicketAssigned,
     PC1Done,
     PC2Done,
-    SyntheticPoRepNeeded,
     PCSubmitted,
     PCLanded,
     Persisted,
@@ -131,6 +130,7 @@ def_state! {
     SnapTreeDBuilt,
     SnapDone,
     Unsealed,
+    SyntheticPoRepNeeded,
 }
 
 impl std::fmt::Debug for State {
