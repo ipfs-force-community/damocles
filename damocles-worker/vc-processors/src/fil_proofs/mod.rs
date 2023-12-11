@@ -352,6 +352,15 @@ fn create_tree_d_inner(
 
     let data = match in_path {
         Some(p) => {
+            #[cfg(target_os = "linux")]
+            use std::os::unix::fs::OpenOptionsExt;
+            #[cfg(target_os = "linux")]
+            let f = OpenOptions::new()
+                .read(true)
+                .custom_flags(libc::O_DIRECT)
+                .open(&p)
+                .with_context(|| format!("open staged file {:?}", p))?;
+            #[cfg(not(target_os = "linux"))]
             let f = OpenOptions::new()
                 .read(true)
                 .open(&p)
