@@ -10,6 +10,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
+	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
 
@@ -86,8 +87,15 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 			return fmt.Errorf("couldn't serialize PreCommitSectorBatchParams: %w", err)
 		}
 
-		ccid, err := pushMessage(ctx, ctrlAddr, mid, deposit, stbuiltin.MethodsMiner.PreCommitSectorBatch2,
-			p.msgClient, &mcfg.Commitment.Pre.Batch.FeeConfig, enc.Bytes(), plog)
+		var err error
+		var ccid cid.Cid
+		if len(infos) > 1 {
+			ccid, err = pushMessage(ctx, ctrlAddr, mid, deposit, stbuiltin.MethodsMiner.PreCommitSectorBatch2,
+				p.msgClient, &mcfg.Commitment.Pre.Batch.FeeConfig, enc.Bytes(), plog)
+		} else {
+			ccid, err = pushMessage(ctx, ctrlAddr, mid, deposit, stbuiltin.MethodsMiner.PreCommitSectorBatch2,
+				p.msgClient, &mcfg.Commitment.Pre.FeeConfig, enc.Bytes(), plog)
+		}
 		if err != nil {
 			return fmt.Errorf("push message failed: %w", err)
 		}
