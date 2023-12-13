@@ -4,6 +4,7 @@
 
 
 - damocles-manager
+  - wdpost worker prover 模式，不允许向已完成的任务发送心跳 [#1056](https://github.com/ipfs-force-community/damocles/pull/1056)
   - 支持配置多个 sender 地址，选择其中一个有效的且余额最多的地址作为发送地址 [#1045](https://github.com/ipfs-force-community/damocles/pull/1045)
   - 修复对 core.SealerCliAPIClient 错误的依赖注入，导致 damocles-manager 代理模式无法正常启动 [#1047](https://github.com/ipfs-force-community/damocles/pull/1047)
   - 修复配置多个 Name 为空的 PersistStores 时启动报错的 bug [#1046](https://github.com/ipfs-force-community/damocles/pull/1046)
