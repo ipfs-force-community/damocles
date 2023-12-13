@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.9.3
+  - damocles-manager
+    - wdpost worker prover 模式，不允许向已完成的任务发送心跳 [#1056](https://github.com/ipfs-force-community/damocles/pull/1056)
+    - 修复聚合 precommit 使用非聚合 gas fee 配置的 bug [#1055](https://github.com/ipfs-force-community/damocles/pull/1055)
+
 ## v0.9.2
 - damocles-manager
   - 修复对 core.SealerCliAPIClient 错误的依赖注入，导致 damocles-manager 代理模式无法正常启动 [#1047](https://github.com/ipfs-force-community/damocles/pull/1047)
