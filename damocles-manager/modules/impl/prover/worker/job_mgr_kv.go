@@ -200,10 +200,13 @@ func (tm *kvJobManager) Heartbeat(ctx context.Context, jobIDs []string, workerNa
 				kvstore.LoadJSON(&job),
 				kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, jobID)),
 				kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)),
-				kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, jobID)),
 			)
 			if err != nil {
 				return err
+			}
+
+			if job.State != string(core.WdPoStJobRunning) {
+				log.Infof("heartbeat non-running task: %s, state: %s", job.ID, job.State)
 			}
 
 			if err := txn.Del(key); err != nil {
@@ -220,6 +223,7 @@ func (tm *kvJobManager) Heartbeat(ctx context.Context, jobIDs []string, workerNa
 			if err := txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, jobID)), &job); err != nil {
 				return err
 			}
+
 		}
 		return nil
 	})
