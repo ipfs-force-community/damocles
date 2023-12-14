@@ -405,6 +405,7 @@ func BuildCommitmentManager(
 	scfg *modules.SafeConfig,
 	verif core.Verifier,
 	prover core.Prover,
+	senderSelecotr core.SenderSelector,
 ) (core.CommitmentManager, error) {
 	mgr, err := commitmgr.NewCommitmentMgr(
 		gctx,
@@ -415,6 +416,7 @@ func BuildCommitmentManager(
 		scfg,
 		verif,
 		prover,
+		senderSelecotr,
 	)
 
 	if err != nil {
@@ -633,6 +635,10 @@ func BuildChainEventBus(
 	return bus, nil
 }
 
+func BuildSenderSelector(chainAPI chain.API) *sectors.SenderSelector {
+	return sectors.NewSenderSelector(chainAPI)
+}
+
 func BuildSnapUpManager(
 	gctx GlobalContext,
 	lc fx.Lifecycle,
@@ -645,8 +651,9 @@ func BuildSnapUpManager(
 	minerAPI core.MinerAPI,
 	stateMgr core.SectorStateManager,
 	store SnapUpMetaStore,
+	senderSelector core.SenderSelector,
 ) (core.SnapUpSectorManager, error) {
-	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerAPI, stateMgr, scfg, store)
+	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerAPI, stateMgr, scfg, store, senderSelector)
 	if err != nil {
 		return nil, fmt.Errorf("construct snapup manager: %w", err)
 	}

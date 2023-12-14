@@ -24,6 +24,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/blockstore"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	cbor "github.com/ipfs/go-ipld-cbor"
+	"github.com/samber/lo"
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
@@ -469,22 +470,41 @@ var utilSealerActorControlList = &cli.Command{
 			if eq, err := compareAddr([]address.Address{addr, k}, minerInfo.Worker); err == nil && eq {
 				uses = append(uses, "other")
 			}
-			if eq, err := compareAddr([]address.Address{addr, k}, minerConfig.Commitment.Pre.Sender.Std()); err == nil && eq {
+
+			if lo.ContainsBy(minerConfig.Commitment.Pre.GetSenders(), func(sender address.Address) bool {
+				eq, err := compareAddr([]address.Address{addr, k}, sender)
+				return err == nil && eq
+			}) {
 				uses = append(uses, "precommit")
 			}
-			if eq, err := compareAddr([]address.Address{addr, k}, minerConfig.Commitment.Prove.Sender.Std()); err == nil && eq {
+
+			if lo.ContainsBy(minerConfig.Commitment.Prove.GetSenders(), func(sender address.Address) bool {
+				eq, err := compareAddr([]address.Address{addr, k}, sender)
+				return err == nil && eq
+			}) {
 				uses = append(uses, "provecommit")
 			}
-			if eq, err := compareAddr([]address.Address{addr, k}, minerConfig.Commitment.Terminate.Sender.Std()); err == nil && eq {
+
+			if lo.ContainsBy(minerConfig.Commitment.Terminate.GetSenders(), func(sender address.Address) bool {
+				eq, err := compareAddr([]address.Address{addr, k}, sender)
+				return err == nil && eq
+			}) {
 				uses = append(uses, "terminate")
 			}
-			if eq, err := compareAddr([]address.Address{addr, k}, minerConfig.PoSt.Sender.Std()); err == nil && eq {
+
+			if lo.ContainsBy(minerConfig.PoSt.GetSenders(), func(sender address.Address) bool {
+				eq, err := compareAddr([]address.Address{addr, k}, sender)
+				return err == nil && eq
+			}) {
 				uses = append(uses, "post")
 			}
-			if eq, err := compareAddr([]address.Address{addr, k}, minerConfig.SnapUp.Sender.Std()); err == nil && eq {
+
+			if lo.ContainsBy(minerConfig.SnapUp.GetSenders(), func(sender address.Address) bool {
+				eq, err := compareAddr([]address.Address{addr, k}, sender)
+				return err == nil && eq
+			}) {
 				uses = append(uses, "snapup")
 			}
-
 			_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", name, addr, kstr, strings.Join(uses, " "), balance)
 		}
 

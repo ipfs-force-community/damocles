@@ -817,8 +817,13 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 		return "", nil, fmt.Errorf("serialize params: %w", aerr)
 	}
 
+	sender, err := pr.deps.senderSelector.Select(pr.ctx, pr.mid, pr.startCtx.pcfg.GetSenders())
+	if err != nil {
+		return "", nil, fmt.Errorf("select sender for %d: %w", pr.mid, err)
+	}
+
 	msg := types.Message{
-		From:      pr.startCtx.pcfg.Sender.Std(),
+		From:      sender,
 		To:        pr.maddr,
 		Method:    method,
 		Params:    encoded,

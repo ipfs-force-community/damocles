@@ -35,28 +35,31 @@ func newPostDeps(
 	prover core.Prover,
 	verifier core.Verifier,
 	sectorProving core.SectorProving,
+	senderSelect core.SenderSelector,
 ) postDeps {
 	return postDeps{
-		chain:         chain,
-		msg:           msg,
-		rand:          rand,
-		minerAPI:      minerAPI,
-		clock:         clock.NewSystemClock(),
-		prover:        prover,
-		verifier:      verifier,
-		sectorProving: sectorProving,
+		chain:          chain,
+		msg:            msg,
+		rand:           rand,
+		minerAPI:       minerAPI,
+		clock:          clock.NewSystemClock(),
+		prover:         prover,
+		verifier:       verifier,
+		sectorProving:  sectorProving,
+		senderSelector: senderSelect,
 	}
 }
 
 type postDeps struct {
-	chain         chain.API
-	msg           messager.API
-	rand          core.RandomnessAPI
-	minerAPI      core.MinerAPI
-	clock         clock.Clock
-	prover        core.Prover
-	verifier      core.Verifier
-	sectorProving core.SectorProving
+	chain          chain.API
+	msg            messager.API
+	rand           core.RandomnessAPI
+	minerAPI       core.MinerAPI
+	clock          clock.Clock
+	prover         core.Prover
+	verifier       core.Verifier
+	sectorProving  core.SectorProving
+	senderSelector core.SenderSelector
 }
 
 func NewPoSter(
@@ -68,6 +71,7 @@ func NewPoSter(
 	prover core.Prover,
 	verifier core.Verifier,
 	sectorProving core.SectorProving,
+	senderSelector core.SenderSelector,
 ) (*PoSter, error) {
 	return newPoSterWithRunnerConstructor(
 		scfg,
@@ -78,6 +82,7 @@ func NewPoSter(
 		prover,
 		verifier,
 		sectorProving,
+		senderSelector,
 		postRunnerConstructor,
 	)
 }
@@ -91,11 +96,12 @@ func newPoSterWithRunnerConstructor(
 	prover core.Prover,
 	verifier core.Verifier,
 	sectorProving core.SectorProving,
+	senderSelector core.SenderSelector,
 	runnerCtor runnerConstructor,
 ) (*PoSter, error) {
 	return &PoSter{
 		cfg:               scfg,
-		deps:              newPostDeps(chain, msg, rand, minerAPI, prover, verifier, sectorProving),
+		deps:              newPostDeps(chain, msg, rand, minerAPI, prover, verifier, sectorProving, senderSelector),
 		schedulers:        make(map[abi.ActorID]map[abi.ChainEpoch]*scheduler),
 		runnerConstructor: runnerCtor,
 	}, nil
@@ -186,7 +192,7 @@ CHAIN_HEAD_LOOP:
 				continue CHAIN_HEAD_LOOP
 			}
 
-			mids := p.getEnabledMiners(mlog)
+			mids := p.getEnabledMiners(ctx, mlog)
 
 			if len(mids) == 0 {
 				continue CHAIN_HEAD_LOOP
@@ -202,16 +208,16 @@ CHAIN_HEAD_LOOP:
 	}
 }
 
-func (p *PoSter) getEnabledMiners(mlog *logging.ZapLogger) []abi.ActorID {
+func (p *PoSter) getEnabledMiners(ctx context.Context, mlog *logging.ZapLogger) []abi.ActorID {
 	p.cfg.Lock()
 	mids := make([]abi.ActorID, 0, len(p.cfg.Miners))
 	for mi := range p.cfg.Miners {
 		if mcfg := p.cfg.Miners[mi]; mcfg.PoSt.Enabled {
-			if !mcfg.PoSt.Sender.Valid() {
-				mlog.Warnw("post is enabled, but sender is invalid", "miner", mcfg.Actor)
+			_, err := p.deps.senderSelector.Select(ctx, mcfg.Actor, mcfg.PoSt.GetSenders())
+			if err != nil {
+				mlog.Warnw("post is enabled, but no any valid senders", "miner", mcfg.Actor, "err", err)
 				continue
 			}
-
 			mids = append(mids, mcfg.Actor)
 		}
 	}
