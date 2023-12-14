@@ -32,16 +32,16 @@ fnv = "1.0.7"
 nix = { workspace = true }
 libc = { workspace = true }
 
-filecoin-proofs = { version = "16.0", default-features = false, features = [
+filecoin-proofs = { version = "14.0", default-features = false, features = [
     "opencl",
     "multicore-sdr",
 ], optional = true }
-filecoin-proofs-api = { version = "16.0", default-features = false, features = [
+filecoin-proofs-api = { version = "14.0", default-features = false, features = [
     "opencl",
     "multicore-sdr",
 ], optional = true }
-storage-proofs-core = { version = "16.0", optional = true }
-storage-proofs-porep = { version = "16.0", optional = true }
+storage-proofs-core = { version = "14.0", optional = true }
+storage-proofs-porep = { version = "14.0", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 cgroups-rs = "0.3"
@@ -75,13 +75,13 @@ fil-proofs-cuda = [
     "storage-proofs-core/cuda",
     "storage-proofs-porep/cuda",
 ]
-fil-cuda-supraseal = [
-    "fil-proofs",
-    "filecoin-proofs-api/cuda-supraseal",
-    "filecoin-proofs/cuda-supraseal",
-    "storage-proofs-core/cuda-supraseal",
-    "storage-proofs-porep/cuda",
-]
+# fil-cuda-supraseal = [
+#     "fil-proofs",
+#     "filecoin-proofs-api/cuda-supraseal",
+#     "filecoin-proofs/cuda-supraseal",
+#     "storage-proofs-core/cuda-supraseal",
+#     "storage-proofs-porep/cuda",
+# ]
 builtin-tasks = ["fil-proofs"]
 builtin-processors = ["builtin-tasks", "reqwest"]
 builtin = ["builtin-tasks", "builtin-processors"]

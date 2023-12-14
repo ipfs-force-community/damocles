@@ -16,8 +16,7 @@ use crate::{
     sealing::{
         failure::{Failure, IntoFailure, MapErrToFailure, MapStdErrToFailure},
         processor::{
-            cached_filenames_for_sector, clear_layer_data,
-            generate_synth_proofs, seal_commit_phase1,
+            cached_filenames_for_sector, seal_commit_phase1,
             snap_generate_partition_proofs, snap_verify_sector_update_proof,
             tree_d_path_in_dir, AddPiecesInput, PC1Input, PC2Input, PieceInfo,
             RegisteredSealProof, SealCommitPhase1Output,
@@ -37,8 +36,6 @@ use crate::{
 };
 
 use super::task::Task;
-
-const SYNTHETIC_PROOF_CHECK_ROUND: i32 = 3;
 
 pub(crate) fn add_pieces(
     task: &Task,
@@ -676,73 +673,3 @@ pub(crate) fn submit_persisted(
     }
 }
 
-pub(crate) fn compute_synthetic_proof(task: &'_ Task) -> Result<(), Failure> {
-    let _token = task
-        .sealing_ctrl
-        .ctrl_ctx()
-        .wait(STAGE_NAME_SYNTHETIC_PROOF)
-        .crit()?;
-
-    // do synthetic proof
-    let sector_id = task.sector_id()?;
-
-    field_required! {
-        prove_input,
-        task.sector.base.as_ref().map(|b| b.prove_input)
-    }
-
-    let (prover_id, seal_sector_id) = prove_input;
-
-    field_required! {
-        piece_infos,
-        task.sector.phases.pieces.as_ref()
-    }
-
-    field_required! {
-        ticket,
-        task.sector.phases.ticket.as_ref()
-    }
-
-    cloned_required! {
-        p2out,
-        task.sector.phases.pc2out
-    }
-
-    let cache_dir = task.cache_dir(sector_id);
-    let sealed_file = task.sealed_file(sector_id);
-
-    generate_synth_proofs::<&Path>(
-        cache_dir.as_ref(),
-        sealed_file.as_ref(),
-        prover_id,
-        seal_sector_id,
-        ticket.ticket.0,
-        p2out.clone(),
-        piece_infos,
-    )
-    .temp()?;
-
-    // verify
-    (0..SYNTHETIC_PROOF_CHECK_ROUND)
-        .try_for_each(|_| {
-            seal_commit_phase1::<&Path>(
-                cache_dir.as_ref(),
-                sealed_file.as_ref(),
-                prover_id,
-                seal_sector_id,
-                ticket.ticket.0,
-                rand::random(),
-                p2out.clone(),
-                piece_infos,
-            )
-            .map(|_| ())
-        })
-        .temp()?;
-
-    // clean layers
-    let seal_type: RegisteredSealProof = p2out.registered_proof;
-    let sector_size = seal_type.sector_size();
-    clear_layer_data::<&Path>(sector_size.into(), cache_dir.as_ref()).crit()?;
-
-    Ok(())
-}

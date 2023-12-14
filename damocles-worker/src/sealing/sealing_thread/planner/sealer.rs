@@ -15,8 +15,7 @@ use crate::rpc::sealer::{
 };
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
-    clear_cache, clear_layer_data, generate_synth_proofs, seal_commit_phase1,
-    ApiFeature, C2Input, RegisteredSealProof,
+    clear_cache, seal_commit_phase1, C2Input, RegisteredSealProof,
 };
 
 #[derive(Default)]
@@ -62,11 +61,6 @@ impl PlannerTrait for SealerPlanner {
 
             State::PC1Done => {
                 Event::PC2(_) => State::PC2Done,
-                Event::PC2NeedSyntheticProof(_) => State::SyntheticPoRepNeeded,
-            },
-
-            State::SyntheticPoRepNeeded => {
-                Event::SyntheticPoRep => State::PC2Done,
             },
 
             State::PC2Done => {
@@ -128,11 +122,7 @@ impl PlannerTrait for SealerPlanner {
             State::TicketAssigned => inner.handle_ticket_assigned(),
 
             State::PC1Done => inner.handle_pc1_done(),
-
-            State::SyntheticPoRepNeeded => {
-                inner.handle_synthetic_proof_needed()
-            }
-
+         
             State::PC2Done => inner.handle_pc2_done(),
 
             State::PCSubmitted => inner.handle_pc_submitted(),
@@ -268,21 +258,7 @@ impl<'t> Sealer<'t> {
 
     fn handle_pc1_done(&self) -> Result<Event, Failure> {
         let verify_after_pc2 = self.task.sealing_ctrl.config().verify_after_pc2;
-        common::pre_commit2(self.task, verify_after_pc2).map(|out| {
-            if out
-                .registered_proof
-                .feature_enabled(ApiFeature::SyntheticPoRep)
-            {
-                Event::PC2NeedSyntheticProof(out)
-            } else {
-                Event::PC2(out)
-            }
-        })
-    }
-
-    fn handle_synthetic_proof_needed(&self) -> Result<Event, Failure> {
-        common::compute_synthetic_proof(self.task)
-            .map(|_| Event::SyntheticPoRep)
+        common::pre_commit2(self.task, verify_after_pc2).map(Event::PC2)
     }
 
     fn handle_pc2_done(&self) -> Result<Event, Failure> {
