@@ -41,7 +41,8 @@ type CommitmentMgrImpl struct {
 	stateMgr SealingAPI
 	minerAPI core.MinerAPI
 
-	smgr core.SectorStateManager
+	smgr           core.SectorStateManager
+	senderSelector core.SenderSelector
 
 	cfg *modules.SafeConfig
 
@@ -61,19 +62,20 @@ type CommitmentMgrImpl struct {
 }
 
 func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr SealingAPI, minerAPI core.MinerAPI, smgr core.SectorStateManager,
-	cfg *modules.SafeConfig, verif core.Verifier, prover core.Prover,
+	cfg *modules.SafeConfig, verif core.Verifier, prover core.Prover, senderSelector core.SenderSelector,
 ) (*CommitmentMgrImpl, error) {
 	prePendingChan := make(chan core.SectorState, 1024)
 	proPendingChan := make(chan core.SectorState, 1024)
 	terminatePendingChan := make(chan core.SectorState, 1024)
 
 	mgr := CommitmentMgrImpl{
-		ctx:       ctx,
-		msgClient: commitAPI,
-		stateMgr:  stateMgr,
-		minerAPI:  minerAPI,
-		smgr:      smgr,
-		cfg:       cfg,
+		ctx:            ctx,
+		msgClient:      commitAPI,
+		stateMgr:       stateMgr,
+		minerAPI:       minerAPI,
+		smgr:           smgr,
+		senderSelector: senderSelector,
+		cfg:            cfg,
 
 		commitBatcher:    map[abi.ActorID]*Batcher{},
 		preCommitBatcher: map[abi.ActorID]*Batcher{},
@@ -210,43 +212,46 @@ func (c *CommitmentMgrImpl) Stop() {
 	})
 }
 
-func (c *CommitmentMgrImpl) preSender(mid abi.ActorID) (address.Address, error) {
+func (c *CommitmentMgrImpl) preSender(ctx context.Context, mid abi.ActorID) (address.Address, error) {
 	mcfg, err := c.cfg.MinerConfig(mid)
 	if err != nil {
 		return address.Undef, fmt.Errorf("get miner config for %d: %w", mid, err)
 	}
 
-	if !mcfg.Commitment.Pre.Sender.Valid() {
-		return address.Undef, fmt.Errorf("sender address not valid")
+	sender, err := c.senderSelector.Select(ctx, mid, mcfg.Commitment.Pre.GetSenders())
+	if err != nil {
+		return address.Undef, fmt.Errorf("select pre sender for %d: %w", mid, err)
 	}
 
-	return mcfg.Commitment.Pre.Sender.Std(), nil
+	return sender, nil
 }
 
-func (c *CommitmentMgrImpl) proveSender(mid abi.ActorID) (address.Address, error) {
+func (c *CommitmentMgrImpl) proveSender(ctx context.Context, mid abi.ActorID) (address.Address, error) {
 	mcfg, err := c.cfg.MinerConfig(mid)
 	if err != nil {
 		return address.Undef, fmt.Errorf("get miner config for %d: %w", mid, err)
 	}
 
-	if !mcfg.Commitment.Prove.Sender.Valid() {
-		return address.Undef, fmt.Errorf("sender address not valid")
+	sender, err := c.senderSelector.Select(ctx, mid, mcfg.Commitment.Prove.GetSenders())
+	if err != nil {
+		return address.Undef, fmt.Errorf("select prove sender for %d: %w", mid, err)
 	}
 
-	return mcfg.Commitment.Prove.Sender.Std(), nil
+	return sender, nil
 }
 
-func (c *CommitmentMgrImpl) terminateSender(mid abi.ActorID) (address.Address, error) {
+func (c *CommitmentMgrImpl) terminateSender(ctx context.Context, mid abi.ActorID) (address.Address, error) {
 	mcfg, err := c.cfg.MinerConfig(mid)
 	if err != nil {
 		return address.Undef, fmt.Errorf("get miner config for %d: %w", mid, err)
 	}
 
-	if !mcfg.Commitment.Terminate.Sender.Valid() {
-		return address.Undef, fmt.Errorf("sender address not valid")
+	sender, err := c.senderSelector.Select(ctx, mid, mcfg.Commitment.Terminate.GetSenders())
+	if err != nil {
+		return address.Undef, fmt.Errorf("select terminate sender for %d: %w", mid, err)
 	}
 
-	return mcfg.Commitment.Terminate.Sender.Std(), nil
+	return sender, nil
 }
 
 func (c *CommitmentMgrImpl) startPreLoop() {
@@ -264,7 +269,7 @@ func (c *CommitmentMgrImpl) startPreLoop() {
 				continue
 			}
 
-			sender, err := c.preSender(miner)
+			sender, err := c.preSender(c.ctx, miner)
 			if err != nil {
 				llog.Errorf("get sender address: %s", err)
 				continue
@@ -298,7 +303,7 @@ func (c *CommitmentMgrImpl) startProLoop() {
 				continue
 			}
 
-			sender, err := c.proveSender(miner)
+			sender, err := c.proveSender(c.ctx, miner)
 			if err != nil {
 				llog.Errorf("get sender address: %s", err)
 				continue
@@ -379,7 +384,7 @@ func (c *CommitmentMgrImpl) startTerminateLoop(ctx context.Context) {
 	for s := range c.terminatePendingChan {
 		miner := s.ID.Miner
 		if _, ok := c.terminateBatcher[miner]; !ok {
-			sender, err := c.terminateSender(miner)
+			sender, err := c.terminateSender(c.ctx, miner)
 			if err != nil {
 				llog.Errorf("get sender address: %s", err)
 				continue
@@ -439,7 +444,7 @@ func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
 }
 
 func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info core.PreCommitInfo, hardReset bool) (core.SubmitPreCommitResp, error) {
-	_, err := c.preSender(id.Miner)
+	_, err := c.preSender(ctx, id.Miner)
 	if err != nil {
 		return core.SubmitPreCommitResp{}, err
 	}
@@ -555,7 +560,7 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 }
 
 func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, info core.ProofInfo, hardReset bool) (core.SubmitProofResp, error) {
-	_, err := c.proveSender(id.Miner)
+	_, err := c.proveSender(ctx, id.Miner)
 	if err != nil {
 		return core.SubmitProofResp{}, err
 	}
@@ -670,7 +675,7 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 		return core.SubmitTerminateResp{}, err
 	}
 
-	_, err = c.terminateSender(sid.Miner)
+	_, err = c.terminateSender(ctx, sid.Miner)
 	if err != nil {
 		return core.SubmitTerminateResp{}, err
 	}

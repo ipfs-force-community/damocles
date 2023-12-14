@@ -30,8 +30,9 @@ func RunPoSter(
 	rapi core.RandomnessAPI,
 	mapi messager.API,
 	minerAPI core.MinerAPI,
+	senderSelect core.SenderSelector,
 ) error {
-	p, err := poster.NewPoSter(scfg, capi, mapi, rapi, minerAPI, prover, verifier, sectorProving)
+	p, err := poster.NewPoSter(scfg, capi, mapi, rapi, minerAPI, prover, verifier, sectorProving, senderSelect)
 	if err != nil {
 		return err
 	}

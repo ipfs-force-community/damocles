@@ -1,5 +1,8 @@
 # Changelog
 
+- damocles-manager
+  - 支持配置多个 sender 地址，选择其中一个有效的且余额最多的地址作为发送地址 [#1045](https://github.com/ipfs-force-community/damocles/pull/1045)
+
 ## v0.9.3
   - damocles-manager
     - wdpost worker prover 模式，不允许向已完成的任务发送心跳 [#1056](https://github.com/ipfs-force-community/damocles/pull/1056)
