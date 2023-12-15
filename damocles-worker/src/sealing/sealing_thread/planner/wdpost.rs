@@ -365,7 +365,7 @@ impl WdPost<'_> {
             }
         };
 
-        tracing::debug!(allocated = ?allocated.iter().map(|x| &x.id).collect::<Vec<_>>(), "allocated");
+        tracing::info!(allocated = ?allocated.iter().map(|x| &x.id).collect::<Vec<_>>(), "allocated");
 
         if allocated.is_empty() {
             return Ok(WdPostEvent::Idle);
