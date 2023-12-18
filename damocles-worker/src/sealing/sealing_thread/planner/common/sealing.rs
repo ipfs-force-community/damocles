@@ -274,6 +274,7 @@ fn cleanup_before_pc2(cache_dir: &Path) -> Result<()> {
 
 pub(crate) fn pre_commit2(
     task: &'_ Task,
+    verify_by_c1: bool,
 ) -> Result<SealPreCommitPhase2Output, Failure> {
     let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_PC2).crit()?;
 
@@ -325,6 +326,16 @@ pub(crate) fn pre_commit2(
         )
         .perm()?;
 
+    if verify_by_c1 {
+        commit1_with_seed_inner(
+            task,
+            Seed {
+                seed: [0; 32].into(),
+                epoch: 0,
+            },
+        )?;
+    }
+
     fs::remove_file(pc2_running_file)
         .context("remove pc2 running file")
         .crit()?;
@@ -337,6 +348,13 @@ pub(crate) fn commit1_with_seed(
 ) -> Result<SealCommitPhase1Output, Failure> {
     let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_C1).crit()?;
 
+    commit1_with_seed_inner(task, seed)
+}
+
+pub(crate) fn commit1_with_seed_inner(
+    task: &Task,
+    seed: Seed,
+) -> Result<SealCommitPhase1Output, Failure> {
     let sector_id = task.sector_id()?;
 
     field_required! {

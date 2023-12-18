@@ -198,7 +198,7 @@ impl<'t> Rebuild<'t> {
     }
 
     fn pc2(&self) -> Result<Event, Failure> {
-        common::pre_commit2(self.task).map(|out| {
+        common::pre_commit2(self.task, false).map(|out| {
             if out.registered_proof.feature_enabled(
                 vc_processors::fil_proofs::ApiFeature::SyntheticPoRep,
             ) {
