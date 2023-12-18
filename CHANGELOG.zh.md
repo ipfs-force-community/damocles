@@ -14,7 +14,7 @@
 
 - damocles-worker
   - 修复无法从统一链服务入口获取 piece 文件 [#1041](https://github.com/ipfs-force-community/damocles/pull/1041)
-  - 支持校验 pc2 的结果
+  - 支持校验 pc2 的结果 [#1060](https://github.com/ipfs-force-community/damocles/pull/1060)
 
 ## v0.9.0
 
