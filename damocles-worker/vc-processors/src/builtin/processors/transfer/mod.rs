@@ -1,4 +1,4 @@
-use std::fs::{create_dir_all, remove_dir_all, remove_file, OpenOptions};
+use std::fs::{create_dir_all, OpenOptions};
 use std::io::copy;
 use std::os::unix::fs::symlink;
 use std::path::Path;
@@ -34,22 +34,6 @@ pub fn do_transfer_inner(
 
     if route.dest.uri.is_relative() {
         return Err(anyhow!("dest path is relative"));
-    }
-
-    if route.dest.uri.exists() {
-        let dest_is_dir = route.dest.uri.is_dir();
-        if src_is_dir != dest_is_dir {
-            return Err(anyhow!(
-                "dest entry type is different with src, is_dir={}",
-                src_is_dir
-            ));
-        }
-
-        if dest_is_dir {
-            remove_dir_all(&route.dest.uri).context("remove exist dest dir")?;
-        } else {
-            remove_file(&route.dest.uri).context("remove exist dest file")?;
-        }
     }
 
     if !disable_link {
