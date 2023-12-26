@@ -62,6 +62,9 @@ pub struct Sealing {
 
     /// max retry times for request task from sector manager
     pub request_task_max_retries: u32,
+
+    // whether to verify the results of pc2
+    pub verify_pc2: bool,
 }
 
 impl Default for Sealing {
@@ -79,6 +82,7 @@ impl Default for Sealing {
             rpc_polling_interval: Duration::from_secs(180),
             ignore_proof_check: false,
             request_task_max_retries: 3,
+            verify_pc2: false,
         }
     }
 }
@@ -127,6 +131,9 @@ pub struct SealingOptional {
 
     /// max retry times for request task from sector manager
     pub request_task_max_retries: Option<u32>,
+
+    // whether to verify the results of pc2
+    pub verify_pc2: Option<bool>,
 }
 
 /// configuration for remote store

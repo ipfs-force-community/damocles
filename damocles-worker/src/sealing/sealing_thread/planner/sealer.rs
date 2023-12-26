@@ -267,7 +267,8 @@ impl<'t> Sealer<'t> {
     }
 
     fn handle_pc1_done(&self) -> Result<Event, Failure> {
-        common::pre_commit2(self.task).map(|out| {
+        let verify_pc2 = self.task.sealing_ctrl.config().verify_pc2;
+        common::pre_commit2(self.task, verify_pc2).map(|out| {
             if out
                 .registered_proof
                 .feature_enabled(ApiFeature::SyntheticPoRep)
