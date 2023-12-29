@@ -1,14 +1,12 @@
 package poster
 
 import (
-	"context"
 	"sync/atomic"
 	"testing"
 
-	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/dline"
+	"github.com/filecoin-project/go-state-types/builtin/v12/miner"
 	"github.com/filecoin-project/go-state-types/network"
 	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -18,10 +16,46 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 )
 
-func mockRunnerConstructor(runner *mockRunner) runnerConstructor {
-	return func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner {
-		return runner
-	}
+type mockExecutor struct {
+	handleFaults func(ts *types.TipSet)
+	prepare      func() (*PrepareResult, error)
+	generatePoSt func(*PrepareResult) ([]miner.SubmitWindowedPoStParams, error)
+	submitPoSts  func(ts *types.TipSet, proofs []miner.SubmitWindowedPoStParams) error
+	// record
+	handleFaultsCalled int
+	prepareCalled      int
+	generatePoStCalled int
+	submitPoStsCalled  int
+}
+
+var _ postExecutor = (*mockExecutor)(nil)
+
+// GeneratePoSt implements postExecutor.
+func (m *mockExecutor) GeneratePoSt(res *PrepareResult) ([]miner.SubmitWindowedPoStParams, error) {
+	m.generatePoStCalled++
+	defer func() { m.generatePoSt = nil }()
+	return m.generatePoSt(res)
+}
+
+// HandleFaults implements postExecutor.
+func (m *mockExecutor) HandleFaults(ts *types.TipSet) {
+	m.handleFaultsCalled++
+	m.handleFaults(ts)
+	m.handleFaults = nil
+}
+
+// Prepare implements postExecutor.
+func (m *mockExecutor) Prepare() (*PrepareResult, error) {
+	m.prepareCalled++
+	defer func() { m.prepare = nil }()
+	return m.prepare()
+}
+
+// SubmitPoSts implements postExecutor.
+func (m *mockExecutor) SubmitPoSts(ts *types.TipSet, proofs []miner.SubmitWindowedPoStParams) error {
+	m.submitPoStsCalled++
+	defer func() { m.submitPoSts = nil }()
+	return m.submitPoSts(ts, proofs)
 }
 
 type mockRunner struct {
@@ -72,7 +106,7 @@ func TestBatchPartitions(t *testing.T) {
 	runner.proofType = abi.RegisteredPoStProof_StackedDrgWindow32GiBV1
 
 	pcfg := modules.DefaultMinerPoStConfig(false)
-	runner.startCtx.pcfg = &pcfg
+	runner.cfg = &pcfg
 
 	nv := network.Version16
 	partitionsPerMsg, err := specpolicy.GetMaxPoStPartitions(nv, runner.proofType)
@@ -118,7 +152,7 @@ func TestBatchPartitions(t *testing.T) {
 		c := cases[ci]
 		require.LessOrEqual(t, c.max, partitionsPerMsg, "smaller MaxPartitionsPerPoStMessage")
 
-		runner.startCtx.pcfg.MaxPartitionsPerPoStMessage = uint64(c.max)
+		runner.cfg.MaxPartitionsPerPoStMessage = uint64(c.max)
 		batches, err := runner.batchPartitions(partitions, nv)
 		require.NoErrorf(t, err, "batch partitions for max=%d", c.max)
 

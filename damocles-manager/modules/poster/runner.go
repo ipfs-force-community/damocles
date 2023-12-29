@@ -14,7 +14,7 @@ import (
 	"github.com/filecoin-project/go-bitfield"
 	"github.com/filecoin-project/go-state-types/abi"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
-	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	"github.com/filecoin-project/go-state-types/builtin/v12/miner"
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/network"
@@ -23,7 +23,6 @@ import (
 	specpolicy "github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	"github.com/filecoin-project/venus/venus-shared/types/messager"
-
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
@@ -33,42 +32,33 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/slices"
 )
 
-type runnerConstructor func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner
+const (
+	EventTick EventType = "tick"
+)
 
-// PoStRunner 的各方法应当保持 Once 语义
-type PoStRunner interface {
-	// 开启当前的证明窗口
-	start(pcfg *modules.MinerPoStConfig, ts *types.TipSet)
-	// 提交当前证明结果
-	submit(pcfg *modules.MinerPoStConfig, ts *types.TipSet)
-	// 终止当前证明任务
-	abort()
+var slog = logging.New("subscriber")
+
+type postExecutor interface {
+	HandleFaults(ts *types.TipSet)
+	Prepare() (*PrepareResult, error)
+	GeneratePoSt(*PrepareResult) ([]miner.SubmitWindowedPoStParams, error)
+	SubmitPoSts(ts *types.TipSet, proofs []miner.SubmitWindowedPoStParams) error
 }
 
-var _ PoStRunner = (*postRunner)(nil)
-
-type startContext struct {
-	ts   *types.TipSet
-	pcfg *modules.MinerPoStConfig
-}
-
-type proofResult struct {
-	sync.Mutex
-	proofs []miner.SubmitWindowedPoStParams
-}
-
-func postRunnerConstructor(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner {
-	ctx, cancel := context.WithCancel(ctx)
-	return &postRunner{
+var NewPostExecutor = func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info, cfg *modules.MinerPoStConfig) postExecutor {
+	logger := log.With("deadline", dinfo.Index, "open", dinfo.Open, "close", dinfo.Close, "challenge", dinfo.Challenge)
+	executor := &postRunner{
 		deps:      deps,
 		mid:       mid,
 		maddr:     maddr,
 		proofType: proofType,
-		dinfo:     dinfo,
-		ctx:       ctx,
-		log:       log.With("mid", mid, "ddl-idx", dinfo.Index, "ddl-open", dinfo.Open, "ddl-close", dinfo.Close, "ddl-challenge", dinfo.Challenge),
-		cancel:    cancel,
+
+		dinfo: dinfo,
+		log:   logger,
+		ctx:   ctx,
+		cfg:   cfg,
 	}
+	return executor
 }
 
 type postRunner struct {
@@ -78,58 +68,21 @@ type postRunner struct {
 	mid       abi.ActorID
 	maddr     address.Address
 	proofType abi.RegisteredPoStProof
-	dinfo     *dline.Info
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx   context.Context
+	dinfo *dline.Info
+	log   *logging.ZapLogger
+	cfg   *modules.MinerPoStConfig
 
-	startOnce  sync.Once
-	cancelOnce sync.Once
-
-	proofs proofResult
-
-	// log with mid / deadline.Index / deadline.Open / deadline.Close / deadline.Challenge
-	log      *logging.ZapLogger
-	startCtx startContext
+	// prepareResult *prepareResult
 }
 
-func (pr *postRunner) start(pcfg *modules.MinerPoStConfig, ts *types.TipSet) {
-	pr.startOnce.Do(func() {
-		pr.startCtx.pcfg = pcfg
-		pr.startCtx.ts = ts
-
-		baseLog := pr.log.With("tsk", ts.Key(), "tsh", ts.Height())
-
-		go pr.handleFaults(baseLog)
-		go pr.generatePoSt(baseLog)
-	})
+type PrepareResult struct {
+	rand           core.WindowPoStRandomness
+	partitionBatch [][]types.Partition
 }
 
-func (pr *postRunner) submit(pcfg *modules.MinerPoStConfig, ts *types.TipSet) {
-	// check for proofs
-	pr.proofs.Lock()
-	proofs := pr.proofs.proofs
-	pr.proofs.proofs = nil
-	pr.proofs.Unlock()
-
-	if proofs == nil {
-		return
-	}
-
-	go pr.submitPoSts(pcfg, ts, proofs)
-}
-
-func (pr *postRunner) abort() {
-	pr.cancelOnce.Do(func() {
-		pr.cancel()
-	})
-}
-
-func (pr *postRunner) submitPoSts(pcfg *modules.MinerPoStConfig, ts *types.TipSet, proofs []miner.SubmitWindowedPoStParams) {
-	if len(proofs) == 0 {
-		return
-	}
-
+func (pr *postRunner) SubmitPoSts(ts *types.TipSet, proofs []miner.SubmitWindowedPoStParams) error {
 	tsk := ts.Key()
 	tsh := ts.Height()
 	slog := pr.log.With("stage", "submit-post", "posts", len(proofs), "tsk", tsk, "tsh", tsh)
@@ -148,9 +101,11 @@ func (pr *postRunner) submitPoSts(pcfg *modules.MinerPoStConfig, ts *types.TipSe
 
 	commRand, err := pr.deps.rand.GetWindowPoStCommitRand(pr.ctx, ts.Key(), commEpoch)
 	if err != nil {
-		slog.Errorf("get chain randomness from tickets for windowPost: %v", err)
-		return
+		return fmt.Errorf("get chain randomness from beacon for windowPost: %w", err)
 	}
+
+	errs := make(chan error, len(proofs))
+	wg := sync.WaitGroup{}
 
 	for pi := range proofs {
 		post := proofs[pi]
@@ -161,16 +116,34 @@ func (pr *postRunner) submitPoSts(pcfg *modules.MinerPoStConfig, ts *types.TipSe
 		post.ChainCommitEpoch = commEpoch
 		post.ChainCommitRand = commRand.Rand
 
-		go pr.submitSinglePost(slog, pcfg, &post)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := pr.submitSinglePost(slog, &post)
+			if err != nil {
+				errs <- err
+			}
+		}()
 	}
+	wg.Wait()
+	close(errs)
+
+	if len(errs) > 0 {
+		errInfo := "batch error: \n"
+		for err := range errs {
+			errInfo += fmt.Sprintf("	* %s\n", err)
+		}
+		return fmt.Errorf("%s", errInfo)
+	}
+
+	return nil
 }
 
-func (pr *postRunner) submitSinglePost(slog *logging.ZapLogger, _ *modules.MinerPoStConfig, proof *miner.SubmitWindowedPoStParams) {
+func (pr *postRunner) submitSinglePost(slog *logging.ZapLogger, proof *miner.SubmitWindowedPoStParams) error {
 	// to avoid being cancelled by proving period detection, use context.Background here
 	uid, resCh, err := pr.publishMessage(stbuiltin.MethodsMiner.SubmitWindowedPoSt, proof, false)
 	if err != nil {
-		slog.Errorf("publish post message: %v", err)
-		return
+		return fmt.Errorf("publish post message: %v", err)
 	}
 
 	wlog := slog.With("msg-id", uid)
@@ -181,64 +154,73 @@ func (pr *postRunner) submitSinglePost(slog *logging.ZapLogger, _ *modules.Miner
 
 	select {
 	case <-waitCtx.Done():
-		wlog.Warn("waited too long")
+		return fmt.Errorf("wait message result: %w", waitCtx.Err())
 
 	case res := <-resCh:
 		if res.err != nil {
-			wlog.Errorf("wait for message result failed: %s", err)
-		} else {
-			wlog.Infof("window post message succeeded: %s", res.msg.SignedCid)
+			return fmt.Errorf("wait for message result failed: %s", res.err)
 		}
+		wlog.Infof("window post message succeeded: %s", res.msg.SignedCid)
 	}
+
+	return nil
 }
 
-func (pr *postRunner) generatePoSt(baseLog *logging.ZapLogger) {
-	tsk := pr.startCtx.ts.Key()
-	glog := baseLog.With("stage", "gen-post")
+func (pr *postRunner) GeneratePoSt(res *PrepareResult) ([]miner.SubmitWindowedPoStParams, error) {
+	partitionBatches := res.partitionBatch
+	rand := res.rand
 
-	rand, err := pr.deps.rand.GetWindowPoStChanlleengeRand(pr.ctx, tsk, pr.dinfo.Challenge, pr.mid)
-	if err != nil {
-		glog.Errorf("getting challenge rand: %v", err)
-		return
-	}
+	wg := sync.WaitGroup{}
+	errs := make(chan error, len(partitionBatches))
+	proofs := make(chan miner.SubmitWindowedPoStParams, len(partitionBatches))
+	doGenerate := func(batch []chain.Partition, batchPartitionStartIdx int) {
+		var err error
+		var proof miner.SubmitWindowedPoStParams
+		if pr.cfg.Parallel {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				proof, err = pr.generatePoStForPartitionBatch(rand, batch, batchPartitionStartIdx)
+			}()
+		} else {
+			proof, err = pr.generatePoStForPartitionBatch(rand, batch, batchPartitionStartIdx)
+		}
+		if err != nil {
+			err = fmt.Errorf("gen wdpost proof for partitions(%d-%d): %w", batchPartitionStartIdx, batchPartitionStartIdx+len(batch), err)
+			return
+		}
 
-	partitions, err := pr.deps.chain.StateMinerPartitions(pr.ctx, pr.maddr, pr.dinfo.Index, tsk)
-	if err != nil {
-		glog.Errorf("getting partitions: %v", err)
-		return
-	}
-
-	nv, err := pr.deps.chain.StateNetworkVersion(pr.ctx, tsk)
-	if err != nil {
-		glog.Errorf("getting network version: %v", err)
-		return
-	}
-
-	// Split partitions into batches, so as not to exceed the number of sectors
-	// allowed in a single message
-	partitionBatches, err := pr.batchPartitions(partitions, nv)
-	if err != nil {
-		glog.Errorf("split partitions into batches: %v", err)
-		return
+		proofs <- proof
 	}
 
 	batchPartitionStartIdx := 0
 	for batchIdx := range partitionBatches {
 		batch := partitionBatches[batchIdx]
-
-		if pr.startCtx.pcfg.Parallel {
-			go pr.generatePoStForPartitionBatch(glog, rand, batchIdx, batch, batchPartitionStartIdx)
-		} else {
-			pr.generatePoStForPartitionBatch(glog, rand, batchIdx, batch, batchPartitionStartIdx)
-		}
-
+		doGenerate(batch, batchPartitionStartIdx)
 		batchPartitionStartIdx += len(batch)
 	}
+	wg.Wait()
+	close(proofs)
+	close(errs)
 
-	return
+	if len(errs) > 0 {
+		errInfo := "batch error: \n"
+		for err := range errs {
+			errInfo += fmt.Sprintf("	* %s\n", err)
+		}
+		return nil, fmt.Errorf("%s", errInfo)
+	}
+
+	ret := make([]miner.SubmitWindowedPoStParams, 0, len(proofs))
+	for proof := range proofs {
+		ret = append(ret, proof)
+	}
+
+	return ret, nil
 }
 
-func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, rand core.WindowPoStRandomness, batchIdx int, batch []chain.Partition, batchPartitionStartIdx int) {
+func (pr *postRunner) generatePoStForPartitionBatch(rand core.WindowPoStRandomness, batch []chain.Partition, batchPartitionStartIdx int) (miner.SubmitWindowedPoStParams, error) {
+	log := pr.log.With("partition-start", batchPartitionStartIdx, "batch-count", len(batch))
 
 	params := miner.SubmitWindowedPoStParams{
 		Deadline:   pr.dinfo.Index,
@@ -249,45 +231,45 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 	skipCount := uint64(0)
 	postSkipped := bitfield.New()
 
-	proveAttempt := func(alog *logging.ZapLogger) (bool, error) {
+	proveAttempt := func() error {
 		var partitions []miner.PoStPartition
 		var xsinfos []builtin.ExtendedSectorInfo
 		for partIdx, partition := range batch {
 			// TODO: Can do this in parallel
 			toProve, err := bitfield.SubtractBitField(partition.LiveSectors, partition.FaultySectors)
 			if err != nil {
-				return false, fmt.Errorf("removing faults from set of sectors to prove: %w", err)
+				return fmt.Errorf("removing faults from set of sectors to prove: %w", err)
 			}
 			toProve, err = bitfield.MergeBitFields(toProve, partition.RecoveringSectors)
 			if err != nil {
-				return false, fmt.Errorf("adding recoveries to set of sectors to prove: %w", err)
+				return fmt.Errorf("adding recoveries to set of sectors to prove: %w", err)
 			}
 
-			good, err := pr.checkSectors(alog, toProve)
+			good, err := pr.checkSectors(log, toProve)
 			if err != nil {
-				return false, fmt.Errorf("checking sectors to skip: %w", err)
+				return fmt.Errorf("checking sectors to skip: %w", err)
 			}
 
 			good, err = bitfield.SubtractBitField(good, postSkipped)
 			if err != nil {
-				return false, fmt.Errorf("toProve - postSkipped: %w", err)
+				return fmt.Errorf("toProve - postSkipped: %w", err)
 			}
 
 			skipped, err := bitfield.SubtractBitField(toProve, good)
 			if err != nil {
-				return false, fmt.Errorf("toProve - good: %w", err)
+				return fmt.Errorf("toProve - good: %w", err)
 			}
 
 			sc, err := skipped.Count()
 			if err != nil {
-				return false, fmt.Errorf("getting skipped sector count: %w", err)
+				return fmt.Errorf("getting skipped sector count: %w", err)
 			}
 
 			skipCount += sc
 
 			ssi, err := pr.sectorsForProof(good, partition.AllSectors)
 			if err != nil {
-				return false, fmt.Errorf("getting sorted sector info: %w", err)
+				return fmt.Errorf("getting sorted sector info: %w", err)
 			}
 
 			if len(ssi) == 0 {
@@ -303,12 +285,12 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 
 		if len(xsinfos) == 0 {
 			// nothing to prove for this batch
-			alog.Warn("no good sector to prove")
-			return false, nil
+			log.Warn("no good sector to prove")
+			return nil
 		}
 
 		// Generate proof
-		alog.Infow("running window post",
+		log.Infow("running window post",
 			"chain-random", rand,
 			"skipped", skipCount)
 
@@ -317,12 +299,12 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 		// TODO: Drop after nv19 comes and goes
 		nv, err := pr.deps.chain.StateNetworkVersion(pr.ctx, types.EmptyTSK)
 		if err != nil {
-			return true, fmt.Errorf("get network version: %w", err)
+			return fmt.Errorf("get network version: %w", err)
 		}
 
 		pp, err := xsinfos[0].SealProof.RegisteredWindowPoStProofByNetworkVersion(nv)
 		if err != nil {
-			return false, fmt.Errorf("convert to v1_1 post proof: %w", err)
+			return fmt.Errorf("convert to v1_1 post proof: %w", err)
 		}
 
 		proverParams := core.GenerateWindowPoStParams{
@@ -337,27 +319,27 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 		}
 		postOut, ps, err := pr.deps.prover.GenerateWindowPoSt(pr.ctx, proverParams)
 
-		alog.Infow("computing window post", "elapsed", time.Since(tsStart))
+		log.Infow("computing window post", "elapsed", time.Since(tsStart))
 
 		if err == nil {
 			// If we proved nothing, something is very wrong.
 			if len(postOut) == 0 {
-				return false, fmt.Errorf("received no proofs back from generate window post")
+				return fmt.Errorf("received no proofs back from generate window post")
 			}
 
 			headTs, err := pr.deps.chain.ChainHead(pr.ctx)
 			if err != nil {
-				return true, fmt.Errorf("getting current head: %w", err)
+				return fmt.Errorf("getting current head: %w", err)
 			}
 
 			checkRand, err := pr.deps.rand.GetWindowPoStChanlleengeRand(pr.ctx, headTs.Key(), pr.dinfo.Challenge, pr.mid)
 			if err != nil {
-				return true, fmt.Errorf("get chain randomness for checking from beacon for window post: %w", err)
+				return fmt.Errorf("get chain randomness for checking from beacon for window post: %w", err)
 			}
 
 			if !bytes.Equal(checkRand.Rand, rand.Rand) {
-				alog.Warnw("windowpost randomness changed", "old", rand, "new", checkRand)
-				return true, nil
+				log.Warnw("windowpost randomness changed", "old", rand, "new", checkRand)
+				return nil
 			}
 
 			// If we generated an incorrect proof, try again.
@@ -376,34 +358,33 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 				ChallengedSectors: sinfos,
 				Prover:            pr.mid,
 			}); err != nil {
-				return true, fmt.Errorf("window post verification failed for %v: %w", postOut, err)
+				return fmt.Errorf("window post verification failed for %v: %w", postOut, err)
 			} else if !correct {
-				return true, fmt.Errorf("incorrect window post proof for %v", postOut)
+				return fmt.Errorf("incorrect window post proof for %v", postOut)
 			}
 
 			// Proof generation successful, stop retrying
 			params.Partitions = partitions
 			params.Proofs = postOut
-			return false, nil
+			return nil
 		}
 
 		// Proof generation failed, so retry
-
 		if len(ps) == 0 {
 			// If we didn't skip any new sectors, we failed
 			// for some other reason and we need to abort.
-			return false, fmt.Errorf("running window post failed: %w", err)
+			return fmt.Errorf("running window post failed: %w", err)
 		}
 		// TODO: maybe mark these as faulty somewhere?
 
-		alog.Warnw("skipped sectors", "sectors", ps)
+		log.Warnw("skipped sectors", "sectors", ps)
 
 		// Explicitly make sure we haven't aborted this PoSt
 		// (GenerateWindowPoSt may or may not check this).
 		// Otherwise, we could try to continue proving a
 		// deadline after the deadline has ended.
 		if cerr := pr.ctx.Err(); cerr != nil {
-			return false, cerr
+			return cerr
 		}
 
 		skipCount += uint64(len(ps))
@@ -411,42 +392,15 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 			postSkipped.Set(uint64(sector.Number))
 		}
 
-		return true, err
+		return err
 	}
 
-	defer func() {
-		pr.proofs.Lock()
-		pr.proofs.proofs = append(pr.proofs.proofs, params)
-		pr.proofs.Unlock()
-	}()
-
-	pblog := glog.With("batch-idx", batchIdx, "batch-count", len(batch), "partition-start", batchPartitionStartIdx)
-	for attempt := 0; ; attempt++ {
-		alog := pblog.With("attempt", attempt)
-		needRetry, err := proveAttempt(alog)
-		if err != nil {
-			alog.Errorf("attempt to generate window post proof: %v", err)
-		}
-
-		if !needRetry {
-			alog.Info("partition batch done")
-			break
-		}
-
-		select {
-		case <-pr.ctx.Done():
-			return
-
-		case <-time.After(5 * time.Second):
-		}
-
-		alog.Debug("retry partition batch")
-	}
-
+	err := proveAttempt()
+	return params, err
 }
 
 func (pr *postRunner) sectorsForProof(goodSectors, allSectors bitfield.BitField) ([]builtin.ExtendedSectorInfo, error) {
-	sset, err := pr.deps.chain.StateMinerSectors(pr.ctx, pr.maddr, &goodSectors, pr.startCtx.ts.Key())
+	sset, err := pr.deps.chain.StateMinerSectors(pr.ctx, pr.maddr, &goodSectors, types.EmptyTSK)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +457,7 @@ func (pr *postRunner) batchPartitions(partitions []chain.Partition, nv network.V
 		partitionsPerMsg = declMax
 	}
 
-	if max := int(pr.startCtx.pcfg.MaxPartitionsPerPoStMessage); max > 0 && partitionsPerMsg > max {
+	if max := int(pr.cfg.MaxPartitionsPerPoStMessage); max > 0 && partitionsPerMsg > max {
 		partitionsPerMsg = max
 	}
 
@@ -521,13 +475,11 @@ func (pr *postRunner) batchPartitions(partitions []chain.Partition, nv network.V
 	return batches, nil
 }
 
-func (pr *postRunner) handleFaults(baseLog *logging.ZapLogger) {
+func (pr *postRunner) HandleFaults(ts *types.TipSet) {
 	declDeadlineIndex := (pr.dinfo.Index + 2) % pr.dinfo.WPoStPeriodDeadlines
-	hflog := baseLog.With("decl-index", declDeadlineIndex)
+	hflog := pr.log.With("decl-index", declDeadlineIndex)
 
-	tsk := pr.startCtx.ts.Key()
-
-	partitions, err := pr.deps.chain.StateMinerPartitions(pr.ctx, pr.maddr, declDeadlineIndex, tsk)
+	partitions, err := pr.deps.chain.StateMinerPartitions(pr.ctx, pr.maddr, declDeadlineIndex, ts.Key())
 	if err != nil {
 		hflog.Errorf("get partitions: %v", err)
 		return
@@ -538,7 +490,7 @@ func (pr *postRunner) handleFaults(baseLog *logging.ZapLogger) {
 		hflog.Errorf("checking sector recoveries: %v", err)
 	}
 
-	if pr.startCtx.ts.Height() > policy.NetParams.ForkUpgradeParams.UpgradeIgnitionHeight {
+	if ts.Height() > policy.NetParams.ForkUpgradeParams.UpgradeIgnitionHeight {
 		return // FORK: declaring faults after ignition upgrade makes no sense
 	}
 
@@ -584,7 +536,7 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 		res := <-resCh
 
 		if res.err != nil {
-			hlog.Errorf("declare faults recovered wait error: %s", err)
+			hlog.Errorf("declare faults recovered wait error: %s", res.err)
 			return
 		}
 	}
@@ -633,7 +585,8 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 		}
 
 		// rules to follow if we have indicated that we don't want to recover more than X sectors in a deadline
-		recoverSectorsLimit := pr.startCtx.pcfg.MaxRecoverSectorLimit
+		cfg := pr.cfg
+		recoverSectorsLimit := cfg.MaxRecoverSectorLimit
 		if recoverSectorsLimit > 0 {
 			// something weird happened, break because we can't recover any more
 			if recoverSectorsLimit < recoverTotal {
@@ -666,7 +619,7 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 			Sectors:   recovered,
 		})
 
-		if max := pr.startCtx.pcfg.MaxPartitionsPerRecoveryMessage; max > 0 &&
+		if max := cfg.MaxPartitionsPerRecoveryMessage; max > 0 &&
 			len(currentParams.Recoveries) >= int(max) {
 
 			go handleRecoverMessage(currentParams)
@@ -760,7 +713,7 @@ func (pr *postRunner) checkFaults(l *logging.ZapLogger, declIndex uint64, partit
 }
 
 func (pr *postRunner) checkSectors(clog *logging.ZapLogger, check bitfield.BitField) (bitfield.BitField, error) {
-	sectorInfos, err := pr.deps.chain.StateMinerSectors(pr.ctx, pr.maddr, &check, pr.startCtx.ts.Key())
+	sectorInfos, err := pr.deps.chain.StateMinerSectors(pr.ctx, pr.maddr, &check, types.EmptyTSK)
 	if err != nil {
 		return bitfield.BitField{}, fmt.Errorf("call StateMinerSectors: %w", err)
 	}
@@ -786,7 +739,7 @@ func (pr *postRunner) checkSectors(clog *logging.ZapLogger, check bitfield.BitFi
 		}
 	}
 
-	bad, err := pr.deps.sectorProving.Provable(pr.ctx, pr.mid, pp, tocheck, pr.startCtx.pcfg.StrictCheck, false)
+	bad, err := pr.deps.sectorProving.Provable(pr.ctx, pr.mid, pp, tocheck, pr.cfg.StrictCheck, false)
 	if err != nil {
 		return bitfield.BitField{}, fmt.Errorf("checking provable sectors: %w", err)
 	}
@@ -817,7 +770,7 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 		return "", nil, fmt.Errorf("serialize params: %w", aerr)
 	}
 
-	sender, err := pr.deps.senderSelector.Select(pr.ctx, pr.mid, pr.startCtx.pcfg.GetSenders())
+	sender, err := pr.deps.senderSelector.Select(pr.ctx, pr.mid, pr.cfg.GetSenders())
 	if err != nil {
 		return "", nil, fmt.Errorf("select sender for %d: %w", pr.mid, err)
 	}
@@ -828,10 +781,10 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 		Method:    method,
 		Params:    encoded,
 		Value:     types.NewInt(0),
-		GasFeeCap: pr.startCtx.pcfg.GetGasFeeCap().Std(),
+		GasFeeCap: pr.cfg.GetGasFeeCap().Std(),
 	}
 
-	spec := pr.startCtx.pcfg.FeeConfig.GetSendSpec()
+	spec := pr.cfg.FeeConfig.GetSendSpec()
 
 	mid := ""
 	if !useExtraMsgID {
@@ -855,7 +808,7 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 	go func() {
 		defer close(ch)
 
-		m, err := pr.waitMessage(uid, pr.startCtx.pcfg.Confidence)
+		m, err := pr.waitMessage(uid, pr.cfg.Confidence)
 		if err != nil {
 			ch <- msgResult{
 				msg: m,
@@ -896,4 +849,34 @@ func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler
 
 func (pr *postRunner) waitMessage(mid string, confidence uint64) (*messager.Message, error) {
 	return pr.deps.msg.WaitMessage(pr.ctx, mid, confidence)
+}
+
+func (pr *postRunner) Prepare() (*PrepareResult, error) {
+	tsk := types.EmptyTSK
+	rand, err := pr.deps.rand.GetWindowPoStChanlleengeRand(pr.ctx, tsk, pr.dinfo.Challenge, pr.mid)
+	if err != nil {
+		return nil, fmt.Errorf("getting challenge rand: %w", err)
+	}
+
+	partitions, err := pr.deps.chain.StateMinerPartitions(pr.ctx, pr.maddr, pr.dinfo.Index, tsk)
+	if err != nil {
+		return nil, fmt.Errorf("getting partitions: %w", err)
+	}
+
+	nv, err := pr.deps.chain.StateNetworkVersion(pr.ctx, tsk)
+	if err != nil {
+		return nil, fmt.Errorf("getting network version: %w", err)
+	}
+
+	// Split partitions into batches, so as not to exceed the number of sectors
+	// allowed in a single message
+	partitionBatches, err := pr.batchPartitions(partitions, nv)
+	if err != nil {
+		return nil, fmt.Errorf("split partitions into batches: %w", err)
+	}
+
+	return &PrepareResult{
+		rand:           rand,
+		partitionBatch: partitionBatches,
+	}, nil
 }
