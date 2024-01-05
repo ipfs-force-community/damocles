@@ -160,7 +160,7 @@ pub(crate) fn merge_sealing_fields(
             rpc_polling_interval,
             ignore_proof_check,
             request_task_max_retries,
-            verify_pc2,
+            verify_after_pc2,
         },
     }
 }
@@ -397,7 +397,7 @@ mod tests {
                         rpc_polling_interval: ms(1000),
                         ignore_proof_check: true,
                         request_task_max_retries: 10,
-                        verify_pc2: false,
+                        verify_after_pc2: false,
                     },
                 },
                 SealingThreadInner {
@@ -415,7 +415,7 @@ mod tests {
                         rpc_polling_interval: Some(ms(1000)),
                         ignore_proof_check: None,
                         request_task_max_retries: Some(11),
-                        verify_pc2: Some(true),
+                        verify_after_pc2: Some(true),
                     }),
                 },
                 SealingWithPlan {
@@ -433,7 +433,7 @@ mod tests {
                         rpc_polling_interval: ms(1000),
                         ignore_proof_check: true,
                         request_task_max_retries: 11,
-                        verify_pc2: true,
+                        verify_after_pc2: true,
                     },
                 },
             ),
