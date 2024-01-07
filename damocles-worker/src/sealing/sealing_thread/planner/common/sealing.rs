@@ -333,6 +333,7 @@ pub(crate) fn pre_commit2(
                 seed: [0; 32].into(),
                 epoch: 0,
             },
+            out.clone(),
         )?;
     }
 
@@ -348,12 +349,18 @@ pub(crate) fn commit1_with_seed(
 ) -> Result<SealCommitPhase1Output, Failure> {
     let _token = task.sealing_ctrl.ctrl_ctx().wait(STAGE_NAME_C1).crit()?;
 
-    commit1_with_seed_inner(task, seed)
+    cloned_required! {
+        pc2out,
+        task.sector.phases.pc2out
+    }
+
+    commit1_with_seed_inner(task, seed, pc2out)
 }
 
 pub(crate) fn commit1_with_seed_inner(
     task: &Task,
     seed: Seed,
+    pc2out: SealPreCommitPhase2Output,
 ) -> Result<SealCommitPhase1Output, Failure> {
     let sector_id = task.sector_id()?;
 
@@ -374,11 +381,6 @@ pub(crate) fn commit1_with_seed_inner(
         task.sector.phases.ticket.as_ref()
     }
 
-    cloned_required! {
-        p2out,
-        task.sector.phases.pc2out
-    }
-
     let cache_dir = task.cache_dir(sector_id);
     let sealed_file = task.sealed_file(sector_id);
 
@@ -389,7 +391,7 @@ pub(crate) fn commit1_with_seed_inner(
         seal_sector_id,
         ticket.ticket.0,
         seed.seed.0,
-        p2out,
+        pc2out,
         piece_infos,
     )
     .perm()?;
