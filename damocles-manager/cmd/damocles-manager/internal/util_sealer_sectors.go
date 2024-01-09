@@ -987,7 +987,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 			return fmt.Errorf("failed to lookup claims for miner: %w", err)
 		}
 
-		claimIdsBySector, err := getClaimIdsBySector(verifregSt, maddr)
+		claimIdsBySector, err := verifregSt.GetClaimIdsBySector(maddr)
 		if err != nil {
 			return fmt.Errorf("failed to lookup claim IDs by sector: %w", err)
 		}
@@ -1166,24 +1166,6 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 
 		return nil
 	},
-}
-
-// TODO: this function should remove after Venus has released the `venus_shared/actors/builtin/verifreg.State.GetClaimIdsBySector` method
-func getClaimIdsBySector(s verifreg.State, providerIDAddr address.Address) (map[abi.SectorNumber][]verifreg.ClaimId, error) {
-
-	claims, err := s.GetClaims(providerIDAddr)
-
-	retMap := make(map[abi.SectorNumber][]verifreg.ClaimId)
-	for k, v := range claims {
-		claims, ok := retMap[v.Sector]
-		if !ok {
-			retMap[v.Sector] = []verifreg.ClaimId{k}
-		} else {
-			retMap[v.Sector] = append(claims, k)
-		}
-	}
-
-	return retMap, err
 }
 
 var utilSealerSectorsTerminateCmd = &cli.Command{
