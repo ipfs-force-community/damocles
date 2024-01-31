@@ -6,25 +6,45 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
-	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/builtin/v12/miner"
 	"github.com/filecoin-project/go-state-types/dline"
-	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/testutil/testmodules"
 )
 
 var (
 	invalidSender = modules.MustAddress(address.Undef)
 )
+
+var r = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+func randomDeadline() *dline.Info {
+	periodStart := miner.WPoStProvingPeriod + abi.ChainEpoch(r.Intn(int(10*miner.WPoStProvingPeriod)))
+	index := uint64(rand.Intn(int(miner.WPoStPeriodDeadlines)))
+
+	return deadlineAt(periodStart, index)
+}
+
+func deadlineAt(periodStart abi.ChainEpoch, index uint64) *dline.Info {
+	return dline.NewInfo(
+		periodStart,
+		index,
+		0,
+		miner.WPoStPeriodDeadlines,
+		miner.WPoStProvingPeriod,
+		miner.WPoStChallengeWindow,
+		miner.WPoStChallengeLookback,
+		miner.FaultDeclarationCutoff,
+	)
+}
 
 func mockSafeConfig(count int) (*modules.SafeConfig, sync.Locker) {
 	return testmodules.MockSafeConfig(count, func(mcfg *modules.MinerConfig) {
@@ -36,14 +56,18 @@ func mockSafeConfig(count int) (*modules.SafeConfig, sync.Locker) {
 
 const blkRaw = `{"Miner":"t038057","Ticket":{"VRFProof":"kfggWR2GcEbfTuJ20hkAFNRbF7xusDuAQR7XwTjJ2/gc1rwIDmaXbSVxXe4j1njcCBoMhmlYIn9D/BLqQuIOayMHPYvDmOJGc9M27Hwg1UZkiuJmXji+iM/JBNYaOA61"},"ElectionProof":{"WinCount":1,"VRFProof":"tI7cWWM9sGsKc69N9DjN41glaO5Hg7r742H56FPzg7szbhTrxj8kw0OsiJzcPJdiAa6D5jZ1S2WKoLK7lwg2R5zYvCRwwWLGDiExqbqsvqmH5z/e6YGpaD7ghTPRH1SR"},"BeaconEntries":[{"Round":2118576,"Data":"rintMKcvVAslYpn9DcshDBmlPN6hUR+wjvVQSkkVUK5klx1kOSpcDvzODSc2wXFQA7BVbEcXJW/5KLoL0KHx2alLUWDOwxhsIQnAydXdZqG8G76nTIgogthfIMgSGdB2"}],"WinPoStProof":[{"PoStProof":3,"ProofBytes":"t0ZgPHFv0ao9fVZJ/fxbBrzATmOiIv9/IueSyAjtcqEpxqWViqchaaxnz1afwzAbhahpfZsGiGWyc408WYh7Q8u0Aa52KGPmUNtf3pAvxWfsUDMz9QUfhLZVg/p8/PUVC/O/E7RBNq4YPrRK5b6Q8PVwzIOxGOS14ge6ys8Htq+LfNJbcqY676qOYF4lzMuMtQIe3CxMSAEaEBfNpHhAEs83dO6vll9MZKzcXYpNWeqmMIz4xSdF18StQq9vL/Lo"}],"Parents":[{"/":"bafy2bzacecf4wtqz3kgumeowhdulejk3xbfzgibfyhs42x4vx2guqgudem2hg"},{"/":"bafy2bzacebkpxh2k63xreigl6a3ggdr2adwk67b4zw5dddckhqex2tmha6hee"},{"/":"bafy2bzacecor3xq4ykmhhrgq55rdo5w7up65elc4qwx5uwjy25ffynidskbxw"},{"/":"bafy2bzacedr2mztmef65fodqzvyjcdnsgpcjthstseinll4maqg24avnv7ljo"}],"ParentWeight":"21779626255","Height":1164251,"ParentStateRoot":{"/":"bafy2bzacecypgutbewmyop2wfuafvxt7dm7ew4u3ssy2p4rn457f6ynrj2i6a"},"ParentMessageReceipts":{"/":"bafy2bzaceaflsspsxuxew2y4g6o72wp5i2ewp3fcolga6n2plw3gycam7s4lg"},"Messages":{"/":"bafy2bzaceanux5ivzlxzvhqxtwc5vkktcfqepubwtwgv26dowzbl3rtgqk54k"},"BLSAggregate":{"Type":2,"Data":"lQg9jBfYhY2vvjB/RPlWg6i+MBTlH1u0lmdasiab5BigsKAuZSeLNlTGbdoVZhAsDUT59ZdGsMmueHjafygDUN2KLhZoChFf6LQHH42PTSXFlkRVHvmKVz9DDU03FLMB"},"Timestamp":1658988330,"BlockSig":{"Type":2,"Data":"rMOv2tXKqV5VDOq5IQ35cP0cCAzGmaugVr/g5JTrilhAn4LYK0h6ByPL5cX5ONzlDTx9+zYZFteIzaenirZhw7G510Lh0J8lbTLP5X2EX251rEA8dpkPZPcNylzN0r8X"},"ForkSignaling":0,"ParentBaseFee":"100"}`
 
-func mockTipSet(t *testing.T, height abi.ChainEpoch) *types.TipSet {
+func mockTipSet(height abi.ChainEpoch) *types.TipSet {
 	var blk types.BlockHeader
 	err := json.Unmarshal([]byte(blkRaw), &blk)
-	require.NoError(t, err, "unmarshal block header raw")
+	if err != nil {
+		panic(err)
+	}
 	blk.Height = height
 
 	ts, err := types.NewTipSet([]*types.BlockHeader{&blk})
-	require.NoError(t, err, "construct tipset")
+	if err != nil {
+		panic(err)
+	}
 	return ts
 }
 
@@ -59,324 +83,312 @@ func (mockSelecotor) Select(_ context.Context, mid abi.ActorID, senders []addres
 	return address.Undef, fmt.Errorf("no valid senders for %d", mid)
 }
 
-func TestPoSterGetEnabledMiners(t *testing.T) {
-	minerCount := 128
+func TestStartPostRunner(t *testing.T) {
 	ctx := context.Background()
-	scfg, wmu := mockSafeConfig(minerCount)
-
-	require.Len(t, scfg.Miners, minerCount, "mocked miners")
-
-	poster, err := newPoSterWithRunnerConstructor(scfg, nil, nil, nil, nil, nil, nil, nil, mockSelecotor{}, mockRunnerConstructor(&mockRunner{}))
-	require.NoError(t, err, "new poster")
-
-	mids := poster.getEnabledMiners(ctx, logging.Nop)
-	require.Len(t, mids, minerCount, "enabled miners")
-
-	{
-		wmu.Lock()
-		disableCount := rand.Intn(minerCount)
-		for i := 0; i < disableCount; i++ {
-			scfg.Config.Miners[i].PoSt.Enabled = false
-		}
-		wmu.Unlock()
-
-		mids := poster.getEnabledMiners(ctx, logging.Nop)
-		require.Lenf(t, mids, minerCount-disableCount, "%d disabled", disableCount)
-
-		wmu.Lock()
-		for i := 0; i < disableCount; i++ {
-			scfg.Config.Miners[i].PoSt.Enabled = true
-		}
-		wmu.Unlock()
-
-		mids = poster.getEnabledMiners(ctx, logging.Nop)
-		require.Lenf(t, mids, minerCount, "reset after %d disabled", disableCount)
-	}
-
-	{
-		wmu.Lock()
-		invalidCount := rand.Intn(minerCount)
-		for i := 0; i < invalidCount; i++ {
-			scfg.Config.Miners[i].PoSt.Sender = &invalidSender
-		}
-		wmu.Unlock()
-
-		mids := poster.getEnabledMiners(ctx, logging.Nop)
-		require.Lenf(t, mids, minerCount-invalidCount, "%d invalid address", invalidCount)
-
-		wmu.Lock()
-		fakerAddr := modules.GetFakeAddress()
-		for i := 0; i < invalidCount; i++ {
-			scfg.Config.Miners[i].PoSt.Sender = &fakerAddr
-		}
-		wmu.Unlock()
-
-		mids = poster.getEnabledMiners(ctx, logging.Nop)
-		require.Lenf(t, mids, minerCount, "reset after %d invalid", invalidCount)
-	}
-}
-
-func TestFetchMinerProvingDeadlineInfos(t *testing.T) {
-	minerCount := 16
-	scfg, _ := mockSafeConfig(minerCount)
-	require.Len(t, scfg.Miners, minerCount, "mocked miners")
-
-	mids := make([]abi.ActorID, len(scfg.Miners))
-	for i := range scfg.Miners {
-		mids[i] = scfg.Miners[i].Actor
-	}
 
 	dl := randomDeadline()
-	var mockChain chain.MockStruct
-	mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
-		return dl, nil
+	dl.CurrentEpoch = abi.ChainEpoch(1000)
+	dl = dl.NextNotElapsed()
+
+	deps := postDeps{
+		senderSelector: mockSelecotor{},
 	}
 
-	poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, nil, nil, nil, nil, nil, mockRunnerConstructor(&mockRunner{}))
-	require.NoError(t, err, "new poster")
-
-	ts := mockTipSet(t, dl.Open)
-
-	// 默认行为
-	{
-
-		dinfos := poster.fetchMinerProvingDeadlineInfos(context.Background(), mids, ts)
-		require.Len(t, dinfos, len(mids), "get all dlines for miners")
-		for mid, dls := range dinfos {
-			require.Lenf(t, dls, 1, "only 1 dline.Info at dl.Open for %d", mid)
-		}
-	}
-
-	// 交界高度
-	{
-		next := nextDeadline(dl, dl.Open)
-		nextTs := mockTipSet(t, next.Challenge)
-
-		dinfos := poster.fetchMinerProvingDeadlineInfos(context.Background(), mids, nextTs)
-		require.Len(t, dinfos, len(mids), "get all dlines for miners")
-		for mid, dls := range dinfos {
-			require.Lenf(t, dls, 2, "expected 2 dline.Infos at next.Challenge for %d", mid)
-		}
-	}
-
-	// 禁用部分
-	{
-		for i := 0; i < 8; i++ {
-			available := rand.Intn(minerCount)
-			mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
-				id, err := address.IDFromAddress(p1)
-				if err != nil {
-					return nil, err
-				}
-
-				if id-uint64(testmodules.TestActorBase) >= uint64(available) {
-					return nil, fmt.Errorf("not available")
-				}
-
-				return dl, nil
-			}
-
-			dinfos := poster.fetchMinerProvingDeadlineInfos(context.Background(), mids, ts)
-			require.Lenf(t, dinfos, available, "get only available dlines for miners")
-		}
-	}
-
-}
-
-func TestHandleHeadChange(t *testing.T) {
-	minerCount := 16
-	scfg, _ := mockSafeConfig(minerCount)
-	require.Len(t, scfg.Miners, minerCount, "mocked miners")
-
-	mids := make([]abi.ActorID, len(scfg.Miners))
-	for i := range scfg.Miners {
-		mids[i] = scfg.Miners[i].Actor
-	}
-
-	var mockChain chain.MockStruct
-	mockChain.IMinerStateStruct.Internal.StateMinerInfo = func(ctx context.Context, maddr address.Address, tsk types.TipSetKey) (types.MinerInfo, error) {
-		_, err := address.IDFromAddress(maddr)
-		if err != nil {
-			return types.MinerInfo{}, err
+	t.Run("run successful", func(t *testing.T) {
+		mockExecutor := &mockExecutor{}
+		NewPostExecutor = func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info, cfg *modules.MinerPoStConfig) postExecutor {
+			return mockExecutor
 		}
 
-		return types.MinerInfo{
-			WindowPoStProofType: abi.RegisteredPoStProof_StackedDrgWindow2KiBV1,
-			SectorSize:          abi.SectorSize(2 << 10),
-		}, nil
-	}
+		scfg, _ := mockSafeConfig(1)
+		mid := scfg.Miners[0].Actor
+		maddr, err := address.NewIDAddress(uint64(mid))
+		require.NoError(t, err, "construct id address")
+		subscriber, getRunner := StartWdPostScheduler(ctx, deps, mid, maddr, abi.RegisteredPoStProof_StackedDrgWindow2KiBV1, dl, scfg)
 
-	mockChain.IChainInfoStruct.Internal.StateNetworkVersion = func(ctx context.Context, tsk types.TipSetKey) (network.Version, error) {
-		return network.Version21, nil
-	}
+		subscriber(nil, mockTipSet(dl.Challenge))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateWaitForChallenge, getRunner().State())
 
-	countRunners := func(p *PoSter) int {
-		var count int
-		for _, m := range p.schedulers {
-			count += len(m)
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence-1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateWaitForChallenge, getRunner().State())
+
+		mockExecutor.handleFaults = func(ts *types.TipSet) {
+			require.Equal(t, dl.Challenge+DefaultChallengeConfidence, ts.Height())
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, statePreparing, getRunner().State())
+		require.Equal(t, 1, mockExecutor.handleFaultsCalled)
+
+		mockPrepareResult := &PrepareResult{}
+		mockExecutor.prepare = func() (*PrepareResult, error) {
+			return mockPrepareResult, nil
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateProofGenerating, getRunner().State())
+		require.Equal(t, 1, mockExecutor.prepareCalled)
+
+		mockProof := make([]miner.SubmitWindowedPoStParams, 0, 1)
+		mockProof = append(mockProof, miner.SubmitWindowedPoStParams{})
+		mockExecutor.generatePoSt = func(r *PrepareResult) ([]miner.SubmitWindowedPoStParams, error) {
+			require.Equal(t, mockPrepareResult, r)
+			return mockProof, nil
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateWaitForOpen, getRunner().State())
+		require.Equal(t, 1, mockExecutor.generatePoStCalled)
+
+		subscriber(nil, mockTipSet(dl.Open-1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateWaitForOpen, getRunner().State())
+
+		subscriber(nil, mockTipSet(dl.Open+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateSubmitting, getRunner().State())
+
+		mockExecutor.submitPoSts = func(ts *types.TipSet, proofs []miner.SubmitWindowedPoStParams) error {
+			require.Equal(t, mockProof, proofs)
+			return nil
+		}
+		subscriber(nil, mockTipSet(dl.Open+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateSubmitted, getRunner().State())
+		require.Equal(t, 1, mockExecutor.submitPoStsCalled)
+
+		subscriber(nil, mockTipSet(dl.Close-1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateSubmitted, getRunner().State())
+
+		subscriber(nil, mockTipSet(dl.Close+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, StateEmpty, getRunner().State())
+
+		subscriber(nil, mockTipSet(dl.Close+2))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateWaitForChallenge, getRunner().State())
+
+		mockExecutor.handleFaults = func(ts *types.TipSet) {}
+		subscriber(nil, mockTipSet(dl.Open+dl.WPoStProvingPeriod))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, 2, mockExecutor.handleFaultsCalled)
+		require.Equal(t, statePreparing, getRunner().State())
+
+	})
+
+	t.Run("wdpost disable", func(t *testing.T) {
+		scfg, _ := mockSafeConfig(1)
+		scfg.Miners[0].PoSt.Enabled = false
+		mid := scfg.Miners[0].Actor
+		maddr, err := address.NewIDAddress(uint64(mid))
+		require.NoError(t, err, "construct id address")
+
+		subscriber, getRunner := StartWdPostScheduler(ctx, deps, mid, maddr, abi.RegisteredPoStProof_StackedDrgWindow2KiBV1, dl, scfg)
+
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, nil, getRunner())
+
+		subscriber(nil, mockTipSet(dl.Open+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, nil, getRunner())
+	})
+
+	t.Run("wdpost retry", func(t *testing.T) {
+		// modify retry times
+		DefaultRetryNum = 3
+
+		mockExecutor := &mockExecutor{}
+		NewPostExecutor = func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info, cfg *modules.MinerPoStConfig) postExecutor {
+			return mockExecutor
 		}
 
-		return count
-	}
+		scfg, _ := mockSafeConfig(1)
+		mid := scfg.Miners[0].Actor
+		maddr, err := address.NewIDAddress(uint64(mid))
+		require.NoError(t, err, "construct id address")
+		subscriber, getRunner := StartWdPostScheduler(ctx, deps, mid, maddr, abi.RegisteredPoStProof_StackedDrgWindow2KiBV1, dl, scfg)
 
-	ctx := context.Background()
+		subscriber(nil, mockTipSet(dl.Challenge-1))
+		time.Sleep(100 * time.Millisecond)
+		require.Equal(t, stateWaitForChallenge, getRunner().State())
 
-	// 默认的启动和清除
-	{
-		runner := &mockRunner{}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence-1))
+		time.Sleep(100 * time.Millisecond)
+		require.Equal(t, stateWaitForChallenge, getRunner().State())
 
-		dl := deadlineAt(10000, 0)
-		nextDl := nextDeadline(dl, dl.Open)
-		mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
-			return dl, nil
+		mockExecutor.handleFaults = func(ts *types.TipSet) {
+			require.Equal(t, dl.Challenge+DefaultChallengeConfidence, ts.Height())
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, statePreparing, getRunner().State())
+		require.Equal(t, 1, mockExecutor.handleFaultsCalled)
+
+		mockPrepareResult := &PrepareResult{}
+		mockExecutor.prepare = func() (*PrepareResult, error) {
+			return nil, fmt.Errorf("first prepare error")
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, statePreparing, getRunner().State())
+		require.Equal(t, 1, mockExecutor.prepareCalled)
+
+		mockExecutor.prepare = func() (*PrepareResult, error) {
+			return mockPrepareResult, fmt.Errorf("second prepare error")
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+2))
+		require.Equal(t, statePreparing, getRunner().State())
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, 2, mockExecutor.prepareCalled)
+
+		// recover before there times
+		mockExecutor.prepare = func() (*PrepareResult, error) {
+			return mockPrepareResult, nil
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+3))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateProofGenerating, getRunner().State())
+		require.Equal(t, 3, mockExecutor.prepareCalled)
+
+		mockExecutor.generatePoSt = func(r *PrepareResult) ([]miner.SubmitWindowedPoStParams, error) {
+			require.Equal(t, mockPrepareResult, r)
+			return nil, fmt.Errorf("first generatePoSt error")
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateProofGenerating, getRunner().State())
+
+		mockExecutor.generatePoSt = func(r *PrepareResult) ([]miner.SubmitWindowedPoStParams, error) {
+			return nil, fmt.Errorf("second generatePoSt error")
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+2))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateProofGenerating, getRunner().State())
+		require.Equal(t, 2, mockExecutor.generatePoStCalled)
+
+		mockExecutor.generatePoSt = func(r *PrepareResult) ([]miner.SubmitWindowedPoStParams, error) {
+			return nil, fmt.Errorf("third generatePoSt error")
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+3))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateProofGenerating, getRunner().State())
+		require.Equal(t, 3, mockExecutor.generatePoStCalled)
+
+		// exceed max retry times
+		mockExecutor.generatePoSt = func(r *PrepareResult) ([]miner.SubmitWindowedPoStParams, error) {
+			return nil, fmt.Errorf("forth generatePoSt error")
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+4))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, StateAbort, getRunner().State())
+		require.Equal(t, 4, mockExecutor.generatePoStCalled)
+
+		subscriber(nil, mockTipSet(dl.Open+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, StateAbort, getRunner().State())
+		require.Equal(t, 4, mockExecutor.generatePoStCalled)
+	})
+
+	t.Run("expired cancel", func(t *testing.T) {
+		mockExecutor := &mockExecutor{}
+		NewPostExecutor = func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info, cfg *modules.MinerPoStConfig) postExecutor {
+			return mockExecutor
 		}
 
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, nil, mockRunnerConstructor(runner))
-		require.NoError(t, err, "new poster")
+		scfg, _ := mockSafeConfig(1)
+		mid := scfg.Miners[0].Actor
+		maddr, err := address.NewIDAddress(uint64(mid))
+		require.NoError(t, err, "construct id address")
+		subscriber, getRunner := StartWdPostScheduler(ctx, deps, mid, maddr, abi.RegisteredPoStProof_StackedDrgWindow2KiBV1, dl, scfg)
 
-		cases := []struct {
-			title       string
-			height      abi.ChainEpoch
-			runnerCount int
-			started     uint32
-			submited    uint32
-			aborted     uint32
-		}{
-			{
-				title:       "before challenge",
-				height:      dl.Challenge - 1,
-				runnerCount: minerCount,
-				started:     0,
-				submited:    0,
-				aborted:     0,
-			},
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateWaitForChallenge, getRunner().State())
 
-			{
-				title:       "challenge",
-				height:      dl.Challenge,
-				runnerCount: minerCount,
-				started:     0,
-				submited:    0,
-				aborted:     0,
-			},
+		mockExecutor.handleFaults = func(ts *types.TipSet) {
+			return
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, 1, mockExecutor.handleFaultsCalled)
+		require.Equal(t, statePreparing, getRunner().State())
 
-			{
-				title:       "challenge + confidence",
-				height:      dl.Challenge + abi.ChainEpoch(DefaultChallengeConfidence),
-				runnerCount: minerCount,
-				started:     uint32(minerCount),
-				submited:    0,
-				aborted:     0,
-			},
+		mockExecutor.prepare = func() (*PrepareResult, error) {
+			// simulate a long time task
+			time.Sleep(1 * time.Hour)
+			return nil, fmt.Errorf("first prepare error")
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+2))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, statePreparing, getRunner().State())
 
-			{
-				title:       "submit",
-				height:      dl.Open + abi.ChainEpoch(DefaultSubmitConfidence),
-				runnerCount: minerCount,
-				started:     uint32(minerCount * 2),
-				submited:    uint32(minerCount),
-				aborted:     0,
-			},
-
-			{
-				title:       "next challenge",
-				height:      nextDl.Challenge,
-				runnerCount: minerCount * 2,
-				started:     uint32(minerCount * 3),
-				submited:    uint32(minerCount * 2),
-				aborted:     0,
-			},
-
-			{
-				title:       "close",
-				height:      dl.Close,
-				runnerCount: minerCount,
-				started:     uint32(minerCount * 4),
-				submited:    uint32(minerCount * 2),
-				aborted:     uint32(minerCount),
-			},
+		for i := 0; i < 1025; i++ {
+			subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+2))
 		}
 
-		for _, c := range cases {
-			ts := mockTipSet(t, c.height)
-			dinfos := poster.fetchMinerProvingDeadlineInfos(ctx, mids, ts)
-			require.Len(t, dinfos, minerCount, "dlines for all mienrs", c.title, c.height)
+		subscriber(nil, mockTipSet(dl.Close+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, StateEmpty, getRunner().State())
 
-			poster.handleHeadChange(ctx, nil, ts, dinfos)
+		subscriber(nil, mockTipSet(dl.Close+2))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateWaitForChallenge, getRunner().State())
 
-			require.Equal(t, c.runnerCount, countRunners(poster), "runner count", c.title, c.height)
-			require.Equal(t, c.started, runner.started, "started runners", c.title, c.height)
-			require.Equal(t, c.submited, runner.submited, "submited runners", c.title, c.height)
-			require.Equal(t, c.aborted, runner.aborted, "aborted runners", c.title, c.height)
+		subscriber(nil, mockTipSet(dl.Challenge+dl.WPoStProvingPeriod))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateWaitForChallenge, getRunner().State())
+
+		mockExecutor.handleFaults = func(ts *types.TipSet) {
+			return
+		}
+		subscriber(nil, mockTipSet(dl.Challenge+dl.WPoStProvingPeriod+DefaultChallengeConfidence+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, 2, mockExecutor.handleFaultsCalled)
+		require.Equal(t, statePreparing, getRunner().State())
+	})
+
+	t.Run("revert", func(t *testing.T) {
+		mockExecutor := &mockExecutor{}
+		NewPostExecutor = func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info, cfg *modules.MinerPoStConfig) postExecutor {
+			return mockExecutor
 		}
 
-	}
+		scfg, _ := mockSafeConfig(1)
+		mid := scfg.Miners[0].Actor
+		maddr, err := address.NewIDAddress(uint64(mid))
+		require.NoError(t, err, "construct id address")
+		subscriber, getRunner := StartWdPostScheduler(ctx, deps, mid, maddr, abi.RegisteredPoStProof_StackedDrgWindow2KiBV1, dl, scfg)
 
-	// 连续 deadlines
-	{
-		periodStart := abi.ChainEpoch(10000)
-		dls := []*dline.Info{
-			deadlineAt(periodStart, 0),
-			deadlineAt(periodStart, 1),
-			deadlineAt(periodStart, 2),
-			deadlineAt(periodStart, 3),
+		subscriber(nil, mockTipSet(dl.Challenge))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateWaitForChallenge, getRunner().State())
+
+		mockExecutor.handleFaults = func(ts *types.TipSet) {
+			return
 		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, statePreparing, getRunner().State())
 
-		called := uint32(0)
+		subscriber(mockTipSet(dl.Challenge-1), mockTipSet(dl.Challenge+DefaultChallengeConfidence+2))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, StateEmpty, getRunner().State())
 
-		mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
-			index := (atomic.AddUint32(&called, 1) - 1) / uint32(minerCount)
-			if int(index) >= len(dls) {
-				return nil, fmt.Errorf("invalid index %d", index)
-			}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, stateWaitForChallenge, getRunner().State())
 
-			return dls[index], nil
+		mockExecutor.handleFaults = func(ts *types.TipSet) {
+			return
 		}
+		subscriber(nil, mockTipSet(dl.Challenge+DefaultChallengeConfidence+1))
+		time.Sleep(time.Millisecond * 100)
+		require.Equal(t, 2, mockExecutor.handleFaultsCalled)
+		require.Equal(t, statePreparing, getRunner().State())
+	})
 
-		runner := &mockRunner{}
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, nil, mockRunnerConstructor(runner))
-		require.NoError(t, err, "new poster")
-
-		for di := range dls {
-			dl := dls[di]
-
-			ts := mockTipSet(t, dl.Challenge)
-
-			dinfos := poster.fetchMinerProvingDeadlineInfos(ctx, mids, ts)
-			require.Len(t, dinfos, minerCount, "dlines for all mienrs", dl.Challenge)
-
-			poster.handleHeadChange(ctx, nil, ts, dinfos)
-
-			if di == 0 {
-				require.Equal(t, minerCount, countRunners(poster), "runner count for dl index", dl.Index)
-			} else {
-				require.Equal(t, minerCount*2, countRunners(poster), "runner count for dl index", dl.Index)
-			}
-		}
-	}
-
-	// revert
-	{
-		runner := &mockRunner{}
-
-		dl := deadlineAt(10000, 0)
-		mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
-			return dl, nil
-		}
-
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, nil, mockRunnerConstructor(runner))
-		require.NoError(t, err, "new poster")
-
-		ts := mockTipSet(t, dl.Open)
-		dinfos := poster.fetchMinerProvingDeadlineInfos(ctx, mids, ts)
-		require.Len(t, dinfos, minerCount, "dlines for all mienrs")
-
-		poster.handleHeadChange(ctx, nil, ts, dinfos)
-		require.Equal(t, minerCount, countRunners(poster), "runner count")
-
-		dinfos = poster.fetchMinerProvingDeadlineInfos(ctx, mids, ts)
-		require.Len(t, dinfos, minerCount, "dlines for all mienrs")
-		poster.handleHeadChange(ctx, mockTipSet(t, dl.Challenge-1), ts, dinfos)
-		require.Equal(t, 0, countRunners(poster), "runner count")
-	}
 }

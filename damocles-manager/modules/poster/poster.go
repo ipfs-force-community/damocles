@@ -3,12 +3,11 @@ package poster
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"sync"
 	"time"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/go-state-types/builtin/v12/miner"
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/venus/pkg/clock"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -19,6 +18,8 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 )
+
+type HeadChangeSubscriber func(revert, apply *types.TipSet)
 
 const (
 	DefaultSubmitConfidence    = 4
@@ -73,55 +74,24 @@ func NewPoSter(
 	sectorProving core.SectorProving,
 	senderSelector core.SenderSelector,
 ) (*PoSter, error) {
-	return newPoSterWithRunnerConstructor(
-		scfg,
-		chain,
-		msg,
-		rand,
-		minerAPI,
-		prover,
-		verifier,
-		sectorProving,
-		senderSelector,
-		postRunnerConstructor,
-	)
-}
-
-func newPoSterWithRunnerConstructor(
-	scfg *modules.SafeConfig,
-	chain chain.API,
-	msg messager.API,
-	rand core.RandomnessAPI,
-	minerAPI core.MinerAPI,
-	prover core.Prover,
-	verifier core.Verifier,
-	sectorProving core.SectorProving,
-	senderSelector core.SenderSelector,
-	runnerCtor runnerConstructor,
-) (*PoSter, error) {
 	return &PoSter{
-		cfg:               scfg,
-		deps:              newPostDeps(chain, msg, rand, minerAPI, prover, verifier, sectorProving, senderSelector),
-		schedulers:        make(map[abi.ActorID]map[abi.ChainEpoch]*scheduler),
-		runnerConstructor: runnerCtor,
+		cfg:  scfg,
+		deps: newPostDeps(chain, msg, rand, minerAPI, prover, verifier, sectorProving, senderSelector),
 	}, nil
 }
 
 type PoSter struct {
 	cfg  *modules.SafeConfig
 	deps postDeps
-
-	schedulers        map[abi.ActorID]map[abi.ChainEpoch]*scheduler
-	runnerConstructor runnerConstructor
 }
 
 func (p *PoSter) Run(ctx context.Context) {
 	var notifs <-chan []*chain.HeadChange
 	firstTime := true
-
 	reconnectWait := 10 * time.Second
-
 	mlog := log.With("mod", "notify")
+
+	subscribers := make(map[abi.ActorID][]HeadChangeSubscriber)
 
 	// not fine to panic after this point
 CHAIN_HEAD_LOOP:
@@ -167,8 +137,6 @@ CHAIN_HEAD_LOOP:
 				continue CHAIN_HEAD_LOOP
 			}
 
-			mlog.Debug("chain notify get change", changes)
-
 			var lowest, highest *types.TipSet = nil, nil
 			if len(changes) == 1 && changes[0].Type == chain.HCCurrent {
 				highest = changes[0].Val
@@ -192,216 +160,249 @@ CHAIN_HEAD_LOOP:
 				continue CHAIN_HEAD_LOOP
 			}
 
-			mids := p.getEnabledMiners(ctx, mlog)
+			mlog.Debugw("chain notify get change", "len", len(changes), "lowest", lowest.Height(), "highest", highest.Height())
 
-			if len(mids) == 0 {
-				continue CHAIN_HEAD_LOOP
+			mids := p.getdMiners()
+			for _, mid := range mids {
+				if _, ok := subscribers[mid]; !ok {
+					// get all dl info
+					dinfos, err := p.getAllDeadlineInfo(ctx, mid, highest)
+					if err != nil {
+						mlog.Errorf("get deadline info fail", "miner", mid, "err", err)
+						continue
+					}
+
+					maddr, err := address.NewIDAddress(uint64(mid))
+					if err != nil {
+						mlog.Errorf("construct id address fail", "miner", mid, "err", err)
+						continue
+					}
+
+					minfo, err := p.deps.minerAPI.GetInfo(ctx, mid)
+					if err != nil {
+						mlog.Errorf("get miner info: %w", err)
+						continue
+					}
+
+					// create subscriber for dl info
+					subs := make([]HeadChangeSubscriber, 0, len(dinfos))
+					for _, dinfo := range dinfos {
+						sub, _ := StartWdPostScheduler(ctx, p.deps, mid, maddr, minfo.WindowPoStProofType, dinfo, p.cfg)
+						subs = append(subs, sub)
+					}
+					subscribers[mid] = subs
+				}
 			}
 
-			dinfos := p.fetchMinerProvingDeadlineInfos(ctx, mids, highest)
-			if len(dinfos) == 0 {
-				continue CHAIN_HEAD_LOOP
+			for _, subs := range subscribers {
+				for _, sub := range subs {
+					sub(lowest, highest)
+				}
 			}
-
-			p.handleHeadChange(ctx, lowest, highest, dinfos)
 		}
 	}
 }
 
-func (p *PoSter) getEnabledMiners(ctx context.Context, mlog *logging.ZapLogger) []abi.ActorID {
+func (p *PoSter) getdMiners() []abi.ActorID {
 	p.cfg.Lock()
+	defer p.cfg.Unlock()
 	mids := make([]abi.ActorID, 0, len(p.cfg.Miners))
-	for mi := range p.cfg.Miners {
-		if mcfg := p.cfg.Miners[mi]; mcfg.PoSt.Enabled {
-			_, err := p.deps.senderSelector.Select(ctx, mcfg.Actor, mcfg.PoSt.GetSenders())
-			if err != nil {
-				mlog.Warnw("post is enabled, but no any valid senders", "miner", mcfg.Actor, "err", err)
-				continue
-			}
-			mids = append(mids, mcfg.Actor)
-		}
+	for _, mcfg := range p.cfg.Miners {
+		mids = append(mids, mcfg.Actor)
 	}
-	p.cfg.Unlock()
-
 	return mids
 }
 
-func (p *PoSter) fetchMinerProvingDeadlineInfos(ctx context.Context, mids []abi.ActorID, ts *types.TipSet) map[abi.ActorID]map[abi.ChainEpoch]*dline.Info {
-	count := len(mids)
-	infos := make([]*dline.Info, count)
-	errs := make([]error, count)
-
+func (p *PoSter) getAllDeadlineInfo(ctx context.Context, mids abi.ActorID, ts *types.TipSet) ([]*dline.Info, error) {
 	tsk := ts.Key()
 	tsh := ts.Height()
+	ret := make([]*dline.Info, 0, 48)
 
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	var wg sync.WaitGroup
-	wg.Add(count)
-
-	for i := 0; i < count; i++ {
-		go func(idx int) {
-			defer wg.Done()
-
-			maddr, err := address.NewIDAddress(uint64(mids[idx]))
-			if err != nil {
-				errs[idx] = fmt.Errorf("construct id address: %w", err)
-				return
-			}
-
-			dinfo, err := p.deps.chain.StateMinerProvingDeadline(ctx, maddr, tsk)
-			if err != nil {
-				errs[idx] = fmt.Errorf("rpc call: %w", err)
-				return
-			}
-
-			infos[idx] = dinfo
-		}(i)
+	maddr, err := address.NewIDAddress(uint64(mids))
+	if err != nil {
+		return nil, fmt.Errorf("construct id address: %w", err)
 	}
 
-	wg.Wait()
-
-	res := map[abi.ActorID]map[abi.ChainEpoch]*dline.Info{}
-	for i := range mids {
-		if err := errs[i]; err != nil {
-			log.Warnf("fetch proving deadline for %d: %s", mids[i], err)
-			continue
-		}
-
-		dl := infos[i]
-		dls := map[abi.ChainEpoch]*dline.Info{
-			dl.Open: dl,
-		}
-
-		maybeNext := nextDeadline(dl, tsh)
-		if deadlineIsActive(maybeNext, tsh) {
-			dls[maybeNext.Open] = maybeNext
-		}
-
-		res[mids[i]] = dls
+	currentDlInfo, err := p.deps.chain.StateMinerProvingDeadline(ctx, maddr, tsk)
+	if err != nil {
+		return nil, fmt.Errorf("rpc call: %w", err)
 	}
 
-	return res
+	for dlIdx := uint64(0); dlIdx < currentDlInfo.WPoStPeriodDeadlines; dlIdx++ {
+		dinfo := miner.NewDeadlineInfo(currentDlInfo.PeriodStart, dlIdx, tsh).NextNotElapsed()
+		ret = append(ret, dinfo)
+	}
+
+	return ret, nil
 }
 
-// handleHeadChange 处理以下逻辑：
-// 1. 是否需要根据 revert 回退或 abort 已存在的 runner
-// 2. 是否开启新的 runner
-func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, advance *types.TipSet, dinfos map[abi.ActorID]map[abi.ChainEpoch]*dline.Info) {
-	// 对于当前高度来说，最少会处于1个活跃区间内，最多会处于2个活跃区间内 [next.Challenge, prev.Close)
-	// 启动一个新 runner 的最基本条件为：当前高度所属的活跃区间存在没有与之对应的 runner 的情况
-	currHeight := advance.Height()
+func StartWdPostScheduler(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info, cfg *modules.SafeConfig) (HeadChangeSubscriber, func() Scheduler) {
+	innerCtx, cancel := context.WithCancel(ctx)
+	var machine Scheduler
 
-	var revH *abi.ChainEpoch
-	revHStr := "nil"
-	if revert != nil {
-		h := revert.Height()
-		revH = &h
-		revHStr = strconv.FormatUint(uint64(h), 10)
+	newStateMachine := func(ctx context.Context, height abi.ChainEpoch, cfg *modules.MinerPoStConfig) Scheduler {
+		dinfo = miner.NewDeadlineInfo(dinfo.PeriodStart, dinfo.Index, height).NextNotElapsed()
+		executor := NewPostExecutor(ctx, deps, mid, maddr, proofType, dinfo, cfg)
+
+		return iniStateMachine(ctx, executor, dinfo, cfg)
 	}
 
-	hcLog := log.With("rev", revHStr, "adv", advance.Height())
+	subscriber := func(revert, apply *types.TipSet) {
+		log := slog.With("revert", revert.Height(), "apply", apply.Height(), "deadline", dinfo.Index, "challenge", dinfo.Challenge, "open", dinfo.Open, "close", dinfo.Close)
+		log.Debugf("apply begin")
+		start := time.Now()
+		defer func() {
+			log.Debugf("apply end, elapsed: %s", time.Since(start))
+		}()
 
-	pcfgs := map[abi.ActorID]*modules.MinerPoStConfig{}
-
-	// cleanup
-	for mid := range p.schedulers {
-		scheds := p.schedulers[mid]
-		mhcLog := hcLog.With("miner", mid)
-
-		var pcfg *modules.MinerPoStConfig
-		mcfg, err := p.cfg.MinerConfig(mid)
+		cfg.Lock()
+		mcfg, err := cfg.MinerConfig(mid)
+		cfg.Unlock()
 		if err != nil {
-			mhcLog.Warnf("get miner config: %s", err)
-		} else {
-			pcfg = &mcfg.PoSt
-			pcfgs[mid] = pcfg
+			log.Errorf("get miner config of %s : %w", mid, err)
+			return
+		}
+		pcfg := mcfg.PoSt
+
+		if err != nil {
+			log.Errorf("get post config of %s : %w", mid, err)
+			return
+		}
+		if !pcfg.Enabled {
+			return
 		}
 
-		for open := range scheds {
-			sched := scheds[open]
-
-			if dls, dlsOk := dinfos[mid]; dlsOk {
-				// 尝试开启的 deadline 已经存在
-				if _, dlOk := dls[open]; dlOk {
-					delete(dls, open)
-				}
-			}
-
-			// 中断此 runner
-			if sched.shouldAbort(revH, currHeight) {
-				mhcLog.Debugw("abort and cleanup deadline runner", "open", open)
-				sched.runner.abort()
-				delete(scheds, open)
-				continue
-			}
-
-			// post config 由于某种原因缺失时，无法触发 start 或 submit
-			if pcfg != nil && sched.isActive(currHeight) {
-				if sched.shouldStart(pcfg, currHeight) {
-					sched.runner.start(pcfg, advance)
-				}
-
-				if sched.couldSubmit(pcfg, currHeight) {
-					sched.runner.submit(pcfg, advance)
-				}
-			}
-
+		ts := apply
+		height := ts.Height()
+		if machine == nil {
+			machine = newStateMachine(innerCtx, height, &pcfg)
 		}
+
+		// check revert and apply
+		revertAheadChallenge := revert != nil && revert.Height() < dinfo.Challenge
+		applyExceedClose := apply.Height() > dinfo.Close
+		if revertAheadChallenge || applyExceedClose {
+			// rest machine
+			cancel()
+			innerCtx, cancel = context.WithCancel(ctx)
+			machine = newStateMachine(innerCtx, height, &pcfg)
+
+			if revertAheadChallenge {
+				log.Warnf("revert ahead challenge: %d < %d", revert.Height(), dinfo.Challenge)
+			} else {
+				log.Warnf("apply exceed close: %d > %d", apply.Height(), dinfo.Close)
+			}
+			return
+		}
+
+		tick := &EventBody{
+			Type: EventTick,
+			Data: ts,
+		}
+		machine.Apply(tick)
 	}
 
-	for mid := range dinfos {
-		mdLog := hcLog.With("miner", mid)
+	runnerGetter := func() Scheduler {
+		return machine
+	}
 
-		maddr, err := address.NewIDAddress(uint64(mid))
-		if err != nil {
-			mdLog.Warnf("invalid miner actor id: %s", err)
-			continue
-		}
+	return subscriber, runnerGetter
+}
 
-		pcfg, ok := pcfgs[mid]
+const (
+	// state
+	stateWaitForChallenge State = "wait_for_challenge"
+	statePreparing        State = "preparing"
+	stateProofGenerating  State = "generating"
+	stateWaitForOpen      State = "wait_for_open"
+	stateSubmitting       State = "submitting"
+	stateSubmitted        State = "submitted"
+)
+
+func iniStateMachine(ctx context.Context, executor postExecutor, dinfo *dline.Info, cfg *modules.MinerPoStConfig) Scheduler {
+	mc := &Machine{
+		logger:   log.With("deadline", dinfo.Index, "challenge", dinfo.Challenge, "open", dinfo.Open, "close", dinfo.Close),
+		errRetry: int(cfg.RetryNum),
+	}
+
+	var proofs []miner.SubmitWindowedPoStParams
+	var prepareResult *PrepareResult
+
+	mc.RegisterHandler(StateEmpty, EventTick, func(data any) (State, Event, error) {
+		return stateWaitForChallenge, nil, nil
+	})
+
+	mc.RegisterHandler(stateWaitForChallenge, EventTick, func(data any) (State, Event, error) {
+		ts, ok := data.(*types.TipSet)
 		if !ok {
-			mcfg, err := p.cfg.MinerConfig(mid)
-			if err != nil {
-				mdLog.Warnf("get miner config: %s", err)
-				continue
-			}
-
-			pcfg = &mcfg.PoSt
+			return "", nil, fmt.Errorf("invalid data of tick event")
 		}
 
-		minfo, err := p.deps.minerAPI.GetInfo(ctx, mid)
+		height := ts.Height()
+		challengeConfidence := cfg.ChallengeConfidence
+		if challengeConfidence == 0 {
+			challengeConfidence = DefaultChallengeConfidence
+		}
+		if height < dinfo.Challenge+abi.ChainEpoch(challengeConfidence) {
+			return "", nil, nil
+		}
+
+		// trigger declare fault and recovery
+		go executor.HandleFaults(ts)
+
+		return statePreparing, nil, nil
+	})
+
+	mc.RegisterHandler(statePreparing, EventTick, func(data any) (State, Event, error) {
+		res, err := executor.Prepare()
 		if err != nil {
-			mdLog.Errorf("get miner info: %w", err)
-			continue
+			return "", nil, err
+		}
+		prepareResult = res
+		return stateProofGenerating, nil, nil
+	})
+
+	mc.RegisterHandler(stateProofGenerating, EventTick, func(data any) (State, Event, error) {
+		var err error
+		proofs, err = executor.GeneratePoSt(prepareResult)
+		if err != nil {
+			return "", nil, err
+		}
+		return stateWaitForOpen, nil, nil
+	})
+
+	mc.RegisterHandler(stateWaitForOpen, EventTick, func(data any) (State, Event, error) {
+		if len(proofs) == 0 {
+			return stateProofGenerating, nil, fmt.Errorf("proofs is empty")
 		}
 
-		dls := dinfos[mid]
-		for open := range dls {
-			dl := dls[open]
-
-			sched := newScheduler(
-				dl,
-				p.runnerConstructor(
-					ctx,
-					p.deps,
-					mid,
-					maddr,
-					minfo.WindowPoStProofType,
-					dl,
-				),
-			)
-
-			if _, ok := p.schedulers[mid]; !ok {
-				p.schedulers[mid] = map[abi.ChainEpoch]*scheduler{}
-			}
-
-			mdLog.Debugw("init deadline runner", "open", dl.Open)
-			p.schedulers[mid][dl.Open] = sched
-			if sched.isActive(currHeight) && sched.shouldStart(pcfg, currHeight) {
-				sched.runner.start(pcfg, advance)
-			}
+		ts, ok := data.(*types.TipSet)
+		if !ok {
+			return "", nil, fmt.Errorf("invalid data of tick event")
 		}
-	}
+
+		if ts.Height() > dinfo.Open {
+			return stateSubmitting, nil, nil
+		}
+
+		return "", nil, nil
+	})
+
+	mc.RegisterHandler(stateSubmitting, EventTick, func(data any) (State, Event, error) {
+		ts, ok := data.(*types.TipSet)
+		if !ok {
+			return "", nil, fmt.Errorf("invalid data of tick event")
+		}
+
+		// submit proofs
+		err := executor.SubmitPoSts(ts, proofs)
+		if err != nil {
+			return "", nil, err
+		}
+
+		return stateSubmitted, nil, nil
+	})
+
+	mc.Start(ctx)
+	return mc
 }
