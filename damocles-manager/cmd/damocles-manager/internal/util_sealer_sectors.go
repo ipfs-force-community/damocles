@@ -2266,10 +2266,10 @@ func sectorState2SectorInfo(ctx context.Context, api *APIClient, state *core.Sec
 
 	// Packing
 	// sector.CreationTime = 0
-	pieces := make([]lotusminer.SectorPiece, 0)
+	pieces := make([]lotusminer.SafeSectorPiece, 0)
 	for pi := range state.Pieces {
 		piece := state.Pieces[pi]
-		pieces = append(pieces, lotusminer.SectorPiece{
+		pieces = append(pieces, lotusminer.SafePiece(lotusminer.SectorPiece{
 			Piece: abi.PieceInfo{
 				Size:     piece.Piece.Size,
 				PieceCID: piece.Piece.Cid,
@@ -2279,7 +2279,7 @@ func sectorState2SectorInfo(ctx context.Context, api *APIClient, state *core.Sec
 				DealID:       piece.ID,
 				DealProposal: piece.Proposal,
 			},
-		})
+		}))
 	}
 	sector.Pieces = pieces
 

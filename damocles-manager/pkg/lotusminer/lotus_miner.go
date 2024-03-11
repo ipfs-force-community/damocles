@@ -21,6 +21,7 @@ const (
 
 var (
 	StorageCounterDSPrefix = sealing.StorageCounterDSPrefix
+	SafePiece              = sealing.SafePiece
 )
 
 type (
@@ -30,6 +31,7 @@ type (
 	SectorSealingInfo = sealing.SectorInfo
 	SectorState       = sealing.SectorState
 	PieceDealInfo     = api.PieceDealInfo
+	SafeSectorPiece   = sealing.SafeSectorPiece
 )
 
 func New(ctx context.Context, addr string, token string) (StorageMiner, jsonrpc.ClientCloser, error) {
