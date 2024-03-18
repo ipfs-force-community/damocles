@@ -101,6 +101,7 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsRebuildCmd,
 		utilSealerSectorsExportCmd,
 		utilSealerSectorsUnsealCmd,
+		utilSealerSectorsShowClaimIdsCmd,
 
 		// todo: consider add this command back until next update in which FIP0070 maybe be in scope
 		// utilSealerSectorsMovePartitionsCmd,
@@ -709,6 +710,45 @@ func NewPseudoExtendParams(p *core.ExtendSectorExpiration2Params) (*PseudoExtend
 		})
 	}
 	return &res, nil
+}
+
+var utilSealerSectorsShowClaimIdsCmd = &cli.Command{
+	Name:  "show-claim-ids",
+	Usage: "Show claim ids by sector",
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name: "miner",
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		fapi, ctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+		defer stop()
+
+		maddr, err := ShouldAddress(cctx.String("miner"), true, true)
+		if err != nil {
+			return err
+		}
+
+		store := adt.WrapStore(ctx, cbor.NewCborStore(blockstore.NewAPIBlockstore(fapi.Chain)))
+
+		verifregAct, err := fapi.Chain.StateGetActor(ctx, builtin.VerifiedRegistryActorAddr, types.EmptyTSK)
+		if err != nil {
+			return fmt.Errorf("failed to lookup verifreg actor: %w", err)
+		}
+		verifregSt, err := verifreg.Load(store, verifregAct)
+		if err != nil {
+			return fmt.Errorf("failed to load verifreg state: %w", err)
+		}
+		claimIdsBySector, err := verifregSt.GetClaimIdsBySector(maddr)
+		if err != nil {
+			return fmt.Errorf("failed to lookup claim IDs by sector: %w", err)
+		}
+		fmt.Println(claimIdsBySector)
+		return nil
+	},
 }
 
 var utilSealerSectorsExtendCmd = &cli.Command{
