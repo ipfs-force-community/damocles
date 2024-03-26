@@ -17,7 +17,7 @@ import (
 // SealerAPIClient is generated client for SealerAPI interface.
 type SealerAPIClient struct {
 	AllocateSector        func(context.Context, AllocateSectorSpec) (*AllocatedSector, error)
-	AcquireDeals          func(context.Context, abi.SectorID, AcquireDealsSpec) (Deals, error)
+	AcquireDeals          func(ctx context.Context, sid abi.SectorID, spec AcquireDealsSpec) (SectorPieces, error)
 	AssignTicket          func(context.Context, abi.SectorID) (Ticket, error)
 	SubmitPreCommit       func(context.Context, AllocatedSector, PreCommitOnChainInfo, bool) (SubmitPreCommitResp, error)
 	PollPreCommitState    func(context.Context, abi.SectorID) (PollPreCommitStateResp, error)
@@ -45,7 +45,7 @@ var UnavailableSealerAPIClient = SealerAPIClient{
 	AllocateSector: func(context.Context, AllocateSectorSpec) (*AllocatedSector, error) {
 		panic("SealerAPI client unavailable")
 	},
-	AcquireDeals: func(context.Context, abi.SectorID, AcquireDealsSpec) (Deals, error) {
+	AcquireDeals: func(ctx context.Context, sid abi.SectorID, spec AcquireDealsSpec) (SectorPieces, error) {
 		panic("SealerAPI client unavailable")
 	},
 	AssignTicket: func(context.Context, abi.SectorID) (Ticket, error) {

@@ -21,12 +21,14 @@ const (
 
 var (
 	StorageCounterDSPrefix = sealing.StorageCounterDSPrefix
+	SafePiece              = sealing.SafePiece
 )
 
 type (
 	StorageMiner      = api.StorageMiner
 	SectorInfo        = api.SectorInfo
 	SectorPiece       = api.SectorPiece
+	SafeSectorPiece   = sealing.SafeSectorPiece
 	SectorSealingInfo = sealing.SectorInfo
 	SectorState       = sealing.SectorState
 	PieceDealInfo     = api.PieceDealInfo

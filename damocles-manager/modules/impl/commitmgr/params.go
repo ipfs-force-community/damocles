@@ -12,7 +12,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 )
 
-func (p PreCommitProcessor) preCommitInfo(ctx context.Context, sector core.SectorState) (*miner.SectorPreCommitInfo, big.Int, core.TipSetToken, error) {
+func (p PreCommitProcessor) preCommitInfo(ctx context.Context, sector *core.SectorState) (*miner.SectorPreCommitInfo, big.Int, core.TipSetToken, error) {
 	stateMgr := p.api
 	tok, _, err := stateMgr.ChainHead(ctx)
 	if err != nil {
@@ -52,7 +52,7 @@ func (p PreCommitProcessor) preCommitInfo(ctx context.Context, sector core.Secto
 		}
 	}
 
-	expiration, err := p.sectorExpiration(ctx, &sector)
+	expiration, err := p.sectorExpiration(ctx, sector)
 	if err != nil {
 		return nil, big.Zero(), nil, fmt.Errorf("handlePreCommitting: failed to compute pre-commit expiry: %w", err)
 	}
@@ -64,7 +64,7 @@ func (p PreCommitProcessor) preCommitInfo(ctx context.Context, sector core.Secto
 
 		SealedCID:     sector.Pre.CommR,
 		SealRandEpoch: sector.Ticket.Epoch,
-		DealIDs:       sector.DealIDs(),
+		DealIDs:       sector.DealIDs(), // DDO deal will be passed later in the Commit message
 	}
 
 	if len(sector.Pieces) > 0 {

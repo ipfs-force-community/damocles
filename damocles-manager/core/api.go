@@ -38,7 +38,7 @@ type APIFull interface {
 type SealerAPI interface {
 	AllocateSector(context.Context, AllocateSectorSpec) (*AllocatedSector, error)
 
-	AcquireDeals(context.Context, abi.SectorID, AcquireDealsSpec) (Deals, error)
+	AcquireDeals(ctx context.Context, sid abi.SectorID, spec AcquireDealsSpec) (SectorPieces, error)
 
 	AssignTicket(context.Context, abi.SectorID) (Ticket, error)
 

@@ -1,4 +1,4 @@
-FROM golang:1.20.7-bullseye AS build
+FROM golang:1.21.8-bullseye AS build
 
 RUN apt-get update && apt-get install -y tzdata ca-certificates build-essential clang ocl-icd-opencl-dev ocl-icd-libopencl1 jq libhwloc-dev
 

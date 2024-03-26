@@ -60,7 +60,7 @@ func (s *Sealer) AllocateSectorsBatch(ctx context.Context, spec core.AllocateSec
 	return s.sector.Allocate(ctx, spec, count)
 }
 
-func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.Deals, error) {
+func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.SectorPieces, error) {
 	s.scfg.Lock()
 	mcfg, err := s.scfg.MinerConfig(sid.Miner)
 	s.scfg.Unlock()

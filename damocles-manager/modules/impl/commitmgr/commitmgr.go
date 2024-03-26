@@ -18,6 +18,7 @@ import (
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
+	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
@@ -38,8 +39,10 @@ type CommitmentMgrImpl struct {
 
 	msgClient messager.API
 
+	chain    chainAPI.API
 	stateMgr SealingAPI
 	minerAPI core.MinerAPI
+	lookupID core.LookupID
 
 	smgr           core.SectorStateManager
 	senderSelector core.SenderSelector
@@ -62,7 +65,7 @@ type CommitmentMgrImpl struct {
 }
 
 func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr SealingAPI, minerAPI core.MinerAPI, smgr core.SectorStateManager,
-	cfg *modules.SafeConfig, verif core.Verifier, prover core.Prover, senderSelector core.SenderSelector,
+	cfg *modules.SafeConfig, verif core.Verifier, prover core.Prover, senderSelector core.SenderSelector, chain chainAPI.API, lookupID core.LookupID,
 ) (*CommitmentMgrImpl, error) {
 	prePendingChan := make(chan core.SectorState, 1024)
 	proPendingChan := make(chan core.SectorState, 1024)
@@ -70,9 +73,11 @@ func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr Seal
 
 	mgr := CommitmentMgrImpl{
 		ctx:            ctx,
+		chain:          chain,
 		msgClient:      commitAPI,
 		stateMgr:       stateMgr,
 		minerAPI:       minerAPI,
+		lookupID:       lookupID,
 		smgr:           smgr,
 		senderSelector: senderSelector,
 		cfg:            cfg,
@@ -310,8 +315,10 @@ func (c *CommitmentMgrImpl) startProLoop() {
 			}
 
 			c.commitBatcher[miner] = NewBatcher(c.ctx, miner, sender, CommitProcessor{
+				chain:     c.chain,
 				api:       c.stateMgr,
 				msgClient: c.msgClient,
+				lookupID:  c.lookupID,
 				smgr:      c.smgr,
 				config:    c.cfg,
 				prover:    c.prover,
@@ -474,7 +481,7 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 
 	sector.Pre = &info
 
-	err = checkPrecommit(ctx, maddr, *sector, c.stateMgr)
+	err = checkPrecommit(ctx, maddr, sector, c.stateMgr)
 	if err != nil {
 		switch err.(type) {
 		case *ErrAPI:
@@ -592,7 +599,7 @@ func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, in
 
 	sector.Proof = &info
 
-	if err := checkCommit(ctx, *sector, info.Proof, nil, maddr, c.verif, c.stateMgr); err != nil {
+	if err := checkCommit(ctx, sector, info.Proof, nil, maddr, c.verif, c.stateMgr); err != nil {
 		switch err.(type) {
 		case *ErrAPI:
 			return core.SubmitProofResp{}, err

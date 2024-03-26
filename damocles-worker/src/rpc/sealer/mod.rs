@@ -85,6 +85,25 @@ pub struct DealInfo {
     pub piece: PieceInfo,
 }
 
+/// sector piece info
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SectorPiece {
+    pub piece: PieceInfoV2,
+
+    /// piece data info
+    pub deal_info: DealInfoV2,
+}
+
+/// deal piece info v2
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct DealInfoV2 {
+    #[serde(rename = "AllocationID")]
+    pub allocation_id: u64,
+    pub payload_size: u64,
+}
+
 /// Piece information for part or a whole file.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
@@ -98,12 +117,23 @@ pub struct PieceInfo {
     pub cid: CidJson,
 }
 
+/// Piece information for part or a whole file.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct PieceInfoV2 {
+    /// Size in nodes. For BLS12-381 (capacity 254 bits), must be >= 16. (16 * 8 = 128).
+    pub size: PaddedPieceSize,
+    #[serde(rename = "PieceCID")]
+    pub piece_cid: CidJson,
+}
+
 fn default_padded_byte_amount() -> PaddedBytesAmount {
     PaddedBytesAmount(0)
 }
 
 /// types alias for deal piece info list
 pub type Deals = Vec<DealInfo>;
+pub type DealsV2 = Vec<SectorPiece>;
 
 /// rules for acquiring deal pieces within specified sector
 #[derive(Serialize, Deserialize)]
@@ -183,9 +213,6 @@ pub struct PreCommitOnChainInfo {
 
     /// assigned ticket
     pub ticket: Ticket,
-
-    /// included deal ids
-    pub deals: Vec<DealID>,
 }
 
 /// required infos for proof
@@ -321,7 +348,7 @@ pub struct SectorPrivateInfo {
 #[serde(rename_all = "PascalCase")]
 pub struct AllocatedSnapUpSector {
     pub sector: AllocatedSector,
-    pub pieces: Deals,
+    pub pieces: DealsV2,
     pub public: SectorPublicInfo,
     pub private: SectorPrivateInfo,
 }
@@ -377,6 +404,7 @@ pub struct SectorRebuildInfo {
     pub sector: AllocatedSector,
     pub ticket: Ticket,
     pub pieces: Option<Deals>,
+    pub pieces_v2: Option<DealsV2>,
 
     #[serde(rename = "IsSnapUp")]
     pub is_snapup: bool,
@@ -464,7 +492,7 @@ pub trait Sealer {
         &self,
         id: SectorID,
         spec: AcquireDealsSpec,
-    ) -> Result<Option<Deals>>;
+    ) -> Result<Option<DealsV2>>;
 
     /// api definition
     #[rpc(name = "Venus.AssignTicket")]
@@ -616,4 +644,45 @@ pub trait Sealer {
         output: Option<WindowPoStOutput>,
         error_reason: String,
     ) -> Result<()>;
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::DealsV2;
+
+    #[test]
+    pub fn test11() {
+        let x = r#"
+        [
+            {
+                "Piece": {
+                    "Size": 0,
+                    "PieceCID": null
+                },
+                "DealInfo": {
+                    "DealID": 0,
+                    "PublishCid": null,
+                    "AllocationID": 31897,
+                    "PieceCID": {
+                        "/": "baga6ea4seaqokrjamz4klubh2gskqh32gnluydcikxxntgjgvoqgsyqrp32euiq"
+                    },
+                    "PieceSize": 268435456,
+                    "Client": "f3wivhkdivcxj5zp2l4wjkzon232s52smnd5m3na66ujl5nel75jggguhgaa3zbhjo3as4epf5ytxl6ly3qoha",
+                    "Provider": "f076577",
+                    "Offset": 0,
+                    "Length": 268435456,
+                    "PayloadSize": 0,
+                    "StartEpoch": 1475879,
+                    "EndEpoch": 0,
+                    "IsBuiltinMarket": false,
+                    "IsCompatible": false
+                }
+            },
+        ]
+        "#;
+
+        let x: DealsV2 = serde_json::from_str(x).unwrap();
+        println!("{:?}", x);
+    }
 }

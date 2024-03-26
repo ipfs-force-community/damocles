@@ -579,13 +579,29 @@ func defaultMinerProofConfig() MinerProofConfig {
 
 type MinerSealingConfig struct {
 	SealingEpochDuration int64
-	UseSyntheticPoRep    bool
+
+	RequireActivationSuccess         bool
+	RequireActivationSuccessUpdate   bool
+	RequireNotificationSuccess       bool
+	RequireNotificationSuccessUpdate bool
+
+	UseSyntheticPoRep bool
 }
 
 func defaultMinerSealingConfig() MinerSealingConfig {
 	return MinerSealingConfig{
 		SealingEpochDuration: 0,
-		UseSyntheticPoRep:    false,
+
+		// Whether to abort if any sector activation in a batch fails (newly sealed sectors, only with ProveCommitSectors3).
+		RequireActivationSuccess: false,
+		// Whether to abort if any piece activation notification returns a non-zero exit code (newly sealed sectors, only with ProveCommitSectors3).
+		RequireActivationSuccessUpdate: false,
+		// Whether to abort if any sector activation in a batch fails (updating sectors, only with ProveReplicaUpdates3).
+		RequireNotificationSuccess: false,
+		// Whether to abort if any piece activation notification returns a non-zero exit code (updating sectors, only with ProveReplicaUpdates3).
+		RequireNotificationSuccessUpdate: false,
+
+		UseSyntheticPoRep: false,
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
+	dmaddress "github.com/ipfs-force-community/damocles/damocles-manager/modules/address"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/commitmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/dealmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/mock"
@@ -23,6 +24,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/worker"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
+	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/homedir"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
@@ -402,6 +404,8 @@ func BuildCommitmentManager(
 	rapi core.RandomnessAPI,
 	stmgr core.SectorStateManager,
 	minerAPI core.MinerAPI,
+	chain chainAPI.API,
+	lookupID core.LookupID,
 	scfg *modules.SafeConfig,
 	verif core.Verifier,
 	prover core.Prover,
@@ -417,6 +421,8 @@ func BuildCommitmentManager(
 		verif,
 		prover,
 		senderSelecotr,
+		chain,
+		lookupID,
 	)
 
 	if err != nil {
@@ -635,8 +641,12 @@ func BuildChainEventBus(
 	return bus, nil
 }
 
-func BuildSenderSelector(chainAPI chain.API) *sectors.SenderSelector {
-	return sectors.NewSenderSelector(chainAPI)
+func BuildLookupId(chainAPI chain.API) core.LookupID {
+	return dmaddress.NewCacheableLookupID(chainAPI)
+}
+
+func BuildSenderSelector(chainAPI chain.API, lookupID core.LookupID) *dmaddress.SenderSelector {
+	return dmaddress.NewSenderSelector(chainAPI, lookupID)
 }
 
 func BuildSnapUpManager(
@@ -651,9 +661,10 @@ func BuildSnapUpManager(
 	minerAPI core.MinerAPI,
 	stateMgr core.SectorStateManager,
 	store SnapUpMetaStore,
+	lookupID core.LookupID,
 	senderSelector core.SenderSelector,
 ) (core.SnapUpSectorManager, error) {
-	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerAPI, stateMgr, scfg, store, senderSelector)
+	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerAPI, stateMgr, scfg, store, lookupID, senderSelector)
 	if err != nil {
 		return nil, fmt.Errorf("construct snapup manager: %w", err)
 	}

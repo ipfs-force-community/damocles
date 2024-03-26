@@ -7,6 +7,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/actors"
 	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	"github.com/filecoin-project/go-state-types/network"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
@@ -38,7 +39,7 @@ func (pp PreCommitProcessor) sectorExpiration(ctx context.Context, state *core.S
 		return 0, fmt.Errorf("getting max prove commit duration: %w", err)
 	}
 
-	expiration, err := pp.sectorEnd(ctx, tok, height, state, mcfg.Sector.LifetimeDays, miner.WPoStProvingPeriod)
+	expiration, err := pp.sectorEnd(height, nv, state, mcfg.Sector.LifetimeDays, miner.WPoStProvingPeriod)
 	if err != nil {
 		return 0, fmt.Errorf("calculate sector end: %w", err)
 	}
@@ -60,25 +61,15 @@ func (pp PreCommitProcessor) sectorExpiration(ctx context.Context, state *core.S
 	return expiration, nil
 }
 
-func (pp PreCommitProcessor) sectorEnd(ctx context.Context, tok core.TipSetToken, height abi.ChainEpoch, state *core.SectorState, lifetimeDays uint64, provingPeriod abi.ChainEpoch) (abi.ChainEpoch, error) {
+func (pp PreCommitProcessor) sectorEnd(height abi.ChainEpoch, nv network.Version, state *core.SectorState, lifetimeDays uint64, provingPeriod abi.ChainEpoch) (abi.ChainEpoch, error) {
 	var end *abi.ChainEpoch
 
-	deals := state.Deals()
-
-	for _, p := range deals {
-		var endEpoch abi.ChainEpoch
-		if p.Proposal == nil {
-			proposal, err := pp.api.StateMarketStorageDealProposal(ctx, p.ID, tok)
-			if err != nil {
-				return 0, fmt.Errorf("get deal proposal for %d: %w", p.ID, err)
-			}
-
-			endEpoch = proposal.EndEpoch
-
-		} else {
-			endEpoch = p.Proposal.EndEpoch
+	for _, p := range state.SectorPiece() {
+		if !p.HasDealInfo() {
+			continue
 		}
 
+		endEpoch := p.EndEpoch()
 		if endEpoch < height {
 			log.Warnf("piece schedule %+v ended before current epoch %d", p, height)
 			continue
@@ -92,9 +83,9 @@ func (pp PreCommitProcessor) sectorEnd(ctx context.Context, tok core.TipSetToken
 
 	if end == nil {
 		// no deal pieces, get expiration for committed capacity sector
-		expirationDuration, err := pp.ccSectorLifetime(abi.ChainEpoch(lifetimeDays*policy.EpochsInDay), provingPeriod)
+		expirationDuration, err := pp.ccSectorLifetime(nv, abi.ChainEpoch(lifetimeDays*policy.EpochsInDay), provingPeriod)
 		if err != nil {
-			return 0, fmt.Errorf("get cc sector lifetime: %w", err)
+			return 0, fmt.Errorf("failed to get cc sector lifetime: %w", err)
 		}
 
 		tmp := height + expirationDuration
@@ -103,7 +94,7 @@ func (pp PreCommitProcessor) sectorEnd(ctx context.Context, tok core.TipSetToken
 
 	// Ensure there is at least one day for the PC message to land without falling below min sector lifetime
 	// TODO: The "one day" should probably be a config, though it doesn't matter too much
-	minExp := height + policy.GetMinSectorExpiration() + provingPeriod
+	minExp := height + policy.GetMinSectorExpiration() + miner.WPoStProvingPeriod
 	if *end < minExp {
 		end = &minExp
 	}
@@ -111,16 +102,7 @@ func (pp PreCommitProcessor) sectorEnd(ctx context.Context, tok core.TipSetToken
 	return *end, nil
 }
 
-func (pp PreCommitProcessor) ccSectorLifetime(ccLifetimeEpochs abi.ChainEpoch, provingPeriod abi.ChainEpoch) (abi.ChainEpoch, error) {
-	ctx := context.Background()
-	tok, _, err := pp.api.ChainHead(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("get chain head: %w", err)
-	}
-	nv, err := pp.api.StateNetworkVersion(ctx, tok)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get network version: %w", err)
-	}
+func (pp PreCommitProcessor) ccSectorLifetime(nv network.Version, ccLifetimeEpochs abi.ChainEpoch, provingPeriod abi.ChainEpoch) (abi.ChainEpoch, error) {
 	maxExpiration, err := policy.GetMaxSectorExpirationExtension(nv)
 	if err != nil {
 		return 0, fmt.Errorf("get max sector expiration extension: %w", err)

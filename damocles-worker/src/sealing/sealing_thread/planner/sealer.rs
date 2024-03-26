@@ -42,6 +42,7 @@ impl PlannerTrait for SealerPlanner {
 
             State::Allocated => {
                 Event::AcquireDeals(_) => State::DealsAcquired,
+                Event::AcquireDealsV2(_) => State::DealsAcquired,
             },
 
             State::DealsAcquired => {
@@ -214,7 +215,7 @@ impl<'t> Sealer<'t> {
             return Ok(if self.task.sealing_ctrl.config().disable_cc {
                 Event::Idle
             } else {
-                Event::AcquireDeals(None)
+                Event::AcquireDealsV2(None)
             });
         }
 
@@ -236,7 +237,7 @@ impl<'t> Sealer<'t> {
 
         Ok(
             if !self.task.sealing_ctrl.config().disable_cc || deals_count > 0 {
-                Event::AcquireDeals(deals)
+                Event::AcquireDealsV2(deals)
             } else {
                 Event::Idle
             },
@@ -244,10 +245,8 @@ impl<'t> Sealer<'t> {
     }
 
     fn handle_deals_acquired(&self) -> Result<Event, Failure> {
-        let pieces = common::add_pieces(
-            self.task,
-            self.task.sector.deals.as_ref().unwrap_or(&Vec::new()),
-        )?;
+        let deals = self.task.sector.deals();
+        let pieces = common::add_pieces(self.task, &deals)?;
 
         Ok(Event::AddPiece(pieces))
     }
@@ -306,19 +305,10 @@ impl<'t> Sealer<'t> {
             self.task.sector.phases.ticket.as_ref().cloned()
         }
 
-        let deals = self
-            .task
-            .sector
-            .deals
-            .as_ref()
-            .map(|d| d.iter().map(|i| i.id).collect())
-            .unwrap_or_default();
-
         let pinfo = PreCommitOnChainInfo {
             comm_r,
             comm_d,
             ticket,
-            deals,
         };
 
         let res = call_rpc! {
