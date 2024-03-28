@@ -533,6 +533,7 @@ type MinerPoStConfig struct {
 	Confidence                      uint64
 	SubmitConfidence                uint64
 	ChallengeConfidence             uint64
+	RetryNum                        uint64
 	MaxRecoverSectorLimit           uint64
 	MaxPartitionsPerPoStMessage     uint64
 	MaxPartitionsPerRecoveryMessage uint64
