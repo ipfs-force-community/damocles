@@ -19,7 +19,7 @@ func NewDealManager() core.DealManager {
 type nullDeal struct {
 }
 
-func (*nullDeal) Acquire(_ context.Context, _ abi.SectorID, spec core.AcquireDealsSpec, _ *core.AcquireDealsLifetime, _ core.SectorWorkerJob) (core.Deals, error) {
+func (*nullDeal) Acquire(_ context.Context, _ abi.SectorID, spec core.AcquireDealsSpec, _ *core.AcquireDealsLifetime, _ core.SectorWorkerJob) (core.SectorPieces, error) {
 	b, err := json.Marshal(spec)
 	if err != nil {
 		return nil, fmt.Errorf("marshal core.AcquireDealsSpec: %w", err)
@@ -29,6 +29,9 @@ func (*nullDeal) Acquire(_ context.Context, _ abi.SectorID, spec core.AcquireDea
 	return nil, nil
 }
 
-func (*nullDeal) Release(context.Context, abi.SectorID, core.Deals) error {
+func (*nullDeal) Release(context.Context, abi.SectorID, core.SectorPieces) error {
+	return nil
+}
+func (*nullDeal) ReleaseLegacyDeal(context.Context, abi.SectorID, core.Deals) error {
 	return nil
 }

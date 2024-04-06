@@ -85,6 +85,28 @@ pub struct DealInfo {
     pub piece: PieceInfo,
 }
 
+/// sector piece info
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SectorPiece {
+    pub piece: PieceInfoV2,
+
+    /// piece data info
+    pub deal_info: DealInfoV2,
+}
+
+/// deal piece info v2
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct DealInfoV2 {
+    #[serde(rename = "DealID")]
+    pub deal_id: DealID,
+    #[serde(rename = "AllocationID")]
+    pub allocation_id: u64,
+    pub payload_size: u64,
+    pub is_builtin_market: bool,
+}
+
 /// Piece information for part or a whole file.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
@@ -98,12 +120,23 @@ pub struct PieceInfo {
     pub cid: CidJson,
 }
 
+/// Piece information for part or a whole file.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct PieceInfoV2 {
+    /// Size in nodes. For BLS12-381 (capacity 254 bits), must be >= 16. (16 * 8 = 128).
+    pub size: PaddedPieceSize,
+    #[serde(rename = "PieceCID")]
+    pub piece_cid: CidJson,
+}
+
 fn default_padded_byte_amount() -> PaddedBytesAmount {
     PaddedBytesAmount(0)
 }
 
 /// types alias for deal piece info list
 pub type Deals = Vec<DealInfo>;
+pub type DealsV2 = Vec<SectorPiece>;
 
 /// rules for acquiring deal pieces within specified sector
 #[derive(Serialize, Deserialize)]
@@ -183,9 +216,6 @@ pub struct PreCommitOnChainInfo {
 
     /// assigned ticket
     pub ticket: Ticket,
-
-    /// included deal ids
-    pub deals: Vec<DealID>,
 }
 
 /// required infos for proof
@@ -317,11 +347,11 @@ pub struct SectorPrivateInfo {
     pub access_instance: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct AllocatedSnapUpSector {
     pub sector: AllocatedSector,
-    pub pieces: Deals,
+    pub pieces: DealsV2,
     pub public: SectorPublicInfo,
     pub private: SectorPrivateInfo,
 }
@@ -377,6 +407,7 @@ pub struct SectorRebuildInfo {
     pub sector: AllocatedSector,
     pub ticket: Ticket,
     pub pieces: Option<Deals>,
+    pub pieces_v2: Option<DealsV2>,
 
     #[serde(rename = "IsSnapUp")]
     pub is_snapup: bool,
@@ -464,7 +495,7 @@ pub trait Sealer {
         &self,
         id: SectorID,
         spec: AcquireDealsSpec,
-    ) -> Result<Option<Deals>>;
+    ) -> Result<Option<DealsV2>>;
 
     /// api definition
     #[rpc(name = "Venus.AssignTicket")]

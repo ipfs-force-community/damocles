@@ -176,13 +176,12 @@ impl<'t> Rebuild<'t> {
     fn add_pieces_for_sealing(&self) -> Result<Event, Failure> {
         // if this is a snapup sector, then the deals should be used later
         let maybe_deals = if self.is_snapup() {
-            None
+            vec![]
         } else {
-            self.task.sector.deals.as_ref()
+            self.task.sector.deals()
         };
 
-        let pieces =
-            common::add_pieces(self.task, maybe_deals.unwrap_or(&Vec::new()))?;
+        let pieces = common::add_pieces(self.task, &maybe_deals)?;
 
         Ok(Event::AddPiece(pieces))
     }
@@ -233,9 +232,9 @@ impl<'t> Rebuild<'t> {
             return Ok(Event::SkipSnap);
         }
 
-        field_required!(deals, self.task.sector.deals.as_ref());
+        let deals = self.task.sector.deals();
 
-        common::add_pieces(self.task, deals).map(Event::AddPiece)
+        common::add_pieces(self.task, &deals).map(Event::AddPiece)
     }
 
     fn build_tree_d_for_snapup(&self) -> Result<Event, Failure> {

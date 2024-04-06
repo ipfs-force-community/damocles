@@ -24,6 +24,8 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	mpolicy "github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
+	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util/piece"
+	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util/pledge"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
@@ -38,6 +40,7 @@ func NewSnapUpCommitter(
 	messagerAPI messager.API,
 	stateMgr core.SectorStateManager,
 	scfg *modules.SafeConfig,
+	lookupID core.LookupID,
 	senderSelector core.SenderSelector,
 ) (*SnapUpCommitter, error) {
 	ctx, cancel := context.WithCancel(ctx)
@@ -52,6 +55,7 @@ func NewSnapUpCommitter(
 		state:          stateMgr,
 		senderSelector: senderSelector,
 		scfg:           scfg,
+		lookupID:       lookupID,
 		jobs:           map[abi.SectorID]context.CancelFunc{},
 	}
 
@@ -70,6 +74,7 @@ type SnapUpCommitter struct {
 	state          core.SectorStateManager
 	senderSelector core.SenderSelector
 	scfg           *modules.SafeConfig
+	lookupID       core.LookupID
 
 	jobs     map[abi.SectorID]context.CancelFunc
 	jobsMu   sync.Mutex
@@ -358,23 +363,55 @@ func (h *snapupCommitHandler) submitMessage() error {
 		return newTempErr(fmt.Errorf("cannot upgrade sectors in immutable deadline: %d. sector: %s", sl.Deadline, util.FormatSectorID(h.state.ID)), delayTime)
 	}
 
-	enc := new(bytes.Buffer)
-	params := &stminer.ProveReplicaUpdatesParams{
-		Updates: []stminer.ReplicaUpdate{
-			{
-				SectorID:           h.state.ID.Number,
-				Deadline:           sl.Deadline,
-				Partition:          sl.Partition,
-				NewSealedSectorCID: h.state.UpgradedInfo.SealedCID,
-				Deals:              h.state.DealIDs(),
-				UpdateProofType:    updateProof,
-				ReplicaProof:       h.state.UpgradedInfo.Proof,
-			},
-		},
+	pams, deals, err := piece.ProcessPieces(h.committer.ctx, &h.state, h.committer.chain, h.committer.lookupID)
+	if err != nil {
+		return newTempErr(fmt.Errorf("failed to process pieces: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
 	}
 
-	if err := params.MarshalCBOR(enc); err != nil {
-		return fmt.Errorf("serialize params: %w", err)
+	var method abi.MethodNum
+	enc := new(bytes.Buffer)
+	if len(pams) > 0 {
+		// PRU3
+		params := &miner.ProveReplicaUpdates3Params{
+			SectorUpdates: []miner.SectorUpdateManifest{
+				{
+					Sector:       h.state.ID.Number,
+					Deadline:     sl.Deadline,
+					Partition:    sl.Partition,
+					NewSealedCID: h.state.UpgradedInfo.SealedCID,
+					Pieces:       pams,
+				},
+			},
+			SectorProofs:     [][]byte{h.state.UpgradedInfo.Proof},
+			UpdateProofsType: updateProof,
+			//AggregateProof
+			//AggregateProofType
+			RequireActivationSuccess:   mcfg.Sealing.RequireActivationSuccessUpdate,
+			RequireNotificationSuccess: mcfg.Sealing.RequireNotificationSuccessUpdate,
+		}
+		if err := params.MarshalCBOR(enc); err != nil {
+			return fmt.Errorf("serialize params: %w", err)
+		}
+		method = builtin.MethodsMiner.ProveReplicaUpdates3
+	} else {
+		params := &stminer.ProveReplicaUpdatesParams2{
+			Updates: []stminer.ReplicaUpdate2{
+				{
+					SectorID:             h.state.ID.Number,
+					Deadline:             sl.Deadline,
+					Partition:            sl.Partition,
+					NewSealedSectorCID:   h.state.UpgradedInfo.SealedCID,
+					NewUnsealedSectorCID: h.state.UpgradedInfo.UnsealedCID,
+					Deals:                deals,
+					UpdateProofType:      updateProof,
+					ReplicaProof:         h.state.UpgradedInfo.Proof,
+				},
+			},
+		}
+		if err := params.MarshalCBOR(enc); err != nil {
+			return fmt.Errorf("serialize params: %w", err)
+		}
+		method = builtin.MethodsMiner.ProveReplicaUpdates2
 	}
 
 	msgValue := types.NewInt(0)
@@ -395,7 +432,7 @@ func (h *snapupCommitHandler) submitMessage() error {
 	msg := types.Message{
 		From:      sender,
 		To:        h.maddr,
-		Method:    builtin.MethodsMiner.ProveReplicaUpdates,
+		Method:    method,
 		Params:    enc.Bytes(),
 		Value:     msgValue,
 		GasFeeCap: mcfg.SnapUp.GetGasFeeCap().Std(),
@@ -454,24 +491,15 @@ func (h *snapupCommitHandler) calcCollateral(tsk types.TipSetKey, proofType abi.
 		return big.Int{}, fmt.Errorf("get seal proof type: %w", err)
 	}
 
-	virtualPCI := stminer.SectorPreCommitInfo{
-		SealProof:    sealType,
-		SectorNumber: h.state.ID.Number,
-		SealedCID:    h.state.UpgradedInfo.SealedCID,
-		//SealRandEpoch: 0,
-		DealIDs:    h.state.DealIDs(),
-		Expiration: onChainInfo.Expiration,
-		//ReplaceCapacity: false,
-		//ReplaceSectorDeadline: 0,
-		//ReplaceSectorPartition: 0,
-		//ReplaceSectorNumber: 0,
-	}
-
-	collateral, err := h.committer.chain.StateMinerInitialPledgeCollateral(h.committer.ctx, h.maddr, virtualPCI, tsk)
+	weightUpdate, err := pledge.SectorWeight(h.committer.ctx, &h.state, sealType, h.committer.chain, onChainInfo.Expiration)
 	if err != nil {
-		return big.Int{}, fmt.Errorf("getting initial pledge collateral: %w", err)
+		return big.Int{}, fmt.Errorf("get sector weight: %w", err)
 	}
 
+	collateral, err := pledge.CalcPledgeForPower(h.committer.ctx, h.committer.chain, weightUpdate)
+	if err != nil {
+		return big.Int{}, fmt.Errorf("get pledge for power: %w", err)
+	}
 	collateral = big.Sub(collateral, onChainInfo.InitialPledge)
 	if collateral.LessThan(big.Zero()) {
 		collateral = big.Zero()

@@ -7,6 +7,7 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
@@ -31,7 +32,7 @@ type DealManager struct {
 	acquireMu sync.Mutex
 }
 
-func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec, lifetime *core.AcquireDealsLifetime, job core.SectorWorkerJob) (core.Deals, error) {
+func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec, lifetime *core.AcquireDealsLifetime, job core.SectorWorkerJob) (core.SectorPieces, error) {
 	mcfg, err := dm.scfg.MinerConfig(sid.Miner)
 	if err != nil {
 		return nil, fmt.Errorf("get miner config: %w", err)
@@ -74,52 +75,84 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.
 	dm.acquireMu.Lock()
 	defer dm.acquireMu.Unlock()
 
-	dinfos, err := dm.market.AssignUnPackedDeals(ctx, sid, minfo.SectorSize, mspec)
+	dinfos, err := dm.market.AssignDeals(ctx, sid, minfo.SectorSize, mspec)
 	if err != nil {
 		return nil, fmt.Errorf("assign non-packed deals: %w", err)
 	}
 
-	deals := make(core.Deals, 0, len(dinfos))
+	deals := make(core.SectorPieces, 0, len(dinfos))
 	for di := range dinfos {
 		dinfo := dinfos[di]
-		var proposal *core.DealProposal
-		if dinfo.DealID != 0 {
-			proposal = &dinfo.DealProposal
-		}
-
-		deals = append(deals, core.DealInfo{
-			ID:          dinfo.DealID,
-			PayloadSize: dinfo.PayloadSize,
-			Piece: core.PieceInfo{
-				Cid:    dinfo.PieceCID,
-				Size:   dinfo.PieceSize,
-				Offset: dinfo.Offset,
+		deals = append(deals, core.SectorPieceV2{
+			Piece: abi.PieceInfo{
+				Size:     dinfo.PieceSize,
+				PieceCID: dinfo.PieceCID,
 			},
-			Proposal: proposal,
+			DealInfo: &core.DealInfoV2{
+				DealInfoV2:      dinfo,
+				IsBuiltinMarket: dinfo.IsBuiltinMarket(),
+			},
 		})
 	}
 
 	return deals, nil
 }
 
-func (dm *DealManager) Release(ctx context.Context, sid abi.SectorID, deals core.Deals) error {
+func (dm *DealManager) Release(ctx context.Context, sid abi.SectorID, deals core.SectorPieces) error {
 	maddr, err := address.NewIDAddress(uint64(sid.Miner))
 	if err != nil {
 		return fmt.Errorf("invalid miner id %d: %w", sid.Miner, err)
 	}
 
-	dealIDs := make([]abi.DealID, 0, len(deals))
+	builtinMarketDealIDs := make([]abi.DealID, 0)
+	ddoAllocationIDs := make([]types.AllocationId, 0)
+
 	for i := range deals {
-		dealID := deals[i].ID
-		if dealID == 0 {
+		if !deals[i].HasDealInfo() {
 			continue
 		}
-		dealIDs = append(dealIDs, dealID)
-	}
-	err = dm.market.ReleaseDeals(ctx, maddr, dealIDs)
-	if err != nil {
-		return fmt.Errorf("get errors in some or all of the requests: %w", err)
+
+		if deals[i].IsBuiltinMarket() {
+			builtinMarketDealIDs = append(builtinMarketDealIDs, deals[i].DealID())
+		} else {
+			ddoAllocationIDs = append(ddoAllocationIDs, deals[i].AllocationID())
+		}
 	}
 
+	if len(builtinMarketDealIDs) > 0 {
+		err = dm.market.ReleaseDeals(ctx, maddr, builtinMarketDealIDs)
+		if err != nil {
+			return fmt.Errorf("release builtin market deals: %w", err)
+		}
+	}
+
+	if len(ddoAllocationIDs) > 0 {
+		err = dm.market.ReleaseDirectDeals(ctx, maddr, ddoAllocationIDs)
+		if err != nil {
+			return fmt.Errorf("release ddo deals: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (dm *DealManager) ReleaseLegacyDeal(ctx context.Context, sid abi.SectorID, deals core.Deals) error {
+	maddr, err := address.NewIDAddress(uint64(sid.Miner))
+	if err != nil {
+		return fmt.Errorf("invalid miner id %d: %w", sid.Miner, err)
+	}
+
+	builtinMarketDealIDs := make([]abi.DealID, 0)
+
+	for i := range deals {
+		builtinMarketDealIDs = append(builtinMarketDealIDs, deals[i].ID)
+	}
+
+	if len(builtinMarketDealIDs) > 0 {
+		err = dm.market.ReleaseDeals(ctx, maddr, builtinMarketDealIDs)
+		if err != nil {
+			return fmt.Errorf("release builtin market deals: %w", err)
+		}
+	}
 	return nil
 }

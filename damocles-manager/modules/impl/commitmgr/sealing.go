@@ -16,6 +16,7 @@ import (
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/market"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/verifreg"
 	"github.com/filecoin-project/venus/venus-shared/blockstore"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
@@ -126,6 +127,30 @@ func (s SealingAPIImpl) StateMarketStorageDealProposal(ctx context.Context, id a
 	}
 
 	return deal.Proposal, nil
+}
+
+func (s SealingAPIImpl) StateGetAllocationIdForPendingDeal(ctx context.Context, dealID abi.DealID, tst core.TipSetToken) (verifreg.AllocationId, error) {
+	tsk, err := types.TipSetKeyFromBytes(tst)
+	if err != nil {
+		return verifreg.AllocationId(0), err
+	}
+	return s.api.StateGetAllocationIdForPendingDeal(ctx, dealID, tsk)
+}
+
+func (s SealingAPIImpl) StateGetAllocationForPendingDeal(ctx context.Context, dealID abi.DealID, tst core.TipSetToken) (*types.Allocation, error) {
+	tsk, err := types.TipSetKeyFromBytes(tst)
+	if err != nil {
+		return nil, err
+	}
+	return s.api.StateGetAllocationForPendingDeal(ctx, dealID, tsk)
+}
+
+func (s SealingAPIImpl) StateGetAllocation(ctx context.Context, clientAddr address.Address, allocationID types.AllocationId, tst core.TipSetToken) (*types.Allocation, error) {
+	tsk, err := types.TipSetKeyFromBytes(tst)
+	if err != nil {
+		return nil, err
+	}
+	return s.api.StateGetAllocation(ctx, clientAddr, allocationID, tsk)
 }
 
 func (s SealingAPIImpl) StateMinerInfo(ctx context.Context, address address.Address, token core.TipSetToken) (types.MinerInfo, error) {

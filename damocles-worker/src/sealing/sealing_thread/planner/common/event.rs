@@ -5,7 +5,8 @@ use anyhow::{anyhow, Result};
 use super::sector::{Base, Finalized, Sector, State, UnsealInput};
 use super::task::Task;
 use crate::rpc::sealer::{
-    AllocatedSector, Deals, SectorRebuildInfo, SectorUnsealInfo, Seed, Ticket,
+    AllocatedSector, Deals, DealsV2, SectorRebuildInfo, SectorUnsealInfo, Seed,
+    Ticket,
 };
 use crate::sealing::processor::{
     to_prover_id, PieceInfo, SealCommitPhase1Output, SealCommitPhase2Output,
@@ -28,6 +29,7 @@ pub(crate) enum Event {
     Allocate(AllocatedSector),
 
     AcquireDeals(Option<Deals>),
+    AcquireDealsV2(Option<DealsV2>),
 
     AddPiece(Vec<PieceInfo>),
 
@@ -66,7 +68,7 @@ pub(crate) enum Event {
     Finish,
 
     // for snap up
-    AllocatedSnapUpSector(AllocatedSector, Deals, Finalized),
+    AllocatedSnapUpSector(AllocatedSector, DealsV2, Finalized),
 
     SnapEncode(SnapEncodeOutput),
 
@@ -100,7 +102,7 @@ impl Debug for Event {
 
             Self::Allocate(_) => "Allocate",
 
-            Self::AcquireDeals(_) => "AcquireDeals",
+            Self::AcquireDeals(_) | Self::AcquireDealsV2(_) => "AcquireDeals",
 
             Self::AddPiece(_) => "AddPiece",
 
@@ -212,7 +214,11 @@ impl Event {
             }
 
             Self::AcquireDeals(deals) => {
-                mem_replace!(s.deals, deals);
+                s.set_deals(deals);
+            }
+
+            Self::AcquireDealsV2(deals) => {
+                s.set_deals_v2(deals);
             }
 
             Self::AddPiece(pieces) => {
@@ -275,7 +281,7 @@ impl Event {
             // for snap up
             Self::AllocatedSnapUpSector(sector, deals, finalized) => {
                 Self::Allocate(sector).apply_changes(s);
-                replace!(s.deals, deals);
+                s.set_deals_v2(Some(deals));
                 replace!(s.finalized, finalized);
             }
 
@@ -290,7 +296,12 @@ impl Event {
             // for rebuild
             Self::AllocatedRebuildSector(rebuild) => {
                 Self::Allocate(rebuild.sector).apply_changes(s);
-                Self::AcquireDeals(rebuild.pieces).apply_changes(s);
+
+                if rebuild.pieces.is_some() {
+                    Self::AcquireDeals(rebuild.pieces).apply_changes(s)
+                } else if rebuild.pieces_v2.is_some() {
+                    Self::AcquireDealsV2(rebuild.pieces_v2).apply_changes(s)
+                }
                 Self::AssignTicket(Some(rebuild.ticket)).apply_changes(s);
                 mem_replace!(
                     s.finalized,

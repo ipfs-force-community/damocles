@@ -21,8 +21,9 @@ import (
 	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
-	"github.com/filecoin-project/go-state-types/builtin"
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
+	minertypes13 "github.com/filecoin-project/go-state-types/builtin/v13/miner"
+	verifreg13 "github.com/filecoin-project/go-state-types/builtin/v13/verifreg"
 	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	"github.com/filecoin-project/venus/pkg/util/fr32"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/verifreg"
@@ -101,9 +102,6 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsRebuildCmd,
 		utilSealerSectorsExportCmd,
 		utilSealerSectorsUnsealCmd,
-
-		// todo: consider add this command back until next update in which FIP0070 maybe be in scope
-		// utilSealerSectorsMovePartitionsCmd,
 	},
 }
 
@@ -973,7 +971,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 			}
 		}
 
-		verifregAct, err := fapi.Chain.StateGetActor(ctx, builtin.VerifiedRegistryActorAddr, types.EmptyTSK)
+		verifregAct, err := fapi.Chain.StateGetActor(ctx, stbuiltin.VerifiedRegistryActorAddr, types.EmptyTSK)
 		if err != nil {
 			return fmt.Errorf("failed to lookup verifreg actor: %w", err)
 		}
@@ -1048,7 +1046,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 									// FIP-0045 requires the claim minimum duration to have passed
 									currEpoch <= (claim.TermStart+claim.TermMin) ||
 									// FIP-0045 requires the sector to be in its last 30 days of life
-									(currEpoch <= sectorInfo.Expiration-builtin.EndOfLifeClaimDropPeriod) {
+									(currEpoch <= sectorInfo.Expiration-stbuiltin.EndOfLifeClaimDropPeriod) {
 									fmt.Printf("skipping sector %d because claim %d does not live long enough \n", sectorNumber, claimID)
 									cannotExtendSector = true
 									break
@@ -1412,13 +1410,20 @@ var utilSealerSectorsStateCmd = &cli.Command{
 
 		// Deals
 		fmt.Fprintln(os.Stdout, "\nDeals:")
-		deals := state.Deals()
-		if len(deals) == 0 {
+		if !state.HasData() {
 			fmt.Fprintln(os.Stdout, "\tNULL")
 		} else {
-			for _, deal := range deals {
-				fmt.Fprintf(os.Stdout, "\tID: %d\n", deal.ID)
-				fmt.Fprintf(os.Stdout, "\tPiece: %v\n", deal.Piece)
+			for _, piece := range state.SectorPiece() {
+				if !piece.HasDealInfo() {
+					continue
+				}
+				if piece.IsBuiltinMarket() {
+					fmt.Fprintf(os.Stdout, "\tDealID: %s\n", piece.DisplayDealID())
+				} else {
+					fmt.Fprintf(os.Stdout, "\tAllocID: %s\n", piece.DisplayDealID())
+				}
+				pieceInfo := piece.PieceInfo()
+				fmt.Fprintf(os.Stdout, "\tPiece: { cid: %s; size: %d; offset: %d }\n", pieceInfo.Cid, pieceInfo.Size, pieceInfo.Offset)
 			}
 		}
 
@@ -2087,9 +2092,9 @@ var utilSealerSectorsExportFilesCmd = &cli.Command{
 	},
 }
 
-func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo, cli api.StorageMiner) (*core.SectorState, error) {
+func sectorInfo2SectorState(sid abi.SectorID, lotusSectorInfo *lotusminer.SectorInfo, cli api.StorageMiner) (*core.SectorState, error) {
 	var upgraded core.SectorUpgraded
-	switch lotusminer.SectorState(sinfo.State) {
+	switch lotusminer.SectorState(lotusSectorInfo.State) {
 	case lotusminer.FinalizeSector, lotusminer.Proving:
 
 	case lotusminer.FinalizeReplicaUpdate,
@@ -2098,69 +2103,93 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo, cli 
 		upgraded = true
 
 	default:
-		return nil, fmt.Errorf("unexpected sector state %s", sinfo.State)
+		return nil, fmt.Errorf("unexpected sector state %s", lotusSectorInfo.State)
 	}
 
-	if sinfo.CommD == nil {
+	if lotusSectorInfo.CommD == nil {
 		return nil, fmt.Errorf("no comm_d")
 	}
 
-	if sinfo.CommR == nil {
+	if lotusSectorInfo.CommR == nil {
 		return nil, fmt.Errorf("no comm_r")
 	}
 
-	commR, err := util.CID2ReplicaCommitment(*sinfo.CommR)
+	commR, err := util.CID2ReplicaCommitment(*lotusSectorInfo.CommR)
 	if err != nil {
 		return nil, fmt.Errorf("convert comm_r cid to commitment: %w", err)
 	}
 
-	if len(sinfo.Proof) == 0 {
+	if len(lotusSectorInfo.Proof) == 0 {
 		return nil, fmt.Errorf("no proof")
 	}
 
-	if len(sinfo.Ticket.Value) == 0 {
+	if len(lotusSectorInfo.Ticket.Value) == 0 {
 		return nil, fmt.Errorf("no ticket")
 	}
 
-	if len(sinfo.Seed.Value) == 0 {
+	if len(lotusSectorInfo.Seed.Value) == 0 {
 		return nil, fmt.Errorf("no seed")
 	}
 
 	ticket := core.Ticket{
-		Epoch:  sinfo.Ticket.Epoch,
-		Ticket: abi.Randomness(sinfo.Ticket.Value),
+		Epoch:  lotusSectorInfo.Ticket.Epoch,
+		Ticket: abi.Randomness(lotusSectorInfo.Ticket.Value),
 	}
 
 	// pieces
-	pieces := make(core.Deals, 0, len(sinfo.Pieces))
-	dealIDs := make([]abi.DealID, 0, len(sinfo.Pieces))
-	for pi := range sinfo.Pieces {
-		ipiece := sinfo.Pieces[pi]
-		spiece := core.DealInfo{}
+	pieces := make(core.SectorPieces, 0, len(lotusSectorInfo.Pieces))
+	for pi := range lotusSectorInfo.Pieces {
+		lotusPiece := lotusSectorInfo.Pieces[pi]
+		spiece := core.SectorPieceV2{
+			Piece:    lotusPiece.Piece,
+			DealInfo: nil,
+		}
 
-		if ipiece.DealInfo != nil {
-			if ipiece.DealInfo.DealID != 0 {
-				dealIDs = append(dealIDs, ipiece.DealInfo.DealID)
-				spiece.ID = ipiece.DealInfo.DealID
-				spiece.IsCompatible = true
+		if lotusPiece.DealInfo != nil {
+			spiece.DealInfo = &core.DealInfoV2{
+				DealInfoV2: &marketTypes.DealInfoV2{
+					DealID:    lotusPiece.DealInfo.DealID,
+					PieceCID:  lotusPiece.DealInfo.PieceCID(),
+					PieceSize: lotusPiece.Piece.Size,
+				},
+				IsBuiltinMarket: lotusPiece.DealInfo.PublishCid != nil,
 			}
 
-			spiece.Piece = core.PieceInfo{
-				Size: ipiece.Piece.Size,
-				Cid:  ipiece.Piece.PieceCID,
-				// Offset: ,
+			if lotusPiece.DealInfo.PublishCid == nil {
+				// "Old" builtin-market deal
+				spiece.DealInfo.PublishCid = *lotusPiece.DealInfo.PublishCid
+				spiece.DealInfo.DealID = lotusPiece.DealInfo.DealID
+				spiece.DealInfo.Client = lotusPiece.DealInfo.DealProposal.Client
+				spiece.DealInfo.Provider = lotusPiece.DealInfo.DealProposal.Provider
+			} else {
+				// DDO deal
+				spiece.DealInfo.AllocationID = types.AllocationId(lotusPiece.DealInfo.PieceActivationManifest.VerifiedAllocationKey.ID)
+				if spiece.DealInfo.Client, err = address.NewIDAddress(uint64(lotusPiece.DealInfo.PieceActivationManifest.VerifiedAllocationKey.Client)); err != nil {
+					return nil, fmt.Errorf("invalid client(%s): %w", lotusPiece.DealInfo.PieceActivationManifest.VerifiedAllocationKey.Client, err)
+				}
 			}
-			spiece.Proposal = ipiece.DealInfo.DealProposal
+			if spiece.DealInfo.StartEpoch, err = lotusPiece.DealInfo.StartEpoch(); err != nil {
+				return nil, fmt.Errorf("get deal start epoch: %w", err)
+			}
+			if spiece.DealInfo.EndEpoch, err = lotusPiece.DealInfo.EndEpoch(); err != nil {
+				return nil, fmt.Errorf("get deal start epoch: %w", err)
+			}
 
-			pieceInfo, err := cli.PiecesGetPieceInfo(context.Background(), ipiece.Piece.PieceCID)
+			if lotusPiece.DealInfo.DealID != 0 {
+				spiece.DealInfo.DealID = lotusPiece.DealInfo.DealID
+				spiece.DealInfo.IsCompatible = true
+			}
+
+			pieceInfo, err := cli.PiecesGetPieceInfo(context.Background(), lotusPiece.Piece.PieceCID)
 			if err != nil {
-				fmt.Fprintf(os.Stdout, "get piece info %s: %s\n", ipiece.Piece.PieceCID, err)
+				fmt.Fprintf(os.Stdout, "get piece info %s: %s\n", lotusPiece.Piece.PieceCID, err)
 			} else if pieceInfo == nil {
-				fmt.Fprintf(os.Stdout, "piece info not found %s\n", ipiece.Piece.PieceCID)
+				fmt.Fprintf(os.Stdout, "piece info not found %s\n", lotusPiece.Piece.PieceCID)
 			} else {
 				for _, deal := range pieceInfo.Deals {
-					if deal.DealID == ipiece.DealInfo.DealID {
-						spiece.Piece.Offset = deal.Offset
+					if deal.DealID == lotusPiece.DealInfo.DealID {
+						spiece.DealInfo.Offset = deal.Offset
+						spiece.DealInfo.Length = deal.Length
 						break
 					}
 				}
@@ -2171,33 +2200,28 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo, cli 
 		pieces = append(pieces, spiece)
 	}
 
-	if len(dealIDs) == 0 {
-		pieces = pieces[:0]
-	}
-
 	state := &core.SectorState{
 		ID:         sid,
-		SectorType: sinfo.SealProof,
+		SectorType: lotusSectorInfo.SealProof,
 
 		Ticket: &ticket,
 		Seed: &core.Seed{
-			Epoch: sinfo.Seed.Epoch,
-			Seed:  abi.Randomness(sinfo.Seed.Value),
+			Epoch: lotusSectorInfo.Seed.Epoch,
+			Seed:  abi.Randomness(lotusSectorInfo.Seed.Value),
 		},
 		Pieces: pieces,
 		Pre: &core.PreCommitInfo{
-			CommR:  *sinfo.CommR,
-			CommD:  *sinfo.CommD,
+			CommR:  *lotusSectorInfo.CommR,
+			CommD:  *lotusSectorInfo.CommD,
 			Ticket: ticket,
-			Deals:  dealIDs,
 		},
 		Proof: &core.ProofInfo{
-			Proof: sinfo.Proof,
+			Proof: lotusSectorInfo.Proof,
 		},
 
 		MessageInfo: core.MessageInfo{
-			PreCommitCid: sinfo.PreCommitMsg,
-			CommitCid:    sinfo.CommitMsg,
+			PreCommitCid: lotusSectorInfo.PreCommitMsg,
+			CommitCid:    lotusSectorInfo.CommitMsg,
 		},
 
 		Finalized: true,
@@ -2210,16 +2234,16 @@ func sectorInfo2SectorState(sid abi.SectorID, sinfo *lotusminer.SectorInfo, cli 
 	if upgraded {
 		state.UpgradePublic = &core.SectorUpgradePublic{
 			CommR:      commR,
-			SealedCID:  *sinfo.CommR,
-			Activation: sinfo.Activation,
-			Expiration: sinfo.Expiration,
+			SealedCID:  *lotusSectorInfo.CommR,
+			Activation: lotusSectorInfo.Activation,
+			Expiration: lotusSectorInfo.Expiration,
 		}
 
 		// 这个零值行为在重建扇区时会作为判断依据，一旦改变，需要同步修正
 		state.UpgradedInfo = &core.SectorUpgradedInfo{}
 
-		if sinfo.ReplicaUpdateMessage != nil {
-			msgID := core.SectorUpgradeMessageID(sinfo.ReplicaUpdateMessage.String())
+		if lotusSectorInfo.ReplicaUpdateMessage != nil {
+			msgID := core.SectorUpgradeMessageID(lotusSectorInfo.ReplicaUpdateMessage.String())
 			state.UpgradeMessageID = &msgID
 		}
 
@@ -2253,11 +2277,6 @@ func sectorState2SectorInfo(ctx context.Context, api *APIClient, state *core.Sec
 		return c
 	}
 
-	unKnownCid := func() *cid.Cid {
-		c, _ := cid.Decode("bafy2bzacebp3shtrn43k7g3unredz7fxn4gj533d3o43tqn2p2ipxxhrvchve")
-		return &c
-	}
-
 	sector := lotusminer.SectorSealingInfo{}
 	sector.State = lotusminer.Proving
 	sector.SectorNumber = state.ID.Number
@@ -2266,20 +2285,31 @@ func sectorState2SectorInfo(ctx context.Context, api *APIClient, state *core.Sec
 
 	// Packing
 	// sector.CreationTime = 0
-	pieces := make([]lotusminer.SectorPiece, 0)
-	for pi := range state.Pieces {
-		piece := state.Pieces[pi]
-		pieces = append(pieces, lotusminer.SectorPiece{
+	pieces := make([]lotusminer.SafeSectorPiece, 0)
+	for _, sp := range state.SectorPiece() {
+		piece := sp.PieceInfo()
+		lotusPieceDealInfo := &lotusminer.PieceDealInfo{}
+		// Since damocles and lotus dealinfo are too different, only dealID or allocationID is exported here for the time being.
+		if sp.IsBuiltinMarket() {
+			lotusPieceDealInfo.DealID = sp.DealID()
+		} else {
+			lotusPieceDealInfo.PieceActivationManifest = &miner.PieceActivationManifest{
+				CID:  piece.Cid,
+				Size: piece.Size,
+				VerifiedAllocationKey: &minertypes13.VerifiedAllocationKey{
+					ID: verifreg13.AllocationId(sp.AllocationID()),
+				},
+				Notify: nil,
+			}
+		}
+
+		pieces = append(pieces, lotusminer.SafePiece(lotusminer.SectorPiece{
 			Piece: abi.PieceInfo{
-				Size:     piece.Piece.Size,
-				PieceCID: piece.Piece.Cid,
+				Size:     piece.Size,
+				PieceCID: piece.Cid,
 			},
-			DealInfo: &lotusminer.PieceDealInfo{
-				PublishCid:   unKnownCid(),
-				DealID:       piece.ID,
-				DealProposal: piece.Proposal,
-			},
-		})
+			DealInfo: lotusPieceDealInfo,
+		}))
 	}
 	sector.Pieces = pieces
 
@@ -2451,7 +2481,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		// get sector id
 		sectorID := abi.SectorID{} //nolint:all
 		// todo: rm sectorState when we can get deal by dealID
-		var sectorState *core.SectorState
+		// var sectorState *core.SectorState
 		if cctx.IsSet("actor") && cctx.IsSet("sector") {
 			miner := abi.ActorID(cctx.Uint64("actor"))
 			sector := abi.SectorNumber(cctx.Uint64("sector"))
@@ -2459,10 +2489,10 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 				Miner:  miner,
 				Number: sector,
 			}
-			sectorState, err = cli.Damocles.FindSectorInAllStates(gctx, sectorID)
-			if err != nil {
-				return fmt.Errorf("get sector info failed: %w", err)
-			}
+			// sectorState, err = cli.Damocles.FindSectorInAllStates(gctx, sectorID)
+			// if err != nil {
+			// return fmt.Errorf("get sector info failed: %w", err)
+			// }
 		} else if cctx.IsSet("actor") || cctx.IsSet("sector") {
 			return fmt.Errorf("flag \"--actor\" and \"--sector\" must be set together")
 		} else {
@@ -2474,7 +2504,7 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			if sector == nil {
 				return fmt.Errorf("no sector found with piece %s", pieceCid)
 			}
-			sectorState = sector
+			// sectorState = sector
 			sectorID = sector.ID
 		}
 
@@ -2483,46 +2513,46 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		var payloadSize uint64
 
 		// get piece info from market, or fall back to sector state
-		{
-			deals, err := cli.Market.MarketListIncompleteDeals(gctx, &marketTypes.StorageDealQueryParams{
-				PieceCID: pieceCid.String(),
-				Page: marketTypes.Page{
-					Limit: 100,
-				},
-			})
-			if err != nil {
-				Log.Warnf("retrival deal info: %s", err)
-			} else {
-			CHECK_LOOP:
-				for _, deal := range deals {
-					for _, dealInSectorState := range sectorState.Pieces {
-						if deal.DealID == dealInSectorState.ID {
-							offsetPadded = deal.Offset
-							sizePadded = deal.Proposal.PieceSize
-							payloadSize = deal.PayloadSize
+		// {
+		// 	deals, err := cli.Market.MarketListIncompleteDeals(gctx, &marketTypes.StorageDealQueryParams{
+		// 		PieceCID: pieceCid.String(),
+		// 		Page: marketTypes.Page{
+		// 			Limit: 100,
+		// 		},
+		// 	})
+		// 	if err != nil {
+		// 		Log.Warnf("retrival deal info: %s", err)
+		// 	} else {
+		// 	CHECK_LOOP:
+		// 		for _, deal := range deals {
+		// 			for _, dealInSectorState := range sectorState.SectorPiece() {
+		// 				if deal.DealID == dealInSectorState.ID {
+		// 					offsetPadded = deal.Offset
+		// 					sizePadded = deal.Proposal.PieceSize
+		// 					payloadSize = deal.PayloadSize
 
-							break CHECK_LOOP
-						}
-					}
-				}
-			}
+		// 					break CHECK_LOOP
+		// 				}
+		// 			}
+		// 		}
+		// 	}
 
-			if offsetPadded == math.MaxUint64 || sizePadded == 0 {
-				Log.Warnf("no matched deal found in market with sector %d and piece %s", sectorState.ID.Number, pieceCid)
-				// get piece info from sector state
-				for _, p := range sectorState.Pieces {
-					if pieceCid.Equals(p.Piece.Cid) {
-						if offsetPadded == math.MaxUint64 {
-							offsetPadded = p.Piece.Offset
-						}
-						if sizePadded == 0 {
-							sizePadded = p.Piece.Size
-						}
-						break
-					}
-				}
-			}
-		}
+		// 	if offsetPadded == math.MaxUint64 || sizePadded == 0 {
+		// 		Log.Warnf("no matched deal found in market with sector %d and piece %s", sectorState.ID.Number, pieceCid)
+		// 		// get piece info from sector state
+		// 		for _, p := range sectorState.Pieces {
+		// 			if pieceCid.Equals(p.PieceCID) {
+		// 				if offsetPadded == math.MaxUint64 {
+		// 					offsetPadded = p.Offset
+		// 				}
+		// 				if sizePadded == 0 {
+		// 					sizePadded = p.PieceSize
+		// 				}
+		// 				break
+		// 			}
+		// 		}
+		// 	}
+		// }
 
 		// allow cover offset and size by flag
 		if cctx.IsSet("offset") {
@@ -2652,142 +2682,3 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 		return nil
 	},
 }
-
-// var utilSealerSectorsMovePartitionsCmd = &cli.Command{
-// 	Name:  "move-partitions",
-// 	Usage: "move deadline of specified partitions from one to another",
-// 	Flags: []cli.Flag{
-// 		&cli.StringFlag{
-// 			Name:     "miner",
-// 			Usage:    "miner address",
-// 			Required: true,
-// 		},
-// 		&cli.Int64SliceFlag{
-// 			Name:  "partition-indices",
-// 			Usage: "Indices of partitions to update, separated by comma",
-// 		},
-// 		&cli.Uint64Flag{
-// 			Name:  "orig-deadline",
-// 			Usage: "Deadline to move partition from",
-// 		},
-// 		&cli.Uint64Flag{
-// 			Name:  "dest-deadline",
-// 			Usage: "Deadline to move partition to",
-// 		},
-// 		&cli.BoolFlag{
-// 			Name:  "really-do-it",
-// 			Usage: "Actually send transaction performing the action",
-// 			Value: false,
-// 		},
-// 		&cli.IntFlag{
-// 			Name:  "confidence",
-// 			Usage: "Number of epochs to wait for message confidence",
-// 			Value: 5,
-// 		},
-// 	},
-// 	Action: func(cctx *cli.Context) error {
-// 		if !cctx.Bool("really-do-it") {
-// 			fmt.Println("Pass --really-do-it to actually execute this action")
-// 			return nil
-// 		}
-
-// 		if cctx.Args().Present() {
-// 			return fmt.Errorf("please use flags to provide arguments")
-// 		}
-
-// 		maddr, err := ShouldAddress(cctx.String("miner"), false, true)
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		fmt.Printf("Miner: %s\n", color.BlueString("%s", maddr))
-
-// 		api, ctx, stop, err := extractAPI(cctx)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		defer stop()
-
-// 		minfo, err := api.Chain.StateMinerInfo(ctx, maddr, types.EmptyTSK)
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		origDeadline := cctx.Uint64("orig-deadline")
-// 		if origDeadline > miner.WPoStPeriodDeadlines {
-// 			return fmt.Errorf("orig-deadline %d out of range", origDeadline)
-// 		}
-// 		destDeadline := cctx.Uint64("dest-deadline")
-// 		if destDeadline > miner.WPoStPeriodDeadlines {
-// 			return fmt.Errorf("dest-deadline %d out of range", destDeadline)
-// 		}
-// 		if origDeadline == destDeadline {
-// 			return fmt.Errorf("dest-desdline cannot be the same as orig-deadline")
-// 		}
-
-// 		partitions := cctx.Int64Slice("partition-indices")
-// 		if len(partitions) == 0 {
-// 			return fmt.Errorf("must include at least one partition to move")
-// 		}
-
-// 		curPartitions, err := api.Chain.StateMinerPartitions(ctx, maddr, origDeadline, types.EmptyTSK)
-// 		if err != nil {
-// 			return fmt.Errorf("getting partitions for deadline %d: %w", origDeadline, err)
-// 		}
-// 		if len(partitions) > len(curPartitions) {
-// 			return fmt.Errorf("partition size(%d) cannot be bigger than current partition size(%d) for deadline %d", len(partitions), len(curPartitions), origDeadline)
-// 		}
-
-// 		fmt.Printf("Moving %d paritions\n", len(partitions))
-
-// 		partitionsBf := bitfield.New()
-// 		for _, partition := range partitions {
-// 			if partition >= int64(len(curPartitions)) {
-// 				return fmt.Errorf("partition index(%d) doesn't exist", partition)
-// 			}
-// 			partitionsBf.Set(uint64(partition))
-// 		}
-
-// 		params := minerV12.MovePartitionsParams{
-// 			OrigDeadline: origDeadline,
-// 			DestDeadline: destDeadline,
-// 			Partitions:   partitionsBf,
-// 		}
-
-// 		serializedParams, err := actors.SerializeParams(&params)
-// 		if err != nil {
-// 			return fmt.Errorf("serializing params: %w", err)
-// 		}
-
-// 		mid, err := api.Messager.PushMessage(ctx, &types.Message{
-// 			From:   minfo.Worker,
-// 			To:     maddr,
-// 			Method: builtin.MethodsMiner.MovePartitions,
-// 			Value:  big.Zero(),
-// 			Params: serializedParams,
-// 		}, nil)
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		fmt.Printf("MovePartitions Message CID: %s\n", mid)
-
-// 		// wait for it to get mined into a block
-// 		fmt.Printf("waiting for %d epochs for confirmation..\n", uint64(cctx.Int("confidence")))
-
-// 		wait, err := api.Messager.WaitMessage(ctx, mid, uint64(cctx.Int("confidence")))
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		// check it executed successfully
-// 		if wait.Receipt.ExitCode != 0 {
-// 			fmt.Println("Moving partitions failed!")
-// 			return err
-// 		}
-
-// 		fmt.Println("Move partition confirmed")
-
-// 		return nil
-// 	},
-// }
