@@ -100,7 +100,7 @@ var utilSealerSectorsCmd = &cli.Command{
 		utilSealerSectorsResendProveCommitCmd,
 		utilSealerSectorsImportCmd,
 		utilSealerSectorsRebuildCmd,
-		utilSealerSectorsExportCmd,
+		utilSealerSectorsExportToLotusCmd,
 		utilSealerSectorsUnsealCmd,
 	},
 }
@@ -1350,6 +1350,10 @@ var utilSealerSectorsStateCmd = &cli.Command{
 			Usage: "DEPRECATED: damocles-manager will load sector state in all state dbs",
 		},
 	},
+	Subcommands: []*cli.Command{
+		utilSealerSectorsStateExportJSONCmd,
+		utilSealerSectorsStateImportJSONCmd,
+	},
 	Action: func(cctx *cli.Context) error {
 		args := cctx.Args()
 		if args.Len() < 2 {
@@ -1382,109 +1386,7 @@ var utilSealerSectorsStateCmd = &cli.Command{
 		if err != nil {
 			return RPCCallError("FindSectorInAllStates", err)
 		}
-
-		fmt.Fprintf(os.Stdout, "Sector %s: \n", util.FormatSectorID(sid))
-		// Common
-		fmt.Fprintln(os.Stdout, "\nCommon:")
-		fmt.Fprintf(os.Stdout, "\tFinalized: %v\n", state.Finalized)
-		fmt.Fprintf(os.Stdout, "\tRemoved: %v\n", state.Removed)
-		abortReason := state.AbortReason
-		if abortReason == "" {
-			abortReason = "NULL"
-		}
-		fmt.Fprintf(os.Stdout, "\tAborting: \n\t\t%s\n", strings.ReplaceAll(abortReason, "\n", "\n\t\t"))
-
-		// LatestState
-		fmt.Fprintln(os.Stdout, "\nLatestState:")
-		fmt.Fprintf(os.Stdout, "\tState Change: %s\n", FormatOrNull(state.LatestState, func() string {
-			return fmt.Sprintf("%s => %s, by %s", state.LatestState.StateChange.Prev, state.LatestState.StateChange.Next, state.LatestState.StateChange.Event)
-		}))
-		fmt.Fprintf(os.Stdout, "\tWorker: %s\n", FormatOrNull(state.LatestState, func() string {
-			return fmt.Sprintf("%s(%s)", state.LatestState.Worker.Instance, state.LatestState.Worker.Location)
-		}))
-		fmt.Fprintf(os.Stdout, "\tFailure: %s\n", FormatOrNull(state.LatestState, func() string {
-			return FormatOrNull(state.LatestState.Failure, func() string {
-				return fmt.Sprintf("\n\t\t[%s] %s", state.LatestState.Failure.Level, strings.ReplaceAll(state.LatestState.Failure.Desc, "\n", "\n\t\t"))
-			})
-		}))
-
-		// Deals
-		fmt.Fprintln(os.Stdout, "\nDeals:")
-		if !state.HasData() {
-			fmt.Fprintln(os.Stdout, "\tNULL")
-		} else {
-			for _, piece := range state.SectorPiece() {
-				if !piece.HasDealInfo() {
-					continue
-				}
-				if piece.IsBuiltinMarket() {
-					fmt.Fprintf(os.Stdout, "\tDealID: %s\n", piece.DisplayDealID())
-				} else {
-					fmt.Fprintf(os.Stdout, "\tAllocID: %s\n", piece.DisplayDealID())
-				}
-				pieceInfo := piece.PieceInfo()
-				fmt.Fprintf(os.Stdout, "\tPiece: { cid: %s; size: %d; offset: %d }\n", pieceInfo.Cid, pieceInfo.Size, pieceInfo.Offset)
-			}
-		}
-
-		// Sealing
-		fmt.Fprintln(os.Stdout, "\nSealing:")
-		fmt.Fprintf(os.Stdout, "\tTicket: %s\n", FormatOrNull(state.Ticket, func() string {
-			return fmt.Sprintf("(%d) %x", state.Ticket.Epoch, state.Ticket.Ticket)
-		}))
-
-		fmt.Fprintf(os.Stdout, "\tPreCommit Info:\n\t\t%s\n", FormatOrNull(state.Pre, func() string {
-			return fmt.Sprintf("CommD: %s\n\t\tCommR: %s", state.Pre.CommD, state.Pre.CommR)
-		}))
-
-		fmt.Fprintf(os.Stdout, "\tPreCommit Message: %s\n", FormatOrNull(state.MessageInfo.PreCommitCid, func() string {
-			return state.MessageInfo.PreCommitCid.String()
-		}))
-
-		fmt.Fprintf(os.Stdout, "\tSeed: %s\n", FormatOrNull(state.Seed, func() string {
-			return fmt.Sprintf("(%d) %x", state.Seed.Epoch, state.Seed.Seed)
-		}))
-
-		fmt.Fprintf(os.Stdout, "\tProveCommit Info:\n\t\t%s\n", FormatOrNull(state.Proof, func() string {
-			return fmt.Sprintf("Proof: %x", state.Proof.Proof)
-		}))
-
-		fmt.Fprintf(os.Stdout, "\tProveCommit Message: %s\n", FormatOrNull(state.MessageInfo.CommitCid, func() string {
-			return state.MessageInfo.CommitCid.String()
-		}))
-
-		fmt.Fprintf(os.Stdout, "\tMessage NeedSend: %v\n", state.MessageInfo.NeedSend)
-
-		// Upgrading
-		fmt.Fprintln(os.Stdout, "\nSnapUp:")
-		fmt.Fprintf(os.Stdout, "\tUpgraded: %v\n", state.Upgraded)
-		if state.Upgraded {
-			if state.UpgradedInfo != nil {
-				fmt.Fprintf(os.Stdout, "\tUnsealedCID: %s\n", state.UpgradedInfo.UnsealedCID)
-				fmt.Fprintf(os.Stdout, "\tSealedCID: %s\n", state.UpgradedInfo.UnsealedCID)
-				fmt.Fprintf(os.Stdout, "\tProof: %x\n", state.UpgradedInfo.Proof[:])
-			}
-
-			if state.UpgradeMessageID != nil {
-				fmt.Fprintf(os.Stdout, "\tUpgrade Message: %s\n", *state.UpgradeMessageID)
-			}
-
-			if state.UpgradeLandedEpoch != nil {
-				fmt.Fprintf(os.Stdout, "\tLanded Epoch: %d\n", *state.UpgradeLandedEpoch)
-			}
-		}
-
-		// Termination
-		fmt.Fprintln(os.Stdout, "\nTermination:")
-		fmt.Fprintf(os.Stdout, "\tTerminate Message: %s\n", FormatOrNull(state.TerminateInfo.TerminateCid, func() string {
-			return state.TerminateInfo.TerminateCid.String()
-		}))
-
-		// Rebuild
-		fmt.Fprintf(os.Stdout, "\nRebuild: %v\n", state.NeedRebuild)
-
-		fmt.Fprintln(os.Stdout, "")
-
+		showSectorState(state)
 		return nil
 	},
 }
@@ -1773,8 +1675,8 @@ var utilSealerSectorsImportCmd = &cli.Command{
 	},
 }
 
-var utilSealerSectorsExportCmd = &cli.Command{
-	Name:  "export",
+var utilSealerSectorsExportToLotusCmd = &cli.Command{
+	Name:  "export-to-lotus",
 	Usage: "Commands for export sector infos to the given lotus-miner instance",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -2681,4 +2583,216 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 
 		return nil
 	},
+}
+
+var utilSealerSectorsStateExportJSONCmd = &cli.Command{
+	Name:      "export-json",
+	Usage:     "Export sector state in JSON format",
+	ArgsUsage: "<miner actor> <sector number>",
+	Action: func(cctx *cli.Context) error {
+		if count := cctx.Args().Len(); count < 2 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+
+		miner, err := ShouldActor(cctx.Args().Get(0), true)
+		if err != nil {
+			return fmt.Errorf("invalid miner actor id: %w", err)
+		}
+
+		sectorNum, err := strconv.ParseUint(cctx.Args().Get(1), 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid sector number: %w", err)
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		state, err := cli.Damocles.FindSectorInAllStates(gctx, abi.SectorID{
+			Miner:  miner,
+			Number: abi.SectorNumber(sectorNum),
+		})
+		if err != nil {
+			return RPCCallError("FindSectorInAllStates", err)
+		}
+
+		b, err := json.Marshal(state)
+		if err != nil {
+			return fmt.Errorf("failed to marshal state: %w", err)
+		}
+		fmt.Println(string(b))
+		return nil
+	},
+}
+
+var utilSealerSectorsStateImportJSONCmd = &cli.Command{
+	Name:      "import-json",
+	Usage:     "Import sector state in JSON format",
+	ArgsUsage: "<JSON file>",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "override",
+			Usage: "override the previous sector state",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  "really-do-it",
+			Usage: "Actually send transaction performing the action",
+			Value: false,
+		},
+	},
+	Action: func(cctx *cli.Context) error {
+		if count := cctx.Args().Len(); count < 1 {
+			return cli.ShowSubcommandHelp(cctx)
+		}
+		override := cctx.Bool("override")
+
+		var state *core.SectorState
+
+		jsonFile := cctx.Args().Get(0)
+		jsonBytes, err := os.ReadFile(jsonFile)
+		if err != nil {
+			return fmt.Errorf("read json file(%s): %w", jsonFile, err)
+		}
+		err = json.Unmarshal(jsonBytes, &state)
+		if err != nil {
+			return fmt.Errorf("json unmarshal sector state: %w", err)
+		}
+
+		if !cctx.Bool("really-do-it") {
+			showSectorState(state)
+			return nil
+		}
+
+		cli, gctx, stop, err := extractAPI(cctx)
+		if err != nil {
+			return err
+		}
+
+		defer stop()
+
+		var ws core.SectorWorkerState
+		if state.Finalized {
+			ws = core.WorkerOffline
+		} else {
+			ws = core.WorkerOnline
+		}
+		imported, err := cli.Damocles.ImportSector(gctx, ws, state, override)
+		if err != nil {
+			return fmt.Errorf("import failed: %w", err)
+		}
+
+		if !imported {
+			return fmt.Errorf("not imported, perhaps you need to set --override flag")
+		}
+
+		return nil
+	},
+}
+
+func showSectorState(state *core.SectorState) {
+	fmt.Fprintf(os.Stdout, "Sector %s: \n", util.FormatSectorID(state.ID))
+	// Common
+	fmt.Fprintln(os.Stdout, "\nCommon:")
+	fmt.Fprintf(os.Stdout, "\tFinalized: %v\n", state.Finalized)
+	fmt.Fprintf(os.Stdout, "\tRemoved: %v\n", state.Removed)
+	abortReason := state.AbortReason
+	if abortReason == "" {
+		abortReason = "NULL"
+	}
+	fmt.Fprintf(os.Stdout, "\tAborting: \n\t\t%s\n", strings.ReplaceAll(abortReason, "\n", "\n\t\t"))
+
+	// LatestState
+	fmt.Fprintln(os.Stdout, "\nLatestState:")
+	fmt.Fprintf(os.Stdout, "\tState Change: %s\n", FormatOrNull(state.LatestState, func() string {
+		return fmt.Sprintf("%s => %s, by %s", state.LatestState.StateChange.Prev, state.LatestState.StateChange.Next, state.LatestState.StateChange.Event)
+	}))
+	fmt.Fprintf(os.Stdout, "\tWorker: %s\n", FormatOrNull(state.LatestState, func() string {
+		return fmt.Sprintf("%s(%s)", state.LatestState.Worker.Instance, state.LatestState.Worker.Location)
+	}))
+	fmt.Fprintf(os.Stdout, "\tFailure: %s\n", FormatOrNull(state.LatestState, func() string {
+		return FormatOrNull(state.LatestState.Failure, func() string {
+			return fmt.Sprintf("\n\t\t[%s] %s", state.LatestState.Failure.Level, strings.ReplaceAll(state.LatestState.Failure.Desc, "\n", "\n\t\t"))
+		})
+	}))
+
+	// Deals
+	fmt.Fprintln(os.Stdout, "\nDeals:")
+	if !state.HasData() {
+		fmt.Fprintln(os.Stdout, "\tNULL")
+	} else {
+		for _, piece := range state.SectorPiece() {
+			if !piece.HasDealInfo() {
+				continue
+			}
+			if piece.IsBuiltinMarket() {
+				fmt.Fprintf(os.Stdout, "\tDealID: %s\n", piece.DisplayDealID())
+			} else {
+				fmt.Fprintf(os.Stdout, "\tAllocID: %s\n", piece.DisplayDealID())
+			}
+			pieceInfo := piece.PieceInfo()
+			fmt.Fprintf(os.Stdout, "\tPiece: { cid: %s; size: %d; offset: %d }\n", pieceInfo.Cid, pieceInfo.Size, pieceInfo.Offset)
+		}
+	}
+
+	// Sealing
+	fmt.Fprintln(os.Stdout, "\nSealing:")
+	fmt.Fprintf(os.Stdout, "\tTicket: %s\n", FormatOrNull(state.Ticket, func() string {
+		return fmt.Sprintf("(%d) %x", state.Ticket.Epoch, state.Ticket.Ticket)
+	}))
+
+	fmt.Fprintf(os.Stdout, "\tPreCommit Info:\n\t\t%s\n", FormatOrNull(state.Pre, func() string {
+		return fmt.Sprintf("CommD: %s\n\t\tCommR: %s", state.Pre.CommD, state.Pre.CommR)
+	}))
+
+	fmt.Fprintf(os.Stdout, "\tPreCommit Message: %s\n", FormatOrNull(state.MessageInfo.PreCommitCid, func() string {
+		return state.MessageInfo.PreCommitCid.String()
+	}))
+
+	fmt.Fprintf(os.Stdout, "\tSeed: %s\n", FormatOrNull(state.Seed, func() string {
+		return fmt.Sprintf("(%d) %x", state.Seed.Epoch, state.Seed.Seed)
+	}))
+
+	fmt.Fprintf(os.Stdout, "\tProveCommit Info:\n\t\t%s\n", FormatOrNull(state.Proof, func() string {
+		return fmt.Sprintf("Proof: %x", state.Proof.Proof)
+	}))
+
+	fmt.Fprintf(os.Stdout, "\tProveCommit Message: %s\n", FormatOrNull(state.MessageInfo.CommitCid, func() string {
+		return state.MessageInfo.CommitCid.String()
+	}))
+
+	fmt.Fprintf(os.Stdout, "\tMessage NeedSend: %v\n", state.MessageInfo.NeedSend)
+
+	// Upgrading
+	fmt.Fprintln(os.Stdout, "\nSnapUp:")
+	fmt.Fprintf(os.Stdout, "\tUpgraded: %v\n", state.Upgraded)
+	if state.Upgraded {
+		if state.UpgradedInfo != nil {
+			fmt.Fprintf(os.Stdout, "\tUnsealedCID: %s\n", state.UpgradedInfo.UnsealedCID)
+			fmt.Fprintf(os.Stdout, "\tSealedCID: %s\n", state.UpgradedInfo.UnsealedCID)
+			fmt.Fprintf(os.Stdout, "\tProof: %x\n", state.UpgradedInfo.Proof[:])
+		}
+
+		if state.UpgradeMessageID != nil {
+			fmt.Fprintf(os.Stdout, "\tUpgrade Message: %s\n", *state.UpgradeMessageID)
+		}
+
+		if state.UpgradeLandedEpoch != nil {
+			fmt.Fprintf(os.Stdout, "\tLanded Epoch: %d\n", *state.UpgradeLandedEpoch)
+		}
+	}
+
+	// Termination
+	fmt.Fprintln(os.Stdout, "\nTermination:")
+	fmt.Fprintf(os.Stdout, "\tTerminate Message: %s\n", FormatOrNull(state.TerminateInfo.TerminateCid, func() string {
+		return state.TerminateInfo.TerminateCid.String()
+	}))
+
+	// Rebuild
+	fmt.Fprintf(os.Stdout, "\nRebuild: %v\n", state.NeedRebuild)
+
+	fmt.Fprintln(os.Stdout, "")
 }
