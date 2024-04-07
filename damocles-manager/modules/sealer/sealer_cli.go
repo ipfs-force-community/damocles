@@ -413,13 +413,13 @@ func (s *Sealer) FindSectorWithPiece(ctx context.Context, state core.SectorWorke
 
 	var ret *core.SectorState
 	err := s.state.ForEach(ctx, state, core.SectorWorkerJobAll, func(ss core.SectorState) error {
-		deals := ss.Deals()
-		if len(deals) == 0 {
+		pieces := ss.SectorPiece()
+		if len(pieces) == 0 {
 			return nil
 		}
 
-		for _, deal := range deals {
-			if pieceCid.Equals(deal.Piece.Cid) {
+		for _, spiece := range pieces {
+			if pieceCid.Equals(spiece.PieceInfo().Cid) {
 				ret = &ss
 				break
 			}
@@ -498,7 +498,12 @@ func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt 
 		}
 		info.Ticket = *st.Ticket
 		info.IsSnapUp = isSnapUp
-		info.Pieces = st.Pieces
+		if len(st.LegacyPieces) != 0 {
+			info.Pieces = st.LegacyPieces
+		}
+		if len(st.Pieces) != 0 {
+			info.PiecesV2 = st.Pieces
+		}
 		info.UpgradePublic = st.UpgradePublic
 
 		st.NeedRebuild = true

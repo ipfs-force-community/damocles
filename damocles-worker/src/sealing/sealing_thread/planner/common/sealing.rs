@@ -36,13 +36,13 @@ use crate::{
     SealProof,
 };
 
-use super::task::Task;
+use super::{sector::SectorPiece, task::Task};
 
 const SYNTHETIC_PROOF_CHECK_ROUND: i32 = 3;
 
 pub(crate) fn add_pieces(
     task: &Task,
-    deals: &Deals,
+    deals: &[SectorPiece],
 ) -> Result<Vec<PieceInfo>, Failure> {
     let _token = task
         .sealing_ctrl
@@ -68,15 +68,14 @@ pub(crate) fn add_pieces(
     let mut pieces = Vec::with_capacity(deals.len());
 
     for deal in deals {
-        let unpadded_piece_size = deal.piece.size.unpadded();
-        let is_pledged = deal.id == 0;
+        let unpadded_piece_size = deal.size.unpadded();
 
-        let piece_file: PieceFile = if is_pledged {
+        let piece_file: PieceFile = if deal.is_pledge {
             PieceFile::Pledge
         } else {
             piece_store
-                .get(&deal.piece.cid.0)
-                .with_context(|| format!("get piece: {}", deal.piece.cid.0))
+                .get(&deal.piece_cid.0)
+                .with_context(|| format!("get piece: {}", deal.piece_cid.0))
                 .perm()?
         };
         pieces.push(Piece {
@@ -126,9 +125,7 @@ pub(crate) fn build_tree_d(
     }
 
     // pledge sector
-    if allow_static
-        && task.sector.deals.as_ref().map(|d| d.len()).unwrap_or(0) == 0
-    {
+    if allow_static && !task.sector.has_deals() {
         if let Some(static_tree_path) = task
             .sealing_ctrl
             .ctx()

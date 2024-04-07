@@ -6,9 +6,11 @@ import (
 	"github.com/filecoin-project/go-address"
 	commcid "github.com/filecoin-project/go-fil-commcid"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	verifregtypes "github.com/filecoin-project/venus/venus-shared/actors/builtin/verifreg"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
+	mtypes "github.com/filecoin-project/venus/venus-shared/types/market"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 	"github.com/ipfs/go-cid"
 )
@@ -30,13 +32,25 @@ type AllocatedSector struct {
 	ProofType abi.RegisteredSealProof
 }
 
+type SectorPiece interface {
+	DisplayDealID() string
+	PieceInfo() PieceInfo
+	HasDealInfo() bool
+	IsBuiltinMarket() bool
+	DealID() abi.DealID
+	AllocationID() verifregtypes.AllocationId
+	Client() address.Address
+	StartEpoch() abi.ChainEpoch
+	EndEpoch() abi.ChainEpoch
+}
+
 type PieceInfo struct {
 	Size   abi.PaddedPieceSize
 	Offset abi.PaddedPieceSize
 	Cid    cid.Cid
 }
 
-type DealInfo struct {
+type LegacyDealInfo struct {
 	ID          abi.DealID
 	PayloadSize uint64
 	Piece       PieceInfo
@@ -47,7 +61,150 @@ type DealInfo struct {
 	IsCompatible bool
 }
 
-type Deals []DealInfo
+func (ldi LegacyDealInfo) DisplayDealID() string {
+	return fmt.Sprintf("builtinmarket(%d)", ldi.ID)
+}
+
+func (ldi LegacyDealInfo) PieceInfo() PieceInfo {
+	return ldi.Piece
+}
+
+func (ldi LegacyDealInfo) HasDealInfo() bool {
+	return ldi.ID != 0
+}
+
+func (ldi LegacyDealInfo) IsBuiltinMarket() bool {
+	return ldi.HasDealInfo()
+}
+
+func (ldi LegacyDealInfo) DealID() abi.DealID {
+	return ldi.ID
+}
+
+func (ldi LegacyDealInfo) AllocationID() verifregtypes.AllocationId {
+	return verifregtypes.NoAllocationID
+}
+
+func (ldi LegacyDealInfo) Client() address.Address {
+	if ldi.HasDealInfo() {
+		return ldi.Proposal.Client
+	}
+	return address.Undef
+}
+
+// EndEpoch returns the minimum epoch until which the sector containing this
+// deal must be committed until.
+func (ldi LegacyDealInfo) StartEpoch() abi.ChainEpoch {
+	if ldi.HasDealInfo() {
+		return ldi.Proposal.StartEpoch
+	}
+	return abi.ChainEpoch(0)
+}
+
+// EndEpoch returns the minimum epoch until which the sector containing this
+// deal must be committed until.
+func (ldi LegacyDealInfo) EndEpoch() abi.ChainEpoch {
+	if ldi.HasDealInfo() {
+		return ldi.Proposal.StartEpoch
+	}
+	return abi.ChainEpoch(0)
+}
+
+type DealInfoV2 struct {
+	*mtypes.DealInfoV2
+	// if true, it indicates that the deal is an legacy builtin market deal,
+	// otherwise it is a DDO deal
+	IsBuiltinMarket bool
+	// this is the flag for pieces from original implementations
+	// if true, workers should use the piece data directly, instead of padding themselves
+	IsCompatible bool
+}
+
+func (di DealInfoV2) DisplayID() string {
+	if di.IsBuiltinMarket {
+		return fmt.Sprintf("builtinmarket(%d)", di.DealID)
+	}
+	return fmt.Sprintf("ddo(%d)", di.AllocationID)
+}
+
+type SectorPieceV2 struct {
+	Piece    abi.PieceInfo
+	DealInfo *DealInfoV2
+}
+
+func (sp SectorPieceV2) PieceInfo() PieceInfo {
+	if sp.HasDealInfo() {
+		return PieceInfo{
+			Size:   sp.Piece.Size,
+			Offset: sp.DealInfo.Offset,
+			Cid:    sp.Piece.PieceCID,
+		}
+	}
+	return PieceInfo{
+		Size: sp.Piece.Size,
+		Cid:  sp.Piece.PieceCID,
+	}
+}
+
+func (sp SectorPieceV2) DisplayDealID() string {
+	return sp.DealInfo.DisplayID()
+}
+
+func (sp SectorPieceV2) HasDealInfo() bool {
+	return sp.DealInfo != nil
+}
+
+func (sp SectorPieceV2) IsBuiltinMarket() bool {
+	if !sp.HasDealInfo() {
+		return false
+	}
+
+	return sp.DealInfo.IsBuiltinMarket
+}
+
+func (sp SectorPieceV2) DealID() abi.DealID {
+	if sp.IsBuiltinMarket() {
+		return sp.DealInfo.DealID
+	}
+	return abi.DealID(0)
+}
+
+func (sp SectorPieceV2) AllocationID() verifregtypes.AllocationId {
+	if !sp.HasDealInfo() {
+		return verifregtypes.NoAllocationID
+	}
+
+	return sp.DealInfo.AllocationID
+}
+
+func (sp SectorPieceV2) Client() address.Address {
+	if !sp.HasDealInfo() {
+		return address.Undef
+	}
+
+	return sp.DealInfo.Client
+}
+
+// EndEpoch returns the minimum epoch until which the sector containing this
+// deal must be committed until.
+func (sp SectorPieceV2) StartEpoch() abi.ChainEpoch {
+	if sp.HasDealInfo() {
+		return sp.DealInfo.StartEpoch
+	}
+	return abi.ChainEpoch(0)
+}
+
+// EndEpoch returns the minimum epoch until which the sector containing this
+// deal must be committed until.
+func (sp SectorPieceV2) EndEpoch() abi.ChainEpoch {
+	if sp.HasDealInfo() {
+		return sp.DealInfo.EndEpoch
+	}
+	return abi.ChainEpoch(0)
+}
+
+type Deals []LegacyDealInfo
+type SectorPieces []SectorPieceV2
 
 type AcquireDealsSpec struct {
 	MaxDeals     *uint
@@ -99,7 +256,6 @@ type PreCommitOnChainInfo struct {
 	CommR  [32]byte
 	CommD  [32]byte
 	Ticket Ticket
-	Deals  []abi.DealID
 }
 
 func (pi PreCommitOnChainInfo) IntoPreCommitInfo() (PreCommitInfo, error) {
@@ -117,7 +273,6 @@ func (pi PreCommitOnChainInfo) IntoPreCommitInfo() (PreCommitInfo, error) {
 		CommR:  commR,
 		CommD:  commD,
 		Ticket: pi.Ticket,
-		Deals:  pi.Deals,
 	}, nil
 }
 
@@ -181,7 +336,6 @@ type PreCommitInfo struct {
 	CommR  cid.Cid
 	CommD  cid.Cid
 	Ticket Ticket
-	Deals  []abi.DealID
 }
 
 func (pc PreCommitInfo) IntoPreCommitOnChainInfo() (PreCommitOnChainInfo, error) {
@@ -197,7 +351,6 @@ func (pc PreCommitInfo) IntoPreCommitOnChainInfo() (PreCommitOnChainInfo, error)
 
 	info := PreCommitOnChainInfo{
 		Ticket: pc.Ticket,
-		Deals:  pc.Deals,
 	}
 	copy(info.CommR[:], commR)
 	copy(info.CommD[:], commD)
@@ -281,7 +434,7 @@ type SectorPrivateInfo struct {
 
 type AllocatedSnapUpSector struct {
 	Sector  AllocatedSector
-	Pieces  Deals
+	Pieces  SectorPieces
 	Public  SectorPublicInfo
 	Private SectorPrivateInfo
 }
@@ -356,6 +509,7 @@ type SectorRebuildInfo struct {
 	Sector        AllocatedSector
 	Ticket        Ticket
 	Pieces        Deals
+	PiecesV2      SectorPieces
 	IsSnapUp      bool
 	UpgradePublic *SectorUpgradePublic
 }

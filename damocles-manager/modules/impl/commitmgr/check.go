@@ -5,8 +5,12 @@ import (
 	"context"
 	"fmt"
 
+	ffi "github.com/filecoin-project/filecoin-ffi"
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-commp-utils/zerocomm"
 	"github.com/filecoin-project/go-state-types/abi"
+	"github.com/ipfs/go-cid"
+	"github.com/samber/lo"
 
 	"github.com/filecoin-project/venus/venus-shared/types"
 
@@ -33,7 +37,7 @@ type ErrCommitWaitFailed struct{ error }
 
 // checkPrecommit checks that data commitment generated in the sealing process
 // matches pieces, and that the seal ticket isn't expired
-func checkPrecommit(ctx context.Context, maddr address.Address, si core.SectorState, api SealingAPI) (err error) {
+func checkPrecommit(ctx context.Context, maddr address.Address, si *core.SectorState, api SealingAPI) (err error) {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
 		return &ErrAPI{fmt.Errorf("get chain head failed %w", err)}
@@ -43,10 +47,10 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si core.SectorSt
 		return err
 	}
 
-	if len(si.Pieces) > 0 {
-		commD, err := api.StateComputeDataCommitment(ctx, maddr, si.SectorType, si.DealIDs(), tok)
+	if si.HasData() {
+		commD, err := computeUnsealedCIDFromPieces(si)
 		if err != nil {
-			return &ErrAPI{fmt.Errorf("calling StateComputeDataCommitment: %w", err)}
+			return &ErrAPI{fmt.Errorf("compute unsealed cid from pieces: %w", err)}
 		}
 
 		if si.Pre == nil {
@@ -54,7 +58,7 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si core.SectorSt
 		}
 
 		if !commD.Equals(si.Pre.CommD) {
-			return &ErrBadCommD{fmt.Errorf("on chain CommD differs: %s != %s ", si.Pre.CommD, commD)}
+			return &ErrBadCommD{fmt.Errorf("on chain CommD differs: %s != %s(chain)", si.Pre.CommD, commD)}
 		}
 	}
 
@@ -83,43 +87,111 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si core.SectorSt
 	return nil
 }
 
-func checkPieces(ctx context.Context, maddr address.Address, si core.SectorState, api SealingAPI) error {
+func checkPieces(ctx context.Context, maddr address.Address, sector *core.SectorState, api SealingAPI) error {
 	tok, height, err := api.ChainHead(ctx)
 	if err != nil {
 		return &ErrAPI{fmt.Errorf("getting chain head: %w", err)}
 	}
+	numDeals := len(sector.Pieces)
+	if numDeals == 0 {
+		numDeals = len(sector.LegacyPieces)
+	}
 
-	deals := si.Deals()
-	for i, p := range deals {
-		// if no deal is associated with the piece, ensure that we added it as
-		// filler (i.e. ensure that it has a zero PieceCID)
+	checkZeroPiece := func(pieceIdx int, piece abi.PieceInfo) error {
+		exp := zerocomm.ZeroPieceCommitment(piece.Size.Unpadded())
+		if !piece.PieceCID.Equals(exp) {
+			return &ErrInvalidPiece{fmt.Errorf("sector %d piece %d had non-zero PieceCID %+v", sector.ID, pieceIdx, piece.PieceCID)}
+		}
+		return nil
+	}
 
-		proposal, err := api.StateMarketStorageDealProposal(ctx, p.ID, tok)
+	checkBuiltinMarketPiece := func(pieceIdx int, dealID abi.DealID, piece abi.PieceInfo) error {
+		proposal, err := api.StateMarketStorageDealProposal(ctx, dealID, tok)
 		if err != nil {
-			return &ErrAPI{fmt.Errorf("getting deal %d for piece %d: %w", p.ID, i, err)}
+			return &ErrAPI{fmt.Errorf("getting deal %d for piece %d: %w", dealID, pieceIdx, err)}
 		}
 
 		if proposal.Provider != maddr {
-			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong provider: %s != %s", i, len(deals), si.ID, p.ID, proposal.Provider, maddr)}
+			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong provider: %s != %s", pieceIdx, numDeals, sector.ID, dealID, proposal.Provider, maddr)}
 		}
 
-		if proposal.PieceCID != p.Piece.Cid {
-			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong PieceCID: %x != %x", i, len(deals), si.ID, p.ID, p.Piece.Cid, proposal.PieceCID)}
+		if proposal.PieceCID != piece.PieceCID {
+			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong PieceCID: %x != %x", pieceIdx, numDeals, sector.ID, dealID, piece.PieceCID, proposal.PieceCID)}
 		}
 
-		if p.Piece.Size != proposal.PieceSize {
-			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with different size: %d != %d", i, len(deals), si.ID, p.ID, p.Piece.Size, proposal.PieceSize)}
+		if piece.Size != proposal.PieceSize {
+			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with different size: %d != %d", pieceIdx, numDeals, sector.ID, dealID, piece.Size, proposal.PieceSize)}
 		}
 
 		if height >= proposal.StartEpoch {
-			return &ErrExpiredDeals{fmt.Errorf("piece %d (of %v) of sector %d refers expired deal %d - should start at %d, head %d", i, len(deals), si.ID, p.ID, proposal.StartEpoch, height)}
+			return &ErrExpiredDeals{fmt.Errorf("piece %d (of %v) of sector %d refers expired deal %d - should start at %d, head %d", pieceIdx, numDeals, sector.ID, dealID, proposal.StartEpoch, height)}
+		}
+		return nil
+	}
+
+	checkDDOPiece := func(pieceIdx int, allocationID types.AllocationId, piece abi.PieceInfo) error {
+		// try to get allocation to see if that still works
+		all, err := api.StateGetAllocation(ctx, maddr, allocationID, tok)
+		if err != nil {
+			return fmt.Errorf("getting deal %d allocation: %w", allocationID, err)
+		}
+		if all != nil {
+			mid, err := address.IDFromAddress(maddr)
+			if err != nil {
+				return fmt.Errorf("getting miner id: %w", err)
+			}
+
+			if all.Provider != abi.ActorID(mid) {
+				return fmt.Errorf("allocation provider doesn't match miner")
+			}
+
+			if height >= all.Expiration {
+				return &ErrExpiredDeals{fmt.Errorf("piece allocation %d (of %d) of sector %d refers expired deal %d - should start at %d, head %d", pieceIdx, numDeals, sector.ID, allocationID, all.Expiration, height)}
+			}
+
+			if all.Size < piece.Size {
+				return &ErrInvalidDeals{fmt.Errorf("piece allocation %d (of %d) of sector %d refers deal %d with different size: %d != %d", pieceIdx, numDeals, sector.ID, allocationID, piece.Size, all.Size)}
+			}
+		}
+		return nil
+	}
+
+	for i, deal := range sector.LegacyPieces {
+		pieceInfo := abi.PieceInfo{
+			Size:     deal.Piece.Size,
+			PieceCID: deal.Piece.Cid,
+		}
+		if deal.ID == 0 {
+			if err := checkZeroPiece(i, pieceInfo); err != nil {
+				return err
+			}
+		} else {
+			if err := checkBuiltinMarketPiece(i, deal.ID, pieceInfo); err != nil {
+				return err
+			}
+		}
+	}
+
+	for i, piece := range sector.Pieces {
+		if !piece.HasDealInfo() {
+			if err := checkZeroPiece(i, piece.Piece); err != nil {
+				return err
+			}
+		} else if piece.DealInfo.IsBuiltinMarket {
+			if err := checkBuiltinMarketPiece(i, piece.DealInfo.DealID, piece.Piece); err != nil {
+				return err
+			}
+		} else {
+			if err := checkDDOPiece(i, piece.DealInfo.AllocationID, piece.Piece); err != nil {
+				return nil
+			}
 		}
 	}
 
 	return nil
 }
 
-func checkCommit(ctx context.Context, si core.SectorState, proof []byte, tok core.TipSetToken, maddr address.Address, verif core.Verifier, api SealingAPI) (err error) {
+func checkCommit(ctx context.Context, si *core.SectorState, proof []byte, tok core.TipSetToken, maddr address.Address, verif core.Verifier, api SealingAPI) (err error) {
 	if si.Seed == nil {
 		return &ErrBadSeed{fmt.Errorf("seed epoch was not set")}
 	}
@@ -139,7 +211,7 @@ func checkCommit(ctx context.Context, si core.SectorState, proof []byte, tok cor
 	seedEpoch := pci.PreCommitEpoch + policy.GetPreCommitChallengeDelay()
 
 	if seedEpoch != si.Seed.Epoch {
-		return &ErrBadSeed{fmt.Errorf("seed epoch doesn't match on chain info: %d != %d", seedEpoch, si.Seed.Epoch)}
+		return &ErrBadSeed{fmt.Errorf("seed epoch doesn't match on chain info: %d(chain) != %d", seedEpoch, si.Seed.Epoch)}
 	}
 
 	buf := new(bytes.Buffer)
@@ -173,4 +245,14 @@ func checkCommit(ctx context.Context, si core.SectorState, proof []byte, tok cor
 	}
 
 	return checkPieces(ctx, maddr, si, api)
+}
+
+func computeUnsealedCIDFromPieces(sector *core.SectorState) (cid.Cid, error) {
+	return ffi.GenerateUnsealedCID(sector.SectorType, lo.Map(sector.SectorPiece(), func(p core.SectorPiece, i int) abi.PieceInfo {
+		pi := p.PieceInfo()
+		return abi.PieceInfo{
+			Size:     pi.Size,
+			PieceCID: pi.Cid,
+		}
+	}))
 }

@@ -140,6 +140,7 @@ impl<'t> SnapUp<'t> {
             }
         };
 
+        debug!(?maybe_allocated, "allocated snapup sectors");
         let allocated = match maybe_allocated {
             Some(a) => a,
             None => return Ok(Event::Idle),
@@ -164,9 +165,9 @@ impl<'t> SnapUp<'t> {
     }
 
     fn add_piece(&self) -> Result<Event, Failure> {
-        field_required!(deals, self.task.sector.deals.as_ref());
+        let deals = self.task.sector.deals();
 
-        let pieces = common::add_pieces(self.task, deals)?;
+        let pieces = common::add_pieces(self.task, &deals)?;
 
         Ok(Event::AddPiece(pieces))
     }
@@ -319,13 +320,13 @@ impl<'t> SnapUp<'t> {
     fn submit(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
         field_required!(proof, self.task.sector.phases.snap_prov_out.as_ref());
-        field_required!(deals, self.task.sector.deals.as_ref());
         field_required!(
             encode_out,
             self.task.sector.phases.snap_encode_out.as_ref()
         );
         cloned_required!(instance, self.task.sector.phases.persist_instance);
-        let piece_cids = deals.iter().map(|d| d.piece.cid.clone()).collect();
+        let deals = self.task.sector.deals();
+        let piece_cids = deals.iter().map(|d| d.piece_cid.clone()).collect();
 
         let res = call_rpc! {
             self.task.rpc()=>submit_snapup_proof(

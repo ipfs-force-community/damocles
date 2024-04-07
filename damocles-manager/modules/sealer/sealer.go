@@ -177,12 +177,16 @@ func (s *Sealer) AllocateSectorsBatch(ctx context.Context, spec core.AllocateSec
 	return sectors, nil
 }
 
-func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.Deals, error) {
+func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.SectorPieces, error) {
 	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
 		return nil, sectorStateErr(err)
 	}
-
+	if len(state.LegacyPieces) != 0 {
+		if err = s.deal.ReleaseLegacyDeal(ctx, sid, state.LegacyPieces); err != nil {
+			return nil, err
+		}
+	}
 	if len(state.Pieces) != 0 {
 		return state.Pieces, nil
 	}
@@ -193,7 +197,7 @@ func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.A
 		return nil, err
 	}
 
-	pieces := core.Deals{}
+	pieces := core.SectorPieces{}
 	if mcfg.Sealing.SealingEpochDuration != 0 {
 		var h *types.TipSet
 		h, err = s.capi.ChainHead(ctx)
@@ -513,7 +517,7 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 
 		alog.Debug("release acquired deals")
 		if rerr := s.deal.Release(ctx, candidateSector.Sector.ID, pieces); rerr != nil {
-			alog.Errorf("release acquired deals: %s", err)
+			alog.Errorf("release acquired deals: %w", err)
 		}
 	}()
 
@@ -581,7 +585,7 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 	}
 
 	for pi, pid := range snapupInfo.Pieces {
-		if localPID := state.Pieces[pi].Piece.Cid; !pid.Equals(state.Pieces[pi].Piece.Cid) {
+		if localPID := state.Pieces[pi].Piece.PieceCID; !pid.Equals(state.Pieces[pi].Piece.PieceCID) {
 			desc = fmt.Sprintf("#%d piece cid not match: %s != %s", pi, localPID, pid)
 			resp.Res = core.SubmitRejected
 			resp.Desc = &desc
@@ -670,40 +674,34 @@ func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proo
 	return true, nil
 }
 
-func checkPieces(pieces core.Deals) error {
+func checkPieces(pieces core.SectorPieces) error {
 	// validate deals
 	for pi := range pieces {
-		// should be a pledge piece
 		pinfo := pieces[pi]
-		if pinfo.ID == 0 {
+		if pinfo.IsBuiltinMarket() && !pinfo.HasDealInfo() {
 			expected := zerocomm.ZeroPieceCommitment(pinfo.Piece.Size.Unpadded())
-			if !expected.Equals(pinfo.Piece.Cid) {
-				return fmt.Errorf("got unexpected non-deal piece with seq=#%d, size=%d, cid=%s", pi, pinfo.Piece.Size, pinfo.Piece.Cid)
-			}
-		} else {
-			if pinfo.Proposal == nil {
-				return fmt.Errorf("get nil proposal for non-zero deal id: %d", pinfo.ID)
+			if !expected.Equals(pinfo.DealInfo.PieceCID) {
+				return fmt.Errorf("got unexpected non-deal piece with seq=#%d, size=%d, cid=%s", pi, pinfo.Piece.Size, pinfo.DealInfo.PieceCID)
 			}
 		}
 	}
-
 	return nil
 }
 
-func checkForLifetime(public core.SectorPublicInfo, pieces core.Deals) bool {
+func checkForLifetime(public core.SectorPublicInfo, pieces core.SectorPieces) bool {
 	// validate deals
 	for pi := range pieces {
 		// should be a pledge piece
 		pinfo := pieces[pi]
-		if pinfo.ID == 0 {
+		if !pinfo.HasDealInfo() {
 			continue
 		}
 
-		if public.Activation > pinfo.Proposal.StartEpoch {
+		if public.Activation > pinfo.StartEpoch() {
 			return false
 		}
 
-		if pinfo.Proposal.EndEpoch >= public.Expiration {
+		if pinfo.EndEpoch() >= public.Expiration {
 			return false
 		}
 	}

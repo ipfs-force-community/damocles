@@ -48,7 +48,7 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	infos := []core.PreCommitEntry{}
 	for i := range sectors {
 		s := &sectors[i]
-		params, deposit, _, err := p.preCommitInfo(ctx, *s)
+		params, deposit, _, err := p.preCommitInfo(ctx, s)
 		if err != nil {
 			plog.Errorf("get precommit params for %d failed: %s\n", s.ID.Number, err)
 			continue
@@ -76,6 +76,9 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 		params := core.PreCommitSectorBatchParams{}
 		deposit := big.Zero()
 		for i := range infos {
+			if infos[i].SectorState.HasDDODeal() {
+				infos[i].Pcsp.DealIDs = nil // will be passed later in the Commit message
+			}
 			params.Sectors = append(params.Sectors, *infos[i].Pcsp)
 			if mcfg.Commitment.Pre.SendFund {
 				deposit = big.Add(deposit, infos[i].Deposit)

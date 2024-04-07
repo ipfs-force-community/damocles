@@ -27,6 +27,7 @@ func NewSnapUpMgr(
 	stateMgr core.SectorStateManager,
 	scfg *modules.SafeConfig,
 	allocKVStore kvstore.KVStore,
+	lookupID core.LookupID,
 	senderSelector core.SenderSelector,
 ) (*SnapUpMgr, error) {
 	allocator, err := NewSnapUpAllocator(chainAPI, minerAPI, allocKVStore, indexer, scfg)
@@ -34,7 +35,7 @@ func NewSnapUpMgr(
 		return nil, fmt.Errorf("construct snapup allocator: %w", err)
 	}
 
-	committer, err := NewSnapUpCommitter(ctx, tracker, indexer, chainAPI, eventbus, messagerAPI, stateMgr, scfg, senderSelector)
+	committer, err := NewSnapUpCommitter(ctx, tracker, indexer, chainAPI, eventbus, messagerAPI, stateMgr, scfg, lookupID, senderSelector)
 	if err != nil {
 		return nil, fmt.Errorf("construct snapup committer: %w", err)
 	}

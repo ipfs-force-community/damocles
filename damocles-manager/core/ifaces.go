@@ -19,8 +19,13 @@ type SectorManager interface {
 }
 
 type DealManager interface {
-	Acquire(ctx context.Context, sid abi.SectorID, spec AcquireDealsSpec, lifetime *AcquireDealsLifetime, job SectorWorkerJob) (Deals, error)
-	Release(ctx context.Context, sid abi.SectorID, acquired Deals) error
+	Acquire(ctx context.Context, sid abi.SectorID, spec AcquireDealsSpec, lifetime *AcquireDealsLifetime, job SectorWorkerJob) (SectorPieces, error)
+	Release(ctx context.Context, sid abi.SectorID, deals SectorPieces) error
+	ReleaseLegacyDeal(ctx context.Context, sid abi.SectorID, acquired Deals) error
+}
+
+type LookupID interface {
+	StateLookupID(ctx context.Context, nonF0 address.Address) (address.Address, error)
 }
 
 type SenderSelector interface {

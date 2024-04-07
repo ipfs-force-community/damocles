@@ -5,6 +5,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/ipfs/go-cid"
+	"github.com/samber/lo"
 )
 
 // applies outside changes to the state, returns if it is ok to go on, and any error if exist
@@ -35,11 +36,12 @@ type SectorState struct {
 	SectorType abi.RegisteredSealProof
 
 	// may be nil
-	Ticket *Ticket        `json:",omitempty"`
-	Seed   *Seed          `json:",omitempty"`
-	Pieces Deals          `json:"Deals"`
-	Pre    *PreCommitInfo `json:",omitempty"`
-	Proof  *ProofInfo     `json:",omitempty"`
+	Ticket       *Ticket        `json:",omitempty"`
+	Seed         *Seed          `json:",omitempty"`
+	LegacyPieces Deals          `json:"Deals"`
+	Pieces       SectorPieces   `json:"Pieces"`
+	Pre          *PreCommitInfo `json:",omitempty"`
+	Proof        *ProofInfo     `json:",omitempty"`
 
 	MessageInfo MessageInfo
 
@@ -67,24 +69,74 @@ type SectorState struct {
 	Unsealing SectorUnsealing
 }
 
-func (s SectorState) DealIDs() []abi.DealID {
-	res := make([]abi.DealID, 0, len(s.Pieces))
-	for i := range s.Pieces {
-		if id := s.Pieces[i].ID; id != 0 {
-			res = append(res, id)
+// TODO: we need iter
+func (s *SectorState) SectorPiece() []SectorPiece {
+	c := len(s.Pieces)
+	if c == 0 {
+		c = len(s.LegacyPieces)
+	}
+	sp := make([]SectorPiece, 0, c)
+
+	if len(s.Pieces) > 0 {
+		for _, p := range s.Pieces {
+			sp = append(sp, p)
+		}
+	} else if len(s.LegacyPieces) > 0 {
+		for _, p := range s.LegacyPieces {
+			sp = append(sp, p)
 		}
 	}
-	return res
+	return sp
 }
 
-func (s SectorState) Deals() Deals {
-	res := make([]DealInfo, 0)
-	for _, piece := range s.Pieces {
-		if piece.ID != 0 {
-			res = append(res, piece)
+func (s *SectorState) PieceInfos() []PieceInfo {
+	return lo.Map(s.SectorPiece(), func(p SectorPiece, _i int) PieceInfo {
+		return p.PieceInfo()
+	})
+}
+
+func (s *SectorState) HasDDODeal() bool {
+	for _, piece := range s.SectorPiece() {
+		if !piece.IsBuiltinMarket() {
+			return true
 		}
 	}
-	return res
+	return false
+}
+
+func (s *SectorState) HasBuiltinMarketDeal() bool {
+	for _, piece := range s.SectorPiece() {
+		if piece.IsBuiltinMarket() {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *SectorState) DealIDs() []abi.DealID {
+	return lo.FilterMap(s.SectorPiece(), func(p SectorPiece, _i int) (abi.DealID, bool) {
+		dealID := p.DealID()
+		if dealID == abi.DealID(0) {
+			return abi.DealID(0), false
+		}
+		return dealID, true
+	})
+}
+
+func (s *SectorState) HasData() bool {
+	for _, piece := range s.Pieces {
+		if piece.HasDealInfo() {
+			return true
+		}
+	}
+
+	for _, piece := range s.LegacyPieces {
+		if piece.HasDealInfo() {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (s *SectorState) PendingForSealingCommitment() bool {

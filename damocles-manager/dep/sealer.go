@@ -62,6 +62,7 @@ func Product() dix.Option {
 		dix.If(ver.ProverIsProd(), prodProver()),
 		dix.If(!ver.ProverIsProd(), fakerProver()),
 		dix.Override(new(core.MinerAPI), BuildMinerAPI),
+		dix.Override(new(core.LookupID), BuildLookupId),
 		dix.Override(new(core.SenderSelector), BuildSenderSelector),
 
 		dix.Override(new(core.CommitmentManager), BuildCommitmentManager),

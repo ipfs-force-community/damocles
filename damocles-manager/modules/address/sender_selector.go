@@ -1,4 +1,4 @@
-package sectors
+package address
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/cespare/xxhash/v2"
@@ -14,6 +13,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/venus/venus-shared/types"
+	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/patrickmn/go-cache"
@@ -21,14 +21,12 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-func NewSenderSelector(chain chain.API) *SenderSelector {
+func NewSenderSelector(chain chain.API, lookupID core.LookupID) *SenderSelector {
 	cache := cache.New(time.Duration(policy.NetParams.BlockDelaySecs/2), time.Duration(policy.NetParams.BlockDelaySecs))
 	return &SenderSelector{
-		chain: chain,
-		cache: cache,
-
-		toF0mapping: make(map[address.Address]address.Address),
-		mu:          &sync.RWMutex{},
+		chain:    chain,
+		cache:    cache,
+		lookupID: lookupID,
 	}
 }
 
@@ -37,8 +35,7 @@ type SenderSelector struct {
 	cache *cache.Cache
 	group singleflight.Group
 
-	toF0mapping map[address.Address]address.Address
-	mu          *sync.RWMutex
+	lookupID core.LookupID
 }
 
 func (s *SenderSelector) Select(ctx context.Context, mid abi.ActorID, senders []address.Address) (address.Address, error) {
@@ -66,7 +63,7 @@ func (s *SenderSelector) selectInner(ctx context.Context, mid abi.ActorID, sende
 	for i := range senders {
 		if senders[i].Protocol() != address.ID {
 			var err error
-			senders[i], err = s.addressToF0(ctx, senders[i])
+			senders[i], err = s.lookupID.StateLookupID(ctx, senders[i])
 			if err != nil {
 				return address.Undef, err
 			}
@@ -88,39 +85,17 @@ func (s *SenderSelector) selectInner(ctx context.Context, mid abi.ActorID, sende
 		return address.Undef, fmt.Errorf("no valid sender found")
 	}
 
-	if len(validAddrs) > 1 {
-		balancesCache := make(map[address.Address]types.BigInt)
-		sort.Slice(validAddrs, func(i, j int) bool {
-			balanceI := valueOrInsert(balancesCache, validAddrs[i], func() types.BigInt {
-				return s.getBalance(ctx, validAddrs[i], big.Zero())
-			})
-			balanceJ := valueOrInsert(balancesCache, validAddrs[j], func() types.BigInt {
-				return s.getBalance(ctx, validAddrs[j], big.Zero())
-			})
-			return balanceI.GreaterThan(balanceJ)
+	balancesCache := make(map[address.Address]types.BigInt)
+	sort.Slice(validAddrs, func(i, j int) bool {
+		balanceI := valueOrInsert(balancesCache, validAddrs[i], func() types.BigInt {
+			return s.getBalance(ctx, validAddrs[i], big.Zero())
 		})
-	}
+		balanceJ := valueOrInsert(balancesCache, validAddrs[j], func() types.BigInt {
+			return s.getBalance(ctx, validAddrs[j], big.Zero())
+		})
+		return balanceI.GreaterThan(balanceJ)
+	})
 	return validAddrs[0], nil
-}
-
-func (s *SenderSelector) addressToF0(ctx context.Context, nonF0 address.Address) (address.Address, error) {
-	s.mu.RLock()
-	f0, has := s.toF0mapping[nonF0]
-	s.mu.RUnlock()
-	if has {
-		return f0, nil
-	}
-
-	var err error
-	f0, err = s.chain.StateLookupID(ctx, nonF0, types.EmptyTSK)
-	if err != nil {
-		return address.Undef, fmt.Errorf("convert non-f0 address to f0 address %s: %w", nonF0, err)
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.toF0mapping[nonF0] = f0
-	return f0, nil
 }
 
 func (s *SenderSelector) getBalance(ctx context.Context, addr address.Address, defaultBalance types.BigInt) types.BigInt {

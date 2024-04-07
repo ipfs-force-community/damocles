@@ -1,5 +1,7 @@
 use anyhow::{anyhow, Error};
+use fil_types::PaddedPieceSize;
 use forest_cid::json::CidJson;
+use forest_cid::Cid;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -9,7 +11,8 @@ pub use fil_types::{
 };
 
 use crate::rpc::sealer::{
-    AllocatedSector, Deals, SectorPrivateInfo, SectorPublicInfo, Seed, Ticket,
+    AllocatedSector, Deals, DealsV2, SectorPrivateInfo, SectorPublicInfo, Seed,
+    Ticket,
 };
 use crate::sealing::processor::{
     PieceInfo, ProverId, SealCommitPhase1Output, SealCommitPhase2Output,
@@ -217,7 +220,8 @@ pub struct Sector {
     pub base: Option<Base>,
 
     // deal pieces
-    pub deals: Option<Deals>,
+    deals: Option<Deals>,
+    deals_v2: Option<DealsV2>,
 
     // this field should only be set when the snapup procedures are required by the sector,
     // no matter it is a snapup- or rebuild- sector
@@ -236,9 +240,56 @@ impl Sector {
             retry: 0,
             base: None,
             deals: None,
+            deals_v2: None,
             finalized: None,
             phases: Default::default(),
         }
+    }
+
+    pub fn set_deals(&mut self, deals: Option<Deals>) {
+        self.deals = deals;
+    }
+
+    pub fn set_deals_v2(&mut self, deals: Option<DealsV2>) {
+        self.deals_v2 = deals;
+    }
+
+    pub fn has_deals(&self) -> bool {
+        match (&self.deals, &self.deals_v2) {
+            (Some(deals), _) => !deals.is_empty(),
+            (_, Some(deals)) => !deals.is_empty(),
+            _ => false,
+        }
+    }
+
+    pub fn deals(&self) -> Vec<SectorPiece> {
+        if let Some(deals) = &self.deals {
+            return deals
+                .iter()
+                .map(|deal| SectorPiece {
+                    size: deal.piece.size,
+                    piece_cid: deal.piece.cid.clone(),
+                    payload_size: deal.payload_size,
+                    is_pledge: deal.id == 0,
+                })
+                .collect();
+        }
+        if let Some(deals) = &self.deals_v2 {
+            return deals
+                .iter()
+                .map(|piece| SectorPiece {
+                    size: piece.piece.size,
+                    piece_cid: piece.piece.piece_cid.clone(),
+                    payload_size: piece.deal_info.payload_size,
+                    is_pledge: if piece.deal_info.is_builtin_market {
+                        piece.deal_info.deal_id == 0
+                    } else {
+                        piece.deal_info.allocation_id == 0
+                    },
+                })
+                .collect();
+        }
+        vec![]
     }
 
     pub fn update_state(&mut self, next: State) {
@@ -249,4 +300,11 @@ impl Sector {
     pub fn plan(&self) -> &str {
         self.plan.as_deref().unwrap_or_else(|| default_plan())
     }
+}
+
+pub struct SectorPiece {
+    pub size: PaddedPieceSize,
+    pub piece_cid: CidJson,
+    pub payload_size: u64,
+    pub is_pledge: bool,
 }
