@@ -22,7 +22,7 @@ require (
 	github.com/filecoin-project/go-state-types v0.13.1
 	github.com/filecoin-project/lotus v1.26.0
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.15.0
+	github.com/filecoin-project/venus v1.15.1
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.5.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
@@ -165,6 +165,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/klauspost/compress v1.17.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
+	github.com/lib/pq v1.10.9 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect
 	github.com/libp2p/go-cidranger v1.1.0 // indirect
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
@@ -193,7 +194,7 @@ require (
 	github.com/multiformats/go-multistream v0.5.0 // indirect
 	github.com/multiformats/go-varint v0.0.7 // indirect
 	github.com/nkovacs/streamquote v1.0.0 // indirect
-	github.com/onsi/gomega v1.27.8 // indirect
+	github.com/onsi/gomega v1.30.0 // indirect
 	github.com/opencontainers/runtime-spec v1.2.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/petar/GoLLRB v0.0.0-20210522233825-ae3b015fd3e9 // indirect
