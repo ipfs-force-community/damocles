@@ -43,9 +43,7 @@ type (
 	WinningPoStVerifyInfo   = proof.WinningPoStVerifyInfo
 )
 
-var (
-	NewSortedPrivateSectorInfo = ffi.NewSortedPrivateSectorInfo
-)
+var NewSortedPrivateSectorInfo = ffi.NewSortedPrivateSectorInfo
 
 type Verifier interface {
 	VerifySeal(context.Context, SealVerifyInfo) (bool, error)
@@ -64,13 +62,38 @@ type GenerateWindowPoStParams struct {
 }
 
 type Prover interface {
-	AggregateSealProofs(ctx context.Context, aggregateInfo AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error)
-	GenerateWindowPoSt(ctx context.Context, params GenerateWindowPoStParams) (proof []builtin.PoStProof, skipped []abi.SectorID, err error)
-	GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, ppt abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error)
+	AggregateSealProofs(
+		ctx context.Context,
+		aggregateInfo AggregateSealVerifyProofAndInfos,
+		proofs [][]byte,
+	) ([]byte, error)
+	GenerateWindowPoSt(
+		ctx context.Context,
+		params GenerateWindowPoStParams,
+	) (postProof []builtin.PoStProof, skipped []abi.SectorID, err error)
+	GenerateWinningPoSt(
+		ctx context.Context,
+		minerID abi.ActorID,
+		ppt abi.RegisteredPoStProof,
+		sectors []builtin.ExtendedSectorInfo,
+		randomness abi.PoStRandomness,
+	) ([]builtin.PoStProof, error)
 
-	GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*FallbackChallenges, error)
+	GeneratePoStFallbackSectorChallenges(
+		ctx context.Context,
+		proofType abi.RegisteredPoStProof,
+		minerID abi.ActorID,
+		randomness abi.PoStRandomness,
+		sectorIds []abi.SectorNumber,
+	) (*FallbackChallenges, error)
 	GenerateSingleVanillaProof(ctx context.Context, replica FFIPrivateSectorInfo, challenges []uint64) ([]byte, error)
-	GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]PoStProof, error)
+	GenerateWinningPoStWithVanilla(
+		ctx context.Context,
+		proofType abi.RegisteredPoStProof,
+		minerID abi.ActorID,
+		randomness abi.PoStRandomness,
+		proofs [][]byte,
+	) ([]PoStProof, error)
 }
 
 type ProveDataChecker interface {

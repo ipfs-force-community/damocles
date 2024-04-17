@@ -1,0 +1,254 @@
+{
+  "lockfile-version": 0,
+  "manifest": {
+    "hook": {},
+    "install": {
+      "go": {
+        "pkg-path": "go",
+        "version": "~1.21.8"
+      },
+      "gofumpt": {
+        "pkg-path": "gofumpt",
+        "version": "~0.3.1"
+      },
+      "golangci-lint": {
+        "pkg-path": "golangci-lint",
+        "version": "~1.55.2"
+      },
+      "golines": {
+        "pkg-path": "golines",
+        "version": "~0.11.0"
+      },
+      "pkg-config": {
+        "pkg-path": "pkg-config",
+        "version": "~0.29.2"
+      },
+      "rustup": {
+        "pkg-path": "rustup",
+        "version": "~1.26.0"
+      }
+    },
+    "options": {
+      "systems": [
+        "x86_64-linux"
+      ]
+    },
+    "registry": {
+      "defaults": {
+        "subtrees": null
+      },
+      "inputs": {
+        "nixpkgs": {
+          "from": {
+            "owner": "NixOS",
+            "ref": "release-23.11",
+            "repo": "nixpkgs",
+            "type": "github"
+          },
+          "subtrees": [
+            "legacyPackages"
+          ]
+        }
+      },
+      "priority": [
+        "nixpkgs"
+      ]
+    },
+    "vars": {}
+  },
+  "packages": {
+    "x86_64-linux": {
+      "go": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "go"
+        ],
+        "info": {
+          "broken": false,
+          "description": "The Go Programming language",
+          "license": "BSD-3-Clause",
+          "pname": "go",
+          "unfree": false,
+          "version": "1.21.9"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1713212762,
+            "narHash": "sha256-UQwudEVEWUVjCWvGDVyq/FXo4I92hH8QFgmRqOgPN2s=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "69be1d097dd9a8422cfc4e89811304fb40f22626",
+            "type": "github"
+          },
+          "fingerprint": "618c3cd84c5464ed2402454c5e0fdba45c1b78f986009d0caf0a52fa3681d652",
+          "url": "github:NixOS/nixpkgs/69be1d097dd9a8422cfc4e89811304fb40f22626"
+        },
+        "priority": 5
+      },
+      "gofumpt": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "gofumpt"
+        ],
+        "info": {
+          "broken": false,
+          "description": "A stricter gofmt",
+          "license": "BSD-3-Clause",
+          "pname": "gofumpt",
+          "unfree": false,
+          "version": "0.3.1"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1713212762,
+            "narHash": "sha256-UQwudEVEWUVjCWvGDVyq/FXo4I92hH8QFgmRqOgPN2s=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "69be1d097dd9a8422cfc4e89811304fb40f22626",
+            "type": "github"
+          },
+          "fingerprint": "618c3cd84c5464ed2402454c5e0fdba45c1b78f986009d0caf0a52fa3681d652",
+          "url": "github:NixOS/nixpkgs/69be1d097dd9a8422cfc4e89811304fb40f22626"
+        },
+        "priority": 5
+      },
+      "golangci-lint": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "golangci-lint"
+        ],
+        "info": {
+          "broken": false,
+          "description": "Fast linters Runner for Go",
+          "license": "GPL-3.0-or-later",
+          "pname": "golangci-lint",
+          "unfree": false,
+          "version": "1.55.2"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1713212762,
+            "narHash": "sha256-UQwudEVEWUVjCWvGDVyq/FXo4I92hH8QFgmRqOgPN2s=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "69be1d097dd9a8422cfc4e89811304fb40f22626",
+            "type": "github"
+          },
+          "fingerprint": "618c3cd84c5464ed2402454c5e0fdba45c1b78f986009d0caf0a52fa3681d652",
+          "url": "github:NixOS/nixpkgs/69be1d097dd9a8422cfc4e89811304fb40f22626"
+        },
+        "priority": 5
+      },
+      "golines": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "golines"
+        ],
+        "info": {
+          "broken": false,
+          "description": "A golang formatter that fixes long lines",
+          "license": "MIT",
+          "pname": "golines",
+          "unfree": false,
+          "version": "0.11.0"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1713212762,
+            "narHash": "sha256-UQwudEVEWUVjCWvGDVyq/FXo4I92hH8QFgmRqOgPN2s=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "69be1d097dd9a8422cfc4e89811304fb40f22626",
+            "type": "github"
+          },
+          "fingerprint": "618c3cd84c5464ed2402454c5e0fdba45c1b78f986009d0caf0a52fa3681d652",
+          "url": "github:NixOS/nixpkgs/69be1d097dd9a8422cfc4e89811304fb40f22626"
+        },
+        "priority": 5
+      },
+      "pkg-config": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "pkg-config"
+        ],
+        "info": {
+          "broken": false,
+          "description": "A tool that allows packages to find out information about other packages (wrapper script)",
+          "license": "GPL-2.0-or-later",
+          "pname": "pkg-config-wrapper",
+          "unfree": false,
+          "version": "0.29.2"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1713212762,
+            "narHash": "sha256-UQwudEVEWUVjCWvGDVyq/FXo4I92hH8QFgmRqOgPN2s=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "69be1d097dd9a8422cfc4e89811304fb40f22626",
+            "type": "github"
+          },
+          "fingerprint": "618c3cd84c5464ed2402454c5e0fdba45c1b78f986009d0caf0a52fa3681d652",
+          "url": "github:NixOS/nixpkgs/69be1d097dd9a8422cfc4e89811304fb40f22626"
+        },
+        "priority": 5
+      },
+      "rustup": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "rustup"
+        ],
+        "info": {
+          "broken": false,
+          "description": "The Rust toolchain installer",
+          "license": null,
+          "pname": "rustup",
+          "unfree": false,
+          "version": "1.26.0"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1713212762,
+            "narHash": "sha256-UQwudEVEWUVjCWvGDVyq/FXo4I92hH8QFgmRqOgPN2s=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "69be1d097dd9a8422cfc4e89811304fb40f22626",
+            "type": "github"
+          },
+          "fingerprint": "618c3cd84c5464ed2402454c5e0fdba45c1b78f986009d0caf0a52fa3681d652",
+          "url": "github:NixOS/nixpkgs/69be1d097dd9a8422cfc4e89811304fb40f22626"
+        },
+        "priority": 5
+      }
+    }
+  },
+  "registry": {
+    "defaults": {
+      "subtrees": null
+    },
+    "inputs": {
+      "nixpkgs": {
+        "from": {
+          "lastModified": 1713212762,
+          "narHash": "sha256-UQwudEVEWUVjCWvGDVyq/FXo4I92hH8QFgmRqOgPN2s=",
+          "owner": "NixOS",
+          "repo": "nixpkgs",
+          "rev": "69be1d097dd9a8422cfc4e89811304fb40f22626",
+          "type": "github"
+        },
+        "subtrees": [
+          "legacyPackages"
+        ]
+      }
+    },
+    "priority": [
+      "nixpkgs"
+    ]
+  }
+}

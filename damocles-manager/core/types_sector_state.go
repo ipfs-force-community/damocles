@@ -14,15 +14,17 @@ type SectorStateChangeHook func(st *SectorState) (bool, error)
 // returns the persist instance name, existence
 type SectorLocator func(ctx context.Context, sid abi.SectorID) (SectorAccessStores, bool, error)
 
-type SectorFinalized bool
-type SectorUpgraded bool
-type SectorRemoved bool
-type SectorImported bool
-type SectorUpgradeLandedEpoch abi.ChainEpoch
-type SectorUpgradeMessageID string
-type SectorUpgradePublic SectorPublicInfo
-type SectorNeedRebuild bool
-type SectorUnsealing bool
+type (
+	SectorFinalized          bool
+	SectorUpgraded           bool
+	SectorRemoved            bool
+	SectorImported           bool
+	SectorUpgradeLandedEpoch abi.ChainEpoch
+	SectorUpgradeMessageID   string
+	SectorUpgradePublic      SectorPublicInfo
+	SectorNeedRebuild        bool
+	SectorUnsealing          bool
+)
 
 type SectorUpgradedInfo struct {
 	AccessInstance string

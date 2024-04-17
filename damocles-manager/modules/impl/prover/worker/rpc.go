@@ -24,15 +24,29 @@ type WdPoStAPIImpl struct {
 	cfg    modules.WorkerProverConfig
 }
 
-func (api WdPoStAPIImpl) WdPoStHeartbeatJobs(ctx context.Context, runningJobIDs []string, workerName string) (core.Meta, error) {
+func (api WdPoStAPIImpl) WdPoStHeartbeatJobs(
+	ctx context.Context,
+	runningJobIDs []string,
+	workerName string,
+) (core.Meta, error) {
 	return nil, api.jobMgr.Heartbeat(ctx, runningJobIDs, workerName)
 }
 
-func (api WdPoStAPIImpl) WdPoStAllocateJobs(ctx context.Context, spec core.AllocateWdPoStJobSpec, num uint32, workerName string) (allocatedJobs []*core.WdPoStAllocatedJob, err error) {
+func (api WdPoStAPIImpl) WdPoStAllocateJobs(
+	ctx context.Context,
+	spec core.AllocateWdPoStJobSpec,
+	num uint32,
+	workerName string,
+) (allocatedJobs []*core.WdPoStAllocatedJob, err error) {
 	return api.jobMgr.AllocateJobs(ctx, spec, num, workerName)
 }
 
-func (api WdPoStAPIImpl) WdPoStFinishJob(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) (core.Meta, error) {
+func (api WdPoStAPIImpl) WdPoStFinishJob(
+	ctx context.Context,
+	jobID string,
+	output *stage.WindowPoStOutput,
+	errorReason string,
+) (core.Meta, error) {
 	return nil, api.jobMgr.Finish(ctx, jobID, output, errorReason)
 }
 

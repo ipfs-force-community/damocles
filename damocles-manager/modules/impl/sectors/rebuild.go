@@ -26,7 +26,11 @@ type RebuildInfosForActor struct {
 	Infos map[abi.SectorNumber]core.SectorRebuildInfo
 }
 
-func NewRebuildManager(scfg *modules.SafeConfig, minerAPI core.MinerAPI, infoKVStore kvstore.KVStore) (*RebuildManager, error) {
+func NewRebuildManager(
+	scfg *modules.SafeConfig,
+	minerAPI core.MinerAPI,
+	infoKVStore kvstore.KVStore,
+) (*RebuildManager, error) {
 	return &RebuildManager{
 		msel: newMinerSelector(scfg, minerAPI),
 		kv:   infoKVStore,
@@ -66,7 +70,6 @@ func (rm *RebuildManager) Set(ctx context.Context, sid abi.SectorID, info core.S
 
 		return true
 	})
-
 	if err != nil {
 		return fmt.Errorf("add rebuild info: %w", err)
 	}
@@ -75,7 +78,13 @@ func (rm *RebuildManager) Set(ctx context.Context, sid abi.SectorID, info core.S
 }
 
 func (rm *RebuildManager) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorRebuildInfo, error) {
-	cands := rm.msel.candidates(ctx, spec.AllowedMiners, spec.AllowedProofTypes, func(mcfg modules.MinerConfig) bool { return true }, "rebuild")
+	cands := rm.msel.candidates(
+		ctx,
+		spec.AllowedMiners,
+		spec.AllowedProofTypes,
+		func(mcfg modules.MinerConfig) bool { return true },
+		"rebuild",
+	)
 	if len(cands) == 0 {
 		return nil, nil
 	}
@@ -104,7 +113,6 @@ func (rm *RebuildManager) Allocate(ctx context.Context, spec core.AllocateSector
 
 		return false
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("allocate rebuid info: %w", err)
 	}
@@ -125,7 +133,6 @@ func (rm *RebuildManager) loadAndUpdate(ctx context.Context, modify func(infos *
 
 		return nil
 	})
-
 	if err != nil {
 		if !errors.Is(err, kvstore.ErrKeyNotFound) {
 			return fmt.Errorf("load rebuild infos: %w", err)

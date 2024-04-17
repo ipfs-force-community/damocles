@@ -19,8 +19,10 @@ import (
 
 var mgrLog = logging.New("objstore-mgr")
 
-var _ Manager = (*StoreManager)(nil)
-var storeReserveSummaryKey = kvstore.Key("StoreReserveSummary")
+var (
+	_                      Manager = (*StoreManager)(nil)
+	storeReserveSummaryKey         = kvstore.Key("StoreReserveSummary")
+)
 
 // for storage allocator
 type StoreReserveSummary struct {
@@ -91,7 +93,11 @@ func (p StoreSelectPolicy) Allowed(miner abi.ActorID) bool {
 	return true
 }
 
-func NewStoreManager(stores []Store, policy map[string]StoreSelectPolicy, metadb kvstore.KVStore) (*StoreManager, error) {
+func NewStoreManager(
+	stores []Store,
+	policy map[string]StoreSelectPolicy,
+	metadb kvstore.KVStore,
+) (*StoreManager, error) {
 	idxes := map[string]int{}
 	for i, st := range stores {
 		idxes[st.Instance(context.Background())] = i
@@ -163,7 +169,12 @@ type storeCandidate struct {
 	InstanceInfo
 }
 
-func (m *StoreManager) ReserveSpace(ctx context.Context, sid abi.SectorID, size uint64, candidates []string) (*Config, error) {
+func (m *StoreManager) ReserveSpace(
+	ctx context.Context,
+	sid abi.SectorID,
+	size uint64,
+	candidates []string,
+) (*Config, error) {
 	by := util.FormatSectorID(sid)
 	rlog := mgrLog.With("by", by, "size", size)
 
@@ -189,6 +200,7 @@ func (m *StoreManager) ReserveSpace(ctx context.Context, sid abi.SectorID, size 
 				}
 			}
 
+			//nolint
 			if len(cand) == 0 || cand[insName] {
 				info, err := st.InstanceInfo(ctx)
 				if err != nil {
@@ -237,13 +249,14 @@ func (m *StoreManager) ReserveSpace(ctx context.Context, sid abi.SectorID, size 
 			return false, nil
 		}
 
-		chosen := selector.PickSource(m.resRand).(storeCandidate)
+		chosen := selector.PickSource(m.resRand).(storeCandidate) //revive:disable-line:unchecked-type-assertion
 		selected = &chosen.Config
 
 		resStat, ok := summary.Stats[chosen.InstanceInfo.Config.Name]
 		if !ok {
 			resStat = emptyStoreReserveStat()
 			summary.Stats[chosen.InstanceInfo.Config.Name] = resStat
+			//nolint
 			changed = true
 		}
 
@@ -260,7 +273,6 @@ func (m *StoreManager) ReserveSpace(ctx context.Context, sid abi.SectorID, size 
 
 		return changed, nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("attempt to select a store: %w", err)
 	}
@@ -294,7 +306,6 @@ func (m *StoreManager) ReleaseReserved(ctx context.Context, sid abi.SectorID) (b
 
 		return changed, nil
 	})
-
 	if err != nil {
 		return false, fmt.Errorf("release reserved: %w", err)
 	}
@@ -310,7 +321,6 @@ func (m *StoreManager) modifyReserved(ctx context.Context, modifier func(*StoreR
 	err := m.metadb.Peek(ctx, storeReserveSummaryKey, func(data []byte) error {
 		return json.Unmarshal(data, &summary)
 	})
-
 	if err != nil {
 		if !errors.Is(err, kvstore.ErrKeyNotFound) {
 			return fmt.Errorf("view store reserve summary: %w", err)

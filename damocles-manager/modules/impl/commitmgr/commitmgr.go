@@ -18,7 +18,7 @@ import (
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
-	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
+	chainapi "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
@@ -39,7 +39,7 @@ type CommitmentMgrImpl struct {
 
 	msgClient messager.API
 
-	chain    chainAPI.API
+	chain    chainapi.API
 	stateMgr SealingAPI
 	minerAPI core.MinerAPI
 	lookupID core.LookupID
@@ -64,8 +64,19 @@ type CommitmentMgrImpl struct {
 	stop     chan struct{}
 }
 
-func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr SealingAPI, minerAPI core.MinerAPI, smgr core.SectorStateManager,
-	cfg *modules.SafeConfig, verif core.Verifier, prover core.Prover, senderSelector core.SenderSelector, chain chainAPI.API, lookupID core.LookupID,
+//revive:disable-next-line:argument-limit
+func NewCommitmentMgr(
+	ctx context.Context,
+	commitAPI messager.API,
+	stateMgr SealingAPI,
+	minerAPI core.MinerAPI,
+	smgr core.SectorStateManager,
+	cfg *modules.SafeConfig,
+	verif core.Verifier,
+	prover core.Prover,
+	senderSelector core.SenderSelector,
+	chain chainapi.API,
+	lookupID core.LookupID,
 ) (*CommitmentMgrImpl, error) {
 	prePendingChan := make(chan core.SectorState, 1024)
 	proPendingChan := make(chan core.SectorState, 1024)
@@ -98,7 +109,12 @@ func NewCommitmentMgr(ctx context.Context, commitAPI messager.API, stateMgr Seal
 	return &mgr, nil
 }
 
-func updateSector(ctx context.Context, stmgr core.SectorStateManager, sector []core.SectorState, plog *logging.ZapLogger) {
+func updateSector(
+	ctx context.Context,
+	stmgr core.SectorStateManager,
+	sector []core.SectorState,
+	plog *logging.ZapLogger,
+) {
 	sectorID := make([]abi.SectorID, len(sector))
 	for i := range sector {
 		sectorID[i] = sector[i].ID
@@ -112,9 +128,18 @@ func updateSector(ctx context.Context, stmgr core.SectorStateManager, sector []c
 	plog.Infof("Process sectors %v finished", sectorID)
 }
 
-func pushMessage(ctx context.Context, from address.Address, mid abi.ActorID, value abi.TokenAmount, method abi.MethodNum,
-	msgClient messager.API, feeCfg *modules.FeeConfig, params []byte, mlog *logging.ZapLogger) (cid.Cid, error) {
-
+//revive:disable-next-line:argument-limit
+func pushMessage(
+	ctx context.Context,
+	from address.Address,
+	mid abi.ActorID,
+	value abi.TokenAmount,
+	method abi.MethodNum,
+	msgClient messager.API,
+	feeCfg *modules.FeeConfig,
+	params []byte,
+	mlog *logging.ZapLogger,
+) (cid.Cid, error) {
 	to, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
 		return cid.Undef, err
@@ -450,7 +475,12 @@ func (c *CommitmentMgrImpl) restartSector(ctx context.Context) {
 	}
 }
 
-func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID, info core.PreCommitInfo, hardReset bool) (core.SubmitPreCommitResp, error) {
+func (c *CommitmentMgrImpl) SubmitPreCommit(
+	ctx context.Context,
+	id abi.SectorID,
+	info core.PreCommitInfo,
+	hardReset bool,
+) (core.SubmitPreCommitResp, error) {
 	_, err := c.preSender(ctx, id.Miner)
 	if err != nil {
 		return core.SubmitPreCommitResp{}, err
@@ -492,9 +522,10 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(ctx context.Context, id abi.SectorID
 
 		case *ErrBadCommD:
 			// When encountering `ErrBadCommD` error, damocles-worker should not release these deals,
-			// as it is highly likely that the same error will occur when these deals are released and re claimed by damocles.
-			// The current approach is to return an error of type `SubmitMismatchedSubmission``, causing damocles-worker to pause the sealing_thread
-			// to waiting for manual processing
+			// as it is highly likely that the same error will occur when these deals are released
+			// and re-acquired by damocles.
+			// The current approach is to return an error of type `SubmitMismatchedSubmission`,
+			// causing damocles-worker to pause the sealing_thread to waiting for manual processing
 			errMsg := err.Error()
 			return core.SubmitPreCommitResp{Res: core.SubmitMismatchedSubmission, Desc: &errMsg}, nil
 
@@ -559,14 +590,22 @@ func (c *CommitmentMgrImpl) PreCommitState(ctx context.Context, id abi.SectorID)
 		}
 
 		if pci == nil {
-			return core.PollPreCommitStateResp{State: core.OnChainStateShouldAbort, Desc: &errMsgPreCommitInfoNotFound}, nil
+			return core.PollPreCommitStateResp{
+				State: core.OnChainStateShouldAbort,
+				Desc:  &errMsgPreCommitInfoNotFound,
+			}, nil
 		}
 	}
 
 	return core.PollPreCommitStateResp{State: state, Desc: maybe}, nil
 }
 
-func (c *CommitmentMgrImpl) SubmitProof(ctx context.Context, id abi.SectorID, info core.ProofInfo, hardReset bool) (core.SubmitProofResp, error) {
+func (c *CommitmentMgrImpl) SubmitProof(
+	ctx context.Context,
+	id abi.SectorID,
+	info core.ProofInfo,
+	hardReset bool,
+) (core.SubmitProofResp, error) {
 	_, err := c.proveSender(ctx, id.Miner)
 	if err != nil {
 		return core.SubmitProofResp{}, err
@@ -663,7 +702,6 @@ func (c *CommitmentMgrImpl) ProofState(ctx context.Context, id abi.SectorID) (co
 	state, maybe := c.handleMessage(ctx, id.Miner, msg, mlog)
 	if state == core.OnChainStateLanded {
 		si, err := c.stateMgr.StateSectorGetInfo(ctx, maddr, id.Number, nil)
-
 		if err != nil {
 			return core.PollProofStateResp{}, err
 		}
@@ -705,7 +743,9 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 			return core.SubmitTerminateResp{}, fmt.Errorf("checking precommit presence: %w", err)
 		}
 		if pci != nil {
-			return core.SubmitTerminateResp{}, fmt.Errorf("sector was precommitted but not proven, remove instead of terminating")
+			return core.SubmitTerminateResp{}, fmt.Errorf(
+				"sector was precommitted but not proven, remove instead of terminating",
+			)
 		}
 
 		return core.SubmitTerminateResp{}, fmt.Errorf("already terminated")
@@ -749,11 +789,15 @@ func (c *CommitmentMgrImpl) SubmitTerminate(ctx context.Context, sid abi.SectorI
 		sector.ID = sid
 		sector.SectorType = si.SealProof
 
-		ierr := c.smgr.InitWith(ctx, []*core.AllocatedSector{{ID: sid, ProofType: si.SealProof}}, core.WorkerOffline, newTerminateInfo)
+		ierr := c.smgr.InitWith(
+			ctx,
+			[]*core.AllocatedSector{{ID: sid, ProofType: si.SealProof}},
+			core.WorkerOffline,
+			newTerminateInfo,
+		)
 		if ierr != nil {
 			return core.SubmitTerminateResp{}, fmt.Errorf("init non-exist snapup sector: %w", err)
 		}
-
 	} else {
 		if loadedSector.TerminateInfo.AddedHeight > 0 {
 			errMsg := "duplicate submit"
@@ -787,7 +831,12 @@ func (c *CommitmentMgrImpl) TerminateState(ctx context.Context, sid abi.SectorID
 	return sector.TerminateInfo, nil
 }
 
-func (c *CommitmentMgrImpl) handleMessage(_ context.Context, mid abi.ActorID, msg *messager.Message, mlog *logging.ZapLogger) (core.OnChainState, *string) {
+func (c *CommitmentMgrImpl) handleMessage(
+	_ context.Context,
+	mid abi.ActorID,
+	msg *messager.Message,
+	mlog *logging.ZapLogger,
+) (core.OnChainState, *string) {
 	mlog = mlog.With("msg-cid", msg.ID, "msg-state", messager.MessageStateToString(msg.State))
 	if msg.SignedCid != nil {
 		mlog = mlog.With("msg-signed-cid", msg.SignedCid.String())

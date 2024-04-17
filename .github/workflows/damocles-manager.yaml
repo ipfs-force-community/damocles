@@ -14,47 +14,31 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: dependencies
-        run: sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
-
-      - name: setup go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version-file: 'damocles-manager/go.mod'
+          cache-dependency-path: 'damocles-manager/go.sum'
 
-      - name: cache paths
-        id: cache-paths
-        run: |
-          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
-          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+      - name: Instal Dependencies
+        run: | 
+          sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2
+          go install github.com/segmentio/golines@v0.11.0
+          go install mvdan.cc/gofumpt@v0.3.1
 
-      - name: setup go cache
-        uses: actions/cache@v4
-        continue-on-error: false
-        with:
-          path: |
-            ${{ steps.cache-paths.outputs.go-build }}
-            ${{ steps.cache-paths.outputs.go-mod }}
-          key: ${{ runner.os }}-go-${{ hashFiles('damocles-manager/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
-
-      - name: install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2
-
-      - name: test damocles-manager
+      - name: Test damocles-manager
         run: make test-manager
 
-      - name: build damocles-manager
+      - name: Build damocles-manager
         run: make build-manager
 
-      - name: check damocles-manager
+      - name: Check damocles-manager
         run: make check-manager
 
-      - name: check git dirty
+      - name: Check git dirty
         run: make check-git
 
-      - name: show bins
+      - name: Show bins
         run: ls -lha ./dist/bin/
 
       # - name: upload damocles-manager

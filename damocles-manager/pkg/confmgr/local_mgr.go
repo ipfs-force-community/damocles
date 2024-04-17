@@ -16,11 +16,11 @@ import (
 )
 
 type cfgItem struct {
-	c      interface{}
+	c      any
 	crv    reflect.Value
 	wlock  WLocker
 	cancel context.CancelFunc
-	newfn  func() interface{}
+	newfn  func() any
 }
 
 func NewLocal(dir string) (ConfigManager, error) {
@@ -40,11 +40,11 @@ type localMgr struct {
 }
 
 func (lm *localMgr) Run(ctx context.Context) error {
-	go lm.run(ctx)
+	go lm.runInner(ctx)
 	return nil
 }
 
-func (lm *localMgr) run(ctx context.Context) {
+func (lm *localMgr) runInner(ctx context.Context) {
 	log.Info("local conf mgr start")
 	defer log.Info("local conf mgr stop")
 
@@ -64,12 +64,10 @@ func (lm *localMgr) run(ctx context.Context) {
 			}
 			lm.regmu.Unlock()
 		}
-
 	}
-
 }
 
-func (lm *localMgr) Close(context.Context) error {
+func (*localMgr) Close(context.Context) error {
 	return nil
 }
 
@@ -77,7 +75,7 @@ func (lm *localMgr) cfgpath(key string) string {
 	return filepath.Join(lm.dir, fmt.Sprintf("%s.cfg", key))
 }
 
-func (lm *localMgr) SetDefault(_ context.Context, key string, c interface{}) error {
+func (lm *localMgr) SetDefault(_ context.Context, key string, c any) error {
 	fname := lm.cfgpath(key)
 	_, err := os.Stat(fname)
 	if err == nil {
@@ -93,10 +91,10 @@ func (lm *localMgr) SetDefault(_ context.Context, key string, c interface{}) err
 		return fmt.Errorf("marshal default content: %w", err)
 	}
 
-	return os.WriteFile(fname, content, 0644)
+	return os.WriteFile(fname, content, 0644) //nolint
 }
 
-func (lm *localMgr) Load(_ context.Context, key string, c interface{}) error {
+func (lm *localMgr) Load(_ context.Context, key string, c any) error {
 	fname := lm.cfgpath(key)
 	data, err := os.ReadFile(fname)
 	if err != nil {
@@ -106,7 +104,7 @@ func (lm *localMgr) Load(_ context.Context, key string, c interface{}) error {
 	return lm.unmarshal(data, c)
 }
 
-func (lm *localMgr) unmarshal(data []byte, obj interface{}) error {
+func (*localMgr) unmarshal(data []byte, obj any) error {
 	if un, ok := obj.(ConfigUnmarshaller); ok {
 		return un.UnmarshalConfig(data)
 	}
@@ -114,8 +112,7 @@ func (lm *localMgr) unmarshal(data []byte, obj interface{}) error {
 	return toml.Unmarshal(data, obj)
 }
 
-func (lm *localMgr) Watch(_ context.Context, key string, c interface{}, wlock WLocker, newfn func() interface{}) error {
-
+func (lm *localMgr) Watch(_ context.Context, key string, c any, wlock WLocker, newfn func() any) error {
 	maybe := newfn()
 	valC := reflect.ValueOf(c)
 	typC := valC.Type()

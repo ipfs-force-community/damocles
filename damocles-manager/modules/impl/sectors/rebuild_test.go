@@ -28,7 +28,7 @@ func (m *mockMinerAPI) GetInfo(_ context.Context, mid abi.ActorID) (*core.MinerI
 	return minfo, nil
 }
 
-func (m *mockMinerAPI) GetMinerConfig(_ context.Context, _ abi.ActorID) (*modules.MinerConfig, error) {
+func (*mockMinerAPI) GetMinerConfig(_ context.Context, _ abi.ActorID) (*modules.MinerConfig, error) {
 	return nil, fmt.Errorf("not impl")
 }
 
@@ -148,7 +148,14 @@ func TestRebuildManager(t *testing.T) {
 		require.Len(t, infos.Actors, 12, "actors count")
 		for ai := range infos.Actors {
 			allocated := allocatedCount[infos.Actors[ai].Actor]
-			require.Lenf(t, infos.Actors[ai].Infos, 16-allocated, "rebuild info count for actor %d with %d allocated", infos.Actors[ai].Actor, allocated)
+			require.Lenf(
+				t,
+				infos.Actors[ai].Infos,
+				16-allocated,
+				"rebuild info count for actor %d with %d allocated",
+				infos.Actors[ai].Actor,
+				allocated,
+			)
 		}
 		return false
 	})

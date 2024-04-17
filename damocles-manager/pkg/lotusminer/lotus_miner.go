@@ -43,7 +43,14 @@ func New(ctx context.Context, addr string, token string) (StorageMiner, jsonrpc.
 		return nil, nil, fmt.Errorf("get api addr: %w", err)
 	}
 
-	closer, err := jsonrpc.NewMergeClient(ctx, apiAddr, "Filecoin", vapi.GetInternalStructs(&a), ainfo.AuthHeader(), jsonrpc.WithRetry(true))
+	closer, err := jsonrpc.NewMergeClient(
+		ctx,
+		apiAddr,
+		"Filecoin",
+		vapi.GetInternalStructs(&a),
+		ainfo.AuthHeader(),
+		jsonrpc.WithRetry(true),
+	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dial: %w", err)
 	}

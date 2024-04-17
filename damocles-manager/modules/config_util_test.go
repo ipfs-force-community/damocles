@@ -16,13 +16,16 @@ import (
 )
 
 func TestMustAddressMarshalText(t *testing.T) {
-
 	testCases := []struct {
 		addr     address.Address
 		expected string
 	}{
 		{
-			testutil.Must(address.NewFromString("t3vvmn62lofvhjd2ugzca6sof2j2ubwok6cj4xxbfzz4yuxfkgobpihhd2thlanmsh3w2ptld2gqkn2jvlss4a")),
+			testutil.Must(
+				address.NewFromString(
+					"t3vvmn62lofvhjd2ugzca6sof2j2ubwok6cj4xxbfzz4yuxfkgobpihhd2thlanmsh3w2ptld2gqkn2jvlss4a",
+				),
+			),
 			"t3vvmn62lofvhjd2ugzca6sof2j2ubwok6cj4xxbfzz4yuxfkgobpihhd2thlanmsh3w2ptld2gqkn2jvlss4a",
 		},
 		{
@@ -39,14 +42,17 @@ func TestMustAddressMarshalText(t *testing.T) {
 }
 
 func TestMustAddressUnmarshalText(t *testing.T) {
-
 	testCases := []struct {
 		addr     string
 		expected address.Address
 	}{
 		{
 			"t3vvmn62lofvhjd2ugzca6sof2j2ubwok6cj4xxbfzz4yuxfkgobpihhd2thlanmsh3w2ptld2gqkn2jvlss4a",
-			testutil.Must(address.NewFromString("t3vvmn62lofvhjd2ugzca6sof2j2ubwok6cj4xxbfzz4yuxfkgobpihhd2thlanmsh3w2ptld2gqkn2jvlss4a")),
+			testutil.Must(
+				address.NewFromString(
+					"t3vvmn62lofvhjd2ugzca6sof2j2ubwok6cj4xxbfzz4yuxfkgobpihhd2thlanmsh3w2ptld2gqkn2jvlss4a",
+				),
+			),
 		},
 		{
 			address.UndefAddressString,
@@ -77,7 +83,6 @@ func TestStructWithNilField(t *testing.T) {
 	err := enc.Encode(a)
 	require.NoError(t, err)
 	fmt.Println(buf.String())
-
 }
 
 func TestTomlUnmarshalForFIL(t *testing.T) {
@@ -85,7 +90,6 @@ func TestTomlUnmarshalForFIL(t *testing.T) {
 		F modules.FIL
 	}
 	t.Run("Marshal", func(t *testing.T) {
-
 		a := A{
 			F: modules.AttoFIL,
 		}
@@ -95,7 +99,7 @@ func TestTomlUnmarshalForFIL(t *testing.T) {
 		enc.Indent = ""
 		err := enc.Encode(a)
 		require.NoError(t, err)
-		require.Equalf(t, "F = \"1 attoFIL\"\n", string(buf.Bytes()), "got: %s", string(buf.Bytes()))
+		require.Equalf(t, "F = \"1 attoFIL\"\n", buf.String(), "got: %s", buf.String())
 	})
 
 	t.Run("Unmarshal", func(t *testing.T) {
@@ -202,7 +206,10 @@ func TestScanPersistStores(t *testing.T) {
 		"Meta": {},
 		"CanSeal": true
 	}`
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "1", modules.FilenameSectorStoreJSON), []byte(jsonConf1), 0644))
+	require.NoError(
+		t,
+		os.WriteFile(filepath.Join(tmpDir, "1", modules.FilenameSectorStoreJSON), []byte(jsonConf1), 0644),
+	)
 
 	jsonConf2 := `{
 		"Name": "456",
@@ -214,7 +221,10 @@ func TestScanPersistStores(t *testing.T) {
 		"PluginName": "2234234",
 		"CanSeal": true
 	}`
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "2", modules.FilenameSectorStoreJSON), []byte(jsonConf2), 0644))
+	require.NoError(
+		t,
+		os.WriteFile(filepath.Join(tmpDir, "2", modules.FilenameSectorStoreJSON), []byte(jsonConf2), 0644),
+	)
 
 	cfgs, err := modules.ScanPersistStores([]string{filepath.Join(tmpDir, "*")})
 	require.NoError(t, err)

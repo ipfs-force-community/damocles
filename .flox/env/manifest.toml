@@ -1,0 +1,45 @@
+#
+# This is a flox environment manifest.
+# Visit flox.dev/docs/concepts/manifest/
+# or see flox-edit(1) for more information
+#
+
+# List packages you wish to install in your environment inside
+# the 'install' section
+
+[install]
+go = { version = "~1.21.8", pkg-path = "go" }
+golangci-lint = { version = "~1.55.2", pkg-path = "golangci-lint" }
+golines = { version = "~0.11.0", pkg-path = "golines" }
+gofumpt = { version = "~0.3.1", pkg-path = "gofumpt" }
+pkg-config = { version =  "~0.29.2", pkg-path = "pkg-config" }
+rustup = { version="~1.26.0", pkg-path = "rustup" }
+# pre-commit = { version = "~3.3.3", pkg-path = "pre-commit" }
+
+# Set an environment variable.
+# These variables may not reference once another
+# and are added to the environment without expansion.
+
+[vars]
+# message = "Howdy"
+# pass-in = "$some-env-var"
+
+# An activation hook will be run when entering the environment.
+# You can define one in the 'hook' table inline via the 'script' field,
+# or provide a file using the 'file' field.
+# If 'file' is provided, the path should be relative to this file.
+# If both 'file' and 'script' are provided,
+# only the hook defined in 'file' will be run .
+
+[hook]
+# script = """
+#   pre-commit install
+# """
+
+# An environment that works on one system is guaranteed to work on the
+# same type of system,
+# but other systems may not have the same packages available, etc.
+# In order to use the environment on a system you must explicitly
+# add it to this list.
+[options]
+systems = ["x86_64-linux"]

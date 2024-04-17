@@ -20,20 +20,24 @@ import (
 
 type ErrAPI struct{ error }
 
-type ErrInvalidDeals struct{ error }
-type ErrInvalidPiece struct{ error }
-type ErrExpiredDeals struct{ error }
+type (
+	ErrInvalidDeals struct{ error }
+	ErrInvalidPiece struct{ error }
+	ErrExpiredDeals struct{ error }
+)
 
-type ErrBadCommD struct{ error }
-type ErrExpiredTicket struct{ error }
-type ErrBadTicket struct{ error }
-type ErrPrecommitOnChain struct{ error }
-type ErrSectorNumberAllocated struct{ error }
-type ErrMarshalAddr struct{ error }
-type ErrBadSeed struct{ error }
-type ErrInvalidProof struct{ error }
-type ErrNoPrecommit struct{ error }
-type ErrCommitWaitFailed struct{ error }
+type (
+	ErrBadCommD              struct{ error }
+	ErrExpiredTicket         struct{ error }
+	ErrBadTicket             struct{ error }
+	ErrPrecommitOnChain      struct{ error }
+	ErrSectorNumberAllocated struct{ error }
+	ErrMarshalAddr           struct{ error }
+	ErrBadSeed               struct{ error }
+	ErrInvalidProof          struct{ error }
+	ErrNoPrecommit           struct{ error }
+	ErrCommitWaitFailed      struct{ error }
+)
 
 // checkPrecommit checks that data commitment generated in the sealing process
 // matches pieces, and that the seal ticket isn't expired
@@ -66,7 +70,13 @@ func checkPrecommit(ctx context.Context, maddr address.Address, si *core.SectorS
 	ticketEarliest := height - policy.MaxPreCommitRandomnessLookback
 
 	if si.Ticket.Epoch < ticketEarliest {
-		return &ErrExpiredTicket{fmt.Errorf("ticket expired: seal height: %d, head: %d", si.Ticket.Epoch+policy.SealRandomnessLookback, height)}
+		return &ErrExpiredTicket{
+			fmt.Errorf(
+				"ticket expired: seal height: %d, head: %d",
+				si.Ticket.Epoch+policy.SealRandomnessLookback,
+				height,
+			),
+		}
 	}
 
 	pci, err := api.StateSectorPreCommitInfo(ctx, maddr, si.ID.Number, tok)
@@ -100,7 +110,9 @@ func checkPieces(ctx context.Context, maddr address.Address, sector *core.Sector
 	checkZeroPiece := func(pieceIdx int, piece abi.PieceInfo) error {
 		exp := zerocomm.ZeroPieceCommitment(piece.Size.Unpadded())
 		if !piece.PieceCID.Equals(exp) {
-			return &ErrInvalidPiece{fmt.Errorf("sector %d piece %d had non-zero PieceCID %+v", sector.ID, pieceIdx, piece.PieceCID)}
+			return &ErrInvalidPiece{
+				fmt.Errorf("sector %d piece %d had non-zero PieceCID %+v", sector.ID, pieceIdx, piece.PieceCID),
+			}
 		}
 		return nil
 	}
@@ -112,19 +124,59 @@ func checkPieces(ctx context.Context, maddr address.Address, sector *core.Sector
 		}
 
 		if proposal.Provider != maddr {
-			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong provider: %s != %s", pieceIdx, numDeals, sector.ID, dealID, proposal.Provider, maddr)}
+			return &ErrInvalidDeals{
+				fmt.Errorf(
+					"piece %d (of %v) of sector %d refers deal %d with wrong provider: %s != %s",
+					pieceIdx,
+					numDeals,
+					sector.ID,
+					dealID,
+					proposal.Provider,
+					maddr,
+				),
+			}
 		}
 
 		if proposal.PieceCID != piece.PieceCID {
-			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with wrong PieceCID: %x != %x", pieceIdx, numDeals, sector.ID, dealID, piece.PieceCID, proposal.PieceCID)}
+			return &ErrInvalidDeals{
+				fmt.Errorf(
+					"piece %d (of %v) of sector %d refers deal %d with wrong PieceCID: %x != %x",
+					pieceIdx,
+					numDeals,
+					sector.ID,
+					dealID,
+					piece.PieceCID,
+					proposal.PieceCID,
+				),
+			}
 		}
 
 		if piece.Size != proposal.PieceSize {
-			return &ErrInvalidDeals{fmt.Errorf("piece %d (of %v) of sector %d refers deal %d with different size: %d != %d", pieceIdx, numDeals, sector.ID, dealID, piece.Size, proposal.PieceSize)}
+			return &ErrInvalidDeals{
+				fmt.Errorf(
+					"piece %d (of %v) of sector %d refers deal %d with different size: %d != %d",
+					pieceIdx,
+					numDeals,
+					sector.ID,
+					dealID,
+					piece.Size,
+					proposal.PieceSize,
+				),
+			}
 		}
 
 		if height >= proposal.StartEpoch {
-			return &ErrExpiredDeals{fmt.Errorf("piece %d (of %v) of sector %d refers expired deal %d - should start at %d, head %d", pieceIdx, numDeals, sector.ID, dealID, proposal.StartEpoch, height)}
+			return &ErrExpiredDeals{
+				fmt.Errorf(
+					"piece %d (of %v) of sector %d refers expired deal %d - should start at %d, head %d",
+					pieceIdx,
+					numDeals,
+					sector.ID,
+					dealID,
+					proposal.StartEpoch,
+					height,
+				),
+			}
 		}
 		return nil
 	}
@@ -146,11 +198,31 @@ func checkPieces(ctx context.Context, maddr address.Address, sector *core.Sector
 			}
 
 			if height >= all.Expiration {
-				return &ErrExpiredDeals{fmt.Errorf("piece allocation %d (of %d) of sector %d refers expired deal %d - should start at %d, head %d", pieceIdx, numDeals, sector.ID, allocationID, all.Expiration, height)}
+				return &ErrExpiredDeals{
+					fmt.Errorf(
+						"piece allocation %d (of %d) of sector %d refers expired deal %d - should start at %d, head %d",
+						pieceIdx,
+						numDeals,
+						sector.ID,
+						allocationID,
+						all.Expiration,
+						height,
+					),
+				}
 			}
 
 			if all.Size < piece.Size {
-				return &ErrInvalidDeals{fmt.Errorf("piece allocation %d (of %d) of sector %d refers deal %d with different size: %d != %d", pieceIdx, numDeals, sector.ID, allocationID, piece.Size, all.Size)}
+				return &ErrInvalidDeals{
+					fmt.Errorf(
+						"piece allocation %d (of %d) of sector %d refers deal %d with different size: %d != %d",
+						pieceIdx,
+						numDeals,
+						sector.ID,
+						allocationID,
+						piece.Size,
+						all.Size,
+					),
+				}
 			}
 		}
 		return nil
@@ -191,7 +263,15 @@ func checkPieces(ctx context.Context, maddr address.Address, sector *core.Sector
 	return nil
 }
 
-func checkCommit(ctx context.Context, si *core.SectorState, proof []byte, tok core.TipSetToken, maddr address.Address, verif core.Verifier, api SealingAPI) (err error) {
+func checkCommit(
+	ctx context.Context,
+	si *core.SectorState,
+	proof []byte,
+	tok core.TipSetToken,
+	maddr address.Address,
+	verif core.Verifier,
+	api SealingAPI,
+) (err error) {
 	if si.Seed == nil {
 		return &ErrBadSeed{fmt.Errorf("seed epoch was not set")}
 	}
@@ -211,7 +291,9 @@ func checkCommit(ctx context.Context, si *core.SectorState, proof []byte, tok co
 	seedEpoch := pci.PreCommitEpoch + policy.GetPreCommitChallengeDelay()
 
 	if seedEpoch != si.Seed.Epoch {
-		return &ErrBadSeed{fmt.Errorf("seed epoch doesn't match on chain info: %d(chain) != %d", seedEpoch, si.Seed.Epoch)}
+		return &ErrBadSeed{
+			fmt.Errorf("seed epoch doesn't match on chain info: %d(chain) != %d", seedEpoch, si.Seed.Epoch),
+		}
 	}
 
 	buf := new(bytes.Buffer)
@@ -248,11 +330,14 @@ func checkCommit(ctx context.Context, si *core.SectorState, proof []byte, tok co
 }
 
 func computeUnsealedCIDFromPieces(sector *core.SectorState) (cid.Cid, error) {
-	return ffi.GenerateUnsealedCID(sector.SectorType, lo.Map(sector.SectorPiece(), func(p core.SectorPiece, i int) abi.PieceInfo {
-		pi := p.PieceInfo()
-		return abi.PieceInfo{
-			Size:     pi.Size,
-			PieceCID: pi.Cid,
-		}
-	}))
+	return ffi.GenerateUnsealedCID(
+		sector.SectorType,
+		lo.Map(sector.SectorPiece(), func(p core.SectorPiece, i int) abi.PieceInfo {
+			pi := p.PieceInfo()
+			return abi.PieceInfo{
+				Size:     pi.Size,
+				PieceCID: pi.Cid,
+			}
+		}),
+	)
 }

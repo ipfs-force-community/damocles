@@ -81,7 +81,7 @@ func (ldi LegacyDealInfo) DealID() abi.DealID {
 	return ldi.ID
 }
 
-func (ldi LegacyDealInfo) AllocationID() verifregtypes.AllocationId {
+func (LegacyDealInfo) AllocationID() verifregtypes.AllocationId {
 	return verifregtypes.NoAllocationID
 }
 
@@ -203,8 +203,10 @@ func (sp SectorPieceV2) EndEpoch() abi.ChainEpoch {
 	return abi.ChainEpoch(0)
 }
 
-type Deals []LegacyDealInfo
-type SectorPieces []SectorPieceV2
+type (
+	Deals        []LegacyDealInfo
+	SectorPieces []SectorPieceV2
+)
 
 type AcquireDealsSpec struct {
 	MaxDeals     *uint

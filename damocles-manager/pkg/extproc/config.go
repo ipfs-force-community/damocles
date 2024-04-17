@@ -1,5 +1,6 @@
 package extproc
 
+// nolint: flag-parameter
 func DefaultExtProcessorConfig(example bool) ExtProcessorConfig {
 	pcfg := ExtProcessorConfig{
 		Args:             []string{},

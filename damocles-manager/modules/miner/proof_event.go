@@ -8,7 +8,7 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
-	v2 "github.com/filecoin-project/venus/venus-shared/api/gateway/v2"
+	gatewayv2 "github.com/filecoin-project/venus/venus-shared/api/gateway/v2"
 	vtypes "github.com/filecoin-project/venus/venus-shared/types"
 	gtypes "github.com/filecoin-project/venus/venus-shared/types/gateway"
 
@@ -20,12 +20,17 @@ var log = logging.New("proof_event")
 
 type ProofEvent struct {
 	prover  core.Prover
-	client  v2.IGateway
+	client  gatewayv2.IGateway
 	actor   core.ActorIdent
 	tracker core.SectorTracker
 }
 
-func NewProofEvent(prover core.Prover, client v2.IGateway, actor core.ActorIdent, tracker core.SectorTracker) *ProofEvent {
+func NewProofEvent(
+	prover core.Prover,
+	client gatewayv2.IGateway,
+	actor core.ActorIdent,
+	tracker core.SectorTracker,
+) *ProofEvent {
 	pe := &ProofEvent{
 		prover:  prover,
 		client:  client,
@@ -139,7 +144,7 @@ func (pe *ProofEvent) processComputeProof(ctx context.Context, reqID vtypes.UUID
 	}
 }
 
-func (pe *ProofEvent) postProofType(sectorInfo []builtin.ExtendedSectorInfo) (abi.RegisteredPoStProof, error) {
+func (*ProofEvent) postProofType(sectorInfo []builtin.ExtendedSectorInfo) (abi.RegisteredPoStProof, error) {
 	if len(sectorInfo) == 0 {
 		return 0, fmt.Errorf("must provide sectors for winning post")
 	}

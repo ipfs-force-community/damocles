@@ -13,14 +13,16 @@ import (
 	mkapi "github.com/filecoin-project/venus/venus-shared/api/market/v1"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
-	market "github.com/ipfs-force-community/damocles/damocles-manager/modules/market"
+	"github.com/ipfs-force-community/damocles/damocles-manager/modules/market"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/miner"
 	assets "github.com/ipfs-force-community/venus-cluster-assets"
 )
 
-type GatewayClients []gateway.IGateway
-type MarketEventClients []gateway.IMarketServiceProvider
-type WinningPoStWarmUp bool
+type (
+	GatewayClients     []gateway.IGateway
+	MarketEventClients []gateway.IMarketServiceProvider
+	WinningPoStWarmUp  bool
+)
 
 func Gateway() dix.Option {
 	return dix.Options(
@@ -41,7 +43,7 @@ func NewGatewayClients(_ GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConfig
 	urls, commonToken := cfg.Common.API.Gateway, cfg.Common.API.Token
 	cfg.Unlock()
 
-	var ret GatewayClients
+	ret := GatewayClients{}
 
 	for _, u := range urls {
 		addr, token := extractAPIInfo(u, commonToken)
@@ -64,7 +66,12 @@ func NewGatewayClients(_ GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConfig
 	return ret, nil
 }
 
-func NewMarketEventClients(_ GlobalContext, lc fx.Lifecycle, cfg *modules.SafeConfig, gatewayClients GatewayClients) (MarketEventClients, error) {
+func NewMarketEventClients(
+	_ GlobalContext,
+	lc fx.Lifecycle,
+	cfg *modules.SafeConfig,
+	gatewayClients GatewayClients,
+) (MarketEventClients, error) {
 	cfg.Lock()
 	var addr, token string
 	if cfg.Common.API.Market != nil {
@@ -73,7 +80,7 @@ func NewMarketEventClients(_ GlobalContext, lc fx.Lifecycle, cfg *modules.SafeCo
 	// should vsm call droplet for market event when use unit entry from gateway
 	cfg.Unlock()
 
-	var ret MarketEventClients
+	ret := MarketEventClients{}
 
 	if addr != "" {
 		cli, closer, err := mkapi.DialIMarketRPC(context.Background(), addr, token, nil, jsonrpc.WithRetry(true))
@@ -96,7 +103,14 @@ func NewMarketEventClients(_ GlobalContext, lc fx.Lifecycle, cfg *modules.SafeCo
 	return ret, nil
 }
 
-func StartProofEvent(gctx GlobalContext, prover core.Prover, cfg *modules.SafeConfig, tracker core.SectorTracker, warmup WinningPoStWarmUp, gClients GatewayClients) error {
+func StartProofEvent(
+	gctx GlobalContext,
+	prover core.Prover,
+	cfg *modules.SafeConfig,
+	tracker core.SectorTracker,
+	warmup WinningPoStWarmUp,
+	gClients GatewayClients,
+) error {
 	if warmup {
 		log.Info("warm up for winning post")
 		_, err := prover.GenerateWinningPoStWithVanilla(
@@ -109,7 +123,6 @@ func StartProofEvent(gctx GlobalContext, prover core.Prover, cfg *modules.SafeCo
 		if err != nil {
 			return fmt.Errorf("warmup proof: %w", err)
 		}
-
 	}
 
 	cfg.Lock()
@@ -148,8 +161,12 @@ func StartProofEvent(gctx GlobalContext, prover core.Prover, cfg *modules.SafeCo
 	return nil
 }
 
-func StartMarketEvent(gctx GlobalContext, cfg *modules.SafeConfig, unseal core.UnsealSectorManager, mClients MarketEventClients) error {
-
+func StartMarketEvent(
+	gctx GlobalContext,
+	cfg *modules.SafeConfig,
+	unseal core.UnsealSectorManager,
+	mClients MarketEventClients,
+) error {
 	cfg.Lock()
 	miners := cfg.Miners
 	cfg.Unlock()

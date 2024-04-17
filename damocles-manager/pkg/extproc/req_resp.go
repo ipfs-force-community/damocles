@@ -10,7 +10,7 @@ type Request struct {
 	Data json.RawMessage `json:"task"`
 }
 
-func (r *Request) SetData(data interface{}) error {
+func (r *Request) SetData(data any) error {
 	b, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("json marshal: %w", err)
@@ -20,7 +20,7 @@ func (r *Request) SetData(data interface{}) error {
 	return nil
 }
 
-func (r *Request) DecodeInto(v interface{}) error {
+func (r *Request) DecodeInto(v any) error {
 	err := json.Unmarshal(r.Data, v)
 	if err != nil {
 		return fmt.Errorf("json unmarshal: %w", err)
@@ -35,7 +35,7 @@ type Response struct {
 	Result json.RawMessage `json:"output"`
 }
 
-func (r *Response) SetResult(res interface{}) {
+func (r *Response) SetResult(res any) {
 	b, err := json.Marshal(res)
 	if err != nil {
 		errMsg := err.Error()
@@ -46,7 +46,7 @@ func (r *Response) SetResult(res interface{}) {
 	r.Result = b
 }
 
-func (r *Response) DecodeInto(v interface{}) error {
+func (r *Response) DecodeInto(v any) error {
 	err := json.Unmarshal(r.Result, v)
 	if err != nil {
 		return fmt.Errorf("json unmarshal: %w", err)

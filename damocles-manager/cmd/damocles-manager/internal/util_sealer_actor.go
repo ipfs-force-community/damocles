@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
 	"text/tabwriter"
 
 	"github.com/fatih/color"
@@ -196,7 +195,11 @@ var utilSealerActorWithdrawCmd = &cli.Command{
 			amount = abi.TokenAmount(f)
 
 			if amount.GreaterThan(available) {
-				return fmt.Errorf("can't withdraw more funds than available; requested: %s; available: %s", types.FIL(amount), types.FIL(available))
+				return fmt.Errorf(
+					"can't withdraw more funds than available; requested: %s; available: %s",
+					types.FIL(amount),
+					types.FIL(available),
+				)
 			}
 		}
 
@@ -441,7 +444,7 @@ var utilSealerActorControlList = &cli.Command{
 				return
 			}
 
-			var k = addr
+			k := addr
 			// `a` maybe a `robust`, in that case, `StateAccountKey` returns an error.
 			if builtin.IsAccountActor(actor.Code) {
 				if k, err = api.Chain.StateAccountKey(ctx, addr, types.EmptyTSK); err != nil {
@@ -626,7 +629,7 @@ var utilSealerActorControlSet = &cli.Command{
 
 var utilSealerActorSetOwnerCmd = &cli.Command{
 	Name:      "set-owner",
-	Usage:     "Set owner address (this command should be invoked twice, first with the old owner as the senderAddress, and then with the new owner)",
+	Usage:     "Set owner address (this command should be invoked twice, first with the old owner as the senderAddress, and then with the new owner)", //revive:disable-line:line-length-limit
 	ArgsUsage: "[newOwnerAddress senderAddress]",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
@@ -818,7 +821,11 @@ var utilSealerActorProposeChangeWorker = &cli.Command{
 			return err
 		}
 		if mi.NewWorker != newAddr {
-			return fmt.Errorf("proposed worker address change not reflected on chain: expected %s, found %s", na, mi.NewWorker)
+			return fmt.Errorf(
+				"proposed worker address change not reflected on chain: expected %s, found %s",
+				na,
+				mi.NewWorker,
+			)
 		}
 
 		fmt.Printf("Worker key change to %s successfully proposed.\n", na)
@@ -879,7 +886,7 @@ var utilSealerActorConfirmChangeWorker = &cli.Command{
 		if head, err := api.Chain.ChainHead(ctx); err != nil {
 			return fmt.Errorf("failed to get the chain head: %w", err)
 		} else if head.Height() < mi.WorkerChangeEpoch {
-			return fmt.Errorf("worker key change cannot be confirmed until %d, current height is %d", mi.WorkerChangeEpoch, head.Height())
+			return fmt.Errorf("worker key change cannot be confirmed until %d, current height is %d", mi.WorkerChangeEpoch, head.Height()) //revive:disable-line:line-length-limit
 		}
 
 		if !cctx.Bool("really-do-it") {
@@ -916,7 +923,11 @@ var utilSealerActorConfirmChangeWorker = &cli.Command{
 			return err
 		}
 		if mi.Worker != newAddr {
-			return fmt.Errorf("confirmed worker address change not reflected on chain: expected '%s', found '%s'", newAddr, mi.Worker)
+			return fmt.Errorf(
+				"confirmed worker address change not reflected on chain: expected '%s', found '%s'",
+				newAddr,
+				mi.Worker,
+			)
 		}
 
 		return nil
@@ -1004,14 +1015,16 @@ var utilSealerActorCompactAllocatedCmd = &cli.Command{
 			}
 
 			maskBf, err = bitfield.NewFromIter(&rlepluslazy.RunSliceIterator{
-				Runs: []rlepluslazy.Run{{Val: true, Len: last - m}}})
+				Runs: []rlepluslazy.Run{{Val: true, Len: last - m}},
+			})
 			if err != nil {
 				return fmt.Errorf("forming bitfield: %w", err)
 			}
 		case cctx.IsSet("mask-upto-n"):
 			n := cctx.Uint64("mask-upto-n")
 			maskBf, err = bitfield.NewFromIter(&rlepluslazy.RunSliceIterator{
-				Runs: []rlepluslazy.Run{{Val: true, Len: n}}})
+				Runs: []rlepluslazy.Run{{Val: true, Len: n}},
+			})
 			if err != nil {
 				return fmt.Errorf("forming bitfield: %w", err)
 			}
@@ -1129,12 +1142,16 @@ var utilSealerActorProposeChangeBeneficiary = &cli.Command{
 			fmt.Println("Expiration Epoch:", mi.PendingBeneficiaryTerm.NewExpiration)
 
 			if !cctx.Bool("overwrite-pending-change") {
-				return fmt.Errorf("must pass --overwrite-pending-change to replace current pending beneficiary change. Please review CAREFULLY")
+				return fmt.Errorf(
+					"must pass --overwrite-pending-change to replace current pending beneficiary change. Please review CAREFULLY", //revive:disable-line:line-length-limit
+				)
 			}
 		}
 
 		if !cctx.Bool("really-do-it") {
-			fmt.Println("Pass --really-do-it to actually execute this action. Review what you're about to approve CAREFULLY please")
+			fmt.Println(
+				"Pass --really-do-it to actually execute this action. Review what you're about to approve CAREFULLY please", //revive:disable-line:line-length-limit
+			)
 			return nil
 		}
 
@@ -1156,7 +1173,6 @@ var utilSealerActorProposeChangeBeneficiary = &cli.Command{
 			Value:  big.Zero(),
 			Params: sp,
 		}, nil)
-
 		if err != nil {
 			return fmt.Errorf("push message: %w", err)
 		}
@@ -1185,6 +1201,7 @@ var utilSealerActorProposeChangeBeneficiary = &cli.Command{
 		return nil
 	},
 }
+
 var utilSealerActorConfirmChangeBeneficiary = &cli.Command{
 	Name:  "confirm-change-beneficiary",
 	Usage: "Confirm a beneficiary address change",
@@ -1223,7 +1240,8 @@ var utilSealerActorConfirmChangeBeneficiary = &cli.Command{
 			return fmt.Errorf("no pending beneficiary term found for miner %s", maddr)
 		}
 
-		if (cctx.IsSet("existing-beneficiary") && cctx.IsSet("new-beneficiary")) || (!cctx.IsSet("existing-beneficiary") && !cctx.IsSet("new-beneficiary")) {
+		if (cctx.IsSet("existing-beneficiary") && cctx.IsSet("new-beneficiary")) ||
+			(!cctx.IsSet("existing-beneficiary") && !cctx.IsSet("new-beneficiary")) {
 			return fmt.Errorf("must pass exactly one of --existing-beneficiary or --new-beneficiary")
 		}
 
@@ -1245,7 +1263,9 @@ var utilSealerActorConfirmChangeBeneficiary = &cli.Command{
 		fmt.Println("Quota:", mi.PendingBeneficiaryTerm.NewQuota)
 		fmt.Println("Expiration Epoch:", mi.PendingBeneficiaryTerm.NewExpiration)
 		if !cctx.Bool("really-do-it") {
-			fmt.Println("Pass --really-do-it to actually execute this action. Review what you're about to approve CAREFULLY please")
+			fmt.Println(
+				"Pass --really-do-it to actually execute this action. Review what you're about to approve CAREFULLY please", //revive:disable-line:line-length-limit
+			)
 			return nil
 		}
 
@@ -1288,7 +1308,8 @@ var utilSealerActorConfirmChangeBeneficiary = &cli.Command{
 			return fmt.Errorf("getting miner info: %w", err)
 		}
 
-		if updatedMinerInfo.PendingBeneficiaryTerm == nil && updatedMinerInfo.Beneficiary == mi.PendingBeneficiaryTerm.NewBeneficiary {
+		if updatedMinerInfo.PendingBeneficiaryTerm == nil &&
+			updatedMinerInfo.Beneficiary == mi.PendingBeneficiaryTerm.NewBeneficiary {
 			fmt.Println("Beneficiary address successfully changed")
 		} else {
 			fmt.Println("Beneficiary address change awaiting additional confirmations")

@@ -27,7 +27,7 @@ func (p *proxiedTypeIndexer) Find(ctx context.Context, sid abi.SectorID) (core.S
 	return found.Instance, found.Found, nil
 }
 
-func (p *proxiedTypeIndexer) Update(_ context.Context, _ abi.SectorID, _ core.SectorAccessStores) error {
+func (*proxiedTypeIndexer) Update(_ context.Context, _ abi.SectorID, _ core.SectorAccessStores) error {
 	return ErrProxiedTypedIndexerUnableForUpdating
 }
 

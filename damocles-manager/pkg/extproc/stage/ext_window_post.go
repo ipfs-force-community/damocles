@@ -10,7 +10,6 @@ const NameWindowPoSt = "window_post"
 
 func ProofType2String(proofType abi.RegisteredPoStProof) string {
 	switch proofType {
-
 	case abi.RegisteredPoStProof_StackedDrgWinning2KiBV1:
 		return "StackedDrgWinning2KiBV1"
 	case abi.RegisteredPoStProof_StackedDrgWinning8MiBV1:
@@ -35,6 +34,7 @@ func ProofType2String(proofType abi.RegisteredPoStProof) string {
 	// rust-filecoin-proofs-api WindowPoSt uses api_version
 	// V1_2 to fix the grindability issue, which we map here
 	// as V1_1 for Venus/Lotus/actors compat reasons.
+	//revive:disable-line:line-length-limit
 	// See: https://github.com/filecoin-project/filecoin-ffi/blob/cec06a79dc858f221f6542cff264b92b4f99c25d/rust/src/proofs/types.rs#L164-L173
 	case abi.RegisteredPoStProof_StackedDrgWindow2KiBV1_1:
 		return "StackedDrgWindow2KiBV1_2"

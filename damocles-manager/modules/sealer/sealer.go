@@ -26,9 +26,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/piecestore"
 )
 
-var (
-	ErrSectorAllocated = fmt.Errorf("sector allocated")
-)
+var ErrSectorAllocated = fmt.Errorf("sector allocated")
 
 var _ core.SealerAPI = (*Sealer)(nil)
 
@@ -50,6 +48,7 @@ func sectorStateErr(err error) error {
 	return fmt.Errorf("sector state: %w", err)
 }
 
+//revive:disable-next-line:argument-limit
 func New(
 	scfg *modules.SafeConfig,
 	capi chain.API,
@@ -144,7 +143,11 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 	return nil, nil
 }
 
-func (s *Sealer) AllocateSectorsBatch(ctx context.Context, spec core.AllocateSectorSpec, count uint32) ([]*core.AllocatedSector, error) {
+func (s *Sealer) AllocateSectorsBatch(
+	ctx context.Context,
+	spec core.AllocateSectorSpec,
+	count uint32,
+) ([]*core.AllocatedSector, error) {
 	sectors, err := s.sector.Allocate(ctx, spec, count)
 	if err != nil {
 		return nil, err
@@ -177,7 +180,11 @@ func (s *Sealer) AllocateSectorsBatch(ctx context.Context, spec core.AllocateSec
 	return sectors, nil
 }
 
-func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.SectorPieces, error) {
+func (s *Sealer) AcquireDeals(
+	ctx context.Context,
+	sid abi.SectorID,
+	spec core.AcquireDealsSpec,
+) (core.SectorPieces, error) {
 	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
 		return nil, sectorStateErr(err)
@@ -265,7 +272,12 @@ func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (core.Ticke
 	return ticket, nil
 }
 
-func (s *Sealer) SubmitPreCommit(ctx context.Context, sector core.AllocatedSector, info core.PreCommitOnChainInfo, hardReset bool) (core.SubmitPreCommitResp, error) {
+func (s *Sealer) SubmitPreCommit(
+	ctx context.Context,
+	sector core.AllocatedSector,
+	info core.PreCommitOnChainInfo,
+	hardReset bool,
+) (core.SubmitPreCommitResp, error) {
 	pinfo, err := info.IntoPreCommitInfo()
 	if err != nil {
 		return core.SubmitPreCommitResp{}, err
@@ -288,7 +300,12 @@ func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance
 	return s.SubmitPersistedEx(ctx, sid, instance, false)
 }
 
-func (s *Sealer) SubmitPersistedEx(ctx context.Context, sid abi.SectorID, instance string, isUpgrade bool) (bool, error) {
+func (s *Sealer) SubmitPersistedEx(
+	ctx context.Context,
+	sid abi.SectorID,
+	instance string,
+	isUpgrade bool,
+) (bool, error) {
 	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
 		return false, sectorStateErr(err)
@@ -370,7 +387,12 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedR
 	}, nil
 }
 
-func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info core.ProofOnChainInfo, hardReset bool) (core.SubmitProofResp, error) {
+func (s *Sealer) SubmitProof(
+	ctx context.Context,
+	sid abi.SectorID,
+	info core.ProofOnChainInfo,
+	hardReset bool,
+) (core.SubmitProofResp, error) {
 	resp, err := s.commit.SubmitProof(ctx, sid, info, hardReset)
 	if err == nil {
 		ctx, _ = metrics.New(ctx, metrics.Upsert(metrics.Miner, sid.Miner.String()))
@@ -384,7 +406,11 @@ func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (core.Pol
 	return resp, sectorStateErr(err)
 }
 
-func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.ReportStateReq) (*core.SectorStateResp, error) {
+func (s *Sealer) ReportState(
+	ctx context.Context,
+	sid abi.SectorID,
+	req core.ReportStateReq,
+) (*core.SectorStateResp, error) {
 	state, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
 		if !errors.Is(err, kvstore.ErrKeyNotFound) {
@@ -411,9 +437,9 @@ func (s *Sealer) ReportState(ctx context.Context, sid abi.SectorID, req core.Rep
 func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Meta, error) {
 	sectorLogger(sid).Info("sector finalized")
 	if err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
-
 		// Upgrading sectors are not finalized via api calls
-		// Except in the case of sector rebuild and unseal, because the prerequisite for sector rebuild is that the sector has been finalized.
+		// Except in the case of sector rebuild and unseal,
+		// because the prerequisite for sector rebuild is that the sector has been finalized.
 		if bool(st.Unsealing) {
 			st.Unsealing = false
 		} else if bool(st.NeedRebuild) {
@@ -458,7 +484,6 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 		st.AbortReason = reason
 		return true, nil
 	})
-
 	if err != nil {
 		return core.Empty, sectorStateErr(err)
 	}
@@ -471,7 +496,10 @@ func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason str
 }
 
 // snap
-func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSnapUpSpec) (*core.AllocatedSnapUpSector, error) {
+func (s *Sealer) AllocateSanpUpSector(
+	ctx context.Context,
+	spec core.AllocateSnapUpSpec,
+) (*core.AllocatedSnapUpSector, error) {
 	candidateSector, err := s.snapup.Allocate(ctx, spec.Sector)
 	if err != nil {
 		return nil, fmt.Errorf("allocate snapup sector: %w", err)
@@ -546,7 +574,14 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 	}
 
 	if err != nil {
-		ierr := s.state.InitWith(ctx, []*core.AllocatedSector{{ID: candidateSector.Sector.ID, ProofType: candidateSector.Sector.ProofType}}, core.WorkerOnline, core.SectorUpgraded(true), pieces, &upgradePublic)
+		ierr := s.state.InitWith(
+			ctx,
+			[]*core.AllocatedSector{{ID: candidateSector.Sector.ID, ProofType: candidateSector.Sector.ProofType}},
+			core.WorkerOnline,
+			core.SectorUpgraded(true),
+			pieces,
+			&upgradePublic,
+		)
 		if ierr != nil {
 			return nil, fmt.Errorf("init non-exist snapup sector: %w", ierr)
 		}
@@ -561,7 +596,11 @@ func (s *Sealer) AllocateSanpUpSector(ctx context.Context, spec core.AllocateSna
 	}, nil
 }
 
-func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapupInfo core.SnapUpOnChainInfo) (core.SubmitSnapUpProofResp, error) {
+func (s *Sealer) SubmitSnapUpProof(
+	ctx context.Context,
+	sid abi.SectorID,
+	snapupInfo core.SnapUpOnChainInfo,
+) (core.SubmitSnapUpProofResp, error) {
 	resp := core.SubmitSnapUpProofResp{}
 	desc := ""
 
@@ -643,7 +682,13 @@ func (s *Sealer) SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapup
 	return resp, nil
 }
 
-func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof, instance string, upgrade bool) (bool, error) {
+func (s *Sealer) checkPersistedFiles(
+	ctx context.Context,
+	sid abi.SectorID,
+	proofType abi.RegisteredSealProof,
+	instance string,
+	upgrade bool,
+) (bool, error) {
 	locator := core.SectorLocator(func(lctx context.Context, lsid abi.SectorID) (core.SectorAccessStores, bool, error) {
 		if lsid != sid {
 			return core.SectorAccessStores{}, false, nil
@@ -662,13 +707,26 @@ func (s *Sealer) checkPersistedFiles(ctx context.Context, sid abi.SectorID, proo
 	if err != nil {
 		return false, fmt.Errorf("convert to v1_1 post proof: %w", err)
 	}
-	err = s.sectorProving.SingleProvable(ctx, ppt, core.SectorRef{ID: sid, ProofType: proofType}, upgrade, locator, false, false)
+	err = s.sectorProving.SingleProvable(
+		ctx,
+		ppt,
+		core.SectorRef{ID: sid, ProofType: proofType},
+		upgrade,
+		locator,
+		false,
+		false,
+	)
 	if err != nil {
 		if errors.Is(err, objstore.ErrObjectNotFound) {
 			return false, nil
 		}
 
-		return false, fmt.Errorf("check provable for sector %s in instance %s: %w", util.FormatSectorID(sid), instance, err)
+		return false, fmt.Errorf(
+			"check provable for sector %s in instance %s: %w",
+			util.FormatSectorID(sid),
+			instance,
+			err,
+		)
 	}
 
 	return true, nil
@@ -681,7 +739,12 @@ func checkPieces(pieces core.SectorPieces) error {
 		if pinfo.IsBuiltinMarket() && !pinfo.HasDealInfo() {
 			expected := zerocomm.ZeroPieceCommitment(pinfo.Piece.Size.Unpadded())
 			if !expected.Equals(pinfo.DealInfo.PieceCID) {
-				return fmt.Errorf("got unexpected non-deal piece with seq=#%d, size=%d, cid=%s", pi, pinfo.Piece.Size, pinfo.DealInfo.PieceCID)
+				return fmt.Errorf(
+					"got unexpected non-deal piece with seq=#%d, size=%d, cid=%s",
+					pi,
+					pinfo.Piece.Size,
+					pinfo.DealInfo.PieceCID,
+				)
 			}
 		}
 	}
@@ -731,7 +794,12 @@ func (s *Sealer) WorkerPing(ctx context.Context, winfo core.WorkerInfo) (core.Me
 	return core.Empty, nil
 }
 
-func (s *Sealer) StoreReserveSpace(ctx context.Context, sid abi.SectorID, size uint64, candidates []string) (*core.StoreBasicInfo, error) {
+func (s *Sealer) StoreReserveSpace(
+	ctx context.Context,
+	sid abi.SectorID,
+	size uint64,
+	candidates []string,
+) (*core.StoreBasicInfo, error) {
 	// TODO: check state?
 	_, err := s.state.Load(ctx, sid, core.WorkerOnline)
 	if err != nil {
@@ -766,7 +834,10 @@ func (s *Sealer) StoreBasicInfo(ctx context.Context, instanceName string) (*core
 	return &basic, nil
 }
 
-func (s *Sealer) AllocateRebuildSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorRebuildInfo, error) {
+func (s *Sealer) AllocateRebuildSector(
+	ctx context.Context,
+	spec core.AllocateSectorSpec,
+) (*core.SectorRebuildInfo, error) {
 	info, err := s.rebuild.Allocate(ctx, spec)
 	if err != nil {
 		return nil, fmt.Errorf("allocate rebuild sector: %w", err)
@@ -784,7 +855,10 @@ func (s *Sealer) AllocateRebuildSector(ctx context.Context, spec core.AllocateSe
 	return info, nil
 }
 
-func (s *Sealer) AllocateUnsealSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorUnsealInfo, error) {
+func (s *Sealer) AllocateUnsealSector(
+	ctx context.Context,
+	spec core.AllocateSectorSpec,
+) (*core.SectorUnsealInfo, error) {
 	info, err := s.unseal.Allocate(ctx, spec)
 	if err != nil {
 		return nil, fmt.Errorf("allocate unseal sector: %w", err)
@@ -830,7 +904,12 @@ func (s *Sealer) AllocateUnsealSector(ctx context.Context, spec core.AllocateSec
 	return info, nil
 }
 
-func (s *Sealer) AchieveUnsealSector(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, errInfo string) (core.Meta, error) {
+func (s *Sealer) AchieveUnsealSector(
+	ctx context.Context,
+	sid abi.SectorID,
+	pieceCid cid.Cid,
+	errInfo string,
+) (core.Meta, error) {
 	return core.Empty, s.unseal.Achieve(ctx, sid, pieceCid, errInfo)
 }
 

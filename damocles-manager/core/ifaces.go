@@ -19,7 +19,13 @@ type SectorManager interface {
 }
 
 type DealManager interface {
-	Acquire(ctx context.Context, sid abi.SectorID, spec AcquireDealsSpec, lifetime *AcquireDealsLifetime, job SectorWorkerJob) (SectorPieces, error)
+	Acquire(
+		ctx context.Context,
+		sid abi.SectorID,
+		spec AcquireDealsSpec,
+		lifetime *AcquireDealsLifetime,
+		job SectorWorkerJob,
+	) (SectorPieces, error)
 	Release(ctx context.Context, sid abi.SectorID, deals SectorPieces) error
 	ReleaseLegacyDeal(ctx context.Context, sid abi.SectorID, acquired Deals) error
 }
@@ -44,15 +50,21 @@ type CommitmentManager interface {
 }
 
 type SectorNumberAllocator interface {
-	NextN(ctx context.Context, mid abi.ActorID, n uint32, minNumber uint64, check func(uint64) bool) (uint64, bool, error)
+	NextN(
+		ctx context.Context,
+		mid abi.ActorID,
+		n uint32,
+		minNumber uint64,
+		check func(uint64) bool,
+	) (uint64, bool, error)
 }
 
 type SectorStateManager interface {
 	Import(ctx context.Context, ws SectorWorkerState, state *SectorState, override bool) (bool, error)
 	Init(ctx context.Context, sectors []*AllocatedSector, ws SectorWorkerState) error
-	InitWith(ctx context.Context, sectors []*AllocatedSector, ws SectorWorkerState, fields ...interface{}) error
+	InitWith(ctx context.Context, sectors []*AllocatedSector, ws SectorWorkerState, fields ...any) error
 	Load(ctx context.Context, sid abi.SectorID, ws SectorWorkerState) (*SectorState, error)
-	Update(ctx context.Context, sid abi.SectorID, ws SectorWorkerState, fieldvals ...interface{}) error
+	Update(ctx context.Context, sid abi.SectorID, ws SectorWorkerState, fieldvals ...any) error
 	Finalize(context.Context, abi.SectorID, SectorStateChangeHook) error
 	Restore(context.Context, abi.SectorID, SectorStateChangeHook) error
 	All(ctx context.Context, ws SectorWorkerState, job SectorWorkerJob) ([]*SectorState, error)
@@ -71,14 +83,42 @@ type SectorIndexer interface {
 }
 
 type SectorTracker interface {
-	SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, sectorInfo builtin.ExtendedSectorInfo, locator SectorLocator) (PrivateSectorInfo, error)
-	SinglePrivateInfo(ctx context.Context, sref SectorRef, upgrade bool, locator SectorLocator) (PrivateSectorInfo, error)
-	PubToPrivate(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectorInfo []builtin.ExtendedSectorInfo) ([]FFIPrivateSectorInfo, error)
+	SinglePubToPrivateInfo(
+		ctx context.Context,
+		mid abi.ActorID,
+		sectorInfo builtin.ExtendedSectorInfo,
+		locator SectorLocator,
+	) (PrivateSectorInfo, error)
+	SinglePrivateInfo(
+		ctx context.Context,
+		sref SectorRef,
+		upgrade bool,
+		locator SectorLocator,
+	) (PrivateSectorInfo, error)
+	PubToPrivate(
+		ctx context.Context,
+		mid abi.ActorID,
+		postProofType abi.RegisteredPoStProof,
+		sectorInfo []builtin.ExtendedSectorInfo,
+	) ([]FFIPrivateSectorInfo, error)
 }
 
 type SectorProving interface {
-	SingleProvable(ctx context.Context, postProofType abi.RegisteredPoStProof, sref SectorRef, upgrade bool, locator SectorLocator, strict, stateCheck bool) error
-	Provable(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error)
+	SingleProvable(
+		ctx context.Context,
+		postProofType abi.RegisteredPoStProof,
+		sref SectorRef,
+		upgrade bool,
+		locator SectorLocator,
+		strict, stateCheck bool,
+	) error
+	Provable(
+		ctx context.Context,
+		mid abi.ActorID,
+		postProofType abi.RegisteredPoStProof,
+		sectors []builtin.ExtendedSectorInfo,
+		strict, stateCheck bool,
+	) (map[abi.SectorNumber]string, error)
 	SectorTracker
 }
 

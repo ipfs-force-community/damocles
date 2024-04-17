@@ -229,7 +229,6 @@ const FilenameSectorStoreJSON = "sectorstore.json"
 func ScanPersistStores(patterns []string) ([]PersistStoreConfig, error) {
 	var stores []PersistStoreConfig
 	for _, pattern := range patterns {
-
 		matches, err := filepath.Glob(pattern)
 		if err != nil {
 			return nil, fmt.Errorf("glob pattern `%s`: %w", pattern, err)

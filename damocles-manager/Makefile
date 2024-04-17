@@ -68,13 +68,22 @@ test-all: GOTAGS+=prod
 test-all: $(BUILD_DEPS)
 	$(GO) test -tags="$(GOTAGS)" $(GOFLAGS) -v -failfast `go list ./... | grep -v /extern/`
 
-check-all: check-lint check-go-mod
+check: $(BUILD_DEPS) tidy check-fmt check-lint
 
-check-lint: $(BUILD_DEPS)
-	golangci-lint run -c .golangci.yml
+fix: $(BUILD_DEPS) tidy fmt lint
 
-check-go-mod:
+check-fmt:
+	@echo "check format for golang"
+	@if [ "$$(find ./ -type d \( -name ".git" -o -name "extern" \) -prune -o -type f -regex '.*[^\.pb]\.go' -print | xargs golines --dry-run --max-len=120 --base-formatter=gofumpt | wc -l)" -gt 0 ]; then exit 1; fi
+
+fmt:
+	find ./ -type d \( -name ".git" -o -name "extern" \) -prune -o -type f -regex '.*[^\.pb]\.go' -print | xargs golines --max-len=120 --base-formatter=gofumpt -w
+
+tidy:
 	$(GO) mod tidy
 
-dev-env:
-	$(GO) install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.2
+check-lint:
+	golangci-lint run
+
+lint:
+	golangci-lint run --fix

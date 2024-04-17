@@ -18,6 +18,6 @@ type Client struct {
 
 func Connect(ctx context.Context, endpoint string, opts ...jsonrpc.Option) (*Client, jsonrpc.ClientCloser, error) {
 	var client Client
-	closer, err := jsonrpc.NewMergeClient(ctx, endpoint, "VenusWorker", []interface{}{&client}, http.Header{}, opts...)
+	closer, err := jsonrpc.NewMergeClient(ctx, endpoint, "VenusWorker", []any{&client}, http.Header{}, opts...)
 	return &client, closer, err
 }

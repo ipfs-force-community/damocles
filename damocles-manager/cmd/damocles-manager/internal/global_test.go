@@ -9,7 +9,6 @@ import (
 )
 
 func TestOutputJSONWithNil(t *testing.T) {
-
 	var sb strings.Builder
 
 	require.NoError(t, internal.OutputJSON(&sb, nil))

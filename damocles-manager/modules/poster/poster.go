@@ -27,8 +27,9 @@ const (
 
 var log = logging.New("poster")
 
+//revive:disable-next-line:argument-limit
 func newPostDeps(
-	chain chain.API,
+	chainAPI chain.API,
 	msg messager.API,
 	rand core.RandomnessAPI,
 	minerAPI core.MinerAPI,
@@ -38,7 +39,7 @@ func newPostDeps(
 	senderSelect core.SenderSelector,
 ) postDeps {
 	return postDeps{
-		chain:          chain,
+		chain:          chainAPI,
 		msg:            msg,
 		rand:           rand,
 		minerAPI:       minerAPI,
@@ -62,9 +63,10 @@ type postDeps struct {
 	senderSelector core.SenderSelector
 }
 
+//revive:disable-next-line:argument-limit
 func NewPoSter(
 	scfg *modules.SafeConfig,
-	chain chain.API,
+	chainAPI chain.API,
 	msg messager.API,
 	rand core.RandomnessAPI,
 	minerAPI core.MinerAPI,
@@ -75,7 +77,7 @@ func NewPoSter(
 ) (*PoSter, error) {
 	return newPoSterWithRunnerConstructor(
 		scfg,
-		chain,
+		chainAPI,
 		msg,
 		rand,
 		minerAPI,
@@ -87,9 +89,10 @@ func NewPoSter(
 	)
 }
 
+//revive:disable-next-line:argument-limit
 func newPoSterWithRunnerConstructor(
 	scfg *modules.SafeConfig,
-	chain chain.API,
+	chainAPI chain.API,
 	msg messager.API,
 	rand core.RandomnessAPI,
 	minerAPI core.MinerAPI,
@@ -101,7 +104,7 @@ func newPoSterWithRunnerConstructor(
 ) (*PoSter, error) {
 	return &PoSter{
 		cfg:               scfg,
-		deps:              newPostDeps(chain, msg, rand, minerAPI, prover, verifier, sectorProving, senderSelector),
+		deps:              newPostDeps(chainAPI, msg, rand, minerAPI, prover, verifier, sectorProving, senderSelector),
 		schedulers:        make(map[abi.ActorID]map[abi.ChainEpoch]*scheduler),
 		runnerConstructor: runnerCtor,
 	}, nil
@@ -134,9 +137,7 @@ CHAIN_HEAD_LOOP:
 					return
 
 				case <-time.After(reconnectWait):
-
 				}
-
 			} else {
 				firstTime = false
 			}
@@ -226,7 +227,11 @@ func (p *PoSter) getEnabledMiners(ctx context.Context, mlog *logging.ZapLogger) 
 	return mids
 }
 
-func (p *PoSter) fetchMinerProvingDeadlineInfos(ctx context.Context, mids []abi.ActorID, ts *types.TipSet) map[abi.ActorID]map[abi.ChainEpoch]*dline.Info {
+func (p *PoSter) fetchMinerProvingDeadlineInfos(
+	ctx context.Context,
+	mids []abi.ActorID,
+	ts *types.TipSet,
+) map[abi.ActorID]map[abi.ChainEpoch]*dline.Info {
 	count := len(mids)
 	infos := make([]*dline.Info, count)
 	errs := make([]error, count)
@@ -288,7 +293,12 @@ func (p *PoSter) fetchMinerProvingDeadlineInfos(ctx context.Context, mids []abi.
 // handleHeadChange 处理以下逻辑：
 // 1. 是否需要根据 revert 回退或 abort 已存在的 runner
 // 2. 是否开启新的 runner
-func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, advance *types.TipSet, dinfos map[abi.ActorID]map[abi.ChainEpoch]*dline.Info) {
+func (p *PoSter) handleHeadChange(
+	ctx context.Context,
+	revert *types.TipSet,
+	advance *types.TipSet,
+	dinfos map[abi.ActorID]map[abi.ChainEpoch]*dline.Info,
+) {
 	// 对于当前高度来说，最少会处于1个活跃区间内，最多会处于2个活跃区间内 [next.Challenge, prev.Close)
 	// 启动一个新 runner 的最基本条件为：当前高度所属的活跃区间存在没有与之对应的 runner 的情况
 	currHeight := advance.Height()
@@ -324,9 +334,7 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 
 			if dls, dlsOk := dinfos[mid]; dlsOk {
 				// 尝试开启的 deadline 已经存在
-				if _, dlOk := dls[open]; dlOk {
-					delete(dls, open)
-				}
+				delete(dls, open)
 			}
 
 			// 中断此 runner
@@ -347,7 +355,6 @@ func (p *PoSter) handleHeadChange(ctx context.Context, revert *types.TipSet, adv
 					sched.runner.submit(pcfg, advance)
 				}
 			}
-
 		}
 	}
 

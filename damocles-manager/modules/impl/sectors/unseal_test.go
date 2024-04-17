@@ -167,7 +167,6 @@ func TestUnsealManager(t *testing.T) {
 		}
 		require.Equal(t, 3, len(allocatable.Dest), "allocatable task has 3 destinations")
 	})
-
 }
 
 func TestCheckUrl(t *testing.T) {
@@ -205,12 +204,12 @@ func TestCheckUrl(t *testing.T) {
 	}
 
 	for _, v := range testCases {
-		res, err := u.checkDestUrl(v.url)
+		res, err := u.checkDestURL(v.url)
 		require.NoError(t, err)
 		require.Equal(t, v.expect, res)
 	}
 
-	_, err = u.checkDestUrl("oss://bucket/path")
+	_, err = u.checkDestURL("oss://bucket/path")
 	require.Error(t, err)
 }
 
@@ -246,5 +245,4 @@ func TestMarketPieceStore(t *testing.T) {
 			}
 		})
 	}
-
 }

@@ -25,6 +25,7 @@ var MessageState = struct {
 	FillMsg,
 	OnChainMsg,
 	FailedMsg,
+	//revive:disable-next-line:line-length-limit
 	NonceConflictMsg mtypes.MessageState // Has been on-chain after being replaced by off-chain services, usually by `mpool replace`, eg. `venus mpool replace`
 }{
 	mtypes.UnKnown,

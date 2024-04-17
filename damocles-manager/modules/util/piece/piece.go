@@ -13,13 +13,18 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/market"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
-	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
+	chainapi "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 )
 
 // ProcessPieces returns either:
 // - a list of piece activation manifests
 // - a list of deal IDs, if all non-filler pieces are deal-id pieces
-func ProcessPieces(ctx context.Context, sector *core.SectorState, chain chainAPI.API, lookupID core.LookupID) ([]miner13.PieceActivationManifest, []abi.DealID, error) {
+func ProcessPieces(
+	ctx context.Context,
+	sector *core.SectorState,
+	chain chainapi.API,
+	lookupID core.LookupID,
+) ([]miner13.PieceActivationManifest, []abi.DealID, error) {
 	pams := make([]miner13.PieceActivationManifest, 0, len(sector.Pieces))
 	dealIDs := make([]abi.DealID, 0, len(sector.Pieces))
 
@@ -36,7 +41,7 @@ func ProcessPieces(ctx context.Context, sector *core.SectorState, chain chainAPI
 			continue
 		}
 		pieceInfo := piece.PieceInfo()
-		if piece.IsBuiltinMarket() && hasDDO {
+		if hasDDO && piece.IsBuiltinMarket() {
 			// mixed ddo and builtinmarket
 			alloc, err := chain.StateGetAllocationIdForPendingDeal(ctx, piece.DealID(), types.EmptyTSK)
 			if err != nil {

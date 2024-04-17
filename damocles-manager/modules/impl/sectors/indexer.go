@@ -59,7 +59,6 @@ func (i *innerIndexer) Find(ctx context.Context, sid abi.SectorID) (core.SectorA
 		stores.SealedFile = string(b)
 		return nil
 	})
-
 	if err != nil {
 		if errors.Is(err, kvstore.ErrKeyNotFound) {
 			return stores, false, nil

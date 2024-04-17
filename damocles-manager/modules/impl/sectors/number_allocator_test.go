@@ -12,11 +12,9 @@ import (
 )
 
 func TestAllocatorNextN(t *testing.T) {
-
 	actorID := abi.ActorID(10086)
 
 	for _, n := range []uint32{1, 2, 3, 4, 5} {
-
 		store := testutil.BadgerKVStore(t, fmt.Sprintf("test_%d", n))
 		allocator, err := NewNumberAllocator(store)
 		require.NoError(t, err, "new number allocator")
@@ -45,7 +43,14 @@ func TestAllocatorNextN(t *testing.T) {
 			next, ok, err := allocator.NextN(context.Background(), actorID, n, 0, func(_ uint64) bool { return true })
 			require.NoErrorf(t, err, "allocate sector number, last %d, round %d", last, i)
 			require.Truef(t, ok, "sector number allocated, last %d, round %d", last, i)
-			require.Equal(t, uint64(i+1)*uint64(n)+last, next, "allocated sector number with last %d, round %d", last, i)
+			require.Equal(
+				t,
+				uint64(i+1)*uint64(n)+last,
+				next,
+				"allocated sector number with last %d, round %d",
+				last,
+				i,
+			)
 		}
 
 		// with max limit

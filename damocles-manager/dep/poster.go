@@ -19,6 +19,7 @@ func PoSter() dix.Option {
 	)
 }
 
+//revive:disable-next-line:argument-limit
 func RunPoSter(
 	gctx GlobalContext,
 	lc fx.Lifecycle,

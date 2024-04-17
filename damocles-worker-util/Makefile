@@ -5,7 +5,8 @@ all: fmt clippy build-all
 test-all:
 	cargo test --release --workspace -- --nocapture
 
-check-all: check-fmt check-clippy
+check: check-fmt check-clippy
+fix: fmt clippy
 
 build-all:
 	cargo build --release

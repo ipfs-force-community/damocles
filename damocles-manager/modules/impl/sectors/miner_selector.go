@@ -26,7 +26,13 @@ type minerSelector struct {
 	minerAPI core.MinerAPI
 }
 
-func (m *minerSelector) candidates(ctx context.Context, allowedMiners []abi.ActorID, allowedProofs []abi.RegisteredSealProof, check func(mcfg modules.MinerConfig) bool, usage string) []*minerCandidate {
+func (m *minerSelector) candidates(
+	ctx context.Context,
+	allowedMiners []abi.ActorID,
+	allowedProofs []abi.RegisteredSealProof,
+	check func(mcfg modules.MinerConfig) bool,
+	usage string,
+) []*minerCandidate {
 	m.scfg.Lock()
 	miners := m.scfg.Miners
 	m.scfg.Unlock()

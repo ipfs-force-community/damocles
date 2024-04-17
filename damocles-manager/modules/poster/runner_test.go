@@ -19,7 +19,7 @@ import (
 )
 
 func mockRunnerConstructor(runner *mockRunner) runnerConstructor {
-	return func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner {
+	return func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner { //revive:disable-line:line-length-limit
 		return runner
 	}
 }
