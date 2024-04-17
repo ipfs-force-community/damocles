@@ -36,7 +36,12 @@ type commitMgr struct {
 	}
 }
 
-func (c *commitMgr) SubmitPreCommit(_ context.Context, sid abi.SectorID, info core.PreCommitInfo, hardReset bool) (core.SubmitPreCommitResp, error) {
+func (c *commitMgr) SubmitPreCommit(
+	_ context.Context,
+	sid abi.SectorID,
+	info core.PreCommitInfo,
+	hardReset bool,
+) (core.SubmitPreCommitResp, error) {
 	c.pres.Lock()
 	defer c.pres.Unlock()
 
@@ -74,7 +79,12 @@ func (c *commitMgr) PreCommitState(_ context.Context, sid abi.SectorID) (core.Po
 	}, nil
 }
 
-func (c *commitMgr) SubmitProof(_ context.Context, sid abi.SectorID, info core.ProofInfo, hardReset bool) (core.SubmitProofResp, error) {
+func (c *commitMgr) SubmitProof(
+	_ context.Context,
+	sid abi.SectorID,
+	info core.ProofInfo,
+	hardReset bool,
+) (core.SubmitProofResp, error) {
 	c.proofs.Lock()
 	defer c.proofs.Unlock()
 
@@ -131,6 +141,6 @@ func (c *commitMgr) SubmitTerminate(_ context.Context, sid abi.SectorID) (core.S
 	}, nil
 }
 
-func (c *commitMgr) TerminateState(context.Context, abi.SectorID) (core.TerminateInfo, error) {
+func (*commitMgr) TerminateState(context.Context, abi.SectorID) (core.TerminateInfo, error) {
 	return core.TerminateInfo{}, nil
 }

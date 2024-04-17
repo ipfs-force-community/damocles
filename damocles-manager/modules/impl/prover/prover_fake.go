@@ -14,8 +14,7 @@ func NewFakeVerifier() core.Verifier {
 	return &fakeVerifier{}
 }
 
-type fakeVerifier struct {
-}
+type fakeVerifier struct{}
 
 func (fakeVerifier) VerifySeal(context.Context, core.SealVerifyInfo) (bool, error) {
 	return false, nil
@@ -37,22 +36,40 @@ func NewFakeProver() core.Prover {
 	return &fakeProver{}
 }
 
-type fakeProver struct {
-}
+type fakeProver struct{}
 
-func (fakeProver) AggregateSealProofs(context.Context, core.AggregateSealVerifyProofAndInfos, [][]byte) ([]byte, error) {
+func (fakeProver) AggregateSealProofs(
+	context.Context,
+	core.AggregateSealVerifyProofAndInfos,
+	[][]byte,
+) ([]byte, error) {
 	return make([]byte, 32), nil
 }
 
-func (fakeProver) GenerateWindowPoSt(context.Context, core.GenerateWindowPoStParams) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+func (fakeProver) GenerateWindowPoSt(
+	context.Context,
+	core.GenerateWindowPoStParams,
+) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
 	return nil, nil, nil
 }
 
-func (fakeProver) GenerateWinningPoSt(context.Context, abi.ActorID, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) ([]builtin.PoStProof, error) {
+func (fakeProver) GenerateWinningPoSt(
+	context.Context,
+	abi.ActorID,
+	abi.RegisteredPoStProof,
+	[]builtin.ExtendedSectorInfo,
+	abi.PoStRandomness,
+) ([]builtin.PoStProof, error) {
 	return nil, nil
 }
 
-func (fakeProver) GeneratePoStFallbackSectorChallenges(context.Context, abi.RegisteredPoStProof, abi.ActorID, abi.PoStRandomness, []abi.SectorNumber) (*core.FallbackChallenges, error) {
+func (fakeProver) GeneratePoStFallbackSectorChallenges(
+	context.Context,
+	abi.RegisteredPoStProof,
+	abi.ActorID,
+	abi.PoStRandomness,
+	[]abi.SectorNumber,
+) (*core.FallbackChallenges, error) {
 	return nil, nil
 }
 
@@ -60,6 +77,12 @@ func (fakeProver) GenerateSingleVanillaProof(context.Context, core.FFIPrivateSec
 	return nil, nil
 }
 
-func (fakeProver) GenerateWinningPoStWithVanilla(context.Context, abi.RegisteredPoStProof, abi.ActorID, abi.PoStRandomness, [][]byte) ([]core.PoStProof, error) {
+func (fakeProver) GenerateWinningPoStWithVanilla(
+	context.Context,
+	abi.RegisteredPoStProof,
+	abi.ActorID,
+	abi.PoStRandomness,
+	[][]byte,
+) ([]core.PoStProof, error) {
 	return nil, nil
 }

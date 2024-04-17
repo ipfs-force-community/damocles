@@ -48,7 +48,7 @@ func (ms MongoStore) View(ctx context.Context, f func(Txn) error) error {
 	}
 	defer sess.EndSession(ctx)
 
-	_, err = sess.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (interface{}, error) {
+	_, err = sess.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (any, error) {
 		txn := &MongoTxn{
 			sessCtx: sessCtx,
 			coll:    ms.coll,
@@ -66,7 +66,7 @@ func (ms MongoStore) Update(ctx context.Context, f func(Txn) error) error {
 	}
 	defer sess.EndSession(ctx)
 
-	_, err = sess.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (interface{}, error) {
+	_, err = sess.WithTransaction(ctx, func(sessCtx mongo.SessionContext) (any, error) {
 		txn := &MongoTxn{
 			sessCtx: sessCtx,
 			coll:    ms.coll,
@@ -76,7 +76,7 @@ func (ms MongoStore) Update(ctx context.Context, f func(Txn) error) error {
 	return err
 }
 
-func (ms MongoStore) NeedRetryTransactions() bool {
+func (MongoStore) NeedRetryTransactions() bool {
 	return false
 }
 
@@ -116,6 +116,7 @@ type MongoTxn struct {
 func (mt *MongoTxn) Get(key Key) (Val, error) {
 	return get(mt.sessCtx, mt.coll, key)
 }
+
 func (mt *MongoTxn) Peek(key Key, f func(Val) error) error {
 	v := KvInMongo{}
 	err := mt.coll.FindOne(mt.sessCtx, bson.M{"_id": KeyToString(key)}).Decode(&v)
@@ -225,11 +226,11 @@ type mongoDB struct {
 	dbName string
 }
 
-func (db mongoDB) Run(context.Context) error {
+func (mongoDB) Run(context.Context) error {
 	return nil
 }
 
-func (db mongoDB) Close(context.Context) error {
+func (mongoDB) Close(context.Context) error {
 	return nil
 }
 

@@ -26,7 +26,7 @@ type Randomness struct {
 	api chain.API
 }
 
-func (r *Randomness) getRandomnessEntropy(mid abi.ActorID) ([]byte, error) {
+func (*Randomness) getRandomnessEntropy(mid abi.ActorID) ([]byte, error) {
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
 		return nil, err
@@ -40,7 +40,12 @@ func (r *Randomness) getRandomnessEntropy(mid abi.ActorID) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (r *Randomness) GetTicket(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (core.Ticket, error) {
+func (r *Randomness) GetTicket(
+	ctx context.Context,
+	tsk types.TipSetKey,
+	epoch abi.ChainEpoch,
+	mid abi.ActorID,
+) (core.Ticket, error) {
 	entropy, err := r.getRandomnessEntropy(mid)
 	if err != nil {
 		return core.Ticket{}, err
@@ -55,7 +60,13 @@ func (r *Randomness) GetTicket(ctx context.Context, tsk types.TipSetKey, epoch a
 		tsk = ts.Key()
 	}
 
-	rand, err := r.api.StateGetRandomnessFromTickets(ctx, crypto.DomainSeparationTag_SealRandomness, epoch, entropy, tsk)
+	rand, err := r.api.StateGetRandomnessFromTickets(
+		ctx,
+		crypto.DomainSeparationTag_SealRandomness,
+		epoch,
+		entropy,
+		tsk,
+	)
 	if err != nil {
 		return core.Ticket{}, err
 	}
@@ -66,7 +77,12 @@ func (r *Randomness) GetTicket(ctx context.Context, tsk types.TipSetKey, epoch a
 	}, nil
 }
 
-func (r *Randomness) GetSeed(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (core.Seed, error) {
+func (r *Randomness) GetSeed(
+	ctx context.Context,
+	tsk types.TipSetKey,
+	epoch abi.ChainEpoch,
+	mid abi.ActorID,
+) (core.Seed, error) {
 	entropy, err := r.getRandomnessEntropy(mid)
 	if err != nil {
 		return core.Seed{}, err
@@ -81,7 +97,13 @@ func (r *Randomness) GetSeed(ctx context.Context, tsk types.TipSetKey, epoch abi
 		tsk = ts.Key()
 	}
 
-	rand, err := r.api.StateGetRandomnessFromBeacon(ctx, crypto.DomainSeparationTag_InteractiveSealChallengeSeed, epoch, entropy, tsk)
+	rand, err := r.api.StateGetRandomnessFromBeacon(
+		ctx,
+		crypto.DomainSeparationTag_InteractiveSealChallengeSeed,
+		epoch,
+		entropy,
+		tsk,
+	)
 	if err != nil {
 		return core.Seed{}, err
 	}
@@ -92,7 +114,12 @@ func (r *Randomness) GetSeed(ctx context.Context, tsk types.TipSetKey, epoch abi
 	}, nil
 }
 
-func (r *Randomness) GetWindowPoStChanlleengeRand(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch, mid abi.ActorID) (core.WindowPoStRandomness, error) {
+func (r *Randomness) GetWindowPoStChanlleengeRand(
+	ctx context.Context,
+	tsk types.TipSetKey,
+	epoch abi.ChainEpoch,
+	mid abi.ActorID,
+) (core.WindowPoStRandomness, error) {
 	entropy, err := r.getRandomnessEntropy(mid)
 	if err != nil {
 		return core.WindowPoStRandomness{}, err
@@ -107,7 +134,13 @@ func (r *Randomness) GetWindowPoStChanlleengeRand(ctx context.Context, tsk types
 		tsk = ts.Key()
 	}
 
-	rand, err := r.api.StateGetRandomnessFromBeacon(ctx, crypto.DomainSeparationTag_WindowedPoStChallengeSeed, epoch, entropy, tsk)
+	rand, err := r.api.StateGetRandomnessFromBeacon(
+		ctx,
+		crypto.DomainSeparationTag_WindowedPoStChallengeSeed,
+		epoch,
+		entropy,
+		tsk,
+	)
 	if err != nil {
 		return core.WindowPoStRandomness{}, err
 	}
@@ -118,7 +151,11 @@ func (r *Randomness) GetWindowPoStChanlleengeRand(ctx context.Context, tsk types
 	}, nil
 }
 
-func (r *Randomness) GetWindowPoStCommitRand(ctx context.Context, tsk types.TipSetKey, epoch abi.ChainEpoch) (core.WindowPoStRandomness, error) {
+func (r *Randomness) GetWindowPoStCommitRand(
+	ctx context.Context,
+	tsk types.TipSetKey,
+	epoch abi.ChainEpoch,
+) (core.WindowPoStRandomness, error) {
 	if tsk == types.EmptyTSK {
 		ts, err := r.api.ChainHead(ctx)
 		if err != nil {

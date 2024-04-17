@@ -32,7 +32,13 @@ type DealManager struct {
 	acquireMu sync.Mutex
 }
 
-func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec, lifetime *core.AcquireDealsLifetime, job core.SectorWorkerJob) (core.SectorPieces, error) {
+func (dm *DealManager) Acquire(
+	ctx context.Context,
+	sid abi.SectorID,
+	spec core.AcquireDealsSpec,
+	lifetime *core.AcquireDealsLifetime,
+	job core.SectorWorkerJob,
+) (core.SectorPieces, error) {
 	mcfg, err := dm.scfg.MinerConfig(sid.Miner)
 	if err != nil {
 		return nil, fmt.Errorf("get miner config: %w", err)
@@ -45,7 +51,6 @@ func (dm *DealManager) Acquire(ctx context.Context, sid abi.SectorID, spec core.
 
 	case core.SectorWorkerJobSnapUp:
 		enabled = mcfg.SnapUp.Enabled
-
 	}
 
 	if !enabled {

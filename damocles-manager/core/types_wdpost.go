@@ -128,7 +128,12 @@ type WorkerWdPoStJobManager interface {
 	All(ctx context.Context, filter func(*WdPoStJob) bool) ([]*WdPoStJob, error)
 	ListByJobIDs(ctx context.Context, jobIDs ...string) ([]*WdPoStJob, error)
 	Create(ctx context.Context, deadlineIdx uint64, partitions []uint64, input WdPoStInput) (*WdPoStJob, error)
-	AllocateJobs(ctx context.Context, spec AllocateWdPoStJobSpec, num uint32, workerName string) (allocatedJobs []*WdPoStAllocatedJob, err error)
+	AllocateJobs(
+		ctx context.Context,
+		spec AllocateWdPoStJobSpec,
+		num uint32,
+		workerName string,
+	) (allocatedJobs []*WdPoStAllocatedJob, err error)
 	Heartbeat(ctx context.Context, jobIDs []string, workerName string) error
 	Finish(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) error
 	MakeJobsDie(ctx context.Context, shouldDeadDur time.Duration, limit uint32) error

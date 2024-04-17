@@ -30,7 +30,12 @@ type PreCommitProcessor struct {
 	config *modules.SafeConfig
 }
 
-func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
+func (p PreCommitProcessor) Process(
+	ctx context.Context,
+	sectors []core.SectorState,
+	mid abi.ActorID,
+	ctrlAddr address.Address,
+) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "pre", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
@@ -124,7 +129,11 @@ func (p PreCommitProcessor) Process(ctx context.Context, sectors []core.SectorSt
 	return nil
 }
 
-func (p PreCommitProcessor) Expire(ctx context.Context, sectors []core.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
+func (p PreCommitProcessor) Expire(
+	ctx context.Context,
+	sectors []core.SectorState,
+	mid abi.ActorID,
+) (map[abi.SectorID]struct{}, error) {
 	maxWait := p.config.MustMinerConfig(mid).Commitment.Pre.Batch.MaxWait.Std()
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := p.api.ChainHead(ctx)
@@ -168,7 +177,6 @@ func (p PreCommitProcessor) ShouldBatch(mid abi.ActorID) bool {
 		}
 		return p.api.ChainBaseFee(ctx, tok)
 	}()
-
 	if err != nil {
 		log.Errorf("get basefee: %w", err)
 		return false
@@ -176,7 +184,12 @@ func (p PreCommitProcessor) ShouldBatch(mid abi.ActorID) bool {
 
 	bcfg := p.config.MustMinerConfig(mid).Commitment.Pre.Batch
 	basefeeAbove := basefee.GreaterThanEqual(abi.TokenAmount(bcfg.BatchCommitAboveBaseFee))
-	bLog.Debugf("should batch(%t): basefee(%s), basefee above(%s)", basefeeAbove, modules.FIL(basefee).Short(), bcfg.BatchCommitAboveBaseFee.Short())
+	bLog.Debugf(
+		"should batch(%t): basefee(%s), basefee above(%s)",
+		basefeeAbove,
+		modules.FIL(basefee).Short(),
+		bcfg.BatchCommitAboveBaseFee.Short(),
+	)
 
 	return basefeeAbove
 }

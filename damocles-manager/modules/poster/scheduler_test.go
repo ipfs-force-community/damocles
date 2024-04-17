@@ -76,8 +76,12 @@ func TestScheduler(t *testing.T) {
 
 			// disabled
 			pcfg.Enabled = false
-			require.Falsef(t, sched.shouldStart(&pcfg, start+half), "%#v: half with customized confidence, disabled", dl)
-
+			require.Falsef(
+				t,
+				sched.shouldStart(&pcfg, start+half),
+				"%#v: half with customized confidence, disabled",
+				dl,
+			)
 		}
 	})
 
@@ -127,5 +131,4 @@ func TestScheduler(t *testing.T) {
 			require.True(t, sched.shouldAbort(&before, dl.Challenge), "%#v: revert to before", dl)
 		}
 	})
-
 }

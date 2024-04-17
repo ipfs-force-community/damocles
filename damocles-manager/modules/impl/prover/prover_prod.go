@@ -20,14 +20,16 @@ func NewProdVerifier() core.Verifier {
 	return &prodVerifier{}
 }
 
-type prodVerifier struct {
-}
+type prodVerifier struct{}
 
 func (prodVerifier) VerifySeal(_ context.Context, svi core.SealVerifyInfo) (bool, error) {
 	return ffi.VerifySeal(svi)
 }
 
-func (prodVerifier) VerifyAggregateSeals(_ context.Context, aggregate core.AggregateSealVerifyProofAndInfos) (bool, error) {
+func (prodVerifier) VerifyAggregateSeals(
+	_ context.Context,
+	aggregate core.AggregateSealVerifyProofAndInfos,
+) (bool, error) {
 	return ffi.VerifyAggregateSeals(aggregate)
 }
 
@@ -51,11 +53,18 @@ type prodProver struct {
 	sectorTracker core.SectorTracker
 }
 
-func (prodProver) AggregateSealProofs(_ context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
+func (prodProver) AggregateSealProofs(
+	_ context.Context,
+	aggregateInfo core.AggregateSealVerifyProofAndInfos,
+	proofs [][]byte,
+) ([]byte, error) {
 	return ffi.AggregateSealProofs(aggregateInfo, proofs)
 }
 
-func (p prodProver) GenerateWindowPoSt(ctx context.Context, params core.GenerateWindowPoStParams) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+func (p prodProver) GenerateWindowPoSt(
+	ctx context.Context,
+	params core.GenerateWindowPoStParams,
+) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
 	minerID, proofType, sectors, randomness := params.MinerID, params.ProofType, params.Sectors, params.Randomness
 	randomness[31] &= 0x3f
 
@@ -66,18 +75,24 @@ func (p prodProver) GenerateWindowPoSt(ctx context.Context, params core.Generate
 
 	proof, faulty, err := ffi.GenerateWindowPoSt(minerID, core.NewSortedPrivateSectorInfo(privSectors...), randomness)
 
-	var faultyIDs []abi.SectorID
-	for _, f := range faulty {
-		faultyIDs = append(faultyIDs, abi.SectorID{
+	faultyIDs := make([]abi.SectorID, len(faulty))
+	for i, f := range faulty {
+		faultyIDs[i] = abi.SectorID{
 			Miner:  minerID,
 			Number: f,
-		})
+		}
 	}
 
 	return proof, faultyIDs, err
 }
 
-func (p prodProver) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, ppt abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
+func (p prodProver) GenerateWinningPoSt(
+	ctx context.Context,
+	minerID abi.ActorID,
+	ppt abi.RegisteredPoStProof,
+	sectors []builtin.ExtendedSectorInfo,
+	randomness abi.PoStRandomness,
+) ([]builtin.PoStProof, error) {
 	randomness[31] &= 0x3f
 
 	privSectors, err := p.sectorTracker.PubToPrivate(ctx, minerID, ppt, sectors)
@@ -88,12 +103,22 @@ func (p prodProver) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID
 	return ffi.GenerateWinningPoSt(minerID, core.NewSortedPrivateSectorInfo(privSectors...), randomness)
 }
 
-func (prodProver) GeneratePoStFallbackSectorChallenges(_ context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
+func (prodProver) GeneratePoStFallbackSectorChallenges(
+	_ context.Context,
+	proofType abi.RegisteredPoStProof,
+	minerID abi.ActorID,
+	randomness abi.PoStRandomness,
+	sectorIds []abi.SectorNumber,
+) (*core.FallbackChallenges, error) {
 	randomness[31] &= 0x3f
 	return ffi.GeneratePoStFallbackSectorChallenges(proofType, minerID, randomness, sectorIds)
 }
 
-func (prodProver) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
+func (prodProver) GenerateSingleVanillaProof(
+	ctx context.Context,
+	replica core.FFIPrivateSectorInfo,
+	challenges []uint64,
+) ([]byte, error) {
 	start := time.Now()
 
 	resCh := make(chan core.Result[[]byte], 1)
@@ -105,14 +130,30 @@ func (prodProver) GenerateSingleVanillaProof(ctx context.Context, replica core.F
 	case r := <-resCh:
 		return r.Unwrap()
 	case <-ctx.Done():
-		log.Errorw("failed to generate valilla PoSt proof before context cancellation", "err", ctx.Err(), "duration", time.Since(start), "cache", replica.CacheDirPath, "sealed", replica.SealedSectorPath)
+		log.Errorw(
+			"failed to generate valilla PoSt proof before context cancellation",
+			"err",
+			ctx.Err(),
+			"duration",
+			time.Since(start),
+			"cache",
+			replica.CacheDirPath,
+			"sealed",
+			replica.SealedSectorPath,
+		)
 
 		// this will leave the GenerateSingleVanillaProof goroutine hanging, but that's still less bad than failing PoSt
 		return nil, fmt.Errorf("failed to generate vanilla proof before context cancellation: %w", ctx.Err())
 	}
 }
 
-func (prodProver) GenerateWinningPoStWithVanilla(_ context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
+func (prodProver) GenerateWinningPoStWithVanilla(
+	_ context.Context,
+	proofType abi.RegisteredPoStProof,
+	minerID abi.ActorID,
+	randomness abi.PoStRandomness,
+	proofs [][]byte,
+) ([]core.PoStProof, error) {
 	randomness[31] &= 0x3f
 	return ffi.GenerateWinningPoStWithVanilla(proofType, minerID, randomness, proofs)
 }

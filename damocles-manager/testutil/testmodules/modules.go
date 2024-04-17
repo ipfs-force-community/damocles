@@ -8,9 +8,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 )
 
-var (
-	TestActorBase abi.ActorID = 10000
-)
+var TestActorBase abi.ActorID = 10000
 
 func MockSafeConfig(count int, minerInitializer func(mcfg *modules.MinerConfig)) (*modules.SafeConfig, sync.Locker) {
 	cfg := modules.DefaultConfig(false)

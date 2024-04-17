@@ -13,9 +13,7 @@ import (
 
 var log = logging.New("confmgr")
 
-var (
-	_ ConfigManager = (*localMgr)(nil)
-)
+var _ ConfigManager = (*localMgr)(nil)
 
 type ConfigUnmarshaller interface {
 	UnmarshalConfig([]byte) error
@@ -34,14 +32,14 @@ type WLocker interface {
 }
 
 type ConfigManager interface {
-	Load(ctx context.Context, key string, c interface{}) error
-	SetDefault(ctx context.Context, key string, c interface{}) error
-	Watch(ctx context.Context, key string, c interface{}, wlock WLocker, newfn func() interface{}) error
+	Load(ctx context.Context, key string, c any) error
+	SetDefault(ctx context.Context, key string, c any) error
+	Watch(ctx context.Context, key string, c any, wlock WLocker, newfn func() any) error
 	Run(ctx context.Context) error
 	Close(ctx context.Context) error
 }
 
-func ConfigComment(t interface{}) ([]byte, error) {
+func ConfigComment(t any) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	_, _ = buf.WriteString("# Default config:\n")
 	e := toml.NewEncoder(buf)

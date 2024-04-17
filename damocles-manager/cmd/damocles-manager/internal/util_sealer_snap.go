@@ -94,7 +94,7 @@ var utilSealerSnapCandidatesCmd = &cli.Command{
 		}
 
 		if len(candidates) == 0 {
-			fmt.Fprintln(os.Stdout, "no candidates available")
+			_, _ = fmt.Fprintln(os.Stdout, "no candidates available")
 			return nil
 		}
 
@@ -103,7 +103,7 @@ var utilSealerSnapCandidatesCmd = &cli.Command{
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		defer tw.Flush()
 
-		fmt.Fprintln(tw, "deadline\tcount")
+		_, _ = fmt.Fprintln(tw, "deadline\tcount")
 		for i, bits := range candidates {
 			var count uint64
 			if bits != nil {
@@ -114,7 +114,7 @@ var utilSealerSnapCandidatesCmd = &cli.Command{
 			}
 
 			if count > 0 || showAll {
-				fmt.Fprintf(tw, "%d\t%d\n", i, count)
+				_, _ = fmt.Fprintf(tw, "%d\t%d\n", i, count)
 			}
 		}
 

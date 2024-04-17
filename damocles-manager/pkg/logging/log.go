@@ -7,8 +7,10 @@ import (
 	"go.uber.org/zap"
 )
 
-type ZapLogger = zap.SugaredLogger
-type WrappedLogger = logging.ZapEventLogger
+type (
+	ZapLogger     = zap.SugaredLogger
+	WrappedLogger = logging.ZapEventLogger
+)
 
 var (
 	New         = logging.Logger
@@ -39,7 +41,7 @@ func Setup() {
 func SetLogLevelIfNotSet(name, level string) {
 	_, ok := logging.GetConfig().SubsystemLevels[name]
 	if !ok {
-		logging.SetLogLevel(name, level)
+		_ = logging.SetLogLevel(name, level)
 	}
 }
 

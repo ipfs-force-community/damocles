@@ -71,11 +71,11 @@ func NewAPIServiceDisbaleWorkerWdPoSt(
 
 type handler struct {
 	namespace string
-	hdl       interface{}
+	hdl       any
 }
 
 type APIService struct {
-	coreAPI interface{}
+	coreAPI any
 	plugins *managerplugin.LoadedPlugins
 }
 

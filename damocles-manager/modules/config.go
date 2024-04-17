@@ -166,21 +166,22 @@ type ProvingConfig struct {
 	// to late submission.
 	ParallelCheckLimit int
 
-	// Maximum amount of time a proving pre-check can take for a sector. If the check times out the sector will be skipped
+	// Maximum amount of time a proving pre-check can take for a sector.
+	// If the check times out the sector will be skipped
 	//
-	// WARNING: Setting this value too low risks in sectors being skipped even though they are accessible, just reading the
-	// test challenge took longer than this timeout
-	// WARNING: Setting this value too high risks missing PoSt deadline in case IO operations related to this sector are
-	// blocked (e.g. in case of disconnected NFS mount)
+	// WARNING: Setting this value too low risks in sectors being skipped even though they are accessible,
+	// just reading the test challenge took longer than this timeout
+	// WARNING: Setting this value too high risks missing PoSt deadline in case IO operations
+	// related to this sector are blocked (e.g. in case of disconnected NFS mount)
 	SingleCheckTimeout Duration
 
-	// Maximum amount of time a proving pre-check can take for an entire partition. If the check times out, sectors in
-	// the partition which didn't get checked on time will be skipped
+	// Maximum amount of time a proving pre-check can take for an entire partition.
+	// If the check times out, sectors in the partition which didn't get checked on time will be skipped
 	//
-	// WARNING: Setting this value too low risks in sectors being skipped even though they are accessible, just reading the
-	// test challenge took longer than this timeout
-	// WARNING: Setting this value too high risks missing PoSt deadline in case IO operations related to this partition are
-	// blocked or slow
+	// WARNING: Setting this value too low risks in sectors being skipped even though they are accessible,
+	// just reading the test challenge took longer than this timeout
+	// WARNING: Setting this value too high risks missing PoSt deadline in case IO operations
+	// related to this partition are blocked or slow
 	PartitionCheckTimeout Duration
 
 	WorkerProver *WorkerProverConfig
@@ -222,7 +223,8 @@ type CommonConfig struct {
 
 	// PersistStores should not be used directly, use GetPersistStores instead
 	PersistStores []PersistStoreConfig
-	// Configure the storage directory for scanning the directory that contains `sectorstore.json` file, supporting `glob` mode.
+	// Configure the storage directory for scanning the directory that contains `sectorstore.json` file,
+	// supporting `glob` mode.
 	ScanPersistStores []string
 
 	MongoKVStore *KVStoreMongoDBConfig // For compatibility with v0.5
@@ -240,7 +242,7 @@ func (c CommonConfig) GetPersistStores() (cfgs []PersistStoreConfig, err error) 
 		if err != nil {
 			return
 		}
-		cfgs = append(cfgs, scanned...)
+		cfgs = append(cfgs, scanned...) //nolint:makezero
 	}
 
 	checkName := make(map[string]struct{})
@@ -300,8 +302,11 @@ func defaultCommonConfig(example bool) CommonConfig {
 				Path: exampleCfg.Path,
 				Meta: exampleCfg.Meta,
 			},
-			StoreSelectPolicy: objstore.StoreSelectPolicy{AllowMiners: []abi.ActorID{1, 2}, DenyMiners: []abi.ActorID{3, 4}},
-			PluginName:        "s3store",
+			StoreSelectPolicy: objstore.StoreSelectPolicy{
+				AllowMiners: []abi.ActorID{1, 2},
+				DenyMiners:  []abi.ActorID{3, 4},
+			},
+			PluginName: "s3store",
 		})
 	}
 
@@ -309,18 +314,18 @@ func defaultCommonConfig(example bool) CommonConfig {
 }
 
 type FeeConfig struct {
-	//included in msg send spec
+	// included in msg send spec
 	GasOverEstimation float64
 	GasOverPremium    float64
-	//set to msg directly
+	// set to msg directly
 	GasFeeCap FIL
-	MaxFeeCap FIL //兼容老字段， FeeConfig用在embed字段， 使用TextUnmarshaler会影响上层结构体解析
+	MaxFeeCap FIL // 兼容老字段， FeeConfig用在embed字段， 使用TextUnmarshaler会影响上层结构体解析
 }
 
 func (feeCfg *FeeConfig) GetGasFeeCap() FIL {
 	gasFeeCap := feeCfg.GasFeeCap
 	if (*big.Int)(&feeCfg.GasFeeCap).NilOrZero() && !(*big.Int)(&feeCfg.MaxFeeCap).NilOrZero() {
-		//if not set GasFeeCap but set MaxFeecap use MaxFeecap as GasFeecap
+		// if not set GasFeeCap but set MaxFeecap use MaxFeecap as GasFeecap
 		gasFeeCap = feeCfg.MaxFeeCap
 	}
 	return gasFeeCap
@@ -592,13 +597,17 @@ func defaultMinerSealingConfig() MinerSealingConfig {
 	return MinerSealingConfig{
 		SealingEpochDuration: 0,
 
-		// Whether to abort if any sector activation in a batch fails (newly sealed sectors, only with ProveCommitSectors3).
+		// Whether to abort if any sector activation in a batch fails
+		// (newly sealed sectors, only with ProveCommitSectors3).
 		RequireActivationSuccess: false,
-		// Whether to abort if any piece activation notification returns a non-zero exit code (newly sealed sectors, only with ProveCommitSectors3).
+		// Whether to abort if any piece activation notification returns a non-zero exit code
+		// (newly sealed sectors, only with ProveCommitSectors3).
 		RequireActivationSuccessUpdate: false,
-		// Whether to abort if any sector activation in a batch fails (updating sectors, only with ProveReplicaUpdates3).
+		// Whether to abort if any sector activation in a batch fails
+		// (updating sectors, only with ProveReplicaUpdates3).
 		RequireNotificationSuccess: false,
-		// Whether to abort if any piece activation notification returns a non-zero exit code (updating sectors, only with ProveReplicaUpdates3).
+		// Whether to abort if any piece activation notification returns a non-zero exit code
+		// (updating sectors, only with ProveReplicaUpdates3).
 		RequireNotificationSuccessUpdate: false,
 
 		UseSyntheticPoRep: false,

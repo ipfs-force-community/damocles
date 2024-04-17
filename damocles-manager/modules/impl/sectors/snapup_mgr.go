@@ -16,6 +16,7 @@ var snapupLog = logging.New("sector-snapup")
 
 var _ core.SnapUpSectorManager = (*SnapUpMgr)(nil)
 
+//revive:disable-next-line:argument-limit
 func NewSnapUpMgr(
 	ctx context.Context,
 	tracker core.SectorTracker,
@@ -35,7 +36,18 @@ func NewSnapUpMgr(
 		return nil, fmt.Errorf("construct snapup allocator: %w", err)
 	}
 
-	committer, err := NewSnapUpCommitter(ctx, tracker, indexer, chainAPI, eventbus, messagerAPI, stateMgr, scfg, lookupID, senderSelector)
+	committer, err := NewSnapUpCommitter(
+		ctx,
+		tracker,
+		indexer,
+		chainAPI,
+		eventbus,
+		messagerAPI,
+		stateMgr,
+		scfg,
+		lookupID,
+		senderSelector,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("construct snapup committer: %w", err)
 	}

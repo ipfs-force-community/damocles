@@ -70,7 +70,6 @@ func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (mi *core.Miner
 	mi, ok := m.cache[mid]
 	m.cacheMu.RUnlock()
 	if !ok {
-
 		maddr, err := address.NewIDAddress(uint64(mid))
 		if err != nil {
 			return nil, err

@@ -12,8 +12,10 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 )
 
-var log = logging.New("worker-manager")
-var _ core.WorkerManager = (*Manager)(nil)
+var (
+	log                    = logging.New("worker-manager")
+	_   core.WorkerManager = (*Manager)(nil)
+)
 
 func makeWorkerKey(name string) kvstore.Key {
 	return kvstore.Key(name)
@@ -77,7 +79,6 @@ func (m *Manager) All(ctx context.Context, filter func(*core.WorkerPingInfo) boo
 		if filter == nil || filter(&winfo) {
 			infos = append(infos, winfo)
 		}
-
 	}
 
 	return infos, nil
@@ -103,7 +104,12 @@ func (m *Manager) doMetrics(ctx context.Context) {
 					continue
 				}
 
-				workerLatencyCount := map[string]int64{"latency<=60s": 0, "latency<=120s": 0, "latency<=300s": 0, "latency>300s": 0}
+				workerLatencyCount := map[string]int64{
+					"latency<=60s":  0,
+					"latency<=120s": 0,
+					"latency<=300s": 0,
+					"latency>300s":  0,
+				}
 				threadStateCount := map[string]int64{}
 				now := time.Now().Unix()
 				for _, info := range infos {

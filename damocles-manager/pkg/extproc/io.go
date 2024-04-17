@@ -24,7 +24,7 @@ func WriteReadyMessage(w *bufio.Writer, taskName string) error {
 	return nil
 }
 
-func WriteData(w *bufio.Writer, data interface{}) (int, error) {
+func WriteData(w *bufio.Writer, data any) (int, error) {
 	b, err := json.Marshal(data)
 	if err != nil {
 		return 0, fmt.Errorf("marshal data object: %w", err)

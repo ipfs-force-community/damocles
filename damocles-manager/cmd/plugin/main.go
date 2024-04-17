@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-
 	app := &cli.App{
 		Name: "Tools for damocles-manager-plugin",
 		Commands: []*cli.Command{

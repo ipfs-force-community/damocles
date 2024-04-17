@@ -40,13 +40,12 @@ func TestMain(m *testing.M) {
 func DeleteAll(ctx context.Context, kv kvstore.KVStore) error {
 	iter, err := kv.Scan(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Scan all record: %w", err)
-
+		return fmt.Errorf("scan all record: %w", err)
 	}
 	for iter.Next() {
 		k := iter.Key()
 		if err := kv.Del(ctx, k); err != nil {
-			return fmt.Errorf("Delete key: %s;  %w", string(k), err)
+			return fmt.Errorf("delete key: %s;  %w", string(k), err)
 		}
 	}
 	return nil

@@ -25,25 +25,69 @@ import (
 var ErrSectorAllocated = errors.New("sectorNumber is allocated, but PreCommit info wasn't found on chain")
 
 type SealingAPI interface {
-	StateComputeDataCommitment(ctx context.Context, maddr address.Address, sectorType abi.RegisteredSealProof, deals []abi.DealID, tok core.TipSetToken) (cid.Cid, error)
+	StateComputeDataCommitment(
+		ctx context.Context,
+		maddr address.Address,
+		sectorType abi.RegisteredSealProof,
+		deals []abi.DealID,
+		tok core.TipSetToken,
+	) (cid.Cid, error)
 
 	// Can return ErrSectorAllocated in case precommit info wasn't found, but the sector number is marked as allocated
-	StateSectorPreCommitInfo(ctx context.Context, maddr address.Address, sectorNumber abi.SectorNumber, tok core.TipSetToken) (*stminer.SectorPreCommitOnChainInfo, error)
-	StateSectorGetInfo(ctx context.Context, maddr address.Address, sectorNumber abi.SectorNumber, tok core.TipSetToken) (*miner.SectorOnChainInfo, error)
+	StateSectorPreCommitInfo(
+		ctx context.Context,
+		maddr address.Address,
+		sectorNumber abi.SectorNumber,
+		tok core.TipSetToken,
+	) (*stminer.SectorPreCommitOnChainInfo, error)
+	StateSectorGetInfo(
+		ctx context.Context,
+		maddr address.Address,
+		sectorNumber abi.SectorNumber,
+		tok core.TipSetToken,
+	) (*miner.SectorOnChainInfo, error)
 	StateMinerSectorSize(context.Context, address.Address, core.TipSetToken) (abi.SectorSize, error)
-	StateMinerPreCommitDepositForPower(context.Context, address.Address, stminer.SectorPreCommitInfo, core.TipSetToken) (big.Int, error)
-	StateMinerInitialPledgeCollateral(context.Context, address.Address, stminer.SectorPreCommitInfo, core.TipSetToken) (big.Int, error)
+	StateMinerPreCommitDepositForPower(
+		context.Context,
+		address.Address,
+		stminer.SectorPreCommitInfo,
+		core.TipSetToken,
+	) (big.Int, error)
+	StateMinerInitialPledgeCollateral(
+		context.Context,
+		address.Address,
+		stminer.SectorPreCommitInfo,
+		core.TipSetToken,
+	) (big.Int, error)
 	StateMarketStorageDealProposal(context.Context, abi.DealID, core.TipSetToken) (market.DealProposal, error)
-	StateGetAllocationIdForPendingDeal(ctx context.Context, dealID abi.DealID, tst core.TipSetToken) (verifreg.AllocationId, error)
-	StateGetAllocationForPendingDeal(ctx context.Context, dealID abi.DealID, tst core.TipSetToken) (*types.Allocation, error)
-	StateGetAllocation(ctx context.Context, clientAddr address.Address, allocationID types.AllocationId, tst core.TipSetToken) (*types.Allocation, error)
+	StateGetAllocationIdForPendingDeal(
+		ctx context.Context,
+		dealID abi.DealID,
+		tst core.TipSetToken,
+	) (verifreg.AllocationId, error)
+	StateGetAllocationForPendingDeal(
+		ctx context.Context,
+		dealID abi.DealID,
+		tst core.TipSetToken,
+	) (*types.Allocation, error)
+	StateGetAllocation(
+		ctx context.Context,
+		clientAddr address.Address,
+		allocationID types.AllocationId,
+		tst core.TipSetToken,
+	) (*types.Allocation, error)
 	StateMinerInfo(context.Context, address.Address, core.TipSetToken) (types.MinerInfo, error)
 	StateMinerSectorAllocated(context.Context, address.Address, abi.SectorNumber, core.TipSetToken) (bool, error)
 	StateNetworkVersion(ctx context.Context, tok core.TipSetToken) (network.Version, error)
 	ChainHead(ctx context.Context) (core.TipSetToken, abi.ChainEpoch, error)
 	ChainBaseFee(ctx context.Context, tok core.TipSetToken) (abi.TokenAmount, error)
 
-	StateSectorPartition(context.Context, address.Address, abi.SectorNumber, core.TipSetToken) (*miner.SectorLocation, error)
+	StateSectorPartition(
+		context.Context,
+		address.Address,
+		abi.SectorNumber,
+		core.TipSetToken,
+	) (*miner.SectorLocation, error)
 	StateMinerPartitions(context.Context, address.Address, uint64, core.TipSetToken) ([]chain.Partition, error)
 	StateMinerProvingDeadline(context.Context, address.Address, core.TipSetToken) (*dline.Info, error)
 

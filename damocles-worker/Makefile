@@ -21,7 +21,8 @@ endif
 
 all: fmt clippy build-all
 
-check-all: check-fmt check-clippy
+fix: fmt clippy
+check: check-fmt check-clippy
 
 build-all:
 	cargo build --release --workspace $(WORKER_FEATURE_FLAGS)

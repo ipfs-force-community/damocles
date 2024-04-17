@@ -82,8 +82,14 @@ var utilStorageGenSectorStoreJSONCmd = &cli.Command{
 					Weight:   cctx.Uint("weight"),
 				},
 				StoreSelectPolicy: objstore.StoreSelectPolicy{
-					AllowMiners: slices.Map(cctx.Uint64Slice("allow-miners"), func(x uint64) abi.ActorID { return abi.ActorID(x) }),
-					DenyMiners:  slices.Map(cctx.Uint64Slice("deny-miners"), func(x uint64) abi.ActorID { return abi.ActorID(x) }),
+					AllowMiners: slices.Map(
+						cctx.Uint64Slice("allow-miners"),
+						func(x uint64) abi.ActorID { return abi.ActorID(x) },
+					),
+					DenyMiners: slices.Map(
+						cctx.Uint64Slice("deny-miners"),
+						func(x uint64) abi.ActorID { return abi.ActorID(x) },
+					),
 				},
 				PluginName: cctx.String("plugin-name"),
 			},
@@ -103,7 +109,7 @@ var utilStorageGenSectorStoreJSONCmd = &cli.Command{
 		if filepath.Base(targetPath) != modules.FilenameSectorStoreJSON {
 			targetPath = filepath.Join(targetPath, modules.FilenameSectorStoreJSON)
 		}
-		return os.WriteFile(targetPath, b, 0644)
+		return os.WriteFile(targetPath, b, 0644) //nolint:gosec
 	},
 }
 
@@ -194,7 +200,6 @@ var utilStorageAttachCmd = &cli.Command{
 			dix.Override(new(dep.ListenAddress), dep.ListenAddress(cctx.String(SealerListenFlag.Name))),
 			dix.Populate(dep.InvokePopulate, &indexer, &chainAPI),
 		)
-
 		if err != nil {
 			return fmt.Errorf("construct sector indexer: %w", err)
 		}
@@ -240,7 +245,17 @@ var utilStorageAttachCmd = &cli.Command{
 
 			if allowSplitted {
 				logger.Infof("scan for splitted cache dirs(upgrade=%v)", upgrade)
-				cachedSIDs, err := scanForSectors(gctx, logger, cacheInfo, abs, pattern, upgrade, true, allowSplitted, verbose)
+				cachedSIDs, err := scanForSectors(
+					gctx,
+					logger,
+					cacheInfo,
+					abs,
+					pattern,
+					upgrade,
+					true,
+					allowSplitted,
+					verbose,
+				)
 				if err != nil {
 					return fmt.Errorf("scan splitted cache dirs(upgrade=%v): %w", upgrade, err)
 				}
@@ -305,7 +320,17 @@ func (c *cachedInfoForScanning) getSectorSize(ctx context.Context, mid abi.Actor
 	return ssize, nil
 }
 
-func scanForSectors(ctx context.Context, logger *logging.ZapLogger, cachedInfo *cachedInfoForScanning, abs, pattern string, upgrade bool, useCacheDir bool, allowSplitted bool, verbose bool) ([]abi.SectorID, error) {
+//revive:disable-next-line:argument-limit
+func scanForSectors(
+	ctx context.Context,
+	logger *logging.ZapLogger,
+	cachedInfo *cachedInfoForScanning,
+	abs, pattern string,
+	upgrade bool,
+	useCacheDir bool,
+	allowSplitted bool,
+	verbose bool,
+) ([]abi.SectorID, error) {
 	var dirOfSealedFile string
 	var dirOfCacheDir string
 
@@ -467,7 +492,12 @@ var utilStorageFindCmd = &cli.Command{
 			return nil
 		}
 
-		Log.Infof("sector %s located, sealed file in %q, cache dir in %q", util.FormatSectorID(sid), stores.SealedFile, stores.CacheDir)
+		Log.Infof(
+			"sector %s located, sealed file in %q, cache dir in %q",
+			util.FormatSectorID(sid),
+			stores.SealedFile,
+			stores.CacheDir,
+		)
 
 		for _, instanceName := range []string{stores.SealedFile, stores.CacheDir} {
 			iLog := Log.With("instance", instanceName)
@@ -483,7 +513,6 @@ var utilStorageFindCmd = &cli.Command{
 			}
 
 			iLog.Error("failed to get store instance")
-
 		}
 
 		return nil
@@ -525,7 +554,13 @@ var utilStorageListCmd = &cli.Command{
 			if len(detail.ReservedBy) > 0 {
 				fmt.Println("\tReserved Items:")
 				for i, res := range detail.ReservedBy {
-					fmt.Printf("\t\t#%d: %s, %s, %s ago\n", i, res.By, units.BytesSize(float64(res.Size)), time.Since(time.Unix(res.At, 0)))
+					fmt.Printf(
+						"\t\t#%d: %s, %s, %s ago\n",
+						i,
+						res.By,
+						units.BytesSize(float64(res.Size)),
+						time.Since(time.Unix(res.At, 0)),
+					)
 				}
 			}
 

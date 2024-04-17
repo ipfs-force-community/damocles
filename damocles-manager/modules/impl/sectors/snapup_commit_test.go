@@ -87,5 +87,4 @@ func TestDeadlineIsMutable(t *testing.T) {
 		require.Equal(t, c.isMut, isMut, "test isMut for `%v`", c)
 		require.Equal(t, c.delay, delay, "test delay for `%v`", c)
 	}
-
 }

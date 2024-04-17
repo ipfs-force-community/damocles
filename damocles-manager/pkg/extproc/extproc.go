@@ -90,12 +90,22 @@ func (p *Processor) findCandidateExt() (*ExtProcessor, bool, error) {
 		}
 	}
 
-	log.Debugw("ext processor selected", "candidates", len(available), "weights-max", totalWeight, "weight-selected", choice, "candidate-index", chosenIdx)
+	log.Debugw(
+		"ext processor selected",
+		"candidates",
+		len(available),
+		"weights-max",
+		totalWeight,
+		"weight-selected",
+		choice,
+		"candidate-index",
+		chosenIdx,
+	)
 
 	return available[chosenIdx], true, nil
 }
 
-func (p *Processor) Process(ctx context.Context, data interface{}, res interface{}) error {
+func (p *Processor) Process(ctx context.Context, data any, res any) error {
 	ext, ok, err := p.findCandidateExt()
 	if err != nil {
 		return fmt.Errorf("find candidate sub processor: %w", err)
@@ -153,7 +163,6 @@ func waitForReady(ctx context.Context, reader *bufio.Reader, stageName string, t
 			ready <- fmt.Errorf("unexpected ready message %q", msg)
 			return
 		}
-
 	}()
 
 	select {
@@ -213,7 +222,7 @@ func newExtProcessor(ctx context.Context, stageName string, cfg ExtProcessorConf
 
 	err = waitForReady(ctx, stdreader, stageName, time.Duration(readySecs)*time.Second)
 	if err != nil {
-		cmd.Process.Kill() // nolint: errcheck
+		_ = cmd.Process.Kill()
 		return nil, fmt.Errorf("wait for ready: %w", err)
 	}
 
@@ -237,7 +246,6 @@ func newExtProcessor(ctx context.Context, stageName string, cfg ExtProcessorConf
 		respCh: make(chan Response, 1),
 		reqSeq: 0,
 	}, nil
-
 }
 
 type ExtProcessor struct {
@@ -269,8 +277,8 @@ func (ep *ExtProcessor) start(ctx context.Context) {
 func (ep *ExtProcessor) stop() {
 	_ = ep.cmd.Process.Kill()
 	_ = ep.cmd.Wait()
-	ep.rawStdIn.Close()
-	ep.rawStdOut.Close()
+	_ = ep.rawStdIn.Close()
+	_ = ep.rawStdOut.Close()
 }
 
 func (ep *ExtProcessor) handleResponse(ctx context.Context) {
@@ -352,7 +360,7 @@ LOOP:
 	}
 }
 
-func (ep *ExtProcessor) process(ctx context.Context, data interface{}, res interface{}) error {
+func (ep *ExtProcessor) process(ctx context.Context, data any, res any) error {
 	req := Request{
 		ID: atomic.AddUint64(&ep.reqSeq, 1),
 	}
@@ -381,7 +389,6 @@ func (ep *ExtProcessor) process(ctx context.Context, data interface{}, res inter
 		req:    req,
 		respCh: respCh,
 	}:
-
 	}
 
 	select {

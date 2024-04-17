@@ -60,11 +60,19 @@ var utilSealerProvingCmd = &cli.Command{
 
 func EpochTime(curr, e abi.ChainEpoch, blockDelay uint64) string {
 	if curr > e {
-		return fmt.Sprintf("%d (%s ago)", e, durafmt.Parse(time.Second*time.Duration(int64(blockDelay)*int64(curr-e))).LimitFirstN(2))
+		return fmt.Sprintf(
+			"%d (%s ago)",
+			e,
+			durafmt.Parse(time.Second*time.Duration(int64(blockDelay)*int64(curr-e))).LimitFirstN(2),
+		)
 	}
 
 	if curr < e {
-		return fmt.Sprintf("%d (in %s)", e, durafmt.Parse(time.Second*time.Duration(int64(blockDelay)*int64(e-curr))).LimitFirstN(2))
+		return fmt.Sprintf(
+			"%d (in %s)",
+			e,
+			durafmt.Parse(time.Second*time.Duration(int64(blockDelay)*int64(e-curr))).LimitFirstN(2),
+		)
 	}
 
 	return fmt.Sprintf("%d (now)", e)
@@ -170,7 +178,10 @@ var utilSealerProvingInfoCmd = &cli.Command{
 
 		fmt.Printf("Proving Period Boundary: %d\n", cd.PeriodStart%cd.WPoStProvingPeriod)
 		fmt.Printf("Proving Period Start:    %s\n", EpochTime(cd.CurrentEpoch, cd.PeriodStart, blockDelaySecs))
-		fmt.Printf("Next Period Start:       %s\n\n", EpochTime(cd.CurrentEpoch, cd.PeriodStart+cd.WPoStProvingPeriod, blockDelaySecs))
+		fmt.Printf(
+			"Next Period Start:       %s\n\n",
+			EpochTime(cd.CurrentEpoch, cd.PeriodStart+cd.WPoStProvingPeriod, blockDelaySecs),
+		)
 
 		fmt.Printf("Faults:      %d (%.2f%%)\n", faults, faultPerc)
 		fmt.Printf("Recovering:  %d\n", recovering)
@@ -235,7 +246,14 @@ var utilSealerProvingFaultsCmd = &cli.Command{
 					if err != nil {
 						return err
 					}
-					_, _ = fmt.Fprintf(tw, "  %d\t%d\t%d\t%v\n", dlIdx, partIdx, num, float64((se.Early-curHeight)*builtin.EpochDurationSeconds)/60/60/24)
+					fmt.Fprintf(
+						tw,
+						"  %d\t%d\t%d\t%v\n",
+						dlIdx,
+						partIdx,
+						num,
+						float64((se.Early-curHeight)*builtin.EpochDurationSeconds)/60/60/24,
+					)
 					return nil
 				})
 			})
@@ -346,7 +364,17 @@ var utilSealerProvingDeadlinesCmd = &cli.Command{
 			gapHeight := uint64(30*60) / policy.NetParams.BlockDelaySecs * gapIdx
 			open := HeightToTime(head, di.Open+abi.ChainEpoch(gapHeight), policy.NetParams.BlockDelaySecs)
 
-			_, _ = fmt.Fprintf(tw, "%d\t%s\t%d\t%d (%d)\t%d%s\n", dlIdx, open, partitionCount, sectors, faults, provenPartitions, cur)
+			fmt.Fprintf(
+				tw,
+				"%d\t%s\t%d\t%d (%d)\t%d%s\n",
+				dlIdx,
+				open,
+				partitionCount,
+				sectors,
+				faults,
+				provenPartitions,
+				cur,
+			)
 		}
 
 		return tw.Flush()
@@ -420,7 +448,10 @@ var utilSealerProvingDeadlineInfoCmd = &cli.Command{
 		gapHeight := uint64(30*60) / policy.NetParams.BlockDelaySecs * gapIdx
 
 		fmt.Printf("Deadline Index:           %d\n", dlIdx)
-		fmt.Printf("Deadline Open:            %s\n", HeightToTime(head, di.Open+abi.ChainEpoch(gapHeight), policy.NetParams.BlockDelaySecs))
+		fmt.Printf(
+			"Deadline Open:            %s\n",
+			HeightToTime(head, di.Open+abi.ChainEpoch(gapHeight), policy.NetParams.BlockDelaySecs),
+		)
 		fmt.Printf("Partitions:               %d\n", len(partitions))
 		fmt.Printf("Proven Partitions:        %d\n", provenPartitions)
 		fmt.Printf("Current:                  %t\n\n", di.Index == dlIdx)
@@ -465,7 +496,20 @@ var utilSealerProvingDeadlineInfoCmd = &cli.Command{
 					sz := len(buf.Bytes())
 					szstr := types.SizeStr(types.NewInt(uint64(sz)))
 
-					fmt.Printf("\t%s Sectors:%s%d (bitfield - runs %d+%d=%d - %d 0s %d 1s - %d inv - %s %dB)\n", name, strings.Repeat(" ", 18-len(name)), count, zeroRuns, oneRuns, zeroRuns+oneRuns, zeros, ones, invalid, szstr, sz)
+					fmt.Printf(
+						"\t%s Sectors:%s%d (bitfield - runs %d+%d=%d - %d 0s %d 1s - %d inv - %s %dB)\n",
+						name,
+						strings.Repeat(" ", 18-len(name)),
+						count,
+						zeroRuns,
+						oneRuns,
+						zeroRuns+oneRuns,
+						zeros,
+						ones,
+						invalid,
+						szstr,
+						sz,
+					)
 				} else {
 					fmt.Printf("\t%s Sectors:%s%d\n", name, strings.Repeat(" ", 18-len(name)), count)
 				}
@@ -634,7 +678,14 @@ var utilSealerProvingCheckProvableCmd = &cli.Command{
 			if showDetail {
 				for s := range sectors {
 					if err, exist := bad[s]; exist {
-						_, _ = fmt.Fprintf(tw, "%d\t%d\t%d\t%s\n", dlIdx, parIdx, s, color.RedString("bad")+fmt.Sprintf(" (%s)", err))
+						_, _ = fmt.Fprintf(
+							tw,
+							"%d\t%d\t%d\t%s\n",
+							dlIdx,
+							parIdx,
+							s,
+							color.RedString("bad")+fmt.Sprintf(" (%s)", err),
+						)
 					} else if !cctx.Bool("only-bad") {
 						_, _ = fmt.Fprintf(tw, "%d\t%d\t%d\t%s\n", dlIdx, parIdx, s, color.GreenString("good"))
 					}
@@ -700,7 +751,7 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 
 		toProve := partitions[pidx].LiveSectors
 		if !cctx.Bool("include-faulty") {
-			if toProve, err = bitfield.SubtractBitField(partitions[pidx].LiveSectors, partitions[pidx].FaultySectors); err != nil {
+			if toProve, err = bitfield.SubtractBitField(partitions[pidx].LiveSectors, partitions[pidx].FaultySectors); err != nil { //revive:disable-line:line-length-limit
 				return err
 			}
 		}
@@ -756,7 +807,12 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			if err != nil {
 				return err
 			}
-			r, err := api.Damocles.GetWindowPoStChanlleengeRand(ctx, ts.Key(), abi.ChainEpoch(cctx.Int64("challenge")), abi.ActorID(mid))
+			r, err := api.Damocles.GetWindowPoStChanlleengeRand(
+				ctx,
+				ts.Key(),
+				abi.ChainEpoch(cctx.Int64("challenge")),
+				abi.ActorID(mid),
+			)
 			if err != nil {
 				return fmt.Errorf("getting challenge rand: %w", err)
 			}
@@ -773,7 +829,10 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 			return err
 		}
 
-		fmt.Printf("Simulate sectors %v wdpost start, please retrieve `mock generate window post` from the log to view execution info.\n", proofSectors)
+		fmt.Printf(
+			"Simulate sectors %v wdpost start, please retrieve `mock generate window post` from the log to view execution info.\n", //revive:disable-line:line-length-limit
+			proofSectors,
+		)
 
 		return nil
 	},
@@ -812,7 +871,6 @@ var utilSealerProvingSectorInfoCmd = &cli.Command{
 				Miner:  mid,
 				Number: abi.SectorNumber(num),
 			})
-
 			if err != nil {
 				slog.Warnf("failed to get info: %w", err)
 				continue
@@ -898,7 +956,13 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 
 		randomness := make(abi.PoStRandomness, abi.RandomnessLength)
 
-		challenges, err := prover.GeneratePoStFallbackSectorChallenges(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, []abi.SectorNumber{sectorID.Number})
+		challenges, err := prover.GeneratePoStFallbackSectorChallenges(
+			actx,
+			abi.RegisteredPoStProof_StackedDrgWinning32GiBV1,
+			sectorID.Miner,
+			randomness,
+			[]abi.SectorNumber{sectorID.Number},
+		)
 		if err != nil {
 			return fmt.Errorf("generate challenge for sector %s: %w", sealedFileName, err)
 		}
@@ -922,7 +986,13 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 
 		slog.Infof("vannilla generated with %d bytes", len(vannilla))
 
-		proofs, err := prover.GenerateWinningPoStWithVanilla(actx, abi.RegisteredPoStProof_StackedDrgWinning32GiBV1, sectorID.Miner, randomness, [][]byte{vannilla})
+		proofs, err := prover.GenerateWinningPoStWithVanilla(
+			actx,
+			abi.RegisteredPoStProof_StackedDrgWinning32GiBV1,
+			sectorID.Miner,
+			randomness,
+			[][]byte{vannilla},
+		)
 		if err != nil {
 			return fmt.Errorf("generate winning post with vannilla for %s: %w", sealedFileName, err)
 		}
@@ -944,7 +1014,7 @@ var utilSealerProvingWinningVanillaCmd = &cli.Command{
 		}
 
 		if output := cctx.String("output"); output != "" {
-			if err := os.WriteFile(output, vannilla, 0644); err != nil {
+			if err := os.WriteFile(output, vannilla, 0644); err != nil { //nolint:gosec
 				return fmt.Errorf("write vannilla proof into file: %w", err)
 			}
 
@@ -982,7 +1052,7 @@ var utilSealerProvingCompactPartitionsCmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "exid",
-			Usage: "external identifier of the message, ensure that we could make the message unique, or we could catch up with a previous message",
+			Usage: "external identifier of the message, ensure that we could make the message unique, or we could catch up with a previous message", //revive:disable-line:line-length-limit
 		},
 	},
 	Action: func(cctx *cli.Context) error {
@@ -1070,7 +1140,7 @@ var utilSealerProvingRecoverFaultsCmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "exid",
-			Usage: "external identifier of the message, ensure that we could make the message unique, or we could catch up with a previous message",
+			Usage: "external identifier of the message, ensure that we could make the message unique, or we could catch up with a previous message", //revive:disable-line:line-length-limit
 		},
 	},
 	Action: func(cctx *cli.Context) error {

@@ -24,7 +24,6 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/impl/worker"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
-	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/homedir"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/kvstore"
@@ -50,7 +49,11 @@ type (
 	CommonMetaStore             kvstore.KVStore
 )
 
-func BuildLocalSectorManager(scfg *modules.SafeConfig, mapi core.MinerAPI, numAlloc core.SectorNumberAllocator) (core.SectorManager, error) {
+func BuildLocalSectorManager(
+	scfg *modules.SafeConfig,
+	mapi core.MinerAPI,
+	numAlloc core.SectorNumberAllocator,
+) (core.SectorManager, error) {
 	return sectors.NewManager(scfg, mapi, numAlloc)
 }
 
@@ -76,7 +79,12 @@ func BuildLocalConfigManager(gctx GlobalContext, lc fx.Lifecycle, confDir ConfDi
 	return cfgmgr, nil
 }
 
-func ProvideConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigManager, locker confmgr.WLocker) (*modules.Config, error) {
+func ProvideConfig(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	cfgmgr confmgr.ConfigManager,
+	locker confmgr.WLocker,
+) (*modules.Config, error) {
 	cfg := modules.DefaultConfig(false)
 	if err := cfgmgr.Load(gctx, modules.ConfigKey, &cfg); err != nil {
 		return nil, err
@@ -94,7 +102,7 @@ func ProvideConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigMan
 
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			return cfgmgr.Watch(gctx, modules.ConfigKey, &cfg, locker, func() interface{} {
+			return cfgmgr.Watch(gctx, modules.ConfigKey, &cfg, locker, func() any {
 				c := modules.DefaultConfig(false)
 				return &c
 			})
@@ -111,7 +119,11 @@ func ProvideSafeConfig(cfg *modules.Config, locker confmgr.RLocker) (*modules.Sa
 	}, nil
 }
 
-func ProvidePlugins(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig) (*managerplugin.LoadedPlugins, error) {
+func ProvidePlugins(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	scfg *modules.SafeConfig,
+) (*managerplugin.LoadedPlugins, error) {
 	pluginsConfig := scfg.MustCommonConfig().Plugins
 	if pluginsConfig == nil {
 		pluginsConfig = modules.DefaultPluginConfig()
@@ -142,7 +154,13 @@ func ProvidePlugins(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 	return plugins, nil
 }
 
-func BuildUnderlyingDB(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, home *homedir.Home, loadedPlugins *managerplugin.LoadedPlugins) (UnderlyingDB, error) {
+func BuildUnderlyingDB(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	scfg *modules.SafeConfig,
+	home *homedir.Home,
+	loadedPlugins *managerplugin.LoadedPlugins,
+) (UnderlyingDB, error) {
 	commonCfg := scfg.MustCommonConfig()
 
 	var dbCfg modules.DBConfig
@@ -158,7 +176,13 @@ func BuildUnderlyingDB(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeCo
 	return BuildKVStoreDB(gctx, lc, dbCfg, home, loadedPlugins)
 }
 
-func BuildKVStoreDB(gctx GlobalContext, lc fx.Lifecycle, cfg modules.DBConfig, home *homedir.Home, loadedPlugins *managerplugin.LoadedPlugins) (UnderlyingDB, error) {
+func BuildKVStoreDB(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	cfg modules.DBConfig,
+	home *homedir.Home,
+	loadedPlugins *managerplugin.LoadedPlugins,
+) (UnderlyingDB, error) {
 	switch cfg.Driver {
 	case "badger", "Badger":
 		return BuildKVStoreBadgerDB(lc, cfg.Badger, home)
@@ -171,7 +195,11 @@ func BuildKVStoreDB(gctx GlobalContext, lc fx.Lifecycle, cfg modules.DBConfig, h
 	}
 }
 
-func BuildKVStoreBadgerDB(lc fx.Lifecycle, badgerCfg *modules.KVStoreBadgerDBConfig, home *homedir.Home) (UnderlyingDB, error) {
+func BuildKVStoreBadgerDB(
+	lc fx.Lifecycle,
+	badgerCfg *modules.KVStoreBadgerDBConfig,
+	home *homedir.Home,
+) (UnderlyingDB, error) {
 	if badgerCfg == nil {
 		*badgerCfg = *modules.DefaultDBConfig().Badger
 	}
@@ -195,7 +223,11 @@ func BuildKVStoreBadgerDB(lc fx.Lifecycle, badgerCfg *modules.KVStoreBadgerDBCon
 	return db, nil
 }
 
-func BuildKVStoreMongoDB(gctx GlobalContext, lc fx.Lifecycle, mongoCfg *modules.KVStoreMongoDBConfig) (UnderlyingDB, error) {
+func BuildKVStoreMongoDB(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	mongoCfg *modules.KVStoreMongoDBConfig,
+) (UnderlyingDB, error) {
 	if mongoCfg == nil {
 		return nil, fmt.Errorf("invalid mongodb config")
 	}
@@ -218,7 +250,11 @@ func BuildKVStoreMongoDB(gctx GlobalContext, lc fx.Lifecycle, mongoCfg *modules.
 	return db, err
 }
 
-func BuildPluginDB(lc fx.Lifecycle, pluginDBCfg *modules.KVStorePluginDBConfig, loadedPlugins *managerplugin.LoadedPlugins) (UnderlyingDB, error) {
+func BuildPluginDB(
+	lc fx.Lifecycle,
+	pluginDBCfg *modules.KVStorePluginDBConfig,
+	loadedPlugins *managerplugin.LoadedPlugins,
+) (UnderlyingDB, error) {
 	if pluginDBCfg == nil {
 		return nil, fmt.Errorf("invalid plugin db config")
 	}
@@ -260,7 +296,11 @@ func BuildSectorNumberAllocator(meta OnlineMetaStore) (core.SectorNumberAllocato
 	return sectors.NewNumberAllocator(store)
 }
 
-func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaStore, loadedPlugins *managerplugin.LoadedPlugins) (core.SectorStateManager, error) {
+func BuildLocalSectorStateManager(
+	online OnlineMetaStore,
+	offline OfflineMetaStore,
+	loadedPlugins *managerplugin.LoadedPlugins,
+) (core.SectorStateManager, error) {
 	onlineStore, err := kvstore.NewWrappedKVStore([]byte("sector-states"), online)
 	if err != nil {
 		return nil, err
@@ -274,7 +314,12 @@ func BuildLocalSectorStateManager(online OnlineMetaStore, offline OfflineMetaSto
 	return sectors.NewStateManager(onlineStore, offlineStore, loadedPlugins)
 }
 
-func BuildMessagerClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (messager.API, error) {
+func BuildMessagerClient(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	scfg *modules.Config,
+	locker confmgr.RLocker,
+) (messager.API, error) {
 	locker.Lock()
 	var api, token string
 	if scfg.Common.API.Messager != nil {
@@ -317,7 +362,14 @@ func BuildAPIProxyClient(gctx GlobalContext, lc fx.Lifecycle, proxy ProxyAddress
 	return &proxyClient, err
 }
 
-func buildDamoclesAPIClient(gctx GlobalContext, lc fx.Lifecycle, namespace string, out interface{}, serverAddr string, useHTTP bool) error {
+func buildDamoclesAPIClient(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	namespace string,
+	out any,
+	serverAddr string,
+	useHTTP bool,
+) error {
 	addr, err := net.ResolveTCPAddr("tcp", serverAddr)
 	if err != nil {
 		return err
@@ -339,7 +391,14 @@ func buildDamoclesAPIClient(gctx GlobalContext, lc fx.Lifecycle, namespace strin
 		return err
 	}
 
-	closer, err := jsonrpc.NewMergeClient(gctx, apiAddr, namespace, []interface{}{out}, ainfo.AuthHeader(), jsonrpc.WithRetry(true))
+	closer, err := jsonrpc.NewMergeClient(
+		gctx,
+		apiAddr,
+		namespace,
+		[]any{out},
+		ainfo.AuthHeader(),
+		jsonrpc.WithRetry(true),
+	)
 	if err != nil {
 		return err
 	}
@@ -354,7 +413,12 @@ func buildDamoclesAPIClient(gctx GlobalContext, lc fx.Lifecycle, namespace strin
 	return nil
 }
 
-func BuildChainClient(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.Config, locker confmgr.RLocker) (chain.API, error) {
+func BuildChainClient(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	scfg *modules.Config,
+	locker confmgr.RLocker,
+) (chain.API, error) {
 	locker.Lock()
 	var api, token string
 	if scfg.Common.API.Chain != nil {
@@ -396,6 +460,7 @@ func BuildMinerAPI(_ GlobalContext, lc fx.Lifecycle, capi chain.API, scfg *modul
 	return mapi, nil
 }
 
+//revive:disable-next-line:argument-limit
 func BuildCommitmentManager(
 	gctx GlobalContext,
 	lc fx.Lifecycle,
@@ -404,7 +469,7 @@ func BuildCommitmentManager(
 	rapi core.RandomnessAPI,
 	stmgr core.SectorStateManager,
 	minerAPI core.MinerAPI,
-	chain chainAPI.API,
+	chainAPI chain.API,
 	lookupID core.LookupID,
 	scfg *modules.SafeConfig,
 	verif core.Verifier,
@@ -421,10 +486,9 @@ func BuildCommitmentManager(
 		verif,
 		prover,
 		senderSelecotr,
-		chain,
+		chainAPI,
 		lookupID,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +516,11 @@ func BuildSnapUpMetaStore(gctx GlobalContext, db UnderlyingDB) (SnapUpMetaStore,
 	return db.OpenCollection(gctx, "snapup")
 }
 
-func openObjStore(cfg objstore.Config, pluginName string, loadedPlugins *managerplugin.LoadedPlugins) (st objstore.Store, err error) {
+func openObjStore(
+	cfg objstore.Config,
+	pluginName string,
+	loadedPlugins *managerplugin.LoadedPlugins,
+) (st objstore.Store, err error) {
 	if cfg.Name == "" {
 		cfg.Name = cfg.Path
 	}
@@ -468,19 +536,31 @@ func openObjStore(cfg objstore.Config, pluginName string, loadedPlugins *manager
 	if err != nil {
 		return
 	}
-	log.Infow("store constructed", "type", st.Type(), "ver", st.Version(), "instance", st.Instance(context.Background()))
+	log.Infow(
+		"store constructed",
+		"type",
+		st.Type(),
+		"ver",
+		st.Version(),
+		"instance",
+		st.Instance(context.Background()),
+	)
 
 	return
 }
 
-func BuildPersistedFileStoreMgr(scfg *modules.SafeConfig, globalStore CommonMetaStore, loadedPlugins *managerplugin.LoadedPlugins) (PersistedObjectStoreManager, error) {
+func BuildPersistedFileStoreMgr(
+	scfg *modules.SafeConfig,
+	globalStore CommonMetaStore,
+	loadedPlugins *managerplugin.LoadedPlugins,
+) (PersistedObjectStoreManager, error) {
 	persistCfg, err := scfg.MustCommonConfig().GetPersistStores()
 	if err != nil {
 		return nil, fmt.Errorf("get persist store config: %w", err)
 	}
 
 	stores := make([]objstore.Store, 0, len(persistCfg))
-	policy := map[string]objstore.StoreSelectPolicy{}
+	storePolicy := map[string]objstore.StoreSelectPolicy{}
 	for pi := range persistCfg {
 		// For compatibility with v0.5
 		if persistCfg[pi].PluginName == "" && persistCfg[pi].Plugin != "" {
@@ -492,7 +572,7 @@ func BuildPersistedFileStoreMgr(scfg *modules.SafeConfig, globalStore CommonMeta
 		}
 
 		stores = append(stores, st)
-		policy[st.Instance(context.Background())] = persistCfg[pi].StoreSelectPolicy
+		storePolicy[st.Instance(context.Background())] = persistCfg[pi].StoreSelectPolicy
 	}
 
 	wrapped, err := kvstore.NewWrappedKVStore([]byte("objstore"), globalStore)
@@ -500,7 +580,7 @@ func BuildPersistedFileStoreMgr(scfg *modules.SafeConfig, globalStore CommonMeta
 		return nil, fmt.Errorf("construct wrapped kv store for objstore: %w", err)
 	}
 
-	return objstore.NewStoreManager(stores, policy, wrapped)
+	return objstore.NewStoreManager(stores, storePolicy, wrapped)
 }
 
 func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMetaStore) (core.SectorIndexer, error) {
@@ -512,7 +592,14 @@ func BuildSectorIndexer(storeMgr PersistedObjectStoreManager, kv SectorIndexMeta
 	return sectors.NewIndexer(storeMgr, kv, upgrade)
 }
 
-func BuildSectorProving(tracker core.SectorTracker, state core.SectorStateManager, storeMgr PersistedObjectStoreManager, prover core.Prover, capi chain.API, scfg *modules.SafeConfig) (core.SectorProving, error) {
+func BuildSectorProving(
+	tracker core.SectorTracker,
+	state core.SectorStateManager,
+	storeMgr PersistedObjectStoreManager,
+	prover core.Prover,
+	capi chain.API,
+	scfg *modules.SafeConfig,
+) (core.SectorProving, error) {
 	return sectors.NewProving(tracker, state, storeMgr, prover, capi, scfg.MustCommonConfig().Proving)
 }
 
@@ -561,7 +648,13 @@ func BuildMarketAPI(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfi
 	return mapi, nil
 }
 
-func BuildMarketAPIRelated(gctx GlobalContext, lc fx.Lifecycle, scfg *modules.SafeConfig, minerAPI core.MinerAPI, loadedPlugins *managerplugin.LoadedPlugins) (MarketAPIRelatedComponents, error) {
+func BuildMarketAPIRelated(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	scfg *modules.SafeConfig,
+	minerAPI core.MinerAPI,
+	loadedPlugins *managerplugin.LoadedPlugins,
+) (MarketAPIRelatedComponents, error) {
 	mapi, err := BuildMarketAPI(gctx, lc, scfg)
 	if err != nil {
 		return MarketAPIRelatedComponents{}, fmt.Errorf("build market api: %w", err)
@@ -649,6 +742,7 @@ func BuildSenderSelector(chainAPI chain.API, lookupID core.LookupID) *dmaddress.
 	return dmaddress.NewSenderSelector(chainAPI, lookupID)
 }
 
+//revive:disable-next-line:argument-limit
 func BuildSnapUpManager(
 	gctx GlobalContext,
 	lc fx.Lifecycle,
@@ -664,7 +758,20 @@ func BuildSnapUpManager(
 	lookupID core.LookupID,
 	senderSelector core.SenderSelector,
 ) (core.SnapUpSectorManager, error) {
-	mgr, err := sectors.NewSnapUpMgr(gctx, tracker, indexer, chainAPI, eventbus, messagerAPI, minerAPI, stateMgr, scfg, store, lookupID, senderSelector)
+	mgr, err := sectors.NewSnapUpMgr(
+		gctx,
+		tracker,
+		indexer,
+		chainAPI,
+		eventbus,
+		messagerAPI,
+		minerAPI,
+		stateMgr,
+		scfg,
+		store,
+		lookupID,
+		senderSelector,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("construct snapup manager: %w", err)
 	}
@@ -709,7 +816,10 @@ func BuildWorkerManager(gctx GlobalContext, meta WorkerMetaStore) (core.WorkerMa
 	return worker.NewManager(gctx, meta)
 }
 
-func BuildProxiedSectorIndex(client *core.SealerCliAPIClient, storeMgr PersistedObjectStoreManager) (core.SectorIndexer, error) {
+func BuildProxiedSectorIndex(
+	client *core.SealerCliAPIClient,
+	storeMgr PersistedObjectStoreManager,
+) (core.SectorIndexer, error) {
 	log.Debug("build proxied sector indexer")
 	return sectors.NewProxiedIndexer(client, storeMgr)
 }
@@ -718,7 +828,7 @@ func BuildUnsealManager(
 	gctx GlobalContext,
 	db UnderlyingDB,
 	scfg *modules.SafeConfig,
-	MinerAPI core.MinerAPI,
+	minerAPI core.MinerAPI,
 ) (core.UnsealSectorManager, error) {
 	store, err := db.OpenCollection(gctx, "unseal")
 	if err != nil {
@@ -734,7 +844,7 @@ func BuildUnsealManager(
 	}
 	scfg.Unlock()
 
-	mgr, err := sectors.NewUnsealManager(gctx, scfg, MinerAPI, store, addr, token)
+	mgr, err := sectors.NewUnsealManager(gctx, scfg, minerAPI, store, addr, token)
 	if err != nil {
 		return nil, fmt.Errorf("construct unseal manager: %w", err)
 	}

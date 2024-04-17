@@ -31,11 +31,11 @@ type MockStore struct {
 	mu      sync.RWMutex
 }
 
-func (ms *MockStore) Type() string {
+func (*MockStore) Type() string {
 	return "mock"
 }
 
-func (ms *MockStore) Version() string {
+func (*MockStore) Version() string {
 	return "mock"
 }
 
@@ -144,6 +144,6 @@ func (ms *MockStore) Put(_ context.Context, p string, r io.Reader) (int64, error
 	return written, nil
 }
 
-func (ms *MockStore) FullPath(_ context.Context, p string) string {
+func (*MockStore) FullPath(_ context.Context, p string) string {
 	return p
 }

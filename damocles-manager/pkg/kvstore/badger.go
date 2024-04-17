@@ -27,7 +27,7 @@ type blogger struct {
 	*logging.ZapLogger
 }
 
-func (bl *blogger) Warningf(format string, args ...interface{}) {
+func (bl *blogger) Warningf(format string, args ...any) {
 	bl.ZapLogger.Warnf(format, args...)
 }
 
@@ -64,7 +64,7 @@ func (b *BadgerKVStore) Update(_ context.Context, f func(Txn) error) error {
 	return err
 }
 
-func (b *BadgerKVStore) NeedRetryTransactions() bool {
+func (*BadgerKVStore) NeedRetryTransactions() bool {
 	return true
 }
 
@@ -128,7 +128,8 @@ func (b *BadgerKVStore) Scan(_ context.Context, prefix Prefix) (it Iter, err err
 			seeked: false,
 			valid:  false,
 			prefix: prefix,
-		}}, nil
+		},
+	}, nil
 }
 
 func (b *BadgerKVStore) gc(ctx context.Context) {
@@ -148,15 +149,19 @@ func (b *BadgerKVStore) gc(ctx context.Context) {
 				// or we're closing.
 				gcTimer.Reset(defaultGCInterval)
 			case nil:
-				log.Infow("successful value log GC", "name", b.name, "elapsed", time.Since(start).Truncate(time.Microsecond).String())
+				log.Infow(
+					"successful value log GC",
+					"name",
+					b.name,
+					"elapsed",
+					time.Since(start).Truncate(time.Microsecond).String(),
+				)
 				gcTimer.Reset(defaultGCSleep)
 			default:
 				log.Errorw("error duraing a GC cycle", "name", b.name, "err", err)
 				gcTimer.Reset(defaultGCInterval)
 			}
-
 		}
-
 	}
 }
 
@@ -205,7 +210,6 @@ func (txn *BadgerTxn) Peek(key Key, f func(Val) error) error {
 	default:
 		return fmt.Errorf("get value from badger: %w", err)
 	}
-
 }
 
 func (txn *BadgerTxn) Put(key Key, val Val) error {
@@ -293,7 +297,7 @@ type badgerDB struct {
 	mu       sync.Mutex
 }
 
-func (db *badgerDB) Run(context.Context) error {
+func (*badgerDB) Run(context.Context) error {
 	return nil
 }
 

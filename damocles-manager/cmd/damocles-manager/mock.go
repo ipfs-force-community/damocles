@@ -53,7 +53,6 @@ var mockCmd = &cli.Command{
 			dep.Mock(),
 			dep.MockSealer(&apiService),
 		)
-
 		if err != nil {
 			return fmt.Errorf("construct mock api: %w", err)
 		}

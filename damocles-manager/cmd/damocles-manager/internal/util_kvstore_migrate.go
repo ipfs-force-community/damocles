@@ -121,7 +121,7 @@ func migrate(ctx context.Context, src, dst kvstore.KVStore) error {
 	return nil
 }
 
-func Dep(cctx *cli.Context, wants ...interface{}) (stop func(), err error) {
+func Dep(cctx *cli.Context, wants ...any) (stop func(), err error) {
 	gctx, gcancel := NewSigContext(cctx.Context)
 	cfgmu := &sync.RWMutex{}
 

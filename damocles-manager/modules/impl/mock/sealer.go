@@ -17,17 +17,22 @@ import (
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
-	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
+	chainapi "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/ver"
 )
 
 var _ core.SealerAPI = (*Sealer)(nil)
 
-func NewSealer(rand core.RandomnessAPI, sector core.SectorManager, deal core.DealManager, commit core.CommitmentManager,
-	api chainAPI.API, scfg modules.SafeConfig,
+func NewSealer(
+	randAPI core.RandomnessAPI,
+	sector core.SectorManager,
+	deal core.DealManager,
+	commit core.CommitmentManager,
+	api chainapi.API,
+	scfg modules.SafeConfig,
 ) (*Sealer, error) {
 	return &Sealer{
-		rand:   rand,
+		rand:   randAPI,
 		sector: sector,
 		deal:   deal,
 		commit: commit,
@@ -41,7 +46,7 @@ type Sealer struct {
 	sector core.SectorManager
 	deal   core.DealManager
 	commit core.CommitmentManager
-	api    chainAPI.API
+	api    chainapi.API
 	scfg   modules.SafeConfig
 }
 
@@ -56,11 +61,19 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 	return nil, nil
 }
 
-func (s *Sealer) AllocateSectorsBatch(ctx context.Context, spec core.AllocateSectorSpec, count uint32) ([]*core.AllocatedSector, error) {
+func (s *Sealer) AllocateSectorsBatch(
+	ctx context.Context,
+	spec core.AllocateSectorSpec,
+	count uint32,
+) ([]*core.AllocatedSector, error) {
 	return s.sector.Allocate(ctx, spec, count)
 }
 
-func (s *Sealer) AcquireDeals(ctx context.Context, sid abi.SectorID, spec core.AcquireDealsSpec) (core.SectorPieces, error) {
+func (s *Sealer) AcquireDeals(
+	ctx context.Context,
+	sid abi.SectorID,
+	spec core.AcquireDealsSpec,
+) (core.SectorPieces, error) {
 	s.scfg.Lock()
 	mcfg, err := s.scfg.MinerConfig(sid.Miner)
 	s.scfg.Unlock()
@@ -86,7 +99,12 @@ func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (core.Ticke
 	return s.rand.GetTicket(ctx, types.EmptyTSK, 0, sid.Miner)
 }
 
-func (s *Sealer) SubmitPreCommit(ctx context.Context, sector core.AllocatedSector, info core.PreCommitOnChainInfo, reset bool) (core.SubmitPreCommitResp, error) {
+func (s *Sealer) SubmitPreCommit(
+	ctx context.Context,
+	sector core.AllocatedSector,
+	info core.PreCommitOnChainInfo,
+	reset bool,
+) (core.SubmitPreCommitResp, error) {
 	pinfo, err := info.IntoPreCommitInfo()
 	if err != nil {
 		return core.SubmitPreCommitResp{}, err
@@ -116,12 +134,22 @@ func (s *Sealer) SubmitPersisted(ctx context.Context, sid abi.SectorID, instance
 	return s.SubmitPersistedEx(ctx, sid, instance, false)
 }
 
-func (s *Sealer) SubmitPersistedEx(_ context.Context, sid abi.SectorID, instanceName string, isUpgrade bool) (bool, error) {
+func (*Sealer) SubmitPersistedEx(
+	_ context.Context,
+	sid abi.SectorID,
+	instanceName string,
+	isUpgrade bool,
+) (bool, error) {
 	log.Warnf("sector m-%d-s-%d(up=%v) is in the instance %s", sid.Miner, sid.Number, isUpgrade, instanceName)
 	return true, nil
 }
 
-func (s *Sealer) SubmitProof(ctx context.Context, sid abi.SectorID, info core.ProofInfo, reset bool) (core.SubmitProofResp, error) {
+func (s *Sealer) SubmitProof(
+	ctx context.Context,
+	sid abi.SectorID,
+	info core.ProofInfo,
+	reset bool,
+) (core.SubmitProofResp, error) {
 	return s.commit.SubmitProof(ctx, sid, info, reset)
 }
 
@@ -129,84 +157,109 @@ func (s *Sealer) PollProofState(ctx context.Context, sid abi.SectorID) (core.Pol
 	return s.commit.ProofState(ctx, sid)
 }
 
-func (s *Sealer) ListSectors(context.Context, core.SectorWorkerState, core.SectorWorkerJob) ([]*core.SectorState, error) {
+func (*Sealer) ListSectors(
+	context.Context,
+	core.SectorWorkerState,
+	core.SectorWorkerJob,
+) ([]*core.SectorState, error) {
 	return nil, nil
 }
 
-func (s *Sealer) FindSector(context.Context, core.SectorWorkerState, abi.SectorID) (*core.SectorState, error) {
+func (*Sealer) FindSector(context.Context, core.SectorWorkerState, abi.SectorID) (*core.SectorState, error) {
 	return nil, nil
 }
 
-func (s *Sealer) FindSectorInAllStates(context.Context, abi.SectorID) (*core.SectorState, error) {
+func (*Sealer) FindSectorInAllStates(context.Context, abi.SectorID) (*core.SectorState, error) {
 	return nil, nil
 }
 
-func (s *Sealer) FindSectorsWithDeal(context.Context, core.SectorWorkerState, abi.DealID) ([]*core.SectorState, error) {
+func (*Sealer) FindSectorsWithDeal(context.Context, core.SectorWorkerState, abi.DealID) ([]*core.SectorState, error) {
 	return nil, nil
 }
 
-func (s *Sealer) FindSectorWithPiece(context.Context, core.SectorWorkerState, cid.Cid) (*core.SectorState, error) {
+func (*Sealer) FindSectorWithPiece(context.Context, core.SectorWorkerState, cid.Cid) (*core.SectorState, error) {
 	return nil, nil
 }
 
-func (s *Sealer) ImportSector(context.Context, core.SectorWorkerState, *core.SectorState, bool) (bool, error) {
+func (*Sealer) ImportSector(context.Context, core.SectorWorkerState, *core.SectorState, bool) (bool, error) {
 	return false, nil
 }
 
-func (s *Sealer) RestoreSector(context.Context, abi.SectorID, bool) (core.Meta, error) {
+func (*Sealer) RestoreSector(context.Context, abi.SectorID, bool) (core.Meta, error) {
 	return core.Empty, nil
 }
 
-func (s *Sealer) ReportState(_ context.Context, sid abi.SectorID, req core.ReportStateReq) (*core.SectorStateResp, error) {
+func (*Sealer) ReportState(
+	_ context.Context,
+	sid abi.SectorID,
+	req core.ReportStateReq,
+) (*core.SectorStateResp, error) {
 	log.Warnf("report state change for m-%d-s-%d: %#v", sid.Miner, sid.Number, req)
 	return &core.SectorStateResp{}, nil
 }
 
-func (s *Sealer) ReportFinalized(_ context.Context, sid abi.SectorID) (core.Meta, error) {
+func (*Sealer) ReportFinalized(_ context.Context, sid abi.SectorID) (core.Meta, error) {
 	log.Warnf("report finalized for m-%d-s-%d", sid.Miner, sid.Number)
 	return core.Empty, nil
 }
 
-func (s *Sealer) ReportAborted(_ context.Context, sid abi.SectorID, reason string) (core.Meta, error) {
+func (*Sealer) ReportAborted(_ context.Context, sid abi.SectorID, reason string) (core.Meta, error) {
 	log.Warnf("report aborted for m-%d-s-%d: %s", sid.Miner, sid.Number, reason)
 	return core.Empty, nil
 }
 
-func (s *Sealer) CheckProvable(context.Context, abi.ActorID, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, bool, bool) (map[abi.SectorNumber]string, error) {
+func (*Sealer) CheckProvable(
+	context.Context,
+	abi.ActorID,
+	abi.RegisteredPoStProof,
+	[]builtin.ExtendedSectorInfo,
+	bool,
+	bool,
+) (map[abi.SectorNumber]string, error) {
 	return nil, nil
 }
 
-func (s *Sealer) SimulateWdPoSt(context.Context, address.Address, abi.RegisteredPoStProof, []builtin.ExtendedSectorInfo, abi.PoStRandomness) error {
+func (*Sealer) SimulateWdPoSt(
+	context.Context,
+	address.Address,
+	abi.RegisteredPoStProof,
+	[]builtin.ExtendedSectorInfo,
+	abi.PoStRandomness,
+) error {
 	return nil
 }
 
-func (s *Sealer) AllocateSanpUpSector(context.Context, core.AllocateSnapUpSpec) (*core.AllocatedSnapUpSector, error) {
-	//TODO: impl
+func (*Sealer) AllocateSanpUpSector(context.Context, core.AllocateSnapUpSpec) (*core.AllocatedSnapUpSector, error) {
+	// TODO: impl
 	return nil, nil
 }
 
-func (s *Sealer) SubmitSnapUpProof(context.Context, abi.SectorID, core.SnapUpOnChainInfo) (core.SubmitSnapUpProofResp, error) {
-	//TODO: impl
+func (*Sealer) SubmitSnapUpProof(
+	context.Context,
+	abi.SectorID,
+	core.SnapUpOnChainInfo,
+) (core.SubmitSnapUpProofResp, error) {
+	// TODO: impl
 	return core.SubmitSnapUpProofResp{Res: core.SubmitAccepted}, nil
 }
 
-func (s *Sealer) SnapUpPreFetch(context.Context, abi.ActorID, *uint64) (*core.SnapUpFetchResult, error) {
+func (*Sealer) SnapUpPreFetch(context.Context, abi.ActorID, *uint64) (*core.SnapUpFetchResult, error) {
 	return &core.SnapUpFetchResult{}, nil
 }
 
-func (s *Sealer) SnapUpCandidates(context.Context, abi.ActorID) ([]*bitfield.BitField, error) {
+func (*Sealer) SnapUpCandidates(context.Context, abi.ActorID) ([]*bitfield.BitField, error) {
 	return nil, nil
 }
 
-func (s *Sealer) SnapUpCancelCommitment(context.Context, abi.SectorID) error {
+func (*Sealer) SnapUpCancelCommitment(context.Context, abi.SectorID) error {
 	return nil
 }
 
-func (s *Sealer) ProvingSectorInfo(context.Context, abi.SectorID) (core.ProvingSectorInfo, error) {
+func (*Sealer) ProvingSectorInfo(context.Context, abi.SectorID) (core.ProvingSectorInfo, error) {
 	return core.ProvingSectorInfo{}, nil
 }
 
-func (s *Sealer) WorkerPing(_ context.Context, winfo core.WorkerInfo) (core.Meta, error) {
+func (*Sealer) WorkerPing(_ context.Context, winfo core.WorkerInfo) (core.Meta, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "\t")
@@ -219,19 +272,23 @@ func (s *Sealer) WorkerPing(_ context.Context, winfo core.WorkerInfo) (core.Meta
 	return core.Empty, nil
 }
 
-func (s *Sealer) WorkerGetPingInfo(context.Context, string) (*core.WorkerPingInfo, error) {
+func (*Sealer) WorkerGetPingInfo(context.Context, string) (*core.WorkerPingInfo, error) {
 	return nil, nil
 }
 
-func (s *Sealer) WorkerPingInfoList(context.Context) ([]core.WorkerPingInfo, error) {
+func (*Sealer) WorkerPingInfoList(context.Context) ([]core.WorkerPingInfo, error) {
 	return nil, nil
 }
 
-func (s *Sealer) WorkerPingInfoRemove(context.Context, string) error {
+func (*Sealer) WorkerPingInfoRemove(context.Context, string) error {
 	return nil
 }
 
-func (s *Sealer) SectorIndexerFind(context.Context, core.SectorIndexType, abi.SectorID) (core.SectorIndexLocation, error) {
+func (*Sealer) SectorIndexerFind(
+	context.Context,
+	core.SectorIndexType,
+	abi.SectorID,
+) (core.SectorIndexLocation, error) {
 	return core.SectorIndexLocation{
 		Found:    false,
 		Instance: core.SectorAccessStores{},
@@ -246,15 +303,20 @@ func (s *Sealer) PollTerminateSectorState(ctx context.Context, sid abi.SectorID)
 	return s.commit.TerminateState(ctx, sid)
 }
 
-func (s *Sealer) RemoveSector(context.Context, abi.SectorID) error {
+func (*Sealer) RemoveSector(context.Context, abi.SectorID) error {
 	return nil
 }
 
-func (s *Sealer) FinalizeSector(context.Context, abi.SectorID) error {
+func (*Sealer) FinalizeSector(context.Context, abi.SectorID) error {
 	return nil
 }
 
-func (s *Sealer) StoreReserveSpace(_ context.Context, _ abi.SectorID, _ uint64, candidates []string) (*core.StoreBasicInfo, error) {
+func (*Sealer) StoreReserveSpace(
+	_ context.Context,
+	_ abi.SectorID,
+	_ uint64,
+	candidates []string,
+) (*core.StoreBasicInfo, error) {
 	if len(candidates) == 0 {
 		return nil, nil
 	}
@@ -271,15 +333,15 @@ func (s *Sealer) StoreReserveSpace(_ context.Context, _ abi.SectorID, _ uint64, 
 	}, nil
 }
 
-func (s *Sealer) StoreReleaseReserved(context.Context, abi.SectorID) (bool, error) {
+func (*Sealer) StoreReleaseReserved(context.Context, abi.SectorID) (bool, error) {
 	return true, nil
 }
 
-func (s *Sealer) StoreList(context.Context) ([]core.StoreDetailedInfo, error) {
+func (*Sealer) StoreList(context.Context) ([]core.StoreDetailedInfo, error) {
 	return nil, nil
 }
 
-func (s *Sealer) StoreBasicInfo(_ context.Context, instanceName string) (*core.StoreBasicInfo, error) {
+func (*Sealer) StoreBasicInfo(_ context.Context, instanceName string) (*core.StoreBasicInfo, error) {
 	log.Warnw("get store basic info", "instance", instanceName)
 	return &core.StoreBasicInfo{
 		Name: instanceName,
@@ -288,30 +350,37 @@ func (s *Sealer) StoreBasicInfo(_ context.Context, instanceName string) (*core.S
 	}, nil
 }
 
-func (s *Sealer) SectorSetForRebuild(context.Context, abi.SectorID, core.RebuildOptions) (bool, error) {
+func (*Sealer) SectorSetForRebuild(context.Context, abi.SectorID, core.RebuildOptions) (bool, error) {
 	return false, nil
 }
 
-func (s *Sealer) AllocateRebuildSector(context.Context, core.AllocateSectorSpec) (*core.SectorRebuildInfo, error) {
+func (*Sealer) AllocateRebuildSector(context.Context, core.AllocateSectorSpec) (*core.SectorRebuildInfo, error) {
 	return nil, nil
 }
 
-func (s *Sealer) UnsealPiece(context.Context, abi.SectorID, cid.Cid, types.UnpaddedByteIndex, abi.UnpaddedPieceSize, string) (<-chan []byte, error) {
+func (*Sealer) UnsealPiece(
+	context.Context,
+	abi.SectorID,
+	cid.Cid,
+	types.UnpaddedByteIndex,
+	abi.UnpaddedPieceSize,
+	string,
+) (<-chan []byte, error) {
 	return nil, nil
 }
 
-func (s *Sealer) AllocateUnsealSector(context.Context, core.AllocateSectorSpec) (*core.SectorUnsealInfo, error) {
+func (*Sealer) AllocateUnsealSector(context.Context, core.AllocateSectorSpec) (*core.SectorUnsealInfo, error) {
 	return nil, nil
 }
 
-func (s *Sealer) AchieveUnsealSector(context.Context, abi.SectorID, cid.Cid, string) (core.Meta, error) {
+func (*Sealer) AchieveUnsealSector(context.Context, abi.SectorID, cid.Cid, string) (core.Meta, error) {
 	return nil, nil
 }
 
-func (s *Sealer) AcquireUnsealDest(context.Context, abi.SectorID, cid.Cid) ([]string, error) {
+func (*Sealer) AcquireUnsealDest(context.Context, abi.SectorID, cid.Cid) ([]string, error) {
 	return nil, nil
 }
 
-func (s *Sealer) Version(context.Context) (string, error) {
+func (*Sealer) Version(context.Context) (string, error) {
 	return ver.VersionStr(), nil
 }

@@ -12,11 +12,11 @@ func Join[T any](data []T, sep string) string {
 
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprint(data[0]))
+	_, _ = sb.WriteString(fmt.Sprint(data[0]))
 
 	for _, item := range data[1:] {
-		sb.WriteString(sep)
-		sb.WriteString(fmt.Sprint(item))
+		_, _ = sb.WriteString(sep)
+		_, _ = sb.WriteString(fmt.Sprint(item))
 	}
 
 	return sb.String()

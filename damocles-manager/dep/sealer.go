@@ -17,7 +17,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/confmgr"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/market"
-	messager "github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
+	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 	"github.com/ipfs-force-community/damocles/damocles-manager/ver"
 )
 
@@ -33,7 +33,7 @@ func Mock() dix.Option {
 	)
 }
 
-func MockSealer(s ...interface{}) dix.Option {
+func MockSealer(s ...any) dix.Option {
 	return dix.Options(
 		dix.Override(new(*mock.Sealer), mock.NewSealer),
 		dix.Override(new(core.SealerAPI), dix.From(new(*mock.Sealer))),
@@ -119,7 +119,7 @@ func Proxy(dest string, opt ProxyOptions) dix.Option {
 	)
 }
 
-func Sealer(target ...interface{}) dix.Option {
+func Sealer(target ...any) dix.Option {
 	return dix.Options(
 		dix.Override(new(*sealer.Sealer), sealer.New),
 		dix.Override(new(core.SealerAPI), dix.From(new(*sealer.Sealer))),
@@ -128,7 +128,7 @@ func Sealer(target ...interface{}) dix.Option {
 	)
 }
 
-func APIClient(target ...interface{}) dix.Option {
+func APIClient(target ...any) dix.Option {
 	cfgmu := &sync.RWMutex{}
 	return dix.Options(
 		dix.Override(new(confmgr.WLocker), cfgmu),
