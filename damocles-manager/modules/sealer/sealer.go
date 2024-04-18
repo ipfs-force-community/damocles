@@ -736,7 +736,7 @@ func checkPieces(pieces core.SectorPieces) error {
 	// validate deals
 	for pi := range pieces {
 		pinfo := pieces[pi]
-		if pinfo.IsBuiltinMarket() && !pinfo.HasDealInfo() {
+		if !pinfo.HasDealInfo() {
 			expected := zerocomm.ZeroPieceCommitment(pinfo.Piece.Size.Unpadded())
 			if !expected.Equals(pinfo.DealInfo.PieceCID) {
 				return fmt.Errorf(

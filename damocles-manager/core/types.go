@@ -151,7 +151,7 @@ func (sp SectorPieceV2) DisplayDealID() string {
 }
 
 func (sp SectorPieceV2) HasDealInfo() bool {
-	return sp.DealInfo != nil
+	return sp.DealInfo != nil && (sp.DealInfo.DealID != 0 || sp.DealInfo.AllocationID != 0)
 }
 
 func (sp SectorPieceV2) IsBuiltinMarket() bool {
