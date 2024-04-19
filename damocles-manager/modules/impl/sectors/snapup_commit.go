@@ -375,8 +375,17 @@ func (h *snapupCommitHandler) submitMessage() error {
 			delayTime,
 		)
 	}
+	nv, err := h.committer.chain.StateNetworkVersion(h.committer.ctx, tsk)
+	if err != nil {
+		return newTempErr(
+			fmt.Errorf(
+				"call StateNetworkVersion. err: %w", err,
+			),
+			mcfg.SnapUp.Retry.APIFailureWait.Std(),
+		)
+	}
 
-	pams, deals, err := piece.ProcessPieces(h.committer.ctx, &h.state, h.committer.chain, h.committer.lookupID)
+	pams, deals, err := piece.ProcessPieces(h.committer.ctx, &h.state, h.committer.chain, h.committer.lookupID, nv >= network.Version22)
 	if err != nil {
 		return newTempErr(fmt.Errorf("failed to process pieces: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
 	}

@@ -294,7 +294,7 @@ func (c CommitProcessor) ProcessV2(
 
 	collateral := big.Zero()
 	for i, p := range sectors {
-		activationManifest, dealIDs, err := piece.ProcessPieces(ctx, &sectors[i], c.chain, c.lookupID)
+		activationManifest, dealIDs, err := piece.ProcessPieces(ctx, &sectors[i], c.chain, c.lookupID, false)
 		if err != nil {
 			return err
 		}
