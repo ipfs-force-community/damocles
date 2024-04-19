@@ -13,7 +13,10 @@ golangci-lint = { version = "~1.55.2", pkg-path = "golangci-lint" }
 golines = { version = "~0.11.0", pkg-path = "golines" }
 gofumpt = { version = "~0.3.1", pkg-path = "gofumpt" }
 pkg-config = { version =  "~0.29.2", pkg-path = "pkg-config" }
-rustup = { version="~1.26.0", pkg-path = "rustup" }
+rustup = { version = "~1.26.0", pkg-path = "rustup" }
+openssl = { version = "~3.0.13", pkg-path = "openssl" }
+glibc = { version = "~2.38", pkg-path = "glibc" }
+libgcc = { version = "~12.3.0", pkg-path = "libgcc" }
 # pre-commit = { version = "~3.3.3", pkg-path = "pre-commit" }
 
 # Set an environment variable.
