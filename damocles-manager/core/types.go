@@ -105,7 +105,7 @@ func (ldi LegacyDealInfo) StartEpoch() abi.ChainEpoch {
 // deal must be committed until.
 func (ldi LegacyDealInfo) EndEpoch() abi.ChainEpoch {
 	if ldi.HasDealInfo() {
-		return ldi.Proposal.StartEpoch
+		return ldi.Proposal.EndEpoch
 	}
 	return abi.ChainEpoch(0)
 }
