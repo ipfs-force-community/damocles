@@ -26,10 +26,11 @@ func ProcessPieces(
 	lookupID core.LookupID,
 	forceDDO bool,
 ) ([]miner13.PieceActivationManifest, []abi.DealID, error) {
-	pams := make([]miner13.PieceActivationManifest, 0, len(sector.Pieces))
-	dealIDs := make([]abi.DealID, 0, len(sector.Pieces))
-
 	sectorPieces := sector.SectorPiece()
+
+	pams := make([]miner13.PieceActivationManifest, 0, len(sectorPieces))
+	dealIDs := make([]abi.DealID, 0, len(sectorPieces))
+
 	hasDDO := forceDDO
 	if !forceDDO {
 		for _, piece := range sectorPieces {
