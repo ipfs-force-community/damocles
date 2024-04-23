@@ -462,6 +462,15 @@ func (s *Sealer) ReportFinalized(ctx context.Context, sid abi.SectorID) (core.Me
 
 func (s *Sealer) ReportAborted(ctx context.Context, sid abi.SectorID, reason string) (core.Meta, error) {
 	err := s.state.Finalize(ctx, sid, func(st *core.SectorState) (bool, error) {
+		if dealCount := len(st.LegacyPieces); dealCount > 0 {
+			err := s.deal.ReleaseLegacyDeal(ctx, sid, st.LegacyPieces)
+			if err != nil {
+				return false, fmt.Errorf("release legacy deals in sector: %w", err)
+			}
+
+			sectorLogger(sid).Infow("legacy deals released", "count", dealCount)
+		}
+
 		if dealCount := len(st.Pieces); dealCount > 0 {
 			err := s.deal.Release(ctx, sid, st.Pieces)
 			if err != nil {
@@ -616,15 +625,17 @@ func (s *Sealer) SubmitSnapUpProof(
 		return resp, sectorStateErr(err)
 	}
 
-	if len(state.Pieces) != len(snapupInfo.Pieces) {
-		desc = fmt.Sprintf("pieces count not match: %d != %d", len(state.Pieces), len(snapupInfo.Pieces))
+	pieceInfos := state.PieceInfos()
+
+	if len(pieceInfos) != len(snapupInfo.Pieces) {
+		desc = fmt.Sprintf("pieces count not match: %d != %d", len(pieceInfos), len(snapupInfo.Pieces))
 		resp.Res = core.SubmitRejected
 		resp.Desc = &desc
 		return resp, nil
 	}
 
 	for pi, pid := range snapupInfo.Pieces {
-		if localPID := state.Pieces[pi].Piece.PieceCID; !pid.Equals(state.Pieces[pi].Piece.PieceCID) {
+		if localPID := pieceInfos[pi].Cid; !pid.Equals(pieceInfos[pi].Cid) {
 			desc = fmt.Sprintf("#%d piece cid not match: %s != %s", pi, localPID, pid)
 			resp.Res = core.SubmitRejected
 			resp.Desc = &desc

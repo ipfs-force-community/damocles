@@ -39,7 +39,7 @@ func (s *Sealer) RestoreSector(ctx context.Context, sid abi.SectorID, forced boo
 	var onRestore func(st *core.SectorState) (bool, error)
 	if !forced {
 		onRestore = func(st *core.SectorState) (bool, error) {
-			if len(st.Pieces) != 0 {
+			if len(st.PieceInfos()) != 0 {
 				return false, fmt.Errorf("sector with deals can not be normally restored")
 			}
 
