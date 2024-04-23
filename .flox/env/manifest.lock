@@ -3,6 +3,10 @@
   "manifest": {
     "hook": {},
     "install": {
+      "glibc": {
+        "pkg-path": "glibc",
+        "version": "~2.38"
+      },
       "go": {
         "pkg-path": "go",
         "version": "~1.21.8"
@@ -18,6 +22,14 @@
       "golines": {
         "pkg-path": "golines",
         "version": "~0.11.0"
+      },
+      "libgcc": {
+        "pkg-path": "libgcc",
+        "version": "~12.3.0"
+      },
+      "openssl": {
+        "pkg-path": "openssl",
+        "version": "~3.0.13"
       },
       "pkg-config": {
         "pkg-path": "pkg-config",
@@ -58,6 +70,34 @@
   },
   "packages": {
     "x86_64-linux": {
+      "glibc": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "glibc"
+        ],
+        "info": {
+          "broken": false,
+          "description": "The GNU C Library",
+          "license": "LGPL-2.0-or-later",
+          "pname": "glibc",
+          "unfree": false,
+          "version": "2.38"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1713212762,
+            "narHash": "sha256-UQwudEVEWUVjCWvGDVyq/FXo4I92hH8QFgmRqOgPN2s=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "69be1d097dd9a8422cfc4e89811304fb40f22626",
+            "type": "github"
+          },
+          "fingerprint": "618c3cd84c5464ed2402454c5e0fdba45c1b78f986009d0caf0a52fa3681d652",
+          "url": "github:NixOS/nixpkgs/69be1d097dd9a8422cfc4e89811304fb40f22626"
+        },
+        "priority": 5
+      },
       "go": {
         "attr-path": [
           "legacyPackages",
@@ -155,6 +195,62 @@
           "pname": "golines",
           "unfree": false,
           "version": "0.11.0"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1713212762,
+            "narHash": "sha256-UQwudEVEWUVjCWvGDVyq/FXo4I92hH8QFgmRqOgPN2s=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "69be1d097dd9a8422cfc4e89811304fb40f22626",
+            "type": "github"
+          },
+          "fingerprint": "618c3cd84c5464ed2402454c5e0fdba45c1b78f986009d0caf0a52fa3681d652",
+          "url": "github:NixOS/nixpkgs/69be1d097dd9a8422cfc4e89811304fb40f22626"
+        },
+        "priority": 5
+      },
+      "libgcc": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "libgcc"
+        ],
+        "info": {
+          "broken": false,
+          "description": "GNU Compiler Collection, version 12.3.0",
+          "license": "GPL-3.0-or-later",
+          "pname": "gcc",
+          "unfree": false,
+          "version": "12.3.0"
+        },
+        "input": {
+          "attrs": {
+            "lastModified": 1713212762,
+            "narHash": "sha256-UQwudEVEWUVjCWvGDVyq/FXo4I92hH8QFgmRqOgPN2s=",
+            "owner": "NixOS",
+            "repo": "nixpkgs",
+            "rev": "69be1d097dd9a8422cfc4e89811304fb40f22626",
+            "type": "github"
+          },
+          "fingerprint": "618c3cd84c5464ed2402454c5e0fdba45c1b78f986009d0caf0a52fa3681d652",
+          "url": "github:NixOS/nixpkgs/69be1d097dd9a8422cfc4e89811304fb40f22626"
+        },
+        "priority": 5
+      },
+      "openssl": {
+        "attr-path": [
+          "legacyPackages",
+          "x86_64-linux",
+          "openssl"
+        ],
+        "info": {
+          "broken": false,
+          "description": "A cryptographic library that implements the SSL and TLS protocols",
+          "license": "Apache-2.0",
+          "pname": "openssl",
+          "unfree": false,
+          "version": "3.0.13"
         },
         "input": {
           "attrs": {

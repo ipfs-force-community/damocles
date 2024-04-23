@@ -41,7 +41,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/mroth/weightedrand v0.4.1
-	github.com/multiformats/go-multiaddr v0.12.2
+	github.com/multiformats/go-multiaddr v0.12.3
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/samber/lo v1.39.0

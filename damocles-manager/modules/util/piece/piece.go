@@ -24,15 +24,18 @@ func ProcessPieces(
 	sector *core.SectorState,
 	chain chainapi.API,
 	lookupID core.LookupID,
+	forceDDO bool,
 ) ([]miner13.PieceActivationManifest, []abi.DealID, error) {
 	pams := make([]miner13.PieceActivationManifest, 0, len(sector.Pieces))
 	dealIDs := make([]abi.DealID, 0, len(sector.Pieces))
 
 	sectorPieces := sector.SectorPiece()
-	var hasDDO bool
-	for _, piece := range sectorPieces {
-		if piece.HasDealInfo() && !piece.IsBuiltinMarket() {
-			hasDDO = true
+	hasDDO := forceDDO
+	if !forceDDO {
+		for _, piece := range sectorPieces {
+			if piece.HasDealInfo() && !piece.IsBuiltinMarket() {
+				hasDDO = true
+			}
 		}
 	}
 
@@ -85,11 +88,12 @@ func ProcessPieces(
 		}
 
 		if piece.IsBuiltinMarket() {
+			// only builtmarket piece
 			dealIDs = append(dealIDs, piece.DealID())
 			continue
 		}
 
-		// ddo
+		// only ddo piece
 		clid, err := lookupID.StateLookupID(ctx, piece.Client())
 		if err != nil {
 			return nil, nil, fmt.Errorf("getting client address for deal %d: %w", piece.DealID(), err)
