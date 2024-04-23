@@ -36,7 +36,11 @@ type Manager struct {
 	numAlloc core.SectorNumberAllocator
 }
 
-func (m *Manager) Allocate(ctx context.Context, spec core.AllocateSectorSpec, count uint32) ([]*core.AllocatedSector, error) {
+func (m *Manager) Allocate(
+	ctx context.Context,
+	spec core.AllocateSectorSpec,
+	count uint32,
+) ([]*core.AllocatedSector, error) {
 	allowedMiners := spec.AllowedMiners
 	allowedProofs := spec.AllowedProofTypes
 	if count == 0 {

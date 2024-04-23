@@ -50,15 +50,14 @@ type KVExt struct {
 }
 
 func (kv *KVExt) MustNoConflict(f func() error) error {
-	if kv.NeedRetryTransactions() {
-		for {
-			err := f()
-			if !errors.Is(err, ErrTransactionConflict) {
-				return err
-			}
-		}
-	} else {
+	if !kv.NeedRetryTransactions() {
 		return f()
+	}
+	for {
+		err := f()
+		if !errors.Is(err, ErrTransactionConflict) {
+			return err
+		}
 	}
 }
 
@@ -93,7 +92,7 @@ func (et TxnExt) PeekAny(f func(Val) error, keys ...Key) (Key, error) {
 	return []byte{}, ErrKeyNotFound
 }
 
-func (et TxnExt) PutJson(k Key, v any) error {
+func (et TxnExt) PutJSON(k Key, v any) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

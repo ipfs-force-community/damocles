@@ -18,8 +18,10 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 )
 
-var initialPledgeNum = types.NewInt(110)
-var initialPledgeDen = types.NewInt(100)
+var (
+	initialPledgeNum = types.NewInt(110)
+	initialPledgeDen = types.NewInt(100)
+)
 
 func CalcPledgeForPower(ctx context.Context, api chain.API, addedPower abi.StoragePower) (abi.TokenAmount, error) {
 	store := adt.WrapStore(ctx, cbor.NewCborStore(bstore.NewAPIBlockstore(api)))
@@ -29,6 +31,7 @@ func CalcPledgeForPower(ctx context.Context, api chain.API, addedPower abi.Stora
 		powerSmoothed    builtin.FilterEstimate
 		pledgeCollateral abi.TokenAmount
 	)
+	//nolint:all
 	if act, err := api.StateGetActor(ctx, power.Address, types.EmptyTSK); err != nil {
 		return types.EmptyInt, fmt.Errorf("loading power actor: %w", err)
 	} else if s, err := power.Load(store, act); err != nil {
@@ -73,19 +76,25 @@ func CalcPledgeForPower(ctx context.Context, api chain.API, addedPower abi.Stora
 	return types.BigDiv(types.BigMul(initialPledge, initialPledgeNum), initialPledgeDen), nil
 }
 
-func SectorWeight(ctx context.Context, sector *core.SectorState, proofType abi.RegisteredSealProof, chain chain.API, expiration abi.ChainEpoch) (abi.StoragePower, error) {
+func SectorWeight(
+	ctx context.Context,
+	sector *core.SectorState,
+	proofType abi.RegisteredSealProof,
+	chainAPI chain.API,
+	expiration abi.ChainEpoch,
+) (abi.StoragePower, error) {
 	ssize, err := proofType.SectorSize()
 	if err != nil {
 		return types.EmptyInt, fmt.Errorf("getting sector size: %w", err)
 	}
 
-	ts, err := chain.ChainHead(ctx)
+	ts, err := chainAPI.ChainHead(ctx)
 	if err != nil {
 		return types.EmptyInt, fmt.Errorf("getting chain head: %w", err)
 	}
 
 	// get verified deal infos
-	var w, vw = big.Zero(), big.Zero()
+	w, vw := big.Zero(), big.Zero()
 
 	for _, piece := range sector.SectorPiece() {
 		if !piece.HasDealInfo() {
@@ -95,7 +104,7 @@ func SectorWeight(ctx context.Context, sector *core.SectorState, proofType abi.R
 
 		pieceInfo := piece.PieceInfo()
 
-		alloc, err := GetAllocation(ctx, chain, ts.Key(), piece)
+		alloc, err := GetAllocation(ctx, chainAPI, ts.Key(), piece)
 		if err != nil || alloc == nil {
 			w = big.Add(w, abi.NewStoragePower(int64(pieceInfo.Size)))
 			continue

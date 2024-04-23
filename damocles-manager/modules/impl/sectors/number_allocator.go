@@ -26,7 +26,13 @@ type NumberAllocator struct {
 	locker *sectorsLocker
 }
 
-func (na *NumberAllocator) NextN(ctx context.Context, mid abi.ActorID, n uint32, minNum uint64, check func(uint64) bool) (uint64, bool, error) {
+func (na *NumberAllocator) NextN(
+	ctx context.Context,
+	mid abi.ActorID,
+	n uint32,
+	minNum uint64,
+	check func(uint64) bool,
+) (uint64, bool, error) {
 	lock := na.locker.lock(abi.SectorID{
 		Miner:  mid,
 		Number: 0,

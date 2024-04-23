@@ -33,7 +33,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/slices"
 )
 
-type runnerConstructor func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner
+type runnerConstructor func(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner //revive:disable-line:line-length-limit
 
 // PoStRunner 的各方法应当保持 Once 语义
 type PoStRunner interface {
@@ -57,7 +57,14 @@ type proofResult struct {
 	proofs []miner.SubmitWindowedPoStParams
 }
 
-func postRunnerConstructor(ctx context.Context, deps postDeps, mid abi.ActorID, maddr address.Address, proofType abi.RegisteredPoStProof, dinfo *dline.Info) PoStRunner {
+func postRunnerConstructor(
+	ctx context.Context,
+	deps postDeps,
+	mid abi.ActorID,
+	maddr address.Address,
+	proofType abi.RegisteredPoStProof,
+	dinfo *dline.Info,
+) PoStRunner {
 	ctx, cancel := context.WithCancel(ctx)
 	return &postRunner{
 		deps:      deps,
@@ -66,8 +73,19 @@ func postRunnerConstructor(ctx context.Context, deps postDeps, mid abi.ActorID, 
 		proofType: proofType,
 		dinfo:     dinfo,
 		ctx:       ctx,
-		log:       log.With("mid", mid, "ddl-idx", dinfo.Index, "ddl-open", dinfo.Open, "ddl-close", dinfo.Close, "ddl-challenge", dinfo.Challenge),
-		cancel:    cancel,
+		log: log.With(
+			"mid",
+			mid,
+			"ddl-idx",
+			dinfo.Index,
+			"ddl-open",
+			dinfo.Open,
+			"ddl-close",
+			dinfo.Close,
+			"ddl-challenge",
+			dinfo.Challenge,
+		),
+		cancel: cancel,
 	}
 }
 
@@ -125,7 +143,11 @@ func (pr *postRunner) abort() {
 	})
 }
 
-func (pr *postRunner) submitPoSts(pcfg *modules.MinerPoStConfig, ts *types.TipSet, proofs []miner.SubmitWindowedPoStParams) {
+func (pr *postRunner) submitPoSts(
+	pcfg *modules.MinerPoStConfig,
+	ts *types.TipSet,
+	proofs []miner.SubmitWindowedPoStParams,
+) {
 	if len(proofs) == 0 {
 		return
 	}
@@ -165,7 +187,11 @@ func (pr *postRunner) submitPoSts(pcfg *modules.MinerPoStConfig, ts *types.TipSe
 	}
 }
 
-func (pr *postRunner) submitSinglePost(slog *logging.ZapLogger, _ *modules.MinerPoStConfig, proof *miner.SubmitWindowedPoStParams) {
+func (pr *postRunner) submitSinglePost(
+	slog *logging.ZapLogger,
+	_ *modules.MinerPoStConfig,
+	proof *miner.SubmitWindowedPoStParams,
+) {
 	// to avoid being cancelled by proving period detection, use context.Background here
 	uid, resCh, err := pr.publishMessage(stbuiltin.MethodsMiner.SubmitWindowedPoSt, proof, false)
 	if err != nil {
@@ -234,12 +260,15 @@ func (pr *postRunner) generatePoSt(baseLog *logging.ZapLogger) {
 
 		batchPartitionStartIdx += len(batch)
 	}
-
-	return
 }
 
-func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, rand core.WindowPoStRandomness, batchIdx int, batch []chain.Partition, batchPartitionStartIdx int) {
-
+func (pr *postRunner) generatePoStForPartitionBatch(
+	glog *logging.ZapLogger,
+	rand core.WindowPoStRandomness,
+	batchIdx int,
+	batch []chain.Partition,
+	batchPartitionStartIdx int,
+) {
 	params := miner.SubmitWindowedPoStParams{
 		Deadline:   pr.dinfo.Index,
 		Partitions: make([]miner.PoStPartition, 0, len(batch)),
@@ -350,7 +379,12 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 				return true, fmt.Errorf("getting current head: %w", err)
 			}
 
-			checkRand, err := pr.deps.rand.GetWindowPoStChanlleengeRand(pr.ctx, headTs.Key(), pr.dinfo.Challenge, pr.mid)
+			checkRand, err := pr.deps.rand.GetWindowPoStChanlleengeRand(
+				pr.ctx,
+				headTs.Key(),
+				pr.dinfo.Challenge,
+				pr.mid,
+			)
 			if err != nil {
 				return true, fmt.Errorf("get chain randomness for checking from beacon for window post: %w", err)
 			}
@@ -442,7 +476,6 @@ func (pr *postRunner) generatePoStForPartitionBatch(glog *logging.ZapLogger, ran
 
 		alog.Debug("retry partition batch")
 	}
-
 }
 
 func (pr *postRunner) sectorsForProof(goodSectors, allSectors bitfield.BitField) ([]builtin.ExtendedSectorInfo, error) {
@@ -546,8 +579,6 @@ func (pr *postRunner) handleFaults(baseLog *logging.ZapLogger) {
 		// TODO: This is also potentially really bad, but we try to post anyways
 		hflog.Errorf("checking sector faults: %v", err)
 	}
-
-	return
 }
 
 func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, partitions []chain.Partition) error {
@@ -637,7 +668,11 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 		if recoverSectorsLimit > 0 {
 			// something weird happened, break because we can't recover any more
 			if recoverSectorsLimit < recoverTotal {
-				log.Warnf("accepted more recoveries (%d) than RecoveringSectorLimit (%d)", recoverTotal, recoverSectorsLimit)
+				log.Warnf(
+					"accepted more recoveries (%d) than RecoveringSectorLimit (%d)",
+					recoverTotal,
+					recoverSectorsLimit,
+				)
 				break
 			}
 
@@ -651,7 +686,11 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 					break
 				}
 
-				log.Warnf("only adding %d sectors to respect RecoveringSectorLimit %d", maxNewRecoverable, recoverSectorsLimit)
+				log.Warnf(
+					"only adding %d sectors to respect RecoveringSectorLimit %d",
+					maxNewRecoverable,
+					recoverSectorsLimit,
+				)
 
 				recovered = bitfield.NewFromSet(recoverySlice[:maxNewRecoverable])
 				recoveredCount = maxNewRecoverable
@@ -668,7 +707,6 @@ func (pr *postRunner) checkRecoveries(l *logging.ZapLogger, declIndex uint64, pa
 
 		if max := pr.startCtx.pcfg.MaxPartitionsPerRecoveryMessage; max > 0 &&
 			len(currentParams.Recoveries) >= int(max) {
-
 			go handleRecoverMessage(currentParams)
 			currentParams = newParams()
 		}
@@ -766,7 +804,7 @@ func (pr *postRunner) checkSectors(clog *logging.ZapLogger, check bitfield.BitFi
 	}
 
 	sectors := make(map[abi.SectorNumber]struct{})
-	var tocheck []builtin.ExtendedSectorInfo
+	tocheck := []builtin.ExtendedSectorInfo{}
 	for _, info := range sectorInfos {
 		sectors[info.SectorNumber] = struct{}{}
 		tocheck = append(tocheck, util.SectorOnChainInfoToExtended(info))
@@ -811,7 +849,11 @@ type msgResult struct {
 	err error
 }
 
-func (pr *postRunner) publishMessage(method abi.MethodNum, params cbor.Marshaler, useExtraMsgID bool) (string, <-chan msgResult, error) {
+func (pr *postRunner) publishMessage(
+	method abi.MethodNum,
+	params cbor.Marshaler,
+	useExtraMsgID bool,
+) (string, <-chan msgResult, error) {
 	encoded, aerr := actors.SerializeParams(params)
 	if aerr != nil {
 		return "", nil, fmt.Errorf("serialize params: %w", aerr)

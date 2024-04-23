@@ -88,7 +88,7 @@ func (b *Batcher) run() {
 					processList = make([]core.SectorState, 0, len(pending))
 					for i := range pending {
 						if _, ok := expired[pending[i].ID]; ok {
-							processList = append(processList, pending[i])
+							processList = append(processList, pending[i]) //nolint:all
 						} else {
 							remain = append(remain, pending[i])
 						}
@@ -99,7 +99,19 @@ func (b *Batcher) run() {
 			}
 
 			if len(processList) > 0 {
-				b.log.Debugw("will process sectors", "len", len(processList), "full", full, "manual", manual, "all", cleanAll, "tick", tick)
+				b.log.Debugw(
+					"will process sectors",
+					"len",
+					len(processList),
+					"full",
+					full,
+					"manual",
+					manual,
+					"all",
+					cleanAll,
+					"tick",
+					tick,
+				)
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
@@ -117,7 +129,13 @@ func (b *Batcher) run() {
 	}
 }
 
-func NewBatcher(ctx context.Context, mid abi.ActorID, ctrlAddr address.Address, processor Processor, l *logging.ZapLogger) *Batcher {
+func NewBatcher(
+	ctx context.Context,
+	mid abi.ActorID,
+	ctrlAddr address.Address,
+	processor Processor,
+	l *logging.ZapLogger,
+) *Batcher {
 	b := &Batcher{
 		ctx:       ctx,
 		mid:       mid,

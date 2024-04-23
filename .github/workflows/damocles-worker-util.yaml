@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: dependencies
+      - name: Install dependencies
         run: |
           sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
           wget https://github.com/gnprice/toml-cli/releases/download/v0.2.3/toml-0.2.3-x86_64-linux.tar.gz && tar -xzf toml-0.2.3-x86_64-linux.tar.gz
@@ -27,12 +27,11 @@ jobs:
         run: |
           echo "toolchain=$(toml get ./rust-toolchain.toml toolchain.channel --raw)" >> "$GITHUB_OUTPUT"
 
-      - name: setup rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ steps.read-rust-toolchain.outputs.toolchain }}
-          override: true
-          components: rustfmt, clippy
+      - name: Setup rust
+        run: rustup toolchain install ${{ steps.read-rust-toolchain.outputs.toolchain }} --profile minimal
+
+      - uses: Swatinem/rust-cache@v2
+        continue-on-error: false
 
       - name: test damocles-worker-util
         run: make test-worker-util

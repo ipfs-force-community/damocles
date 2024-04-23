@@ -37,6 +37,13 @@ Venus is a universally open project and welcomes contributions of all kinds: cod
 1. If the proposal entails a protocol change, please first submit a [Filecoin Improvement Proposal](https://github.com/filecoin-project/FIPs).
 2. If the change is complex and requires prior discussion, [open an issue](https://github.com/ipfs-force-community/damocles/issues) or a [discussion](https://github.com/ipfs-force-community/damocles/discussions) to request feedback before you start working on a pull request. This is to avoid disappointment and sunk costs, in case the change is not actually needed or accepted.
 
+Here are some resources to help you get started:
+
+### Development environment
+1. [Install flox](https://flox.dev/docs/install-flox/)
+2. Activate the environment with `flox activate`
+
+
 ## Community
 
 For general help in using `damocles`, please refer to the [documentation](https://github.com/ipfs-force-community/damocles/tree/main/docs) hosted within the repo. For additional help, you can use one of these channels to ask a question:

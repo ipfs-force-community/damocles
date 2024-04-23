@@ -21,7 +21,7 @@ func (e *PrintHelpErr) Unwrap() error {
 	return e.Err
 }
 
-func (e *PrintHelpErr) Is(o error) bool {
+func (*PrintHelpErr) Is(o error) bool {
 	_, ok := o.(*PrintHelpErr)
 	return ok
 }
@@ -33,7 +33,7 @@ func ShowHelp(cctx *cli.Context, err error) error {
 	}
 }
 
-func ShowHelpf(cctx *cli.Context, format string, args ...interface{}) error {
+func ShowHelpf(cctx *cli.Context, format string, args ...any) error {
 	return ShowHelp(cctx, fmt.Errorf(format, args...))
 }
 

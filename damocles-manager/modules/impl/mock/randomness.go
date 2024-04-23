@@ -35,7 +35,12 @@ type random struct {
 	wdcommit    [32]byte
 }
 
-func (r *random) GetTicket(_ context.Context, _ types.TipSetKey, epoch abi.ChainEpoch, _ abi.ActorID) (core.Ticket, error) {
+func (r *random) GetTicket(
+	_ context.Context,
+	_ types.TipSetKey,
+	epoch abi.ChainEpoch,
+	_ abi.ActorID,
+) (core.Ticket, error) {
 	return core.Ticket{
 		Ticket: r.ticket[:],
 		Epoch:  epoch,
@@ -49,14 +54,23 @@ func (r *random) GetSeed(_ context.Context, _ types.TipSetKey, epoch abi.ChainEp
 	}, nil
 }
 
-func (r *random) GetWindowPoStChanlleengeRand(_ context.Context, _ types.TipSetKey, epoch abi.ChainEpoch, _ abi.ActorID) (core.WindowPoStRandomness, error) {
+func (r *random) GetWindowPoStChanlleengeRand(
+	_ context.Context,
+	_ types.TipSetKey,
+	epoch abi.ChainEpoch,
+	_ abi.ActorID,
+) (core.WindowPoStRandomness, error) {
 	return core.WindowPoStRandomness{
 		Rand:  r.wdchallenge[:],
 		Epoch: epoch,
 	}, nil
 }
 
-func (r *random) GetWindowPoStCommitRand(_ context.Context, _ types.TipSetKey, epoch abi.ChainEpoch) (core.WindowPoStRandomness, error) {
+func (r *random) GetWindowPoStCommitRand(
+	_ context.Context,
+	_ types.TipSetKey,
+	epoch abi.ChainEpoch,
+) (core.WindowPoStRandomness, error) {
 	return core.WindowPoStRandomness{
 		Rand:  r.wdcommit[:],
 		Epoch: epoch,

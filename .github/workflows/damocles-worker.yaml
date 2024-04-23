@@ -15,36 +15,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: dependencies
+      - name: Install dependencies
         run: |
           sudo apt update && sudo apt install --reinstall ocl-icd-opencl-dev libhwloc-dev -y
           wget https://github.com/gnprice/toml-cli/releases/download/v0.2.3/toml-0.2.3-x86_64-linux.tar.gz && tar -xzf toml-0.2.3-x86_64-linux.tar.gz
           sudo mv toml-0.2.3-x86_64-linux/toml /usr/local/bin
           rm -rf toml-0.2.3-x86_64-linux.tar.gz toml-0.2.3-x86_64-linux
-
-      - name: read rust toolchain
+      - name: Read rust toolchain
         id: read-rust-toolchain
         run: |
           echo "toolchain=$(toml get ./rust-toolchain.toml toolchain.channel --raw)" >> "$GITHUB_OUTPUT"
 
-      - name: setup rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ steps.read-rust-toolchain.outputs.toolchain }}
-          override: true
-          components: rustfmt, clippy
+      - name: Setup rust
+        run: rustup toolchain install ${{ steps.read-rust-toolchain.outputs.toolchain }} --profile minimal
 
-      - name: setup cargo cache
-        uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/
-            damocles-worker/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain') }}-${{ hashFiles('damocles-worker/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain') }}-
-            ${{ runner.os }}-cargo-
 
       - name: test damocles-worker
         run: make test-worker

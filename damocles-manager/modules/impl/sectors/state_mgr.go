@@ -30,7 +30,11 @@ func init() {
 
 var _ core.SectorStateManager = (*StateManager)(nil)
 
-func NewStateManager(online kvstore.KVStore, offline kvstore.KVStore, plugins *managerplugin.LoadedPlugins) (*StateManager, error) {
+func NewStateManager(
+	online kvstore.KVStore,
+	offline kvstore.KVStore,
+	plugins *managerplugin.LoadedPlugins,
+) (*StateManager, error) {
 	return &StateManager{
 		online:  online,
 		offline: offline,
@@ -61,7 +65,12 @@ func (sm *StateManager) pickStore(ws core.SectorWorkerState) (kvstore.KVStore, e
 	}
 }
 
-func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.SectorState, ws core.SectorWorkerState) error {
+func (sm *StateManager) loadInner(
+	ctx context.Context,
+	key kvstore.Key,
+	state *core.SectorState,
+	ws core.SectorWorkerState,
+) error {
 	kv, err := sm.pickStore(ws)
 	if err != nil {
 		return fmt.Errorf("load: %w", err)
@@ -76,7 +85,12 @@ func (sm *StateManager) load(ctx context.Context, key kvstore.Key, state *core.S
 	return nil
 }
 
-func (sm *StateManager) save(ctx context.Context, key kvstore.Key, state core.SectorState, ws core.SectorWorkerState) error {
+func (sm *StateManager) save(
+	ctx context.Context,
+	key kvstore.Key,
+	state core.SectorState,
+	ws core.SectorWorkerState,
+) error {
 	kv, err := sm.pickStore(ws)
 	if err != nil {
 		return fmt.Errorf("save: %w", err)
@@ -99,7 +113,11 @@ func (sm *StateManager) getIter(ctx context.Context, ws core.SectorWorkerState) 
 	return kv.Scan(ctx, nil)
 }
 
-func (sm *StateManager) All(ctx context.Context, ws core.SectorWorkerState, job core.SectorWorkerJob) ([]*core.SectorState, error) {
+func (sm *StateManager) All(
+	ctx context.Context,
+	ws core.SectorWorkerState,
+	job core.SectorWorkerJob,
+) ([]*core.SectorState, error) {
 	iter, err := sm.getIter(ctx, ws)
 	if err != nil {
 		return nil, fmt.Errorf("get iter for All: %w", err)
@@ -124,7 +142,12 @@ func (sm *StateManager) All(ctx context.Context, ws core.SectorWorkerState, job 
 	return states, nil
 }
 
-func (sm *StateManager) ForEach(ctx context.Context, ws core.SectorWorkerState, job core.SectorWorkerJob, fn func(core.SectorState) error) error {
+func (sm *StateManager) ForEach(
+	ctx context.Context,
+	ws core.SectorWorkerState,
+	job core.SectorWorkerJob,
+	fn func(core.SectorState) error,
+) error {
 	iter, err := sm.getIter(ctx, ws)
 	if err != nil {
 		return fmt.Errorf("get iter for ForEach: %w", err)
@@ -152,7 +175,12 @@ func (sm *StateManager) ForEach(ctx context.Context, ws core.SectorWorkerState, 
 	return nil
 }
 
-func (sm *StateManager) Import(ctx context.Context, ws core.SectorWorkerState, state *core.SectorState, override bool) (bool, error) {
+func (sm *StateManager) Import(
+	ctx context.Context,
+	ws core.SectorWorkerState,
+	state *core.SectorState,
+	override bool,
+) (bool, error) {
 	lock := sm.locker.lock(state.ID)
 	defer lock.unlock()
 
@@ -196,7 +224,12 @@ func (sm *StateManager) Init(ctx context.Context, sectors []*core.AllocatedSecto
 	return sm.InitWith(ctx, sectors, ws)
 }
 
-func (sm *StateManager) InitWith(ctx context.Context, sectors []*core.AllocatedSector, ws core.SectorWorkerState, fieldvals ...interface{}) error {
+func (sm *StateManager) InitWith(
+	ctx context.Context,
+	sectors []*core.AllocatedSector,
+	ws core.SectorWorkerState,
+	fieldvals ...any,
+) error {
 	sids := make([]abi.SectorID, len(sectors))
 	for i, s := range sectors {
 		sids[i] = s.ID
@@ -256,26 +289,35 @@ func (sm *StateManager) InitWith(ctx context.Context, sectors []*core.AllocatedS
 	return err
 }
 
-func (sm *StateManager) Load(ctx context.Context, sid abi.SectorID, ws core.SectorWorkerState) (*core.SectorState, error) {
+func (sm *StateManager) Load(
+	ctx context.Context,
+	sid abi.SectorID,
+	ws core.SectorWorkerState,
+) (*core.SectorState, error) {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
 	var state core.SectorState
 	key := makeSectorKey(sid)
-	if err := sm.load(ctx, key, &state, ws); err != nil {
+	if err := sm.loadInner(ctx, key, &state, ws); err != nil {
 		return nil, err
 	}
 
 	return &state, nil
 }
 
-func (sm *StateManager) Update(ctx context.Context, sid abi.SectorID, ws core.SectorWorkerState, fieldvals ...interface{}) error {
+func (sm *StateManager) Update(
+	ctx context.Context,
+	sid abi.SectorID,
+	ws core.SectorWorkerState,
+	fieldvals ...any,
+) error {
 	lock := sm.locker.lock(sid)
 	defer lock.unlock()
 
 	var state core.SectorState
 	key := makeSectorKey(sid)
-	if err := sm.load(ctx, key, &state, ws); err != nil {
+	if err := sm.loadInner(ctx, key, &state, ws); err != nil {
 		return err
 	}
 
@@ -307,7 +349,7 @@ func (sm *StateManager) Finalize(ctx context.Context, sid abi.SectorID, onFinali
 
 	key := makeSectorKey(sid)
 	var state core.SectorState
-	if err := sm.load(ctx, key, &state, core.WorkerOnline); err != nil {
+	if err := sm.loadInner(ctx, key, &state, core.WorkerOnline); err != nil {
 		return fmt.Errorf("load from online store: %w", err)
 	}
 
@@ -351,7 +393,7 @@ func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore
 
 	key := makeSectorKey(sid)
 	var state core.SectorState
-	if err := sm.load(ctx, key, &state, core.WorkerOffline); err != nil {
+	if err := sm.loadInner(ctx, key, &state, core.WorkerOffline); err != nil {
 		return fmt.Errorf("load from offline store: %w", err)
 	}
 
@@ -389,7 +431,7 @@ func (sm *StateManager) Restore(ctx context.Context, sid abi.SectorID, onRestore
 	return nil
 }
 
-func processStateField(rv reflect.Value, fieldval interface{}) error {
+func processStateField(rv reflect.Value, fieldval any) error {
 	rfv := reflect.ValueOf(fieldval)
 	// most likely, reflect.ValueOf(nil)
 	if !rfv.IsValid() {
@@ -412,7 +454,7 @@ func makeSectorKey(sid abi.SectorID) kvstore.Key {
 	return []byte(fmt.Sprintf("m-%d-n-%d", sid.Miner, sid.Number))
 }
 
-func apply(_ context.Context, state *core.SectorState, fieldvals ...interface{}) error {
+func apply(_ context.Context, state *core.SectorState, fieldvals ...any) error {
 	statev := reflect.ValueOf(state).Elem()
 	for fi := range fieldvals {
 		fieldval := fieldvals[fi]

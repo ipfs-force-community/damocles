@@ -54,7 +54,7 @@ var SealerListenFlag = &cli.StringFlag{
 
 var ConfDirFlag = &cli.StringFlag{
 	Name:    "conf-dir",
-	Usage:   "the dir path in which the sector-manager.cfg file exists, set this only if you don't want to use the config file inside home dir",
+	Usage:   "the dir path in which the sector-manager.cfg file exists, set this only if you don't want to use the config file inside home dir", //revive:disable-line:line-length-limit
 	EnvVars: []string{"DAMOCLES_CONF_DIR", "VENUS_SECTOR_MANAGER_CONF_DIR", "VSM_CONF_DIR"},
 }
 
@@ -120,11 +120,11 @@ type APIClient struct {
 	Damocles *core.APIClient
 }
 
-func extractAPI(cctx *cli.Context, target ...interface{}) (*APIClient, context.Context, stopper, error) {
+func extractAPI(cctx *cli.Context, target ...any) (*APIClient, context.Context, stopper, error) {
 	gctx, gcancel := NewSigContext(cctx.Context)
 
 	var a APIClient
-	wants := append([]interface{}{&a}, target...)
+	wants := append([]any{&a}, target...)
 
 	stopper, err := dix.New(
 		gctx,
@@ -133,7 +133,6 @@ func extractAPI(cctx *cli.Context, target ...interface{}) (*APIClient, context.C
 		dix.Override(new(dep.GlobalContext), gctx),
 		dix.Override(new(dep.ListenAddress), dep.ListenAddress(cctx.String(SealerListenFlag.Name))),
 	)
-
 	if err != nil {
 		gcancel()
 		return nil, nil, nil, fmt.Errorf("construct api: %w", err)
@@ -189,7 +188,14 @@ func ShouldSectorNumber(s string) (abi.SectorNumber, error) {
 	return abi.SectorNumber(num), nil
 }
 
-func waitMessage(ctx context.Context, api *APIClient, rawMsg *messager.UnsignedMessage, exid string, mlog *logging.ZapLogger, ret cbor.Unmarshaler) error {
+func waitMessage(
+	ctx context.Context,
+	api *APIClient,
+	rawMsg *messager.UnsignedMessage,
+	exid string,
+	mlog *logging.ZapLogger,
+	ret cbor.Unmarshaler,
+) error {
 	if mlog == nil {
 		mlog = Log.With("action", "wait-message")
 	}
@@ -263,13 +269,13 @@ WAIT_RET:
 	return nil
 }
 
-func OutputJSON(w io.Writer, v interface{}) error {
+func OutputJSON(w io.Writer, v any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "\t")
 	return enc.Encode(v)
 }
 
-func FormatOrNull(arg interface{}, f func() string) string {
+func FormatOrNull(arg any, f func() string) string {
 	if arg == nil {
 		return "NULL"
 	}
@@ -278,7 +284,6 @@ func FormatOrNull(arg interface{}, f func() string) string {
 	rt := rv.Type()
 	if rt.Kind() == reflect.Ptr && rv.IsNil() {
 		return "NULL"
-
 	}
 
 	return f()

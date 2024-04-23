@@ -194,11 +194,19 @@ func (p *Prover) runCleanupExpiredJobs(ctx context.Context) {
 	}
 }
 
-func (p *Prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
+func (p *Prover) AggregateSealProofs(
+	ctx context.Context,
+	aggregateInfo core.AggregateSealVerifyProofAndInfos,
+	proofs [][]byte,
+) ([]byte, error) {
 	return p.localProver.AggregateSealProofs(ctx, aggregateInfo, proofs)
 }
 
-func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWindowPoStParams) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+func (p *Prover) GenerateWindowPoSt(
+	ctx context.Context,
+	params core.GenerateWindowPoStParams,
+) (proof []builtin.PoStProof, skipped []abi.SectorID, err error) {
+	//revive:disable-next-line:line-length-limit
 	deadlineIdx, partitions, minerID, proofType, sectors, randomness := params.DeadlineIdx, params.Partitions, params.MinerID, params.ProofType, params.Sectors, params.Randomness
 
 	randomness[31] &= 0x3f
@@ -211,7 +219,13 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWin
 		}
 		commR, err := util.CID2ReplicaCommitment(s.SealedCID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid sealed cid %s for sector %d of miner %d: %w", s.SealedCID, s.SectorNumber, minerID, err)
+			return nil, nil, fmt.Errorf(
+				"invalid sealed cid %s for sector %d of miner %d: %w",
+				s.SealedCID,
+				s.SectorNumber,
+				minerID,
+				err,
+			)
 		}
 
 		sis[i] = core.WdPoStSectorInfo{
@@ -264,7 +278,12 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWin
 	return proofs, nil, nil
 }
 
-func (p *Prover) doWindowPoSt(ctx context.Context, deadlineIdx uint64, partitions []uint64, input core.WdPoStInput) (output *stage.WindowPoStOutput, err error) {
+func (p *Prover) doWindowPoSt(
+	ctx context.Context,
+	deadlineIdx uint64,
+	partitions []uint64,
+	input core.WdPoStInput,
+) (output *stage.WindowPoStOutput, err error) {
 	job, err := p.jobMgr.Create(ctx, deadlineIdx, partitions, input)
 	if err != nil {
 		return nil, fmt.Errorf("create wdPoSt job: %w", err)
@@ -290,18 +309,40 @@ func (p *Prover) doWindowPoSt(ctx context.Context, deadlineIdx uint64, partition
 	return
 }
 
-func (p *Prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
+func (p *Prover) GenerateWinningPoSt(
+	ctx context.Context,
+	minerID abi.ActorID,
+	proofType abi.RegisteredPoStProof,
+	sectors []builtin.ExtendedSectorInfo,
+	randomness abi.PoStRandomness,
+) ([]builtin.PoStProof, error) {
 	return p.localProver.GenerateWinningPoSt(ctx, minerID, proofType, sectors, randomness)
 }
 
-func (p *Prover) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
+func (p *Prover) GeneratePoStFallbackSectorChallenges(
+	ctx context.Context,
+	proofType abi.RegisteredPoStProof,
+	minerID abi.ActorID,
+	randomness abi.PoStRandomness,
+	sectorIds []abi.SectorNumber,
+) (*core.FallbackChallenges, error) {
 	return p.localProver.GeneratePoStFallbackSectorChallenges(ctx, proofType, minerID, randomness, sectorIds)
 }
 
-func (p *Prover) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
+func (p *Prover) GenerateSingleVanillaProof(
+	ctx context.Context,
+	replica core.FFIPrivateSectorInfo,
+	challenges []uint64,
+) ([]byte, error) {
 	return p.localProver.GenerateSingleVanillaProof(ctx, replica, challenges)
 }
 
-func (p *Prover) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
+func (p *Prover) GenerateWinningPoStWithVanilla(
+	ctx context.Context,
+	proofType abi.RegisteredPoStProof,
+	minerID abi.ActorID,
+	randomness abi.PoStRandomness,
+	proofs [][]byte,
+) ([]core.PoStProof, error) {
 	return p.localProver.GenerateWinningPoStWithVanilla(ctx, proofType, minerID, randomness, proofs)
 }

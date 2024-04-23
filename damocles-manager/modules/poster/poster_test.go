@@ -22,9 +22,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/testutil/testmodules"
 )
 
-var (
-	invalidSender = modules.MustAddress(address.Undef)
-)
+var invalidSender = modules.MustAddress(address.Undef)
 
 func mockSafeConfig(count int) (*modules.SafeConfig, sync.Locker) {
 	return testmodules.MockSafeConfig(count, func(mcfg *modules.MinerConfig) {
@@ -34,6 +32,7 @@ func mockSafeConfig(count int) (*modules.SafeConfig, sync.Locker) {
 	})
 }
 
+// nolint
 const blkRaw = `{"Miner":"t038057","Ticket":{"VRFProof":"kfggWR2GcEbfTuJ20hkAFNRbF7xusDuAQR7XwTjJ2/gc1rwIDmaXbSVxXe4j1njcCBoMhmlYIn9D/BLqQuIOayMHPYvDmOJGc9M27Hwg1UZkiuJmXji+iM/JBNYaOA61"},"ElectionProof":{"WinCount":1,"VRFProof":"tI7cWWM9sGsKc69N9DjN41glaO5Hg7r742H56FPzg7szbhTrxj8kw0OsiJzcPJdiAa6D5jZ1S2WKoLK7lwg2R5zYvCRwwWLGDiExqbqsvqmH5z/e6YGpaD7ghTPRH1SR"},"BeaconEntries":[{"Round":2118576,"Data":"rintMKcvVAslYpn9DcshDBmlPN6hUR+wjvVQSkkVUK5klx1kOSpcDvzODSc2wXFQA7BVbEcXJW/5KLoL0KHx2alLUWDOwxhsIQnAydXdZqG8G76nTIgogthfIMgSGdB2"}],"WinPoStProof":[{"PoStProof":3,"ProofBytes":"t0ZgPHFv0ao9fVZJ/fxbBrzATmOiIv9/IueSyAjtcqEpxqWViqchaaxnz1afwzAbhahpfZsGiGWyc408WYh7Q8u0Aa52KGPmUNtf3pAvxWfsUDMz9QUfhLZVg/p8/PUVC/O/E7RBNq4YPrRK5b6Q8PVwzIOxGOS14ge6ys8Htq+LfNJbcqY676qOYF4lzMuMtQIe3CxMSAEaEBfNpHhAEs83dO6vll9MZKzcXYpNWeqmMIz4xSdF18StQq9vL/Lo"}],"Parents":[{"/":"bafy2bzacecf4wtqz3kgumeowhdulejk3xbfzgibfyhs42x4vx2guqgudem2hg"},{"/":"bafy2bzacebkpxh2k63xreigl6a3ggdr2adwk67b4zw5dddckhqex2tmha6hee"},{"/":"bafy2bzacecor3xq4ykmhhrgq55rdo5w7up65elc4qwx5uwjy25ffynidskbxw"},{"/":"bafy2bzacedr2mztmef65fodqzvyjcdnsgpcjthstseinll4maqg24avnv7ljo"}],"ParentWeight":"21779626255","Height":1164251,"ParentStateRoot":{"/":"bafy2bzacecypgutbewmyop2wfuafvxt7dm7ew4u3ssy2p4rn457f6ynrj2i6a"},"ParentMessageReceipts":{"/":"bafy2bzaceaflsspsxuxew2y4g6o72wp5i2ewp3fcolga6n2plw3gycam7s4lg"},"Messages":{"/":"bafy2bzaceanux5ivzlxzvhqxtwc5vkktcfqepubwtwgv26dowzbl3rtgqk54k"},"BLSAggregate":{"Type":2,"Data":"lQg9jBfYhY2vvjB/RPlWg6i+MBTlH1u0lmdasiab5BigsKAuZSeLNlTGbdoVZhAsDUT59ZdGsMmueHjafygDUN2KLhZoChFf6LQHH42PTSXFlkRVHvmKVz9DDU03FLMB"},"Timestamp":1658988330,"BlockSig":{"Type":2,"Data":"rMOv2tXKqV5VDOq5IQ35cP0cCAzGmaugVr/g5JTrilhAn4LYK0h6ByPL5cX5ONzlDTx9+zYZFteIzaenirZhw7G510Lh0J8lbTLP5X2EX251rEA8dpkPZPcNylzN0r8X"},"ForkSignaling":0,"ParentBaseFee":"100"}`
 
 func mockTipSet(t *testing.T, height abi.ChainEpoch) *types.TipSet {
@@ -66,7 +65,18 @@ func TestPoSterGetEnabledMiners(t *testing.T) {
 
 	require.Len(t, scfg.Miners, minerCount, "mocked miners")
 
-	poster, err := newPoSterWithRunnerConstructor(scfg, nil, nil, nil, nil, nil, nil, nil, mockSelecotor{}, mockRunnerConstructor(&mockRunner{}))
+	poster, err := newPoSterWithRunnerConstructor(
+		scfg,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		mockSelecotor{},
+		mockRunnerConstructor(&mockRunner{}),
+	)
 	require.NoError(t, err, "new poster")
 
 	mids := poster.getEnabledMiners(ctx, logging.Nop)
@@ -128,18 +138,28 @@ func TestFetchMinerProvingDeadlineInfos(t *testing.T) {
 
 	dl := randomDeadline()
 	var mockChain chain.MockStruct
-	mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
+	mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) { //revive:disable-line:line-length-limit
 		return dl, nil
 	}
 
-	poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, nil, nil, nil, nil, nil, mockRunnerConstructor(&mockRunner{}))
+	poster, err := newPoSterWithRunnerConstructor(
+		scfg,
+		&mockChain,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		mockRunnerConstructor(&mockRunner{}),
+	)
 	require.NoError(t, err, "new poster")
 
 	ts := mockTipSet(t, dl.Open)
 
 	// 默认行为
 	{
-
 		dinfos := poster.fetchMinerProvingDeadlineInfos(context.Background(), mids, ts)
 		require.Len(t, dinfos, len(mids), "get all dlines for miners")
 		for mid, dls := range dinfos {
@@ -163,7 +183,7 @@ func TestFetchMinerProvingDeadlineInfos(t *testing.T) {
 	{
 		for i := 0; i < 8; i++ {
 			available := rand.Intn(minerCount)
-			mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
+			mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) { //revive:disable-line:line-length-limit
 				id, err := address.IDFromAddress(p1)
 				if err != nil {
 					return nil, err
@@ -180,7 +200,6 @@ func TestFetchMinerProvingDeadlineInfos(t *testing.T) {
 			require.Lenf(t, dinfos, available, "get only available dlines for miners")
 		}
 	}
-
 }
 
 func TestHandleHeadChange(t *testing.T) {
@@ -194,7 +213,7 @@ func TestHandleHeadChange(t *testing.T) {
 	}
 
 	var mockChain chain.MockStruct
-	mockChain.IMinerStateStruct.Internal.StateMinerInfo = func(ctx context.Context, maddr address.Address, tsk types.TipSetKey) (types.MinerInfo, error) {
+	mockChain.IMinerStateStruct.Internal.StateMinerInfo = func(ctx context.Context, maddr address.Address, tsk types.TipSetKey) (types.MinerInfo, error) { //revive:disable-line:line-length-limit
 		_, err := address.IDFromAddress(maddr)
 		if err != nil {
 			return types.MinerInfo{}, err
@@ -206,7 +225,7 @@ func TestHandleHeadChange(t *testing.T) {
 		}, nil
 	}
 
-	mockChain.IChainInfoStruct.Internal.StateNetworkVersion = func(ctx context.Context, tsk types.TipSetKey) (network.Version, error) {
+	mockChain.IChainInfoStruct.Internal.StateNetworkVersion = func(ctx context.Context, tsk types.TipSetKey) (network.Version, error) { //revive:disable-line:line-length-limit
 		return network.Version21, nil
 	}
 
@@ -227,11 +246,22 @@ func TestHandleHeadChange(t *testing.T) {
 
 		dl := deadlineAt(10000, 0)
 		nextDl := nextDeadline(dl, dl.Open)
-		mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
+		mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) { //revive:disable-line:line-length-limit
 			return dl, nil
 		}
 
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(
+			scfg,
+			&mockChain,
+			nil,
+			nil,
+			chain.NewMinerAPI(&mockChain, scfg),
+			nil,
+			nil,
+			nil,
+			nil,
+			mockRunnerConstructor(runner),
+		)
 		require.NoError(t, err, "new poster")
 
 		cases := []struct {
@@ -309,7 +339,6 @@ func TestHandleHeadChange(t *testing.T) {
 			require.Equal(t, c.submited, runner.submited, "submited runners", c.title, c.height)
 			require.Equal(t, c.aborted, runner.aborted, "aborted runners", c.title, c.height)
 		}
-
 	}
 
 	// 连续 deadlines
@@ -324,7 +353,7 @@ func TestHandleHeadChange(t *testing.T) {
 
 		called := uint32(0)
 
-		mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
+		mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) { //revive:disable-line:line-length-limit
 			index := (atomic.AddUint32(&called, 1) - 1) / uint32(minerCount)
 			if int(index) >= len(dls) {
 				return nil, fmt.Errorf("invalid index %d", index)
@@ -334,7 +363,18 @@ func TestHandleHeadChange(t *testing.T) {
 		}
 
 		runner := &mockRunner{}
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(
+			scfg,
+			&mockChain,
+			nil,
+			nil,
+			chain.NewMinerAPI(&mockChain, scfg),
+			nil,
+			nil,
+			nil,
+			nil,
+			mockRunnerConstructor(runner),
+		)
 		require.NoError(t, err, "new poster")
 
 		for di := range dls {
@@ -360,11 +400,22 @@ func TestHandleHeadChange(t *testing.T) {
 		runner := &mockRunner{}
 
 		dl := deadlineAt(10000, 0)
-		mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) {
+		mockChain.IMinerStateStruct.Internal.StateMinerProvingDeadline = func(p0 context.Context, p1 address.Address, p2 types.TipSetKey) (*dline.Info, error) { //revive:disable-line:line-length-limit
 			return dl, nil
 		}
 
-		poster, err := newPoSterWithRunnerConstructor(scfg, &mockChain, nil, nil, chain.NewMinerAPI(&mockChain, scfg), nil, nil, nil, nil, mockRunnerConstructor(runner))
+		poster, err := newPoSterWithRunnerConstructor(
+			scfg,
+			&mockChain,
+			nil,
+			nil,
+			chain.NewMinerAPI(&mockChain, scfg),
+			nil,
+			nil,
+			nil,
+			nil,
+			mockRunnerConstructor(runner),
+		)
 		require.NoError(t, err, "new poster")
 
 		ts := mockTipSet(t, dl.Open)

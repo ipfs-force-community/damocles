@@ -35,7 +35,13 @@ type TerminateProcessor struct {
 	prover core.Prover
 }
 
-func (tp TerminateProcessor) processIndividually(ctx context.Context, sectors []core.SectorState, from address.Address, mid abi.ActorID, plog *logging.ZapLogger) {
+func (tp TerminateProcessor) processIndividually(
+	ctx context.Context,
+	sectors []core.SectorState,
+	from address.Address,
+	mid abi.ActorID,
+	plog *logging.ZapLogger,
+) {
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
 		plog.Error("actor id: ", err)
@@ -66,6 +72,7 @@ func (tp TerminateProcessor) processIndividually(ctx context.Context, sectors []
 			}
 
 			// don't send terminations for currently challenged sectors
+			//revive:disable-next-line:line-length-limit
 			if loc.Deadline == (dl.Index+1)%stminer.WPoStPeriodDeadlines || // not in next (in case the terminate message takes a while to get on chain)
 				loc.Deadline == dl.Index || // not in current
 				(loc.Deadline+1)%stminer.WPoStPeriodDeadlines == dl.Index { // not in previous
@@ -74,7 +81,15 @@ func (tp TerminateProcessor) processIndividually(ctx context.Context, sectors []
 
 			ps, err := tp.api.StateMinerPartitions(ctx, maddr, loc.Deadline, nil)
 			if err != nil {
-				slog.Warn("getting miner partitions", "deadline", loc.Deadline, "partition", loc.Partition, "error", err)
+				slog.Warn(
+					"getting miner partitions",
+					"deadline",
+					loc.Deadline,
+					"partition",
+					loc.Partition,
+					"error",
+					err,
+				)
 				return
 			}
 
@@ -82,7 +97,15 @@ func (tp TerminateProcessor) processIndividually(ctx context.Context, sectors []
 			toTerminate.Set(uint64(sectors[idx].ID.Number))
 			toTerminate, err = bitfield.IntersectBitField(ps[loc.Partition].LiveSectors, toTerminate)
 			if err != nil {
-				slog.Warn("intersecting liveSectors and toTerminate bitfields", "deadline", loc.Deadline, "partition", loc.Partition, "error", err)
+				slog.Warn(
+					"intersecting liveSectors and toTerminate bitfields",
+					"deadline",
+					loc.Deadline,
+					"partition",
+					loc.Partition,
+					"error",
+					err,
+				)
 				return
 			}
 
@@ -103,7 +126,17 @@ func (tp TerminateProcessor) processIndividually(ctx context.Context, sectors []
 				return
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, big.Zero(), stbuiltin.MethodsMiner.TerminateSectors, tp.msgClient, &mcfg.Commitment.Terminate.FeeConfig, enc.Bytes(), slog)
+			mcid, err := pushMessage(
+				ctx,
+				from,
+				mid,
+				big.Zero(),
+				stbuiltin.MethodsMiner.TerminateSectors,
+				tp.msgClient,
+				&mcfg.Commitment.Terminate.FeeConfig,
+				enc.Bytes(),
+				slog,
+			)
 			if err != nil {
 				slog.Error("push terminate single failed: ", err)
 				return
@@ -118,7 +151,12 @@ func (tp TerminateProcessor) processIndividually(ctx context.Context, sectors []
 	wg.Wait()
 }
 
-func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
+func (tp TerminateProcessor) Process(
+	ctx context.Context,
+	sectors []core.SectorState,
+	mid abi.ActorID,
+	ctrlAddr address.Address,
+) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "terminate", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
@@ -190,11 +228,20 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 	for loc, bfSectors := range todo {
 		n, err := bfSectors.Count()
 		if err != nil {
-			plog.Error("failed to count sectors to terminate", "deadline", loc.Deadline, "partition", loc.Partition, "error", err)
+			plog.Error(
+				"failed to count sectors to terminate",
+				"deadline",
+				loc.Deadline,
+				"partition",
+				loc.Partition,
+				"error",
+				err,
+			)
 			continue
 		}
 
 		// don't send terminations for currently challenged sectors
+		//revive:disable-next-line:line-length-limit
 		if loc.Deadline == (dl.Index+1)%stminer.WPoStPeriodDeadlines || // not in next (in case the terminate message takes a while to get on chain)
 			loc.Deadline == dl.Index || // not in current
 			(loc.Deadline+1)%stminer.WPoStPeriodDeadlines == dl.Index { // not in previous
@@ -220,7 +267,15 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 
 		toTerminate, err = bitfield.IntersectBitField(ps[loc.Partition].LiveSectors, toTerminate)
 		if err != nil {
-			plog.Warn("intersecting liveSectors and toTerminate bitfields", "deadline", loc.Deadline, "partition", loc.Partition, "error", err)
+			plog.Warn(
+				"intersecting liveSectors and toTerminate bitfields",
+				"deadline",
+				loc.Deadline,
+				"partition",
+				loc.Partition,
+				"error",
+				err,
+			)
 			continue
 		}
 
@@ -229,7 +284,15 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 
 			toTerminate, err = toTerminate.Slice(0, n)
 			if err != nil {
-				plog.Warn("slice toTerminate bitfield", "deadline", loc.Deadline, "partition", loc.Partition, "error", err)
+				plog.Warn(
+					"slice toTerminate bitfield",
+					"deadline",
+					loc.Deadline,
+					"partition",
+					loc.Partition,
+					"error",
+					err,
+				)
 				continue
 			}
 
@@ -268,7 +331,17 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 	}
 
 	mcfg := tp.config.MustMinerConfig(mid)
-	mcid, err := pushMessage(ctx, ctrlAddr, mid, big.Zero(), stbuiltin.MethodsMiner.TerminateSectors, tp.msgClient, &mcfg.Commitment.Terminate.Batch.FeeConfig, enc.Bytes(), plog)
+	mcid, err := pushMessage(
+		ctx,
+		ctrlAddr,
+		mid,
+		big.Zero(),
+		stbuiltin.MethodsMiner.TerminateSectors,
+		tp.msgClient,
+		&mcfg.Commitment.Terminate.Batch.FeeConfig,
+		enc.Bytes(),
+		plog,
+	)
 	if err != nil {
 		return fmt.Errorf("push aggregate terminate message failed: %w", err)
 	}
@@ -297,7 +370,11 @@ func (tp TerminateProcessor) Process(ctx context.Context, sectors []core.SectorS
 	return nil
 }
 
-func (tp TerminateProcessor) Expire(ctx context.Context, sectors []core.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
+func (tp TerminateProcessor) Expire(
+	ctx context.Context,
+	sectors []core.SectorState,
+	mid abi.ActorID,
+) (map[abi.SectorID]struct{}, error) {
 	maxWait := tp.config.MustMinerConfig(mid).Commitment.Terminate.Batch.MaxWait.Std()
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := tp.api.ChainHead(ctx)
@@ -342,7 +419,6 @@ func (tp TerminateProcessor) ShouldBatch(mid abi.ActorID) bool {
 		}
 		return tp.api.ChainBaseFee(ctx, tok)
 	}()
-
 	if err != nil {
 		log.Errorf("get basefee: %w", err)
 		return false
@@ -350,7 +426,12 @@ func (tp TerminateProcessor) ShouldBatch(mid abi.ActorID) bool {
 
 	bcfg := tp.config.MustMinerConfig(mid).Commitment.Terminate.Batch
 	basefeeAbove := basefee.GreaterThanEqual(abi.TokenAmount(bcfg.BatchCommitAboveBaseFee))
-	bLog.Debugf("should batch(%t): basefee(%s), basefee above(%s)", basefeeAbove, modules.FIL(basefee).Short(), bcfg.BatchCommitAboveBaseFee.Short())
+	bLog.Debugf(
+		"should batch(%t): basefee(%s), basefee above(%s)",
+		basefeeAbove,
+		modules.FIL(basefee).Short(),
+		bcfg.BatchCommitAboveBaseFee.Short(),
+	)
 
 	return basefeeAbove
 }

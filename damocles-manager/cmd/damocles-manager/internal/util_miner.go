@@ -245,7 +245,6 @@ var utilMinerCreateCmd = &cli.Command{
 			Peer:                pid,
 			Multiaddrs:          multiaddrs,
 		})
-
 		if err != nil {
 			return fmt.Errorf("serialize params: %w", err)
 		}

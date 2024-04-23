@@ -5,11 +5,10 @@ import (
 	"strings"
 )
 
-var (
-	infoWithToken = regexp.MustCompile("^[a-zA-Z0-9\\-_]+?\\.[a-zA-Z0-9\\-_]+?\\.([a-zA-Z0-9\\-_]+)?:.+$")
-)
+// token:addr
+var infoWithToken = regexp.MustCompile(`^[a-zA-Z0-9\-_]+?\.[a-zA-Z0-9\-_]+?\.([a-zA-Z0-9\-_]+)?:.+$`)
 
-func extractAPIInfo(raw string, commonToken string) (string, string) {
+func extractAPIInfo(raw string, commonToken string) (addr string, token string) {
 	if !infoWithToken.Match([]byte(raw)) {
 		return raw, commonToken
 	}

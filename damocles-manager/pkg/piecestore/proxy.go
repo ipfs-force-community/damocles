@@ -67,11 +67,11 @@ func (p *Proxy) handleGet(rw http.ResponseWriter, req *http.Request) {
 	for _, store := range p.locals {
 		for _, p := range []string{cidStr, cidWithDotCar} {
 			if r, err := store.Get(req.Context(), p); err == nil {
-				defer r.Close()
 				_, err := io.Copy(rw, r)
 				if err != nil {
 					log.Warnw("transfer piece data for %s: %s", p, err)
 				}
+				r.Close()
 				return
 			}
 		}

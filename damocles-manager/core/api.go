@@ -66,7 +66,11 @@ type SealerAPI interface {
 	// Snap
 	AllocateSanpUpSector(ctx context.Context, spec AllocateSnapUpSpec) (*AllocatedSnapUpSector, error)
 
-	SubmitSnapUpProof(ctx context.Context, sid abi.SectorID, snapupInfo SnapUpOnChainInfo) (SubmitSnapUpProofResp, error)
+	SubmitSnapUpProof(
+		ctx context.Context,
+		sid abi.SectorID,
+		snapupInfo SnapUpOnChainInfo,
+	) (SubmitSnapUpProofResp, error)
 
 	// Rebuild
 	AllocateRebuildSector(ctx context.Context, spec AllocateSectorSpec) (*SectorRebuildInfo, error)
@@ -100,9 +104,22 @@ type SealerCliAPI interface {
 
 	RestoreSector(ctx context.Context, sid abi.SectorID, forced bool) (Meta, error)
 
-	CheckProvable(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error)
+	CheckProvable(
+		ctx context.Context,
+		mid abi.ActorID,
+		postProofType abi.RegisteredPoStProof,
+		sectors []builtin.ExtendedSectorInfo,
+		strict, stateCheck bool,
+	) (map[abi.SectorNumber]string, error)
 
-	SimulateWdPoSt(ctx context.Context, ddlIndex, partitionIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error
+	SimulateWdPoSt(
+		ctx context.Context,
+		ddlIndex, partitionIndex uint64,
+		maddr address.Address,
+		postProofType abi.RegisteredPoStProof,
+		sis []builtin.ExtendedSectorInfo,
+		rand abi.PoStRandomness,
+	) error
 
 	SnapUpPreFetch(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*SnapUpFetchResult, error)
 
@@ -135,7 +152,14 @@ type SealerCliAPI interface {
 	SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt RebuildOptions) (bool, error)
 
 	// Unseal Sector
-	UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset types.UnpaddedByteIndex, size abi.UnpaddedPieceSize, dest string) (<-chan []byte, error)
+	UnsealPiece(
+		ctx context.Context,
+		sid abi.SectorID,
+		pieceCid cid.Cid,
+		offset types.UnpaddedByteIndex,
+		size abi.UnpaddedPieceSize,
+		dest string,
+	) (<-chan []byte, error)
 
 	Version(ctx context.Context) (string, error)
 }
@@ -143,7 +167,12 @@ type SealerCliAPI interface {
 type RandomnessAPI interface {
 	GetTicket(context.Context, types.TipSetKey, abi.ChainEpoch, abi.ActorID) (Ticket, error)
 	GetSeed(context.Context, types.TipSetKey, abi.ChainEpoch, abi.ActorID) (Seed, error)
-	GetWindowPoStChanlleengeRand(context.Context, types.TipSetKey, abi.ChainEpoch, abi.ActorID) (WindowPoStRandomness, error)
+	GetWindowPoStChanlleengeRand(
+		context.Context,
+		types.TipSetKey,
+		abi.ChainEpoch,
+		abi.ActorID,
+	) (WindowPoStRandomness, error)
 	GetWindowPoStCommitRand(context.Context, types.TipSetKey, abi.ChainEpoch) (WindowPoStRandomness, error)
 }
 
@@ -154,7 +183,12 @@ type MinerAPI interface {
 
 type WorkerWdPoStAPI interface {
 	WdPoStHeartbeatJobs(ctx context.Context, runningJobIDs []string, workerName string) (Meta, error)
-	WdPoStAllocateJobs(ctx context.Context, spec AllocateWdPoStJobSpec, num uint32, workerName string) (allocatedJobs []*WdPoStAllocatedJob, err error)
+	WdPoStAllocateJobs(
+		ctx context.Context,
+		spec AllocateWdPoStJobSpec,
+		num uint32,
+		workerName string,
+	) (allocatedJobs []*WdPoStAllocatedJob, err error)
 	WdPoStFinishJob(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) (Meta, error)
 	WdPoStResetJob(ctx context.Context, jobID string) (Meta, error)
 	WdPoStRemoveJob(ctx context.Context, jobID string) (Meta, error)

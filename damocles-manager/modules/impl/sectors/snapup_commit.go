@@ -31,6 +31,7 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
 )
 
+//revive:disable-next-line:argument-limit
 func NewSnapUpCommitter(
 	ctx context.Context,
 	tracker core.SectorTracker,
@@ -88,17 +89,22 @@ func (sc *SnapUpCommitter) Start() error {
 		sc.jobsMu.Lock()
 		defer sc.jobsMu.Unlock()
 
-		err = sc.state.ForEach(sc.ctx, core.WorkerOnline, core.SectorWorkerJobSnapUp, func(state core.SectorState) error {
-			if !state.Upgraded {
-				return nil
-			}
+		err = sc.state.ForEach(
+			sc.ctx,
+			core.WorkerOnline,
+			core.SectorWorkerJobSnapUp,
+			func(state core.SectorState) error {
+				if !state.Upgraded {
+					return nil
+				}
 
-			ctx, cancel := context.WithCancel(sc.ctx)
-			sc.jobs[state.ID] = cancel
-			go sc.commitSector(ctx, state)
-			count++
-			return nil
-		})
+				ctx, cancel := context.WithCancel(sc.ctx)
+				sc.jobs[state.ID] = cancel
+				go sc.commitSector(ctx, state)
+				count++
+				return nil
+			},
+		)
 
 		snapupLog.Infow("snapup sectors loaded", "count", count)
 	})
@@ -150,8 +156,6 @@ func (sc *SnapUpCommitter) CancelCommitment(_ context.Context, sid abi.SectorID)
 
 	delete(sc.jobs, sid)
 	cancel()
-
-	return
 }
 
 func (sc *SnapUpCommitter) commitSector(ctx context.Context, state core.SectorState) {
@@ -248,10 +252,12 @@ func (sc *SnapUpCommitter) commitSector(ctx context.Context, state core.SectorSt
 	}
 }
 
-var errMsgNotLanded = fmt.Errorf("msg not landed")
-var errMsgNoReceipt = fmt.Errorf("msg without receipt")
-var errMsgPending = fmt.Errorf("pending msg")
-var errMsgTempErr = fmt.Errorf("msg temp error")
+var (
+	errMsgNotLanded = fmt.Errorf("msg not landed")
+	errMsgNoReceipt = fmt.Errorf("msg without receipt")
+	errMsgPending   = fmt.Errorf("pending msg")
+	errMsgTempErr   = fmt.Errorf("msg temp error")
+)
 
 func newTempErr(err error, retryAfter time.Duration) snapupCommitTempError {
 	te := snapupCommitTempError{
@@ -306,7 +312,7 @@ func (h *snapupCommitHandler) handle() (bool, error) {
 	return false, h.submitMessage()
 }
 
-func (h *snapupCommitHandler) checkUpgradeInfo() error {
+func (*snapupCommitHandler) checkUpgradeInfo() error {
 	// TODO: check more methods
 	return nil
 }
@@ -356,14 +362,36 @@ func (h *snapupCommitHandler) submitMessage() error {
 	// We assume that deadlines are immutable when being proven.
 	//
 	// `abi.ChainEpoch(10)` indicates that we assume that the message will be real executed within 10 heights
-	//
+	//nolint:all
 	// See: https://github.com/filecoin-project/builtin-actors/blob/10f547c950a99a07231c08a3c6f4f76ff0080a7c/actors/miner/src/lib.rs#L1113-L1124
-	if isMut, delayBlock := deadlineIsMutable(currDeadline.PeriodStart, sl.Deadline, ts.Height(), abi.ChainEpoch(10)); !isMut {
+	if isMut, delayBlock := deadlineIsMutable(currDeadline.PeriodStart, sl.Deadline, ts.Height(), abi.ChainEpoch(10)); !isMut { //revive:disable-line:line-length-limit
 		delayTime := time.Duration(mpolicy.NetParams.BlockDelaySecs*uint64(delayBlock)) * time.Second
-		return newTempErr(fmt.Errorf("cannot upgrade sectors in immutable deadline: %d. sector: %s", sl.Deadline, util.FormatSectorID(h.state.ID)), delayTime)
+		return newTempErr(
+			fmt.Errorf(
+				"cannot upgrade sectors in immutable deadline: %d. sector: %s",
+				sl.Deadline,
+				util.FormatSectorID(h.state.ID),
+			),
+			delayTime,
+		)
+	}
+	nv, err := h.committer.chain.StateNetworkVersion(h.committer.ctx, tsk)
+	if err != nil {
+		return newTempErr(
+			fmt.Errorf(
+				"call StateNetworkVersion. err: %w", err,
+			),
+			mcfg.SnapUp.Retry.APIFailureWait.Std(),
+		)
 	}
 
-	pams, deals, err := piece.ProcessPieces(h.committer.ctx, &h.state, h.committer.chain, h.committer.lookupID)
+	pams, deals, err := piece.ProcessPieces(
+		h.committer.ctx,
+		&h.state,
+		h.committer.chain,
+		h.committer.lookupID,
+		nv >= network.Version22,
+	)
 	if err != nil {
 		return newTempErr(fmt.Errorf("failed to process pieces: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
 	}
@@ -384,8 +412,8 @@ func (h *snapupCommitHandler) submitMessage() error {
 			},
 			SectorProofs:     [][]byte{h.state.UpgradedInfo.Proof},
 			UpdateProofsType: updateProof,
-			//AggregateProof
-			//AggregateProofType
+			// AggregateProof
+			// AggregateProofType
 			RequireActivationSuccess:   mcfg.Sealing.RequireActivationSuccessUpdate,
 			RequireNotificationSuccess: mcfg.Sealing.RequireNotificationSuccessUpdate,
 		}
@@ -454,7 +482,10 @@ func (h *snapupCommitHandler) submitMessage() error {
 
 	uid, err := h.committer.messager.PushMessageWithId(h.committer.ctx, mcid, &msg, &spec)
 	if err != nil {
-		return newTempErr(fmt.Errorf("push ProveReplicaUpdates message: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
+		return newTempErr(
+			fmt.Errorf("push ProveReplicaUpdates message: %w", err),
+			mcfg.SnapUp.Retry.APIFailureWait.Std(),
+		)
 	}
 
 	mcid = uid
@@ -472,12 +503,12 @@ func (h *snapupCommitHandler) submitMessage() error {
 func (h *snapupCommitHandler) calcCollateral(tsk types.TipSetKey, proofType abi.RegisteredPoStProof) (big.Int, error) {
 	onChainInfo, err := h.committer.chain.StateSectorGetInfo(h.committer.ctx, h.maddr, h.state.ID.Number, tsk)
 	if err != nil {
-		return big.Int{}, fmt.Errorf("StateSectorGetInfo: %w", err)
+		return big.Int{}, fmt.Errorf("StateSectorGetInfo: %w", err) //revive:disable-line:error-strings
 	}
 
 	nv, err := h.committer.chain.StateNetworkVersion(h.committer.ctx, tsk)
 	if err != nil {
-		return big.Int{}, fmt.Errorf("StateNetworkVersion: %w", err)
+		return big.Int{}, fmt.Errorf("StateNetworkVersion: %w", err) //revive:disable-line:error-strings
 	}
 	// TODO: Drop after nv19 comes and goes
 	if nv >= network.Version19 {
@@ -491,7 +522,13 @@ func (h *snapupCommitHandler) calcCollateral(tsk types.TipSetKey, proofType abi.
 		return big.Int{}, fmt.Errorf("get seal proof type: %w", err)
 	}
 
-	weightUpdate, err := pledge.SectorWeight(h.committer.ctx, &h.state, sealType, h.committer.chain, onChainInfo.Expiration)
+	weightUpdate, err := pledge.SectorWeight(
+		h.committer.ctx,
+		&h.state,
+		sealType,
+		h.committer.chain,
+		onChainInfo.Expiration,
+	)
 	if err != nil {
 		return big.Int{}, fmt.Errorf("get sector weight: %w", err)
 	}
@@ -522,7 +559,9 @@ func (h *snapupCommitHandler) waitForMessage() error {
 	}
 
 	var maybeMsg string
-	if msg.State != messager.MessageState.OnChainMsg && msg.State != messager.MessageState.NonceConflictMsg && msg.Receipt != nil && len(msg.Receipt.Return) > 0 {
+	if msg.State != messager.MessageState.OnChainMsg && msg.State != messager.MessageState.NonceConflictMsg &&
+		msg.Receipt != nil &&
+		len(msg.Receipt.Return) > 0 {
 		maybeMsg = string(msg.Receipt.Return)
 	}
 
@@ -563,7 +602,10 @@ func (h *snapupCommitHandler) waitForMessage() error {
 
 	ts, err := h.committer.chain.ChainGetTipSet(h.committer.ctx, msg.TipSetKey)
 	if err != nil {
-		return newTempErr(fmt.Errorf("get tipset %q: %w", msg.TipSetKey.String(), err), mcfg.SnapUp.Retry.APIFailureWait.Std())
+		return newTempErr(
+			fmt.Errorf("get tipset %q: %w", msg.TipSetKey.String(), err),
+			mcfg.SnapUp.Retry.APIFailureWait.Std(),
+		)
 	}
 
 	landedEpoch := core.SectorUpgradeLandedEpoch(ts.Height())
@@ -583,18 +625,23 @@ func (h *snapupCommitHandler) landed() error {
 	}
 
 	errChan := make(chan error, 1)
-	h.committer.eventbus.At(h.committer.ctx, abi.ChainEpoch(*h.state.UpgradeLandedEpoch)+policy.ChainFinality, mcfg.SnapUp.GetReleaseConfidence(), func(ts *types.TipSet) {
-		defer close(errChan)
-		if err := h.cleanupForSector(); err != nil {
-			errChan <- fmt.Errorf("cleanup data before upgrading: %w", err)
-			return
-		}
+	h.committer.eventbus.At(
+		h.committer.ctx,
+		abi.ChainEpoch(*h.state.UpgradeLandedEpoch)+policy.ChainFinality,
+		mcfg.SnapUp.GetReleaseConfidence(),
+		func(ts *types.TipSet) {
+			defer close(errChan)
+			if err := h.cleanupForSector(); err != nil {
+				errChan <- fmt.Errorf("cleanup data before upgrading: %w", err)
+				return
+			}
 
-		if err := h.committer.state.Finalize(h.committer.ctx, h.state.ID, nil); err != nil {
-			errChan <- fmt.Errorf("finalize sector: %w", err)
-			return
-		}
-	})
+			if err := h.committer.state.Finalize(h.committer.ctx, h.state.ID, nil); err != nil {
+				errChan <- fmt.Errorf("finalize sector: %w", err)
+				return
+			}
+		},
+	)
 
 	select {
 	case <-h.committer.ctx.Done():
@@ -607,7 +654,6 @@ func (h *snapupCommitHandler) landed() error {
 
 		return nil
 	}
-
 }
 
 func (h *snapupCommitHandler) cleanupForSector() error {
@@ -679,7 +725,11 @@ func (h *snapupCommitHandler) cleanupForSector() error {
 }
 
 // Returns true if the deadline at the given index is currently mutable.
-func deadlineIsMutable(provingPeriodStart abi.ChainEpoch, deadlineIdx uint64, currentEpoch, msgExecInterval abi.ChainEpoch) (bool, abi.ChainEpoch) {
+func deadlineIsMutable(
+	provingPeriodStart abi.ChainEpoch,
+	deadlineIdx uint64,
+	currentEpoch, msgExecInterval abi.ChainEpoch,
+) (bool, abi.ChainEpoch) {
 	// Get the next non-elapsed deadline (i.e., the next time we care about
 	// mutations to the deadline).
 	deadlineInfo := stminer.NewDeadlineInfo(provingPeriodStart, deadlineIdx, currentEpoch).NextNotElapsed()
@@ -691,7 +741,12 @@ func deadlineIsMutable(provingPeriodStart abi.ChainEpoch, deadlineIdx uint64, cu
 
 	if !isMut { // deadline is immutable. should delay
 		delay = deadlineInfo.Close - currentEpoch
-		log.Warnf("delay upgrade to avoid mutating deadline %d at %d before it opens at %d", deadlineIdx, currentEpoch, deadlineInfo.Open)
+		log.Warnf(
+			"delay upgrade to avoid mutating deadline %d at %d before it opens at %d",
+			deadlineIdx,
+			currentEpoch,
+			deadlineInfo.Open,
+		)
 	}
 
 	return isMut, delay

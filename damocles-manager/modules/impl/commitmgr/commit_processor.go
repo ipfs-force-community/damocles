@@ -23,13 +23,13 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util/piece"
-	chainAPI "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
+	chainapi "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 )
 
 type CommitProcessor struct {
-	chain     chainAPI.API
+	chain     chainapi.API
 	api       SealingAPI
 	msgClient messager.API
 	lookupID  core.LookupID
@@ -41,7 +41,13 @@ type CommitProcessor struct {
 	prover core.Prover
 }
 
-func (c CommitProcessor) processIndividually(ctx context.Context, sectors []core.SectorState, from address.Address, mid abi.ActorID, plog *logging.ZapLogger) {
+func (c CommitProcessor) processIndividually(
+	ctx context.Context,
+	sectors []core.SectorState,
+	from address.Address,
+	mid abi.ActorID,
+	plog *logging.ZapLogger,
+) {
 	mcfg, err := c.config.MinerConfig(mid)
 	if err != nil {
 		plog.Errorf("get miner config for %d: %s", mid, err)
@@ -82,7 +88,17 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []core
 				}
 			}
 
-			mcid, err := pushMessage(ctx, from, mid, collateral, stbuiltin.MethodsMiner.ProveCommitSector, c.msgClient, &mcfg.Commitment.Prove.FeeConfig, enc.Bytes(), slog)
+			mcid, err := pushMessage(
+				ctx,
+				from,
+				mid,
+				collateral,
+				stbuiltin.MethodsMiner.ProveCommitSector,
+				c.msgClient,
+				&mcfg.Commitment.Prove.FeeConfig,
+				enc.Bytes(),
+				slog,
+			)
 			if err != nil {
 				slog.Error("push commit single failed: ", err)
 				return
@@ -95,8 +111,12 @@ func (c CommitProcessor) processIndividually(ctx context.Context, sectors []core
 	wg.Wait()
 }
 
-func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState, mid abi.ActorID, ctrlAddr address.Address) error {
-
+func (c CommitProcessor) Process(
+	ctx context.Context,
+	sectors []core.SectorState,
+	mid abi.ActorID,
+	ctrlAddr address.Address,
+) error {
 	tok, _, err := c.api.ChainHead(ctx)
 	if err != nil {
 		return fmt.Errorf("get chain head failed: %w", err)
@@ -126,7 +146,15 @@ func (c CommitProcessor) Process(ctx context.Context, sectors []core.SectorState
 	return c.ProcessV1(ctx, builtinMarketSectors, mid, ctrlAddr, tok, nv, aggregate)
 }
 
-func (c CommitProcessor) ProcessV1(ctx context.Context, sectors []core.SectorState, mid abi.ActorID, ctrlAddr address.Address, tok core.TipSetToken, nv network.Version, batch bool) error {
+func (c CommitProcessor) ProcessV1(
+	ctx context.Context,
+	sectors []core.SectorState,
+	mid abi.ActorID,
+	ctrlAddr address.Address,
+	tok core.TipSetToken,
+	nv network.Version,
+	batch bool,
+) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "prove", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
@@ -230,7 +258,15 @@ func (c CommitProcessor) ProcessV1(ctx context.Context, sectors []core.SectorSta
 // processBatchV2 processes a batch of sectors after nv22. It will always send
 // ProveCommitSectors3Params which may contain either individual proofs or an
 // aggregate proof depending on SP condition and network conditions.
-func (c CommitProcessor) ProcessV2(ctx context.Context, sectors []core.SectorState, mid abi.ActorID, ctrlAddr address.Address, tok core.TipSetToken, nv network.Version, aggregate bool) error {
+func (c CommitProcessor) ProcessV2(
+	ctx context.Context,
+	sectors []core.SectorState,
+	mid abi.ActorID,
+	ctrlAddr address.Address,
+	tok core.TipSetToken,
+	nv network.Version,
+	aggregate bool,
+) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "prove", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
@@ -258,7 +294,7 @@ func (c CommitProcessor) ProcessV2(ctx context.Context, sectors []core.SectorSta
 
 	collateral := big.Zero()
 	for i, p := range sectors {
-		activationManifest, dealIDs, err := piece.ProcessPieces(ctx, &sectors[i], c.chain, c.lookupID)
+		activationManifest, dealIDs, err := piece.ProcessPieces(ctx, &sectors[i], c.chain, c.lookupID, false)
 		if err != nil {
 			return err
 		}
@@ -340,14 +376,18 @@ func (c CommitProcessor) ProcessV2(ctx context.Context, sectors []core.SectorSta
 	return nil
 }
 
-func (c CommitProcessor) aggregateProofType(nv network.Version) (abi.RegisteredAggregationProof, error) {
+func (CommitProcessor) aggregateProofType(nv network.Version) (abi.RegisteredAggregationProof, error) {
 	if nv < network.Version16 {
 		return abi.RegisteredAggregationProof_SnarkPackV1, nil
 	}
 	return abi.RegisteredAggregationProof_SnarkPackV2, nil
 }
 
-func (c CommitProcessor) Expire(ctx context.Context, sectors []core.SectorState, mid abi.ActorID) (map[abi.SectorID]struct{}, error) {
+func (c CommitProcessor) Expire(
+	ctx context.Context,
+	sectors []core.SectorState,
+	mid abi.ActorID,
+) (map[abi.SectorID]struct{}, error) {
 	maxWait := c.config.MustMinerConfig(mid).Commitment.Prove.Batch.MaxWait.Std()
 	maxWaitHeight := abi.ChainEpoch(maxWait / (builtin.EpochDurationSeconds * time.Second))
 	_, h, err := c.api.ChainHead(ctx)
@@ -390,7 +430,6 @@ func (c CommitProcessor) ShouldBatch(mid abi.ActorID) bool {
 		}
 		return c.api.ChainBaseFee(ctx, tok)
 	}()
-
 	if err != nil {
 		bLog.Errorf("get basefee: %w", err)
 		return false
@@ -398,7 +437,12 @@ func (c CommitProcessor) ShouldBatch(mid abi.ActorID) bool {
 
 	bcfg := c.config.MustMinerConfig(mid).Commitment.Prove.Batch
 	basefeeAbove := basefee.GreaterThanEqual(abi.TokenAmount(bcfg.BatchCommitAboveBaseFee))
-	bLog.Debugf("should batch(%t): basefee(%s), basefee above(%s)", basefeeAbove, modules.FIL(basefee).Short(), bcfg.BatchCommitAboveBaseFee.Short())
+	bLog.Debugf(
+		"should batch(%t): basefee(%s), basefee above(%s)",
+		basefeeAbove,
+		modules.FIL(basefee).Short(),
+		bcfg.BatchCommitAboveBaseFee.Short(),
+	)
 
 	return basefeeAbove
 }

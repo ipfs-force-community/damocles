@@ -22,11 +22,13 @@ var unsealInfoKey = kvstore.Key("unseal-infos")
 
 const invalidMarketHost = "invalid.market.host"
 
-type Key = string
-type UnsealInfos struct {
-	AllocIndex map[abi.ActorID]map[Key]struct{}
-	Data       map[Key]*core.SectorUnsealInfo
-}
+type (
+	Key         = string
+	UnsealInfos struct {
+		AllocIndex map[abi.ActorID]map[Key]struct{}
+		Data       map[Key]*core.SectorUnsealInfo
+	}
+)
 
 // UnsealManager manage unseal task
 type UnsealManager struct {
@@ -39,7 +41,13 @@ type UnsealManager struct {
 
 var _ core.UnsealSectorManager = (*UnsealManager)(nil)
 
-func NewUnsealManager(_ context.Context, scfg *modules.SafeConfig, minfoAPI core.MinerAPI, kv kvstore.KVStore, marketAddr, marketToken string) (ret *UnsealManager, err error) {
+func NewUnsealManager(
+	_ context.Context,
+	scfg *modules.SafeConfig,
+	minfoAPI core.MinerAPI,
+	kv kvstore.KVStore,
+	marketAddr, marketToken string,
+) (ret *UnsealManager, err error) {
 	ret = &UnsealManager{
 		kv:   kv,
 		msel: newMinerSelector(scfg, minfoAPI),
@@ -47,7 +55,11 @@ func NewUnsealManager(_ context.Context, scfg *modules.SafeConfig, minfoAPI core
 
 	ret.defaultDest, err = getDefaultMarketPiecesStore(marketAddr)
 	if err != nil {
-		log.Warnw("get default market pieces store fail, upload unseal piece to market will not be possible", "error", err)
+		log.Warnw(
+			"get default market pieces store fail, upload unseal piece to market will not be possible",
+			"error",
+			err,
+		)
 	}
 	q := ret.defaultDest.Query()
 	q.Set("token", marketToken)
@@ -57,10 +69,12 @@ func NewUnsealManager(_ context.Context, scfg *modules.SafeConfig, minfoAPI core
 }
 
 // SetAndCheck set unseal task
-func (u *UnsealManager) SetAndCheck(ctx context.Context, req *core.SectorUnsealInfo) (state gtypes.UnsealState, err error) {
-
+func (u *UnsealManager) SetAndCheck(
+	ctx context.Context,
+	req *core.SectorUnsealInfo,
+) (state gtypes.UnsealState, err error) {
 	// check dest url
-	supplied, err := u.checkDestUrl(req.Dest[0])
+	supplied, err := u.checkDestURL(req.Dest[0])
 	if err != nil {
 		return gtypes.UnsealStateFailed, err
 	}
@@ -77,7 +91,7 @@ func (u *UnsealManager) SetAndCheck(ctx context.Context, req *core.SectorUnsealI
 	err = u.loadAndUpdate(ctx, func(db *UnsealInfos) bool {
 		info, ok := db.Data[key]
 		if !ok {
-			//not found, add new task
+			// not found, add new task
 			req.State = gtypes.UnsealStateSet
 			db.Data[key] = req
 
@@ -154,7 +168,13 @@ func (u *UnsealManager) OnAchieve(_ context.Context, sid abi.SectorID, pieceCid 
 
 // allocate a unseal task
 func (u *UnsealManager) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*core.SectorUnsealInfo, error) {
-	cands := u.msel.candidates(ctx, spec.AllowedMiners, spec.AllowedProofTypes, func(mcfg modules.MinerConfig) bool { return true }, "unseal")
+	cands := u.msel.candidates(
+		ctx,
+		spec.AllowedMiners,
+		spec.AllowedProofTypes,
+		func(mcfg modules.MinerConfig) bool { return true },
+		"unseal",
+	)
 	if len(cands) == 0 {
 		return nil, nil
 	}
@@ -162,7 +182,6 @@ func (u *UnsealManager) Allocate(ctx context.Context, spec core.AllocateSectorSp
 	// read db
 	var allocated *core.SectorUnsealInfo
 	err := u.loadAndUpdate(ctx, func(db *UnsealInfos) bool {
-
 		if len(db.AllocIndex) == 0 {
 			return false
 		}
@@ -188,7 +207,6 @@ func (u *UnsealManager) Allocate(ctx context.Context, spec core.AllocateSectorSp
 		}
 		return false
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("allocate unseal info: %w", err)
 	}
@@ -216,7 +234,6 @@ func (u *UnsealManager) Achieve(ctx context.Context, sid abi.SectorID, pieceCid 
 		db.Data[key] = info
 		return true
 	})
-
 	if err != nil {
 		return fmt.Errorf("achieve unseal info(%s): load task fail: %w", key, err)
 	}
@@ -254,9 +271,7 @@ func (u *UnsealManager) AcquireDest(ctx context.Context, sid abi.SectorID, piece
 		info.State = gtypes.UnsealStateUploading
 		db.Data[key] = info
 		return true
-
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("achieve unseal info(%s): %w", key, err)
 	}
@@ -277,7 +292,6 @@ func (u *UnsealManager) loadAndUpdate(ctx context.Context, modify func(infos *Un
 
 		return nil
 	})
-
 	if err != nil {
 		if !errors.Is(err, kvstore.ErrKeyNotFound) {
 			return fmt.Errorf("load unseal infos: %w", err)
@@ -314,13 +328,13 @@ func (u *UnsealManager) loadAndUpdate(ctx context.Context, modify func(infos *Un
 	return nil
 }
 
-// checkDestUrl check dest url conform to the out expect
+// checkDestURL check dest url conform to the out expect
 // we accept three kinds of url by now
 // 1. http://xxx or https://xxx , it means we will put data to a http server
 // 2. market://store_name/piece_cid, it means we will put data to the target path of pieces store from market
 // 3. file:///path , it means we will put data to a local file
 // 4. store://store_name/piece_cid , it means we will put data to damocles-manager
-func (u *UnsealManager) checkDestUrl(dest string) (string, error) {
+func (u *UnsealManager) checkDestURL(dest string) (string, error) {
 	urlStruct, err := url.Parse(dest)
 	if err != nil {
 		return "", err
@@ -330,7 +344,9 @@ func (u *UnsealManager) checkDestUrl(dest string) (string, error) {
 	case "http", "https", "file", "store":
 	case "market":
 		if u.defaultDest.Host == invalidMarketHost {
-			return "", fmt.Errorf("upload pieces to market will not be possible when market address dose not set, please check you config")
+			return "", fmt.Errorf(
+				"upload pieces to market will not be possible when market address dose not set, please check you config", //revive:disable-line:line-length-limit
+			)
 		}
 		// add host , scheme and token
 		q := urlStruct.Query()

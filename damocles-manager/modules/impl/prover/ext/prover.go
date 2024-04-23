@@ -19,7 +19,12 @@ var log = logging.New("ext-prover")
 
 var _ core.Prover = (*Prover)(nil)
 
-func New(ctx context.Context, sectorTracker core.SectorTracker, windowCfgs []extproc.ExtProcessorConfig, winningCfgs []extproc.ExtProcessorConfig) (*Prover, error) {
+func New(
+	ctx context.Context,
+	sectorTracker core.SectorTracker,
+	windowCfgs []extproc.ExtProcessorConfig,
+	winningCfgs []extproc.ExtProcessorConfig,
+) (*Prover, error) {
 	var windowProc, winningPorc *extproc.Processor
 	var err error
 	if len(windowCfgs) > 0 {
@@ -79,12 +84,18 @@ func (p *Prover) Close() {
 	}
 }
 
-func (p *Prover) AggregateSealProofs(ctx context.Context, aggregateInfo core.AggregateSealVerifyProofAndInfos, proofs [][]byte) ([]byte, error) {
+func (p *Prover) AggregateSealProofs(
+	ctx context.Context,
+	aggregateInfo core.AggregateSealVerifyProofAndInfos,
+	proofs [][]byte,
+) ([]byte, error) {
 	return p.localProver.AggregateSealProofs(ctx, aggregateInfo, proofs)
 }
 
-func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWindowPoStParams) ([]builtin.PoStProof, []abi.SectorID, error) {
-
+func (p *Prover) GenerateWindowPoSt(
+	ctx context.Context,
+	params core.GenerateWindowPoStParams,
+) ([]builtin.PoStProof, []abi.SectorID, error) {
 	if p.windowProc == nil {
 		return p.localProver.GenerateWindowPoSt(ctx, params)
 	}
@@ -109,12 +120,24 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWin
 		inner := privSectors[i]
 
 		if pt := inner.PoStProofType; pt != proofType {
-			return nil, nil, fmt.Errorf("proof type not match for sector %d of miner %d: want %s, got %s", inner.SectorNumber, minerID, stage.ProofType2String(proofType), stage.ProofType2String(pt))
+			return nil, nil, fmt.Errorf(
+				"proof type not match for sector %d of miner %d: want %s, got %s",
+				inner.SectorNumber,
+				minerID,
+				stage.ProofType2String(proofType),
+				stage.ProofType2String(pt),
+			)
 		}
 
 		commR, err := util.CID2ReplicaCommitment(inner.SealedCID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid selaed cid %s for sector %d of miner %d: %w", inner.SealedCID, inner.SectorNumber, minerID, err)
+			return nil, nil, fmt.Errorf(
+				"invalid selaed cid %s for sector %d of miner %d: %w",
+				inner.SealedCID,
+				inner.SectorNumber,
+				minerID,
+				err,
+			)
 		}
 
 		data.Replicas = append(data.Replicas, stage.PoStReplicaInfo{
@@ -129,7 +152,7 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWin
 
 	err = p.windowProc.Process(ctx, data, &res)
 	if err != nil {
-		return nil, nil, fmt.Errorf("WindowPoStProcessor.Process: %w", err)
+		return nil, nil, fmt.Errorf("WindowPoStProcessor.Process: %w", err) //revive:disable-line:error-strings
 	}
 
 	if faultCount := len(res.Faults); faultCount != 0 {
@@ -154,7 +177,13 @@ func (p *Prover) GenerateWindowPoSt(ctx context.Context, params core.GenerateWin
 	return proofs, nil, nil
 }
 
-func (p *Prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, proofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, randomness abi.PoStRandomness) ([]builtin.PoStProof, error) {
+func (p *Prover) GenerateWinningPoSt(
+	ctx context.Context,
+	minerID abi.ActorID,
+	proofType abi.RegisteredPoStProof,
+	sectors []builtin.ExtendedSectorInfo,
+	randomness abi.PoStRandomness,
+) ([]builtin.PoStProof, error) {
 	randomness[31] &= 0x3f
 	if p.winningPorc == nil {
 		return p.localProver.GenerateWinningPoSt(ctx, minerID, proofType, sectors, randomness)
@@ -179,12 +208,24 @@ func (p *Prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, p
 		inner := privSectors[i]
 
 		if pt := inner.PoStProofType; pt != proofType {
-			return nil, fmt.Errorf("proof type not match for sector %d of miner %d: want %s, got %s", inner.SectorNumber, minerID, stage.ProofType2String(proofType), stage.ProofType2String(pt))
+			return nil, fmt.Errorf(
+				"proof type not match for sector %d of miner %d: want %s, got %s",
+				inner.SectorNumber,
+				minerID,
+				stage.ProofType2String(proofType),
+				stage.ProofType2String(pt),
+			)
 		}
 
 		commR, err := util.CID2ReplicaCommitment(inner.SealedCID)
 		if err != nil {
-			return nil, fmt.Errorf("invalid sealed cid %s for sector %d of miner %d: %w", inner.SealedCID, inner.SectorNumber, minerID, err)
+			return nil, fmt.Errorf(
+				"invalid sealed cid %s for sector %d of miner %d: %w",
+				inner.SealedCID,
+				inner.SectorNumber,
+				minerID,
+				err,
+			)
 		}
 
 		data.Replicas = append(data.Replicas, stage.PoStReplicaInfo{
@@ -199,7 +240,7 @@ func (p *Prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, p
 
 	err = p.winningPorc.Process(ctx, data, &res)
 	if err != nil {
-		return nil, fmt.Errorf("WinningPoStProcessor.Process: %w", err)
+		return nil, fmt.Errorf("WinningPoStProcessor.Process: %w", err) //revive:disable-line:error-strings
 	}
 
 	proofs := make([]builtin.PoStProof, len(res.Proofs))
@@ -213,16 +254,32 @@ func (p *Prover) GenerateWinningPoSt(ctx context.Context, minerID abi.ActorID, p
 	return proofs, nil
 }
 
-func (p *Prover) GeneratePoStFallbackSectorChallenges(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, sectorIds []abi.SectorNumber) (*core.FallbackChallenges, error) {
+func (p *Prover) GeneratePoStFallbackSectorChallenges(
+	ctx context.Context,
+	proofType abi.RegisteredPoStProof,
+	minerID abi.ActorID,
+	randomness abi.PoStRandomness,
+	sectorIds []abi.SectorNumber,
+) (*core.FallbackChallenges, error) {
 	randomness[31] &= 0x3f
 	return p.localProver.GeneratePoStFallbackSectorChallenges(ctx, proofType, minerID, randomness, sectorIds)
 }
 
-func (p *Prover) GenerateSingleVanillaProof(ctx context.Context, replica core.FFIPrivateSectorInfo, challenges []uint64) ([]byte, error) {
+func (p *Prover) GenerateSingleVanillaProof(
+	ctx context.Context,
+	replica core.FFIPrivateSectorInfo,
+	challenges []uint64,
+) ([]byte, error) {
 	return p.localProver.GenerateSingleVanillaProof(ctx, replica, challenges)
 }
 
-func (p *Prover) GenerateWinningPoStWithVanilla(ctx context.Context, proofType abi.RegisteredPoStProof, minerID abi.ActorID, randomness abi.PoStRandomness, proofs [][]byte) ([]core.PoStProof, error) {
+func (p *Prover) GenerateWinningPoStWithVanilla(
+	ctx context.Context,
+	proofType abi.RegisteredPoStProof,
+	minerID abi.ActorID,
+	randomness abi.PoStRandomness,
+	proofs [][]byte,
+) ([]core.PoStProof, error) {
 	randomness[31] &= 0x3f
 	return p.localProver.GenerateWinningPoStWithVanilla(ctx, proofType, minerID, randomness, proofs)
 }

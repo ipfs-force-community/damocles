@@ -39,7 +39,12 @@ func WorkerProver() dix.Option {
 	)
 }
 
-func BuildExtProver(gctx GlobalContext, lc fx.Lifecycle, sectorTracker core.SectorTracker, cfg *modules.ProcessorConfig) (*ext.Prover, error) {
+func BuildExtProver(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	sectorTracker core.SectorTracker,
+	cfg *modules.ProcessorConfig,
+) (*ext.Prover, error) {
 	p, err := ext.New(gctx, sectorTracker, cfg.WdPost, cfg.WinPost)
 	if err != nil {
 		return nil, fmt.Errorf("construct ext prover: %w", err)
@@ -60,7 +65,12 @@ func BuildExtProver(gctx GlobalContext, lc fx.Lifecycle, sectorTracker core.Sect
 	return p, nil
 }
 
-func ProvideExtProverConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.ConfigManager, locker confmgr.WLocker) (*modules.ProcessorConfig, error) {
+func ProvideExtProverConfig(
+	gctx GlobalContext,
+	lc fx.Lifecycle,
+	cfgmgr confmgr.ConfigManager,
+	locker confmgr.WLocker,
+) (*modules.ProcessorConfig, error) {
 	cfg := modules.DefaultProcessorConfig(false)
 	if err := cfgmgr.Load(gctx, modules.ProcessorConfigKey, &cfg); err != nil {
 		return nil, err
@@ -78,7 +88,7 @@ func ProvideExtProverConfig(gctx GlobalContext, lc fx.Lifecycle, cfgmgr confmgr.
 
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			return cfgmgr.Watch(gctx, modules.ProcessorConfigKey, &cfg, locker, func() interface{} {
+			return cfgmgr.Watch(gctx, modules.ProcessorConfigKey, &cfg, locker, func() any {
 				c := modules.DefaultProcessorConfig(false)
 				return &c
 			})
@@ -92,7 +102,12 @@ func BuildWorkerProverStore(gctx GlobalContext, db UnderlyingDB) (WorkerProverSt
 	return db.OpenCollection(gctx, "prover")
 }
 
-func BuildWorkerProver(lc fx.Lifecycle, jobMgr core.WorkerWdPoStJobManager, sectorTracker core.SectorTracker, scfg *modules.SafeConfig) (core.Prover, error) {
+func BuildWorkerProver(
+	lc fx.Lifecycle,
+	jobMgr core.WorkerWdPoStJobManager,
+	sectorTracker core.SectorTracker,
+	scfg *modules.SafeConfig,
+) (core.Prover, error) {
 	cfg := scfg.MustCommonConfig()
 	p := proverworker.NewProver(jobMgr, sectorTracker, &proverworker.Config{
 		RetryFailedJobsInterval:    10 * time.Second,

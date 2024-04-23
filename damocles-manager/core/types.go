@@ -81,7 +81,7 @@ func (ldi LegacyDealInfo) DealID() abi.DealID {
 	return ldi.ID
 }
 
-func (ldi LegacyDealInfo) AllocationID() verifregtypes.AllocationId {
+func (LegacyDealInfo) AllocationID() verifregtypes.AllocationId {
 	return verifregtypes.NoAllocationID
 }
 
@@ -151,7 +151,7 @@ func (sp SectorPieceV2) DisplayDealID() string {
 }
 
 func (sp SectorPieceV2) HasDealInfo() bool {
-	return sp.DealInfo != nil
+	return sp.DealInfo != nil && (sp.DealInfo.DealID != 0 || sp.DealInfo.AllocationID != 0)
 }
 
 func (sp SectorPieceV2) IsBuiltinMarket() bool {
@@ -203,8 +203,10 @@ func (sp SectorPieceV2) EndEpoch() abi.ChainEpoch {
 	return abi.ChainEpoch(0)
 }
 
-type Deals []LegacyDealInfo
-type SectorPieces []SectorPieceV2
+type (
+	Deals        []LegacyDealInfo
+	SectorPieces []SectorPieceV2
+)
 
 type AcquireDealsSpec struct {
 	MaxDeals     *uint

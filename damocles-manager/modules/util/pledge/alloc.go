@@ -12,11 +12,25 @@ import (
 )
 
 type AllocationAPI interface {
-	StateGetAllocationForPendingDeal(ctx context.Context, dealID abi.DealID, tsk types.TipSetKey) (*verifregtypes.Allocation, error) //perm:read
-	StateGetAllocation(ctx context.Context, clientAddr address.Address, allocationID verifregtypes.AllocationId, tsk types.TipSetKey) (*verifregtypes.Allocation, error)
+	StateGetAllocationForPendingDeal(
+		ctx context.Context,
+		dealID abi.DealID,
+		tsk types.TipSetKey,
+	) (*verifregtypes.Allocation, error)
+	StateGetAllocation(
+		ctx context.Context,
+		clientAddr address.Address,
+		allocationID verifregtypes.AllocationId,
+		tsk types.TipSetKey,
+	) (*verifregtypes.Allocation, error)
 }
 
-func GetAllocation(ctx context.Context, aapi AllocationAPI, tsk types.TipSetKey, piece core.SectorPiece) (*verifregtypes.Allocation, error) {
+func GetAllocation(
+	ctx context.Context,
+	aapi AllocationAPI,
+	tsk types.TipSetKey,
+	piece core.SectorPiece,
+) (*verifregtypes.Allocation, error) {
 	if !piece.HasDealInfo() {
 		return nil, nil
 	}
@@ -26,7 +40,6 @@ func GetAllocation(ctx context.Context, aapi AllocationAPI, tsk types.TipSetKey,
 
 	client := piece.Client()
 	all, err := aapi.StateGetAllocation(ctx, client, piece.AllocationID(), tsk)
-
 	if err != nil {
 		return nil, err
 	}

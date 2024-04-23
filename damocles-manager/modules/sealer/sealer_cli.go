@@ -27,7 +27,11 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/ver"
 )
 
-func (s *Sealer) ListSectors(ctx context.Context, ws core.SectorWorkerState, job core.SectorWorkerJob) ([]*core.SectorState, error) {
+func (s *Sealer) ListSectors(
+	ctx context.Context,
+	ws core.SectorWorkerState,
+	job core.SectorWorkerJob,
+) ([]*core.SectorState, error) {
 	return s.state.All(ctx, ws, job)
 }
 
@@ -56,11 +60,24 @@ func (s *Sealer) RestoreSector(ctx context.Context, sid abi.SectorID, forced boo
 	return core.Empty, nil
 }
 
-func (s *Sealer) CheckProvable(ctx context.Context, mid abi.ActorID, postProofType abi.RegisteredPoStProof, sectors []builtin.ExtendedSectorInfo, strict, stateCheck bool) (map[abi.SectorNumber]string, error) {
+func (s *Sealer) CheckProvable(
+	ctx context.Context,
+	mid abi.ActorID,
+	postProofType abi.RegisteredPoStProof,
+	sectors []builtin.ExtendedSectorInfo,
+	strict, stateCheck bool,
+) (map[abi.SectorNumber]string, error) {
 	return s.sectorProving.Provable(ctx, mid, postProofType, sectors, strict, stateCheck)
 }
 
-func (s *Sealer) SimulateWdPoSt(_ context.Context, ddlIndex, partitionIndex uint64, maddr address.Address, postProofType abi.RegisteredPoStProof, sis []builtin.ExtendedSectorInfo, rand abi.PoStRandomness) error {
+func (s *Sealer) SimulateWdPoSt(
+	_ context.Context,
+	ddlIndex, partitionIndex uint64,
+	maddr address.Address,
+	postProofType abi.RegisteredPoStProof,
+	sis []builtin.ExtendedSectorInfo,
+	rand abi.PoStRandomness,
+) error {
 	mid, err := address.IDFromAddress(maddr)
 	if err != nil {
 		return err
@@ -95,7 +112,11 @@ func (s *Sealer) SimulateWdPoSt(_ context.Context, ddlIndex, partitionIndex uint
 	return nil
 }
 
-func (s *Sealer) SnapUpPreFetch(ctx context.Context, mid abi.ActorID, dlindex *uint64) (*core.SnapUpFetchResult, error) {
+func (s *Sealer) SnapUpPreFetch(
+	ctx context.Context,
+	mid abi.ActorID,
+	dlindex *uint64,
+) (*core.SnapUpFetchResult, error) {
 	count, diff, err := s.snapup.PreFetch(ctx, mid, dlindex)
 	if err != nil {
 		return nil, fmt.Errorf("prefetch: %w", err)
@@ -136,7 +157,6 @@ func (s *Sealer) ProvingSectorInfo(ctx context.Context, sid abi.SectorID) (core.
 		OnChain: *sinfo,
 		Private: private,
 	}, nil
-
 }
 
 func (s *Sealer) WorkerGetPingInfo(ctx context.Context, name string) (*core.WorkerPingInfo, error) {
@@ -165,7 +185,11 @@ func (s *Sealer) WorkerPingInfoRemove(ctx context.Context, name string) error {
 	return s.workerMgr.Remove(ctx, name)
 }
 
-func (s *Sealer) SectorIndexerFind(ctx context.Context, indexType core.SectorIndexType, sid abi.SectorID) (core.SectorIndexLocation, error) {
+func (s *Sealer) SectorIndexerFind(
+	ctx context.Context,
+	indexType core.SectorIndexType,
+	sid abi.SectorID,
+) (core.SectorIndexLocation, error) {
 	var indexer core.SectorTypedIndexer
 
 	switch indexType {
@@ -366,7 +390,11 @@ func storeConfig2StoreBasic(ocfg *objstore.Config) core.StoreBasicInfo {
 	}
 }
 
-func (s *Sealer) FindSector(ctx context.Context, state core.SectorWorkerState, sid abi.SectorID) (*core.SectorState, error) {
+func (s *Sealer) FindSector(
+	ctx context.Context,
+	state core.SectorWorkerState,
+	sid abi.SectorID,
+) (*core.SectorState, error) {
 	return s.state.Load(ctx, sid, state)
 }
 
@@ -380,7 +408,11 @@ func (s *Sealer) FindSectorInAllStates(ctx context.Context, sid abi.SectorID) (*
 	return nil, kvstore.ErrKeyNotFound
 }
 
-func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorkerState, dealID abi.DealID) ([]*core.SectorState, error) {
+func (s *Sealer) FindSectorsWithDeal(
+	ctx context.Context,
+	state core.SectorWorkerState,
+	dealID abi.DealID,
+) ([]*core.SectorState, error) {
 	if dealID == 0 {
 		return nil, fmt.Errorf("empty deal id")
 	}
@@ -401,7 +433,6 @@ func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorke
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("iterate sectors: %w", err)
 	}
@@ -409,8 +440,11 @@ func (s *Sealer) FindSectorsWithDeal(ctx context.Context, state core.SectorWorke
 	return sectors, nil
 }
 
-func (s *Sealer) FindSectorWithPiece(ctx context.Context, state core.SectorWorkerState, pieceCid cid.Cid) (*core.SectorState, error) {
-
+func (s *Sealer) FindSectorWithPiece(
+	ctx context.Context,
+	state core.SectorWorkerState,
+	pieceCid cid.Cid,
+) (*core.SectorState, error) {
 	var ret *core.SectorState
 	err := s.state.ForEach(ctx, state, core.SectorWorkerJobAll, func(ss core.SectorState) error {
 		pieces := ss.SectorPiece()
@@ -426,7 +460,6 @@ func (s *Sealer) FindSectorWithPiece(ctx context.Context, state core.SectorWorke
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("iterate sectors: %w", err)
 	}
@@ -434,7 +467,12 @@ func (s *Sealer) FindSectorWithPiece(ctx context.Context, state core.SectorWorke
 	return ret, nil
 }
 
-func (s *Sealer) ImportSector(ctx context.Context, ws core.SectorWorkerState, state *core.SectorState, override bool) (bool, error) {
+func (s *Sealer) ImportSector(
+	ctx context.Context,
+	ws core.SectorWorkerState,
+	state *core.SectorState,
+	override bool,
+) (bool, error) {
 	if state == nil {
 		return false, nil
 	}
@@ -526,8 +564,14 @@ func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt 
 	return true, nil
 }
 
-func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid.Cid, offset types.UnpaddedByteIndex, size abi.UnpaddedPieceSize, dest string) (<-chan []byte, error) {
-
+func (s *Sealer) UnsealPiece(
+	ctx context.Context,
+	sid abi.SectorID,
+	pieceCid cid.Cid,
+	offset types.UnpaddedByteIndex,
+	size abi.UnpaddedPieceSize,
+	dest string,
+) (<-chan []byte, error) {
 	var stream chan []byte
 	req := &core.SectorUnsealInfo{
 		Sector: core.AllocatedSector{
@@ -573,12 +617,11 @@ func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid
 					buf := make([]byte, 2<<20)
 					n, err := r.Read(buf)
 					if err != nil {
-						if err == io.EOF {
-							readEnd = true
-						} else {
+						if err != io.EOF {
 							log.Errorf("read piece file error: %v", err)
 							return
 						}
+						readEnd = true
 					}
 					// log buf with hex format
 					log.Infof("read piece file: %x", buf[:n])
@@ -601,7 +644,6 @@ func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid
 					}
 				}
 			}()
-
 		}
 		s.unseal.OnAchieve(ctx, sid, pieceCid, hook)
 	}
@@ -620,6 +662,6 @@ func (s *Sealer) UnsealPiece(ctx context.Context, sid abi.SectorID, pieceCid cid
 	return stream, nil
 }
 
-func (s *Sealer) Version(_ context.Context) (string, error) {
+func (*Sealer) Version(_ context.Context) (string, error) {
 	return ver.VersionStr(), nil
 }

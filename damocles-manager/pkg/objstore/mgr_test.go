@@ -56,11 +56,16 @@ func TestStoreManagerReserverSpace(t *testing.T) {
 			}, 1, nil)
 			require.NoErrorf(t, err, "selection cases: reserve space for %d", i)
 			require.NotNilf(t, choice, "selection cases: should not get nil for %d", i)
-			require.NotEqualf(t, storeNameReadOnly, choice.Name, "selection cases: ro store should not be selected for %d", i)
+			require.NotEqualf(
+				t,
+				storeNameReadOnly,
+				choice.Name,
+				"selection cases: ro store should not be selected for %d",
+				i,
+			)
 			if choice.Name == storeName4K {
 				count4K++
 			}
-
 		}
 
 		if count1M := attempts - count4K; count4K == 0 || count1M == 0 || count4K/count1M >= 2 || count1M/count4K >= 2 {
@@ -73,7 +78,6 @@ func TestStoreManagerReserverSpace(t *testing.T) {
 
 	// single selection
 	{
-
 		type reserveRequest struct {
 			num        abi.SectorNumber
 			size       uint64
@@ -177,7 +181,6 @@ func TestStoreManagerReserverSpace(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 func TestStoreManagerReserverSpaceWeighed(t *testing.T) {
@@ -218,11 +221,16 @@ func TestStoreManagerReserverSpaceWeighed(t *testing.T) {
 			}, 1, nil)
 			require.NoErrorf(t, err, "selection cases: reserve space for %d", i)
 			require.NotNilf(t, choice, "selection cases: should not get nil for %d", i)
-			require.NotEqualf(t, storeNameReadOnly, choice.Name, "selection cases: ro store should not be selected for %d", i)
+			require.NotEqualf(
+				t,
+				storeNameReadOnly,
+				choice.Name,
+				"selection cases: ro store should not be selected for %d",
+				i,
+			)
 			if choice.Name == storeName1 {
 				count1++
 			}
-
 		}
 
 		require.Truef(t, count1 <= 20, "store-1 selected %d/%d times", count1, attempts)
@@ -335,6 +343,15 @@ func TestStoreSelectPolicy(t *testing.T) {
 	for i := range cases {
 		c := cases[i]
 		got := c.policy.Allowed(c.miner)
-		require.Equalf(t, c.allow, got, "#%d policy checks for %d with allow: %v, deny: %v", i, c.miner, c.policy.AllowMiners, c.policy.DenyMiners)
+		require.Equalf(
+			t,
+			c.allow,
+			got,
+			"#%d policy checks for %d with allow: %v, deny: %v",
+			i,
+			c.miner,
+			c.policy.AllowMiners,
+			c.policy.DenyMiners,
+		)
 	}
 }

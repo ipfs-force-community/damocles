@@ -23,14 +23,21 @@ import (
 )
 
 func sectorGoodForSnapup(sinfo *miner.SectorOnChainInfo, currentHeight abi.ChainEpoch) bool {
-	return sinfo.SectorKeyCID == nil && len(sinfo.DealIDs) == 0 && sinfo.Expiration-currentHeight >= market8.DealMinDuration
+	return sinfo.SectorKeyCID == nil && len(sinfo.DealIDs) == 0 &&
+		sinfo.Expiration-currentHeight >= market8.DealMinDuration
 }
 
 func kvKeyForMinerActorID(mid abi.ActorID) kvstore.Key {
 	return kvstore.Key(strconv.FormatUint(uint64(mid), 10))
 }
 
-func NewSnapUpAllocator(chainAPI chain.API, minerAPI core.MinerAPI, allocStore kvstore.KVStore, indexer core.SectorIndexer, scfg *modules.SafeConfig) (*SnapUpAllocator, error) {
+func NewSnapUpAllocator(
+	chainAPI chain.API,
+	minerAPI core.MinerAPI,
+	allocStore kvstore.KVStore,
+	indexer core.SectorIndexer,
+	scfg *modules.SafeConfig,
+) (*SnapUpAllocator, error) {
 	allocator := &SnapUpAllocator{
 		chain: chainAPI,
 
@@ -55,7 +62,11 @@ type SnapUpAllocator struct {
 	indexer core.SectorIndexer
 }
 
-func (s *SnapUpAllocator) PreFetch(ctx context.Context, mid abi.ActorID, dlindex *uint64) (uint64, uint64, error) {
+func (s *SnapUpAllocator) PreFetch(
+	ctx context.Context,
+	mid abi.ActorID,
+	dlindex *uint64,
+) (count uint64, diff uint64, err error) {
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid miner actor id %d: %w", mid, err)
@@ -101,7 +112,7 @@ func (s *SnapUpAllocator) PreFetch(ctx context.Context, mid abi.ActorID, dlindex
 		}
 	}
 
-	count, err := actives.Count()
+	count, err = actives.Count()
 	if err != nil {
 		return 0, 0, fmt.Errorf("get active count: %w", err)
 	}
@@ -113,7 +124,7 @@ func (s *SnapUpAllocator) PreFetch(ctx context.Context, mid abi.ActorID, dlindex
 	s.kvMu.Lock()
 	defer s.kvMu.Unlock()
 
-	diff, err := s.addSectors(ctx, mid, dlidx, deadline.WPoStPeriodDeadlines, actives, count)
+	diff, err = s.addSectors(ctx, mid, dlidx, deadline.WPoStPeriodDeadlines, actives, count)
 	if err != nil {
 		return 0, 0, fmt.Errorf("add active sectors: %w", err)
 	}
@@ -132,9 +143,15 @@ func (s *SnapUpAllocator) Candidates(ctx context.Context, mid abi.ActorID) ([]*b
 }
 
 func (s *SnapUpAllocator) Allocate(ctx context.Context, spec core.AllocateSectorSpec) (*core.SnapUpCandidate, error) {
-	mcandidates := s.msel.candidates(ctx, spec.AllowedMiners, spec.AllowedProofTypes, func(mcfg modules.MinerConfig) bool {
-		return mcfg.SnapUp.Enabled
-	}, "snapup")
+	mcandidates := s.msel.candidates(
+		ctx,
+		spec.AllowedMiners,
+		spec.AllowedProofTypes,
+		func(mcfg modules.MinerConfig) bool {
+			return mcfg.SnapUp.Enabled
+		},
+		"snapup",
+	)
 
 	if len(mcandidates) == 0 {
 		return nil, nil
@@ -154,7 +171,10 @@ type deadlineCandidate struct {
 	count uint64
 }
 
-func (s *SnapUpAllocator) allocateForMiner(ctx context.Context, mcandidate *minerCandidate) (*core.SnapUpCandidate, error) {
+func (s *SnapUpAllocator) allocateForMiner(
+	ctx context.Context,
+	mcandidate *minerCandidate,
+) (*core.SnapUpCandidate, error) {
 	mid := mcandidate.info.ID
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
@@ -177,7 +197,7 @@ func (s *SnapUpAllocator) allocateForMiner(ctx context.Context, mcandidate *mine
 
 	rootLog := log.With("mid", mid)
 
-	var candidates []deadlineCandidate
+	candidates := []deadlineCandidate{}
 
 	for dlidx := range exists {
 		exist := exists[dlidx]
@@ -304,7 +324,6 @@ func (s *SnapUpAllocator) allocateForMiner(ctx context.Context, mcandidate *mine
 			AccessInstance: instances.SealedFile,
 		},
 	}, nil
-
 }
 
 func (s *SnapUpAllocator) Release(ctx context.Context, candidate *core.SnapUpCandidate) error {
@@ -351,9 +370,7 @@ func (s *SnapUpAllocator) loadExists(ctx context.Context, key kvstore.Key) ([]*b
 
 		return nil
 	})
-
 	if err != nil {
-
 		if !errors.Is(err, kvstore.ErrKeyNotFound) {
 			return nil, fmt.Errorf("load exist sectors: %w", err)
 		}
@@ -378,7 +395,14 @@ func (s *SnapUpAllocator) updateExists(ctx context.Context, key kvstore.Key, exi
 	return nil
 }
 
-func (s *SnapUpAllocator) addSectors(ctx context.Context, mid abi.ActorID, dlidx uint64, deadlines uint64, sectors bitfield.BitField, _ uint64) (uint64, error) {
+func (s *SnapUpAllocator) addSectors(
+	ctx context.Context,
+	mid abi.ActorID,
+	dlidx uint64,
+	deadlines uint64,
+	sectors bitfield.BitField,
+	_ uint64,
+) (uint64, error) {
 	key := kvKeyForMinerActorID(mid)
 
 	exists, err := s.loadExists(ctx, key)

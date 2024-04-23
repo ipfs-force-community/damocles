@@ -92,12 +92,20 @@ func (s *Store) openWithContext(ctx context.Context, p string, r *readRange) rea
 		select {
 		case <-ctx.Done():
 			if err == nil {
-				r.Close()
+				_ = r.Close()
 				r = nil
 				err = ctx.Err()
 				log.Warnw("file object opened, but context has been canceled", "path", p, "elapsed", dur)
 			} else {
-				log.Warnw("file object opened, but context has been canceled", "path", p, "elapsed", dur, "err", err.Error())
+				log.Warnw(
+					"file object opened, but context has been canceled",
+					"path",
+					p,
+					"elapsed",
+					dur,
+					"err",
+					err.Error(),
+				)
 			}
 
 		default:
@@ -112,7 +120,6 @@ func (s *Store) openWithContext(ctx context.Context, p string, r *readRange) rea
 			ReadCloser: r,
 			Err:        err,
 		}
-
 	}()
 
 	select {
@@ -133,7 +140,7 @@ func (s *Store) open(p string, r *readRange) (io.ReadCloser, error) {
 	hold := false
 	defer func() {
 		if !hold {
-			file.Close()
+			_ = file.Close()
 		}
 	}()
 
@@ -144,7 +151,7 @@ func (s *Store) open(p string, r *readRange) (io.ReadCloser, error) {
 		}
 
 		if !stat.Mode().Type().IsRegular() {
-			file.Close()
+			_ = file.Close()
 			return nil, fmt.Errorf("obj %s: %w", p, objstore.ErrNotRegularFile)
 		}
 	}

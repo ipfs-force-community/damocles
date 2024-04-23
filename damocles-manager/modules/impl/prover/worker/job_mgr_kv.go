@@ -27,7 +27,13 @@ type kvJobManager struct {
 }
 
 // TODO(0x5459): Consider putting `txn` into context?
-func (tm *kvJobManager) filter(ctx context.Context, txn kvstore.TxnExt, state core.WdPoStJobState, limit uint32, f func(*core.WdPoStJob) bool) (jobs []*core.WdPoStJob, err error) {
+func (*kvJobManager) filter(
+	ctx context.Context,
+	txn kvstore.TxnExt,
+	state core.WdPoStJobState,
+	limit uint32,
+	f func(*core.WdPoStJob) bool,
+) (jobs []*core.WdPoStJob, err error) {
 	var it kvstore.Iter
 	it, err = txn.Scan(kvstore.Prefix(makeWdPoStPrefix(state)))
 	if err != nil {
@@ -50,7 +56,10 @@ func allStates() []core.WdPoStJobState {
 	return []core.WdPoStJobState{core.WdPoStJobReadyToRun, core.WdPoStJobRunning, core.WdPoStJobFinished}
 }
 
-func (tm *kvJobManager) All(ctx context.Context, filter func(*core.WdPoStJob) bool) (jobs []*core.WdPoStJob, err error) {
+func (tm *kvJobManager) All(
+	ctx context.Context,
+	filter func(*core.WdPoStJob) bool,
+) (jobs []*core.WdPoStJob, err error) {
 	jobs = make([]*core.WdPoStJob, 0)
 	err = tm.kv.ViewMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		jobs = jobs[:0]
@@ -91,7 +100,12 @@ func (tm *kvJobManager) ListByJobIDs(ctx context.Context, jobIDs ...string) ([]*
 	return jobs, err
 }
 
-func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, partitions []uint64, input core.WdPoStInput) (*core.WdPoStJob, error) {
+func (tm *kvJobManager) Create(
+	ctx context.Context,
+	deadlineIdx uint64,
+	partitions []uint64,
+	input core.WdPoStInput,
+) (*core.WdPoStJob, error) {
 	var (
 		jobID string
 		job   core.WdPoStJob
@@ -134,7 +148,7 @@ func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, partitio
 			CreatedAt:   uint64(now),
 			UpdatedAt:   uint64(now),
 		}
-		return txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)), &job)
+		return txn.PutJSON(kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)), &job)
 	})
 
 	if err == nil {
@@ -143,7 +157,12 @@ func (tm *kvJobManager) Create(ctx context.Context, deadlineIdx uint64, partitio
 	return &job, err
 }
 
-func (tm *kvJobManager) AllocateJobs(ctx context.Context, spec core.AllocateWdPoStJobSpec, n uint32, workerName string) (allocatedJobs []*core.WdPoStAllocatedJob, err error) {
+func (tm *kvJobManager) AllocateJobs(
+	ctx context.Context,
+	spec core.AllocateWdPoStJobSpec,
+	n uint32,
+	workerName string,
+) (allocatedJobs []*core.WdPoStAllocatedJob, err error) {
 	var readyToRun []*core.WdPoStJob
 	allocatedJobs = make([]*core.WdPoStAllocatedJob, 0)
 	err = tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
@@ -172,7 +191,7 @@ func (tm *kvJobManager) AllocateJobs(ctx context.Context, spec core.AllocateWdPo
 			job.WorkerName = workerName
 			job.HeartbeatAt = now
 			job.UpdatedAt = now
-			if err := txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, job.ID)), job); err != nil {
+			if err := txn.PutJSON(kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, job.ID)), job); err != nil {
 				return err
 			}
 			allocatedJobs = append(allocatedJobs, &core.WdPoStAllocatedJob{
@@ -220,10 +239,9 @@ func (tm *kvJobManager) Heartbeat(ctx context.Context, jobIDs []string, workerNa
 			job.WorkerName = workerName
 			job.State = string(core.WdPoStJobRunning)
 			job.UpdatedAt = now
-			if err := txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, jobID)), &job); err != nil {
+			if err := txn.PutJSON(kvstore.Key(makeWdPoStKey(core.WdPoStJobRunning, jobID)), &job); err != nil {
 				return err
 			}
-
 		}
 		return nil
 	})
@@ -233,7 +251,12 @@ func (tm *kvJobManager) Heartbeat(ctx context.Context, jobIDs []string, workerNa
 	return err
 }
 
-func (tm *kvJobManager) Finish(ctx context.Context, jobID string, output *stage.WindowPoStOutput, errorReason string) error {
+func (tm *kvJobManager) Finish(
+	ctx context.Context,
+	jobID string,
+	output *stage.WindowPoStOutput,
+	errorReason string,
+) error {
 	err := tm.kv.UpdateMustNoConflict(ctx, func(txn kvstore.TxnExt) error {
 		var job core.WdPoStJob
 		key, err := txn.PeekAny(
@@ -254,7 +277,7 @@ func (tm *kvJobManager) Finish(ctx context.Context, jobID string, output *stage.
 		job.ErrorReason = errorReason
 		job.FinishedAt = now
 		job.UpdatedAt = now
-		return txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, jobID)), &job)
+		return txn.PutJSON(kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, jobID)), &job)
 	})
 
 	if err == nil {
@@ -289,7 +312,7 @@ func (tm *kvJobManager) MakeJobsDie(ctx context.Context, heartbeatTimeout time.D
 			job.Output = nil
 			job.ErrorReason = "heartbeat timeout"
 			job.UpdatedAt = now
-			if err := txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, job.ID)), job); err != nil {
+			if err := txn.PutJSON(kvstore.Key(makeWdPoStKey(core.WdPoStJobFinished, job.ID)), job); err != nil {
 				return err
 			}
 		}
@@ -298,7 +321,11 @@ func (tm *kvJobManager) MakeJobsDie(ctx context.Context, heartbeatTimeout time.D
 
 	if err == nil {
 		for _, job := range shouldDead {
-			log.Infof("make wdPoSt job die: %s; heartbeat_at: %s", job.ID, time.Unix(int64(job.HeartbeatAt), 0).Format(time.RFC3339))
+			log.Infof(
+				"make wdPoSt job die: %s; heartbeat_at: %s",
+				job.ID,
+				time.Unix(int64(job.HeartbeatAt), 0).Format(time.RFC3339),
+			)
 		}
 	}
 
@@ -355,7 +382,7 @@ func (tm *kvJobManager) RetryFailedJobs(ctx context.Context, maxTry, limit uint3
 			job.StartedAt = 0
 			job.FinishedAt = 0
 			job.UpdatedAt = now
-			if err := txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, job.ID)), job); err != nil {
+			if err := txn.PutJSON(kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, job.ID)), job); err != nil {
 				return err
 			}
 		}
@@ -400,7 +427,7 @@ func (tm *kvJobManager) Reset(ctx context.Context, jobID string) error {
 		if err := txn.Del(key); err != nil {
 			return err
 		}
-		return txn.PutJson(kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)), &job)
+		return txn.PutJSON(kvstore.Key(makeWdPoStKey(core.WdPoStJobReadyToRun, jobID)), &job)
 	})
 
 	if err == nil {
@@ -446,7 +473,6 @@ func makeWdPoStKey(state core.WdPoStJobState, jobID string) string {
 	return fmt.Sprintf("%s%s%s", makeWdPoStPrefix(state), prefixJobIDdelimiter, jobID)
 }
 
-//lint:ignore U1000 Ignore unused function
 func splitKey(key string) (state core.WdPoStJobState, jobID string) {
 	x := strings.SplitN(key, prefixJobIDdelimiter, 2)
 	return core.WdPoStJobState(x[0]), x[1]

@@ -12,7 +12,10 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 )
 
-func (p PreCommitProcessor) preCommitInfo(ctx context.Context, sector *core.SectorState) (*miner.SectorPreCommitInfo, big.Int, core.TipSetToken, error) {
+func (p PreCommitProcessor) preCommitInfo(
+	ctx context.Context,
+	sector *core.SectorState,
+) (*miner.SectorPreCommitInfo, big.Int, core.TipSetToken, error) {
 	stateMgr := p.api
 	tok, _, err := stateMgr.ChainHead(ctx)
 	if err != nil {
@@ -30,7 +33,8 @@ func (p PreCommitProcessor) preCommitInfo(ctx context.Context, sector *core.Sect
 		case *ErrAPI:
 			log.Errorf("handlePreCommitting: api error, not proceeding: %s", err)
 			return nil, big.Zero(), nil, fmt.Errorf("call api failed %w", err)
-		case *ErrBadCommD: // TODO: Should this just back to packing? (not really needed since handlePreCommit1 will do that too)
+		case *ErrBadCommD:
+			// TODO: Should this just back to packing? (not really needed since handlePreCommit1 will do that too)
 			return nil, big.Zero(), nil, fmt.Errorf("bad CommD error: %w", err)
 		case *ErrExpiredTicket:
 			return nil, big.Zero(), nil, fmt.Errorf("ticket expired: %w", err)
@@ -81,7 +85,13 @@ func (p PreCommitProcessor) preCommitInfo(ctx context.Context, sector *core.Sect
 	return params, deposit, tok, nil
 }
 
-func getSectorCollateral(ctx context.Context, stateMgr SealingAPI, mid abi.ActorID, sn abi.SectorNumber, tok core.TipSetToken) (abi.TokenAmount, error) {
+func getSectorCollateral(
+	ctx context.Context,
+	stateMgr SealingAPI,
+	mid abi.ActorID,
+	sn abi.SectorNumber,
+	tok core.TipSetToken,
+) (abi.TokenAmount, error) {
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
 		return big.Zero(), fmt.Errorf("invalid miner actor id: %w", err)

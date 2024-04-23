@@ -10,9 +10,11 @@ const InteractivePoRepConfidence = 6
 
 const MinSectorExpiration = miner.MinSectorExpiration
 
-var GetMinSectorExpiration = policy.GetMinSectorExpiration
-var GetMaxSectorExpirationExtension = policy.GetMaxSectorExpirationExtension
-var GetMaxProveCommitDuration = policy.GetMaxProveCommitDuration
+var (
+	GetMinSectorExpiration          = policy.GetMinSectorExpiration
+	GetMaxSectorExpirationExtension = policy.GetMaxSectorExpirationExtension
+	GetMaxProveCommitDuration       = policy.GetMaxProveCommitDuration
+)
 
 func GetPreCommitChallengeDelay() abi.ChainEpoch {
 	// TODO: remove the guard code here

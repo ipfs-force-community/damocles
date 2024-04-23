@@ -31,7 +31,12 @@ type Tracker struct {
 	indexer core.SectorIndexer
 }
 
-func (t *Tracker) SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, sector builtin.ExtendedSectorInfo, locator core.SectorLocator) (core.PrivateSectorInfo, error) {
+func (t *Tracker) SinglePubToPrivateInfo(
+	ctx context.Context,
+	mid abi.ActorID,
+	sector builtin.ExtendedSectorInfo,
+	locator core.SectorLocator,
+) (core.PrivateSectorInfo, error) {
 	sref := core.SectorRef{
 		ID:        abi.SectorID{Miner: mid, Number: sector.SectorNumber},
 		ProofType: sector.SealProof,
@@ -40,7 +45,12 @@ func (t *Tracker) SinglePubToPrivateInfo(ctx context.Context, mid abi.ActorID, s
 	return t.SinglePrivateInfo(ctx, sref, sector.SectorKey != nil, locator)
 }
 
-func (t *Tracker) getPrivateInfo(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator) (*sectorStoreInstances, core.PrivateSectorInfo, error) {
+func (t *Tracker) getPrivateInfo(
+	ctx context.Context,
+	sref core.SectorRef,
+	upgrade bool,
+	locator core.SectorLocator,
+) (*sectorStoreInstances, core.PrivateSectorInfo, error) {
 	objins, err := t.getObjInstanceForSector(ctx, sref.ID, locator, upgrade)
 	if err != nil {
 		return nil, core.PrivateSectorInfo{}, fmt.Errorf("get location for %s: %w", util.FormatSectorID(sref.ID), err)
@@ -65,7 +75,12 @@ func (t *Tracker) getPrivateInfo(ctx context.Context, sref core.SectorRef, upgra
 	}, nil
 }
 
-func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref core.SectorRef, upgrade bool, locator core.SectorLocator) (core.PrivateSectorInfo, error) {
+func (t *Tracker) SinglePrivateInfo(
+	ctx context.Context,
+	sref core.SectorRef,
+	upgrade bool,
+	locator core.SectorLocator,
+) (core.PrivateSectorInfo, error) {
 	_, privateInfo, err := t.getPrivateInfo(ctx, sref, upgrade, locator)
 	if err != nil {
 		return core.PrivateSectorInfo{}, fmt.Errorf("get private info: %w", err)
@@ -74,7 +89,12 @@ func (t *Tracker) SinglePrivateInfo(ctx context.Context, sref core.SectorRef, up
 	return privateInfo, nil
 }
 
-func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, postProofType abi.RegisteredPoStProof, sectorInfo []builtin.ExtendedSectorInfo) ([]core.FFIPrivateSectorInfo, error) {
+func (t *Tracker) PubToPrivate(
+	ctx context.Context,
+	aid abi.ActorID,
+	postProofType abi.RegisteredPoStProof,
+	sectorInfo []builtin.ExtendedSectorInfo,
+) ([]core.FFIPrivateSectorInfo, error) {
 	if len(sectorInfo) == 0 {
 		return []core.FFIPrivateSectorInfo{}, nil
 	}
@@ -91,7 +111,12 @@ func (t *Tracker) PubToPrivate(ctx context.Context, aid abi.ActorID, postProofTy
 	return out, nil
 }
 
-func (t *Tracker) getObjInstanceForSector(ctx context.Context, sid abi.SectorID, locator core.SectorLocator, upgrade bool) (*sectorStoreInstances, error) {
+func (t *Tracker) getObjInstanceForSector(
+	ctx context.Context,
+	sid abi.SectorID,
+	locator core.SectorLocator,
+	upgrade bool,
+) (*sectorStoreInstances, error) {
 	if locator == nil {
 		if upgrade {
 			locator = t.indexer.Upgrade().Find

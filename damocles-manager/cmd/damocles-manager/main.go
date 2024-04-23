@@ -1,8 +1,6 @@
 package main
 
 import (
-	_ "net/http/pprof"
-
 	"github.com/urfave/cli/v2"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/cmd/damocles-manager/internal"

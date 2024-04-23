@@ -55,7 +55,10 @@ var utilWorkerListCmd = &cli.Command{
 
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		defer tw.Flush()
-		_, _ = fmt.Fprintln(tw, "Name\tDest\tVersion\tThreads\tEmpty\tPaused\tRunning\tWaiting\tErrors\tLastPing(with ! if expired)")
+		_, _ = fmt.Fprintln(
+			tw,
+			"Name\tDest\tVersion\tThreads\tEmpty\tPaused\tRunning\tWaiting\tErrors\tLastPing(with ! if expired)",
+		)
 		for _, pinfo := range pinfos {
 			lastPing := time.Since(time.Unix(pinfo.LastPing, 0))
 			lastPingWarn := ""
@@ -347,9 +350,13 @@ var utilWorkerWdPostListCmd = &cli.Command{
 
 		w := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		if detail {
-			_, err = w.Write([]byte("JobID\tPrefix\tMiner\tDDL\tPartitions\tSectors\tWorker\tState\tTry\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tUpdatedAt\tError\n"))
+			_, err = w.Write(
+				[]byte(
+					"JobID\tPrefix\tMiner\tDDL\tPartitions\tSectors\tWorker\tState\tTry\tCreateAt\tStartedAt\tHeartbeatAt\tFinishedAt\tUpdatedAt\tError\n", //revive:disable-line:line-length-limit
+				),
+			)
 		} else {
-			_, err = w.Write([]byte("JobID\tMinerID\tDDL\tPartitions\tSectors\tWorker\tState\tTry\tCreateAt\tElapsed\tHeartbeat\tError\n"))
+			_, err = w.Write([]byte("JobID\tMinerID\tDDL\tPartitions\tSectors\tWorker\tState\tTry\tCreateAt\tElapsed\tHeartbeat\tError\n")) //revive:disable-line:line-length-limit
 		}
 		if err != nil {
 			return err
@@ -376,7 +383,7 @@ var utilWorkerWdPostListCmd = &cli.Command{
 				tryNum += "(Max)"
 			}
 			if detail {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 					job.ID,
 					job.State,
 					job.Input.MinerID,
@@ -408,7 +415,7 @@ var utilWorkerWdPostListCmd = &cli.Command{
 					heartbeat = "-"
 				}
 
-				fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 					job.ID,
 					job.Input.MinerID,
 					job.DeadlineIdx,
@@ -425,7 +432,7 @@ var utilWorkerWdPostListCmd = &cli.Command{
 			}
 		}
 
-		w.Flush()
+		_ = w.Flush()
 		return nil
 	},
 }
