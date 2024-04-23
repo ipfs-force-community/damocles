@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.2
+- damocles-manager
+  - 兼容性修复 [#1081](https://github.com/ipfs-force-community/damocles/pull/1081)
+
 ## 0.10.0-rc1
 
 - 支持 NV22 DDO [#1071](https://github.com/ipfs-force-community/damocles/pull/1071)
