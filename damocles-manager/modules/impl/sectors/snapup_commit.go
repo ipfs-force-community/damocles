@@ -385,7 +385,13 @@ func (h *snapupCommitHandler) submitMessage() error {
 		)
 	}
 
-	pams, deals, err := piece.ProcessPieces(h.committer.ctx, &h.state, h.committer.chain, h.committer.lookupID, nv >= network.Version22)
+	pams, deals, err := piece.ProcessPieces(
+		h.committer.ctx,
+		&h.state,
+		h.committer.chain,
+		h.committer.lookupID,
+		nv >= network.Version22,
+	)
 	if err != nil {
 		return newTempErr(fmt.Errorf("failed to process pieces: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
 	}
