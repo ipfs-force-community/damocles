@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.0
+- damocles-worker
+  - 支持以子进程方式启动自定义守护进程. 新增配置项目: `[[processors.sealing_daemons]]`[#1084](https://github.com/ipfs-force-community/damocles/pull/1084)
+
 ## 0.10.0-rc1
 
 - 支持 NV22 DDO [#1071](https://github.com/ipfs-force-community/damocles/pull/1071)

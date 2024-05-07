@@ -27,6 +27,16 @@ mod transfer;
 #[derive(Copy, Clone, Default, Debug)]
 pub struct BuiltinProcessor;
 
+impl Processor<()> for BuiltinProcessor {
+    fn name(&self) -> String {
+        String::new()
+    }
+
+    fn process(&self, _: ()) -> Result<<() as Task>::Output> {
+        Ok(())
+    }
+}
+
 impl Processor<AddPieces> for BuiltinProcessor {
     fn name(&self) -> String {
         "builtin AddPieces".to_string()

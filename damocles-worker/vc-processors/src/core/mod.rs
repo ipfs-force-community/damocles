@@ -51,3 +51,22 @@ impl<T: Task> Processor<T> for Box<dyn Processor<T>> {
         (**self).process(task)
     }
 }
+
+impl Task for () {
+    const STAGE: &'static str = "EMPTY";
+    type Output = ();
+}
+
+/// The DaemonProcessor does nothing
+#[derive(Debug, Default, Clone, Copy)]
+pub struct DaemonProcessor;
+
+impl Processor<()> for DaemonProcessor {
+    fn name(&self) -> String {
+        String::new()
+    }
+
+    fn process(&self, _: ()) -> Result<<() as Task>::Output> {
+        Ok(())
+    }
+}
