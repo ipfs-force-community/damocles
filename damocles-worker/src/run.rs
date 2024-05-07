@@ -328,6 +328,7 @@ fn start_processors(
         transfer: construct_sub_processor!(transfer, cfg, limit),
         unseal: construct_sub_processor!(unseal, cfg, limit),
         window_post: construct_sub_processor!(window_post, cfg, limit),
+        sealing_daemons: construct_sub_processor!(sealing_daemons, cfg, limit),
     })
 }
 

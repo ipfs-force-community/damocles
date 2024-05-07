@@ -67,6 +67,8 @@ pub(crate) struct GlobalProcessors {
     pub transfer: Proc<TransferInput>,
     pub unseal: Proc<UnsealInput>,
     pub window_post: Proc<WindowPoStInput>,
+    #[allow(dead_code)]
+    pub sealing_daemons: Proc<()>,
 }
 
 impl Module for Box<dyn Module> {

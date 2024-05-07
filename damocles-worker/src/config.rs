@@ -229,6 +229,9 @@ pub struct Processors {
 
     /// section for window_post processor
     pub window_post: Option<Vec<Ext>>,
+
+    /// section for sealing_daemons processor
+    pub sealing_daemons: Option<Vec<Ext>>,
 }
 
 impl Processors {
