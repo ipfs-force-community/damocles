@@ -542,6 +542,7 @@ func (s *Sealer) AllocateSanpUpSector(
 	}
 
 	if len(pieces) == 0 {
+		alog.Debug("no available deals");
 		return nil, nil
 	}
 
