@@ -238,12 +238,27 @@ impl<'t> NiPoRep<'t> {
     }
 
     fn handle_persistance_submitted(&self) -> Result<Event, Failure> {
-        // let sector_id = self.task.sector_id()?;
-        // Todo: 
-        // Add RPC method GenSeed from venus
-        let rng = [0u8;32];
-        let rng = BytesArray32(rng);
-        let seed = Seed { seed: rng, epoch: 100 };
+        let sector_id = self.task.sector_id()?;
+
+        let seed = loop {
+            let wait = call_rpc! {
+                self.task.rpc()=>wait_seed(sector_id.clone(), )
+            }?;
+
+            if let Some(seed) = wait.seed {
+                break seed;
+            };
+
+            if !wait.should_wait || wait.delay == 0 {
+                return Err(anyhow!("invalid empty wait_seed response").temp());
+            }
+
+            let delay = Duration::from_secs(wait.delay);
+
+            debug!(?delay, "waiting for next round of polling seed");
+
+            self.task.sealing_ctrl.wait_or_interrupted(delay)?;
+        };
 
         Ok(Event::AssignSeed(seed))
     }
