@@ -6,6 +6,7 @@ pub const PLANNER_NAME_SNAPUP: &str = "snapup";
 pub const PLANNER_NAME_REBUILD: &str = "rebuild";
 pub const PLANNER_NAME_UNSEAL: &str = "unseal";
 pub const PLANNER_NAME_WDPOST: &str = "wdpost";
+pub const PLANNER_NAME_NIPOREP: &str = "niporep";
 
 mod common;
 mod rebuild;
@@ -13,6 +14,7 @@ mod sealer;
 mod snapup;
 mod unseal;
 mod wdpost;
+mod niporep;
 
 macro_rules! plan {
     ($e:expr, $st:expr, $($prev:pat => {$($evt:pat => $next:expr,)+},)*) => {
