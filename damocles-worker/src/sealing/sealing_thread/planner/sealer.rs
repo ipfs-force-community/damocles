@@ -415,10 +415,11 @@ impl<'t> Sealer<'t> {
 
     fn handle_persistance_submitted(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
+        let proof_type = self.task.sector_proof_type()?;
 
         let seed = loop {
             let wait = call_rpc! {
-                self.task.rpc()=>wait_seed(sector_id.clone(), )
+                self.task.rpc()=>wait_seed(sector_id.clone(), proof_type.clone(),)
             }?;
 
             if let Some(seed) = wait.seed {
