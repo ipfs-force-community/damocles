@@ -39,6 +39,7 @@ pub fn default_plan() -> &'static str {
     PLANNER_NAME_SEALER
 }
 
+use niporep::NiPoRepPlanner;
 use plan;
 
 use self::{
@@ -89,6 +90,9 @@ pub(crate) fn create_sealer(
         }
         PLANNER_NAME_WDPOST => {
             Ok(Box::new(WdPostSealer::new(st.sealing_ctrl(ctx))))
+        }
+        PLANNER_NAME_NIPOREP => {
+            Ok(Box::new(CommonSealer::<NiPoRepPlanner>::new(ctx, st)?))
         }
         unknown => Err(anyhow!("unknown planner: {}", unknown)),
     }

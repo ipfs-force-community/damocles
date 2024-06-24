@@ -428,7 +428,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 		}
 
 		if mcfg.Commitment.Prove.SendFund {
-			sc, err := getSectorCollateral(ctx, c.api, mid, p.ID.Number, tok)
+			sc, err := getSectorCollateralNiPoRep(ctx, c.api, mid, &p, tok, expire)
 			if err != nil {
 				plog.Errorf("get sector collateral for %d failed: %s\n", p.ID.Number, err)
 				failed[sectors[i].ID] = struct{}{}
