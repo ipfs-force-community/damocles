@@ -117,7 +117,7 @@ func (s *Sealer) PollPreCommitState(ctx context.Context, sid abi.SectorID) (core
 	return s.commit.PreCommitState(ctx, sid)
 }
 
-func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedResp, error) {
+func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof) (core.WaitSeedResp, error) {
 	seed, err := s.rand.GetSeed(ctx, types.EmptyTSK, 0, sid.Miner)
 	if err != nil {
 		return core.WaitSeedResp{}, err

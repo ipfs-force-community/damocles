@@ -6,6 +6,7 @@ pub const PLANNER_NAME_SNAPUP: &str = "snapup";
 pub const PLANNER_NAME_REBUILD: &str = "rebuild";
 pub const PLANNER_NAME_UNSEAL: &str = "unseal";
 pub const PLANNER_NAME_WDPOST: &str = "wdpost";
+pub const PLANNER_NAME_NIPOREP: &str = "niporep";
 
 mod common;
 mod rebuild;
@@ -13,6 +14,7 @@ mod sealer;
 mod snapup;
 mod unseal;
 mod wdpost;
+mod niporep;
 
 macro_rules! plan {
     ($e:expr, $st:expr, $($prev:pat => {$($evt:pat => $next:expr,)+},)*) => {
@@ -37,6 +39,7 @@ pub fn default_plan() -> &'static str {
     PLANNER_NAME_SEALER
 }
 
+use niporep::NiPoRepPlanner;
 use plan;
 
 use self::{
@@ -87,6 +90,9 @@ pub(crate) fn create_sealer(
         }
         PLANNER_NAME_WDPOST => {
             Ok(Box::new(WdPostSealer::new(st.sealing_ctrl(ctx))))
+        }
+        PLANNER_NAME_NIPOREP => {
+            Ok(Box::new(CommonSealer::<NiPoRepPlanner>::new(ctx, st)?))
         }
         unknown => Err(anyhow!("unknown planner: {}", unknown)),
     }

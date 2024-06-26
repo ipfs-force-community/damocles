@@ -51,7 +51,7 @@ type SealerAPI interface {
 
 	SubmitPersistedEx(ctx context.Context, sid abi.SectorID, instanceName string, isUpgrade bool) (bool, error)
 
-	WaitSeed(context.Context, abi.SectorID) (WaitSeedResp, error)
+	WaitSeed(context.Context, abi.SectorID, abi.RegisteredSealProof) (WaitSeedResp, error)
 
 	SubmitProof(context.Context, abi.SectorID, ProofOnChainInfo, bool) (SubmitProofResp, error)
 
