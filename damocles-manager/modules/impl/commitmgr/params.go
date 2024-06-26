@@ -144,3 +144,21 @@ func getSectorCollateralNiPoRep(
 	}
 	return collateral, nil
 }
+
+func getProvingDeadline(
+	ctx context.Context,
+	stateMgr SealingAPI,
+	mid abi.ActorID,
+	tok core.TipSetToken,
+) (uint64, error) {
+	maddr, err := address.NewIDAddress(uint64(mid))
+	if err != nil {
+		return 0, fmt.Errorf("invalid miner actor id: %w", err)
+	}
+
+	info, err := stateMgr.StateMinerProvingDeadline(ctx, maddr, tok)
+	if err != nil {
+		return 0, fmt.Errorf("getting miner proving deadline: %w", err)
+	}
+	return info.Index, nil
+}

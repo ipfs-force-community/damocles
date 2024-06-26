@@ -467,12 +467,19 @@ func (c CommitProcessor) ProcessNiPoRep(
 	sort.Slice(actInfos, func(i, j int) bool {
 		return actInfos[i].SealingNumber < actInfos[j].SealingNumber
 	})
+	deadline, err := getProvingDeadline(ctx, c.api, mid, tok)
+	if err != nil {
+		return fmt.Errorf("get miner proving deadline for %d: %w", mid, err)
+	}
+
+	// avoid to use current or next deadline
+	deadline = (deadline + mcfg.Sealing.SealingSectorDeadlineDelayNi) % miner.WPoStPeriodDeadlines
 
 	params := &miner14.ProveCommitSectorsNIParams{
 		Sectors:                  actInfos,
 		SealProofType:            sectorsMap[infos[0].Number].SectorType,
 		AggregateProofType:       arp,
-		ProvingDeadline:          7,
+		ProvingDeadline:          deadline,
 		RequireActivationSuccess: true,
 	}
 
