@@ -2121,20 +2121,20 @@ func sectorInfo2SectorState(
 				spiece.DealInfo.IsCompatible = true
 			}
 
-			pieceInfo, err := cli.PiecesGetPieceInfo(context.Background(), lotusPiece.Piece.PieceCID)
-			if err != nil {
-				_, _ = fmt.Fprintf(os.Stdout, "get piece info %s: %s\n", lotusPiece.Piece.PieceCID, err)
-			} else if pieceInfo == nil {
-				_, _ = fmt.Fprintf(os.Stdout, "piece info not found %s\n", lotusPiece.Piece.PieceCID)
-			} else {
-				for _, deal := range pieceInfo.Deals {
-					if deal.DealID == lotusPiece.DealInfo.DealID {
-						spiece.DealInfo.Offset = deal.Offset
-						spiece.DealInfo.Length = deal.Length
-						break
-					}
-				}
-			}
+			// pieceInfo, err := cli.PiecesGetPieceInfo(context.Background(), lotusPiece.Piece.PieceCID)
+			// if err != nil {
+			// 	_, _ = fmt.Fprintf(os.Stdout, "get piece info %s: %s\n", lotusPiece.Piece.PieceCID, err)
+			// } else if pieceInfo == nil {
+			// 	_, _ = fmt.Fprintf(os.Stdout, "piece info not found %s\n", lotusPiece.Piece.PieceCID)
+			// } else {
+			// 	for _, deal := range pieceInfo.Deals {
+			// 		if deal.DealID == lotusPiece.DealInfo.DealID {
+			// 			spiece.DealInfo.Offset = deal.Offset
+			// 			spiece.DealInfo.Length = deal.Length
+			// 			break
+			// 		}
+			// 	}
+			// }
 		}
 
 		pieces = append(pieces, spiece)

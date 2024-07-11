@@ -1332,8 +1332,8 @@ dependencies = [
 
 [[package]]
 name = "filecoin-hashers"
-version = "11.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
+version = "13.1.0"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/v18.1.0#61c248733a1caf9e468477e4b6cca6b176b075fe"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1351,8 +1351,8 @@ dependencies = [
 
 [[package]]
 name = "filecoin-proofs"
-version = "16.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
+version = "18.1.0"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/v18.1.0#61c248733a1caf9e468477e4b6cca6b176b075fe"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -1384,15 +1384,13 @@ dependencies = [
 
 [[package]]
 name = "filecoin-proofs-api"
-version = "16.0.0"
+version = "18.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c61bdd3ba08899866a2b2c7f0fbe1fcb55cc6ad3c2f0b20026ef63263ac8ac50"
+checksum = "3aea8140d1e2d2ac18347e6121ee24d0e903f9cfdc2eb2ee507932e352c9e7b8"
 dependencies = [
  "anyhow",
- "bellperson",
  "bincode",
  "blstrs",
- "filecoin-hashers",
  "filecoin-proofs",
  "fr32",
  "lazy_static",
@@ -1531,8 +1529,8 @@ dependencies = [
 
 [[package]]
 name = "fr32"
-version = "9.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
+version = "11.1.0"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/v18.1.0#61c248733a1caf9e468477e4b6cca6b176b075fe"
 dependencies = [
  "anyhow",
  "blstrs",
@@ -3579,8 +3577,8 @@ dependencies = [
 
 [[package]]
 name = "sha2raw"
-version = "11.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
+version = "13.1.0"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/v18.1.0#61c248733a1caf9e468477e4b6cca6b176b075fe"
 dependencies = [
  "byteorder",
  "cpufeatures",
@@ -3700,8 +3698,8 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage-proofs-core"
-version = "16.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
+version = "18.1.0"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/v18.1.0#61c248733a1caf9e468477e4b6cca6b176b075fe"
 dependencies = [
  "aes",
  "anyhow",
@@ -3735,8 +3733,8 @@ dependencies = [
 
 [[package]]
 name = "storage-proofs-porep"
-version = "16.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
+version = "18.1.0"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/v18.1.0#61c248733a1caf9e468477e4b6cca6b176b075fe"
 dependencies = [
  "anyhow",
  "bellperson",
@@ -3752,6 +3750,7 @@ dependencies = [
  "filecoin-hashers",
  "fr32",
  "generic-array",
+ "glob",
  "hex",
  "hwloc",
  "lazy_static",
@@ -3776,19 +3775,16 @@ dependencies = [
 
 [[package]]
 name = "storage-proofs-post"
-version = "16.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
+version = "18.1.0"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/v18.1.0#61c248733a1caf9e468477e4b6cca6b176b075fe"
 dependencies = [
  "anyhow",
  "bellperson",
- "blake2b_simd 1.0.1",
  "blstrs",
  "byteorder",
  "ff",
  "filecoin-hashers",
- "fr32",
  "generic-array",
- "hex",
  "log",
  "rayon",
  "serde",
@@ -3798,8 +3794,8 @@ dependencies = [
 
 [[package]]
 name = "storage-proofs-update"
-version = "16.0.0"
-source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/master_v16.0.0#c6e158a57aeb6dc0ef19b74013618217536c51db"
+version = "18.1.0"
+source = "git+https://github.com/ipfs-force-community/rust-fil-proofs?branch=force/v18.1.0#61c248733a1caf9e468477e4b6cca6b176b075fe"
 dependencies = [
  "anyhow",
  "bellperson",

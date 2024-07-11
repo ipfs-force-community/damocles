@@ -338,7 +338,7 @@ func (s *Sealer) SubmitPersistedEx(
 	return true, nil
 }
 
-func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedResp, error) {
+func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof) (core.WaitSeedResp, error) {
 	maddr, err := address.NewIDAddress(uint64(sid.Miner))
 	if err != nil {
 		return core.WaitSeedResp{}, err
@@ -348,29 +348,33 @@ func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID) (core.WaitSeedR
 	if err != nil {
 		return core.WaitSeedResp{}, err
 	}
-
 	tsk := ts.Key()
-	pci, err := s.capi.StateSectorPreCommitInfo(ctx, maddr, sid.Number, tsk)
-	if err != nil {
-		return core.WaitSeedResp{}, err
-	}
-	if pci == nil {
-		return core.WaitSeedResp{}, fmt.Errorf("precommit info not found on chain. sid: %s", util.FormatSectorID(sid))
-	}
-
 	curEpoch := ts.Height()
-	// TODO: remove this guard
+	var seedEpoch abi.ChainEpoch
+	if proofType.IsNonInteractive() {
+		seedEpoch = curEpoch - 1
+	} else {
 
-	seedEpoch := pci.PreCommitEpoch + policy.GetPreCommitChallengeDelay()
-	confEpoch := seedEpoch + policy.InteractivePoRepConfidence
-	if curEpoch < confEpoch {
-		return core.WaitSeedResp{
-			ShouldWait: true,
-			Delay:      int(confEpoch-curEpoch) * int(policy.NetParams.BlockDelaySecs),
-			Seed:       nil,
-		}, nil
+		pci, err := s.capi.StateSectorPreCommitInfo(ctx, maddr, sid.Number, tsk)
+		if err != nil {
+			return core.WaitSeedResp{}, err
+		}
+		if pci == nil {
+			return core.WaitSeedResp{}, fmt.Errorf("precommit info not found on chain. sid: %s", util.FormatSectorID(sid))
+		}
+
+		// TODO: remove this guard
+
+		seedEpoch = pci.PreCommitEpoch + policy.GetPreCommitChallengeDelay()
+		confEpoch := seedEpoch + policy.InteractivePoRepConfidence
+		if curEpoch < confEpoch {
+			return core.WaitSeedResp{
+				ShouldWait: true,
+				Delay:      int(confEpoch-curEpoch) * int(policy.NetParams.BlockDelaySecs),
+				Seed:       nil,
+			}, nil
+		}
 	}
-
 	seed, err := s.rand.GetSeed(ctx, tsk, seedEpoch, sid.Miner)
 	if err != nil {
 		return core.WaitSeedResp{}, err

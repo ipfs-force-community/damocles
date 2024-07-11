@@ -108,7 +108,13 @@ func (m *MinerAPI) GetInfo(ctx context.Context, mid abi.ActorID) (mi *core.Miner
 		return nil, fmt.Errorf("get network version: %w", err)
 	}
 
-	sealProof, err := miner.SealProofTypeFromSectorSize(mi.SectorSize, nv, useSyntheticPoRep)
+	var variant miner.SealProofVariant
+	if useSyntheticPoRep {
+		variant = miner.SealProofVariant_Synthetic
+	} else {
+		variant = miner.SealProofVariant_Standard
+	}
+	sealProof, err := miner.SealProofTypeFromSectorSize(mi.SectorSize, nv, variant)
 	if err != nil {
 		return nil, err
 	}

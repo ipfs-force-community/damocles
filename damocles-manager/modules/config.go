@@ -591,6 +591,8 @@ type MinerSealingConfig struct {
 	RequireNotificationSuccessUpdate bool
 
 	UseSyntheticPoRep bool
+
+	SealingSectorDeadlineDelayNi uint64
 }
 
 func defaultMinerSealingConfig() MinerSealingConfig {
@@ -611,6 +613,8 @@ func defaultMinerSealingConfig() MinerSealingConfig {
 		RequireNotificationSuccessUpdate: false,
 
 		UseSyntheticPoRep: false,
+
+		SealingSectorDeadlineDelayNi: 6,
 	}
 }
 

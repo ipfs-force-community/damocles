@@ -1,17 +1,18 @@
 use std::{path::PathBuf, time::Duration};
 
 use anyhow::{anyhow, Context, Result};
+use fil_clock::ChainEpoch;
 use vc_processors::builtin::tasks::{STAGE_NAME_C1, STAGE_NAME_C2};
-
+use vc_processors::b64serde::{BytesArray32, BytesVec};
 use super::{
     super::{call_rpc, cloned_required, field_required},
     common::{self, event::Event, sector::State, task::Task},
-    plan, PlannerTrait, PLANNER_NAME_SEALER,
+    plan, PlannerTrait, PLANNER_NAME_NIPOREP,
 };
 use crate::logging::{debug, warn};
 use crate::rpc::sealer::{
     AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo,
-    ProofOnChainInfo, SubmitResult,
+    ProofOnChainInfo, SubmitResult, Seed, Randomness,
 };
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
@@ -20,15 +21,15 @@ use crate::sealing::processor::{
 };
 
 #[derive(Default)]
-pub(crate) struct SealerPlanner;
+pub(crate) struct NiPoRepPlanner;
 
-impl PlannerTrait for SealerPlanner {
+impl PlannerTrait for NiPoRepPlanner {
     type Job = Task;
     type State = State;
     type Event = Event;
 
     fn name(&self) -> &str {
-        PLANNER_NAME_SEALER
+        PLANNER_NAME_NIPOREP
     }
 
     fn plan(&self, evt: &Event, st: &State) -> Result<State> {
@@ -39,12 +40,12 @@ impl PlannerTrait for SealerPlanner {
             State::Empty => {
                 Event::Allocate(_) => State::Allocated,
             },
-
+            
             State::Allocated => {
-                Event::AcquireDeals(_) => State::DealsAcquired,
+                // As niporep limit to cc sector, will not assign deal at this step
                 Event::AcquireDealsV2(_) => State::DealsAcquired,
             },
-
+            
             State::DealsAcquired => {
                 Event::AddPiece(_) => State::PieceAdded,
             },
@@ -63,23 +64,9 @@ impl PlannerTrait for SealerPlanner {
 
             State::PC1Done => {
                 Event::PC2(_) => State::PC2Done,
-                Event::PC2NeedSyntheticProof(_) => State::SyntheticPoRepNeeded,
-            },
-
-            State::SyntheticPoRepNeeded => {
-                Event::SyntheticPoRep => State::PC2Done,
             },
 
             State::PC2Done => {
-                Event::SubmitPC => State::PCSubmitted,
-            },
-
-            State::PCSubmitted => {
-                Event::ReSubmitPC => State::PC2Done,
-                Event::CheckPC => State::PCLanded,
-            },
-
-            State::PCLanded => {
                 Event::Persist(_) => State::Persisted,
             },
 
@@ -114,12 +101,12 @@ impl PlannerTrait for SealerPlanner {
 
     fn exec(&self, task: &mut Task) -> Result<Option<Event>, Failure> {
         let state = task.sector.state;
-        let inner = Sealer { task };
+        let inner = NiPoRep { task };
         match state {
             State::Empty => inner.handle_empty(),
 
             State::Allocated => inner.handle_allocated(),
-
+            // As niporep limit to cc sector, will not assign deal at this step
             State::DealsAcquired => inner.handle_deals_acquired(),
 
             State::PieceAdded => inner.handle_piece_added(),
@@ -130,15 +117,7 @@ impl PlannerTrait for SealerPlanner {
 
             State::PC1Done => inner.handle_pc1_done(),
 
-            State::SyntheticPoRepNeeded => {
-                inner.handle_synthetic_proof_needed()
-            }
-
             State::PC2Done => inner.handle_pc2_done(),
-
-            State::PCSubmitted => inner.handle_pc_submitted(),
-
-            State::PCLanded => inner.handle_pc_landed(),
 
             State::Persisted => inner.handle_persisted(),
 
@@ -174,11 +153,11 @@ impl PlannerTrait for SealerPlanner {
     }
 }
 
-struct Sealer<'t> {
+struct NiPoRep<'t> {
     task: &'t mut Task,
 }
 
-impl<'t> Sealer<'t> {
+impl<'t> NiPoRep<'t> {
     fn handle_empty(&self) -> Result<Event, Failure> {
         let maybe_allocated_res = call_rpc! {
             self.task.rpc()=>allocate_sector(AllocateSectorSpec {
@@ -211,37 +190,7 @@ impl<'t> Sealer<'t> {
     }
 
     fn handle_allocated(&self) -> Result<Event, Failure> {
-        if !self.task.sealing_ctrl.config().enable_deals {
-            return Ok(if self.task.sealing_ctrl.config().disable_cc {
-                Event::Idle
-            } else {
-                Event::AcquireDealsV2(None)
-            });
-        }
-
-        let sector_id = self.task.sector_id()?.clone();
-
-        let deals = call_rpc! {
-            self.task.rpc()=>acquire_deals(
-                sector_id,
-                AcquireDealsSpec {
-                    max_deals: self.task.sealing_ctrl.config().max_deals,
-                    min_used_space: self.task.sealing_ctrl.config().min_deal_space.map(|b| b.get_bytes() as usize),
-                },
-            )
-        }?;
-
-        let deals_count = deals.as_ref().map(|d| d.len()).unwrap_or(0);
-
-        debug!(count = deals_count, "pieces acquired");
-
-        Ok(
-            if !self.task.sealing_ctrl.config().disable_cc || deals_count > 0 {
-                Event::AcquireDealsV2(deals)
-            } else {
-                Event::Idle
-            },
-        )
+        Ok(Event::AcquireDealsV2(None))
     }
 
     fn handle_deals_acquired(&self) -> Result<Event, Failure> {
@@ -268,136 +217,11 @@ impl<'t> Sealer<'t> {
     fn handle_pc1_done(&self) -> Result<Event, Failure> {
         let verify_after_pc2 = self.task.sealing_ctrl.config().verify_after_pc2;
         common::pre_commit2(self.task, verify_after_pc2).map(|out| {
-            if out
-                .registered_proof
-                .feature_enabled(ApiFeature::SyntheticPoRep)
-            {
-                Event::PC2NeedSyntheticProof(out)
-            } else {
-                Event::PC2(out)
-            }
+            Event::PC2(out)
         })
     }
 
-    fn handle_synthetic_proof_needed(&self) -> Result<Event, Failure> {
-        common::compute_synthetic_proof(self.task)
-            .map(|_| Event::SyntheticPoRep)
-    }
-
     fn handle_pc2_done(&self) -> Result<Event, Failure> {
-        field_required! {
-            sector,
-            self.task.sector.base.as_ref().map(|b| b.allocated.clone())
-        }
-
-        field_required! {
-            comm_r,
-            self.task.sector.phases.pc2out.as_ref().map(|out| out.comm_r)
-        }
-
-        field_required! {
-            comm_d,
-            self.task.sector.phases.pc2out.as_ref().map(|out| out.comm_d)
-        }
-
-        field_required! {
-            ticket,
-            self.task.sector.phases.ticket.as_ref().cloned()
-        }
-
-        let pinfo = PreCommitOnChainInfo {
-            comm_r,
-            comm_d,
-            ticket,
-        };
-
-        let res = call_rpc! {
-            self.task.rpc() => submit_pre_commit(sector, pinfo, self.task.sector.phases.pc2_re_submit,)
-        }?;
-
-        // TODO: handle submit reset correctly
-        match res.res {
-            SubmitResult::Accepted | SubmitResult::DuplicateSubmit => {
-                Ok(Event::SubmitPC)
-            }
-
-            SubmitResult::MismatchedSubmission => {
-                Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm())
-            }
-
-            SubmitResult::Rejected => {
-                Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort())
-            }
-
-            SubmitResult::FilesMissed => Err(anyhow!(
-                "FilesMissed should not happen for pc2 submission: {:?}",
-                res.desc
-            )
-            .perm()),
-        }
-    }
-
-    fn handle_pc_submitted(&self) -> Result<Event, Failure> {
-        let sector_id = self.task.sector_id()?;
-
-        'POLL: loop {
-            let state = call_rpc! {
-                self.task.rpc()=>poll_pre_commit_state(sector_id.clone(), )
-            }?;
-
-            match state.state {
-                OnChainState::Landed => break 'POLL,
-                OnChainState::NotFound => {
-                    return Err(
-                        anyhow!("pre commit on-chain info not found").perm()
-                    )
-                }
-
-                OnChainState::Failed => {
-                    warn!("pre commit on-chain info failed: {:?}", state.desc);
-                    // TODO: make it configurable
-                    self.task
-                        .sealing_ctrl
-                        .wait_or_interrupted(Duration::from_secs(30))?;
-                    return Ok(Event::ReSubmitPC);
-                }
-
-                OnChainState::PermFailed => {
-                    return Err(anyhow!(
-                        "pre commit on-chain info permanent failed: {:?}",
-                        state.desc
-                    )
-                    .perm())
-                }
-
-                OnChainState::ShouldAbort => {
-                    return Err(anyhow!(
-                        "pre commit info will not get on-chain: {:?}",
-                        state.desc
-                    )
-                    .abort())
-                }
-
-                OnChainState::Pending | OnChainState::Packed => {}
-            }
-
-            debug!(
-                state = ?state.state,
-                interval = ?self.task.sealing_ctrl.config().rpc_polling_interval,
-                "waiting for next round of polling pre commit state",
-            );
-
-            self.task.sealing_ctrl.wait_or_interrupted(
-                self.task.sealing_ctrl.config().rpc_polling_interval,
-            )?;
-        }
-
-        debug!("pre commit landed");
-
-        Ok(Event::CheckPC)
-    }
-
-    fn handle_pc_landed(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
         let cache_dir = self.task.cache_dir(sector_id);
         let sealed_file = self.task.sealed_file(sector_id);
@@ -415,11 +239,11 @@ impl<'t> Sealer<'t> {
 
     fn handle_persistance_submitted(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
-        let proof_type = self.task.sector_proof_type()?;
+        let proof_type = self.task.sector_proof_type()?.to_ni_porep();
 
         let seed = loop {
             let wait = call_rpc! {
-                self.task.rpc()=>wait_seed(sector_id.clone(), proof_type.clone(),)
+                self.task.rpc()=>wait_seed(sector_id.clone(), proof_type,)
             }?;
 
             if let Some(seed) = wait.seed {

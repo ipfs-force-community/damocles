@@ -117,3 +117,48 @@ func getSectorCollateral(
 
 	return collateral, nil
 }
+
+func getSectorCollateralNiPoRep(
+	ctx context.Context,
+	stateMgr SealingAPI,
+	mid abi.ActorID,
+	p *core.SectorState,
+	tok core.TipSetToken,
+	expire abi.ChainEpoch,
+) (abi.TokenAmount, error) {
+	maddr, err := address.NewIDAddress(uint64(mid))
+	if err != nil {
+		return big.Zero(), fmt.Errorf("invalid miner actor id: %w", err)
+	}
+
+	collateral, err := stateMgr.StateMinerInitialPledgeCollateral(ctx, maddr, miner.SectorPreCommitInfo{
+		Expiration:   expire,
+		SectorNumber: p.ID.Number,
+		SealProof:    p.SectorType,
+
+		SealedCID:     p.Pre.CommR,
+		SealRandEpoch: p.Ticket.Epoch,
+	}, tok)
+	if err != nil {
+		return big.Zero(), fmt.Errorf("getting initial pledge collateral: %w", err)
+	}
+	return collateral, nil
+}
+
+func getProvingDeadline(
+	ctx context.Context,
+	stateMgr SealingAPI,
+	mid abi.ActorID,
+	tok core.TipSetToken,
+) (uint64, error) {
+	maddr, err := address.NewIDAddress(uint64(mid))
+	if err != nil {
+		return 0, fmt.Errorf("invalid miner actor id: %w", err)
+	}
+
+	info, err := stateMgr.StateMinerProvingDeadline(ctx, maddr, tok)
+	if err != nil {
+		return 0, fmt.Errorf("getting miner proving deadline: %w", err)
+	}
+	return info.Index, nil
+}
