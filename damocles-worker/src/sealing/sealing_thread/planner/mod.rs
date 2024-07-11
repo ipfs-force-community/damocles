@@ -91,9 +91,9 @@ pub(crate) fn create_sealer(
         PLANNER_NAME_WDPOST => {
             Ok(Box::new(WdPostSealer::new(st.sealing_ctrl(ctx))))
         }
-        PLANNER_NAME_NIPOREP => {
-            Ok(Box::new(CommonSealer::<NiPoRepPlanner>::new(ctx, st)?))
-        }
+        // PLANNER_NAME_NIPOREP => {
+        //     Ok(Box::new(CommonSealer::<NiPoRepPlanner>::new(ctx, st)?))
+        // }
         unknown => Err(anyhow!("unknown planner: {}", unknown)),
     }
 }
