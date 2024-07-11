@@ -98,7 +98,9 @@ impl SealProof {
 
             SealProof::StackedDrg2KiBV1_2_Feat_NonInteractivePoRep => SIZE_2K,
             SealProof::StackedDrg8MiBV1_2_Feat_NonInteractivePoRep => SIZE_8M,
-            SealProof::StackedDrg512MiBV1_2_Feat_NonInteractivePoRep => SIZE_512M,
+            SealProof::StackedDrg512MiBV1_2_Feat_NonInteractivePoRep => {
+                SIZE_512M
+            }
             SealProof::StackedDrg32GiBV1_2_Feat_NonInteractivePoRep => SIZE_32G,
             SealProof::StackedDrg64GiBV1_2_Feat_NonInteractivePoRep => SIZE_64G,
         }
@@ -111,7 +113,7 @@ impl SealProof {
         match self {
             StackedDrg2KiBV1
             | StackedDrg2KiBV1_1
-            | StackedDrg2KiBV1_1_Feat_SyntheticPoRep 
+            | StackedDrg2KiBV1_1_Feat_SyntheticPoRep
             | StackedDrg2KiBV1_2_Feat_NonInteractivePoRep => vec![
                 StackedDrgWinning2KiBV1,
                 StackedDrgWindow2KiBV1,
@@ -137,7 +139,7 @@ impl SealProof {
             }
             StackedDrg32GiBV1
             | StackedDrg32GiBV1_1
-            | StackedDrg32GiBV1_1_Feat_SyntheticPoRep 
+            | StackedDrg32GiBV1_1_Feat_SyntheticPoRep
             | StackedDrg32GiBV1_2_Feat_NonInteractivePoRep => vec![
                 StackedDrgWinning32GiBV1,
                 StackedDrgWindow32GiBV1,
@@ -151,6 +153,44 @@ impl SealProof {
                 StackedDrgWindow64GiBV1,
                 StackedDrgWindow64GiBV1_2,
             ],
+        }
+    }
+
+    /// transfer seal proof type to ni-porep proof type
+    pub fn to_ni_porep(&self) -> Self {
+        use RegisteredPoStProof::*;
+        use SealProof::*;
+        match self {
+            StackedDrg2KiBV1
+            | StackedDrg2KiBV1_1
+            | StackedDrg2KiBV1_1_Feat_SyntheticPoRep
+            | StackedDrg2KiBV1_2_Feat_NonInteractivePoRep => {
+                StackedDrg2KiBV1_2_Feat_NonInteractivePoRep
+            }
+            StackedDrg8MiBV1
+            | StackedDrg8MiBV1_1
+            | StackedDrg8MiBV1_1_Feat_SyntheticPoRep
+            | StackedDrg8MiBV1_2_Feat_NonInteractivePoRep => {
+                StackedDrg8MiBV1_2_Feat_NonInteractivePoRep
+            }
+            StackedDrg512MiBV1
+            | StackedDrg512MiBV1_1
+            | StackedDrg512MiBV1_1_Feat_SyntheticPoRep
+            | StackedDrg512MiBV1_2_Feat_NonInteractivePoRep => {
+                StackedDrg512MiBV1_2_Feat_NonInteractivePoRep
+            }
+            StackedDrg32GiBV1
+            | StackedDrg32GiBV1_1
+            | StackedDrg32GiBV1_1_Feat_SyntheticPoRep
+            | StackedDrg32GiBV1_2_Feat_NonInteractivePoRep => {
+                StackedDrg32GiBV1_2_Feat_NonInteractivePoRep
+            }
+            StackedDrg64GiBV1
+            | StackedDrg64GiBV1_1
+            | StackedDrg64GiBV1_1_Feat_SyntheticPoRep
+            | StackedDrg64GiBV1_2_Feat_NonInteractivePoRep => {
+                StackedDrg64GiBV1_2_Feat_NonInteractivePoRep
+            }
         }
     }
 }
