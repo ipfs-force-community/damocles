@@ -239,11 +239,11 @@ impl<'t> NiPoRep<'t> {
 
     fn handle_persistance_submitted(&self) -> Result<Event, Failure> {
         let sector_id = self.task.sector_id()?;
-        let proof_type = self.task.sector_proof_type()?;
+        let proof_type = self.task.sector_proof_type()?.to_ni_porep();
 
         let seed = loop {
             let wait = call_rpc! {
-                self.task.rpc()=>wait_seed(sector_id.clone(), proof_type.clone(),)
+                self.task.rpc()=>wait_seed(sector_id.clone(), proof_type,)
             }?;
 
             if let Some(seed) = wait.seed {
