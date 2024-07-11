@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/filecoin-project/go-address"
@@ -15,6 +14,7 @@ import (
 	stbuiltin "github.com/filecoin-project/go-state-types/builtin"
 	miner13 "github.com/filecoin-project/go-state-types/builtin/v13/miner"
 	miner14 "github.com/filecoin-project/go-state-types/builtin/v14/miner"
+	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 
@@ -25,7 +25,6 @@ import (
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util/piece"
 	chainapi "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
-	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/logging"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 )
 
@@ -40,76 +39,6 @@ type CommitProcessor struct {
 	config *modules.SafeConfig
 
 	prover core.Prover
-}
-
-func (c CommitProcessor) processIndividually(
-	ctx context.Context,
-	sectors []core.SectorState,
-	from address.Address,
-	mid abi.ActorID,
-	plog *logging.ZapLogger,
-) {
-	mcfg, err := c.config.MinerConfig(mid)
-	if err != nil {
-		plog.Errorf("get miner config for %d: %s", mid, err)
-		return
-	}
-
-	wg := sync.WaitGroup{}
-	wg.Add(len(sectors))
-	for i := range sectors {
-		go func(idx int) {
-			slog := plog.With("sector", sectors[idx].ID.Number)
-
-			defer wg.Done()
-
-			params := &miner.ProveCommitSectorParams{
-				SectorNumber: sectors[idx].ID.Number,
-				Proof:        sectors[idx].Proof.Proof,
-			}
-
-			enc := new(bytes.Buffer)
-			if err := params.MarshalCBOR(enc); err != nil {
-				slog.Error("serialize commit sector parameters failed: ", err)
-				return
-			}
-
-			tok, _, err := c.api.ChainHead(ctx)
-			if err != nil {
-				slog.Error("get chain head: ", err)
-				return
-			}
-
-			collateral := big.Zero()
-			if mcfg.Commitment.Prove.SendFund {
-				collateral, err = getSectorCollateral(ctx, c.api, mid, sectors[idx].ID.Number, tok)
-				if err != nil {
-					slog.Error("get sector collateral failed: ", err)
-					return
-				}
-			}
-
-			mcid, err := pushMessage(
-				ctx,
-				from,
-				mid,
-				collateral,
-				stbuiltin.MethodsMiner.ProveCommitSector,
-				c.msgClient,
-				&mcfg.Commitment.Prove.FeeConfig,
-				enc.Bytes(),
-				slog,
-			)
-			if err != nil {
-				slog.Error("push commit single failed: ", err)
-				return
-			}
-
-			sectors[idx].MessageInfo.CommitCid = &mcid
-			slog.Info("push commit success, cid: ", mcid)
-		}(i)
-	}
-	wg.Wait()
 }
 
 func (c CommitProcessor) Process(
@@ -150,7 +79,7 @@ func (c CommitProcessor) Process(
 			return err
 		}
 	}
-	return c.ProcessV1(ctx, builtinMarketSectors, mid, ctrlAddr, tok, nv, aggregate)
+	return c.ProcessV1(ctx, builtinMarketSectors, mid, ctrlAddr, tok, nv)
 }
 
 func (c CommitProcessor) ProcessV1(
@@ -160,7 +89,6 @@ func (c CommitProcessor) ProcessV1(
 	ctrlAddr address.Address,
 	tok core.TipSetToken,
 	nv network.Version,
-	batch bool,
 ) error {
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "prove", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
@@ -169,11 +97,6 @@ func (c CommitProcessor) ProcessV1(
 	defer plog.Infof("finished process, elapsed %s", time.Since(start))
 
 	defer updateSector(ctx, c.smgr, sectors, plog)
-
-	if !batch {
-		c.processIndividually(ctx, sectors, ctrlAddr, mid, plog)
-		return nil
-	}
 
 	mcfg, err := c.config.MinerConfig(mid)
 	if err != nil {
@@ -247,15 +170,22 @@ func (c CommitProcessor) ProcessV1(
 		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %w", err)
 	}
 
-	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, stbuiltin.MethodsMiner.ProveCommitAggregate,
-		c.msgClient, &mcfg.Commitment.Prove.Batch.FeeConfig, enc.Bytes(), plog)
+	var msgCID cid.Cid
+	if len(infos) == 1 {
+		msgCID, err = pushMessage(ctx, ctrlAddr, mid, collateral, stbuiltin.MethodsMiner.ProveCommitAggregate,
+			c.msgClient, &mcfg.Commitment.Prove.FeeConfig, enc.Bytes(), plog)
+	} else {
+		msgCID, err = pushMessage(ctx, ctrlAddr, mid, collateral, stbuiltin.MethodsMiner.ProveCommitAggregate,
+			c.msgClient, &mcfg.Commitment.Prove.Batch.FeeConfig, enc.Bytes(), plog)
+	}
+
 	if err != nil {
 		return fmt.Errorf("push aggregate prove message failed: %w", err)
 	}
 
 	for i := range sectors {
 		if _, ok := failed[sectors[i].ID]; !ok {
-			sectors[i].MessageInfo.CommitCid = &ccid
+			sectors[i].MessageInfo.CommitCid = &msgCID
 		}
 	}
 
