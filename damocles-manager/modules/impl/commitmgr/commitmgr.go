@@ -638,23 +638,25 @@ func (c *CommitmentMgrImpl) SubmitProof(
 
 	sector.Proof = &info
 
-	if err := checkCommit(ctx, sector, info.Proof, nil, maddr, c.verif, c.stateMgr); err != nil {
-		switch err.(type) {
-		case *ErrAPI:
-			return core.SubmitProofResp{}, err
+	if !sector.SectorType.IsNonInteractive() {
+		if err := checkCommit(ctx, sector, info.Proof, nil, maddr, c.verif, c.stateMgr); err != nil {
+			switch err.(type) {
+			case *ErrAPI:
+				return core.SubmitProofResp{}, err
 
-		case *ErrInvalidDeals,
-			*ErrExpiredDeals,
-			*ErrNoPrecommit,
-			*ErrSectorNumberAllocated,
-			*ErrBadSeed,
-			*ErrInvalidProof,
-			*ErrMarshalAddr:
-			errMsg := err.Error()
-			return core.SubmitProofResp{Res: core.SubmitRejected, Desc: &errMsg}, nil
+			case *ErrInvalidDeals,
+				*ErrExpiredDeals,
+				*ErrNoPrecommit,
+				*ErrSectorNumberAllocated,
+				*ErrBadSeed,
+				*ErrInvalidProof,
+				*ErrMarshalAddr:
+				errMsg := err.Error()
+				return core.SubmitProofResp{Res: core.SubmitRejected, Desc: &errMsg}, nil
 
-		default:
-			return core.SubmitProofResp{}, err
+			default:
+				return core.SubmitProofResp{}, err
+			}
 		}
 	}
 

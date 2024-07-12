@@ -50,8 +50,8 @@ type Sealer struct {
 	scfg   modules.SafeConfig
 }
 
-func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.AllocatedSector, error) {
-	sectors, err := s.AllocateSectorsBatch(ctx, spec, 1)
+func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpec, niporep bool) (*core.AllocatedSector, error) {
+	sectors, err := s.AllocateSectorsBatch(ctx, spec, niporep, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -64,9 +64,10 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 func (s *Sealer) AllocateSectorsBatch(
 	ctx context.Context,
 	spec core.AllocateSectorSpec,
+	niporep bool,
 	count uint32,
 ) ([]*core.AllocatedSector, error) {
-	return s.sector.Allocate(ctx, spec, count)
+	return s.sector.Allocate(ctx, spec, niporep, count)
 }
 
 func (s *Sealer) AcquireDeals(

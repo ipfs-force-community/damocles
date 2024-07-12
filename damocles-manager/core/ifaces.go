@@ -15,7 +15,7 @@ import (
 )
 
 type SectorManager interface {
-	Allocate(ctx context.Context, spec AllocateSectorSpec, count uint32) ([]*AllocatedSector, error)
+	Allocate(ctx context.Context, spec AllocateSectorSpec, niporep bool, count uint32) ([]*AllocatedSector, error)
 }
 
 type DealManager interface {

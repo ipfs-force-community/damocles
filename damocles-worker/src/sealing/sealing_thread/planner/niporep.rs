@@ -163,7 +163,7 @@ impl<'t> NiPoRep<'t> {
             self.task.rpc()=>allocate_sector(AllocateSectorSpec {
                 allowed_miners: Some(self.task.sealing_ctrl.config().allowed_miners.clone()),
                 allowed_proof_types: Some(self.task.sealing_ctrl.config().allowed_proof_types.clone()),
-            },)
+            },true,)
         };
 
         let maybe_allocated = match maybe_allocated_res {

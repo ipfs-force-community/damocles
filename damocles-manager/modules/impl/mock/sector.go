@@ -29,6 +29,7 @@ type sectorMgr struct {
 func (s *sectorMgr) Allocate(
 	_ context.Context,
 	spec core.AllocateSectorSpec,
+	niporep bool,
 	count uint32,
 ) ([]*core.AllocatedSector, error) {
 	allowedMiners := spec.AllowedMiners

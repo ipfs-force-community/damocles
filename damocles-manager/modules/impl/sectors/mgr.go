@@ -39,6 +39,7 @@ type Manager struct {
 func (m *Manager) Allocate(
 	ctx context.Context,
 	spec core.AllocateSectorSpec,
+	niporep bool,
 	count uint32,
 ) ([]*core.AllocatedSector, error) {
 	allowedMiners := spec.AllowedMiners
@@ -95,17 +96,53 @@ func (m *Manager) Allocate(
 			id = next - uint64(count) + 1
 		)
 		allocatedSectors := make([]*core.AllocatedSector, count)
+		proofType := selected.info.SealProofType
+		if niporep {
+			proofType = toNiPoRepProofType(proofType)
+		}
 		for i < count {
 			allocatedSectors[i] = &core.AllocatedSector{
 				ID: abi.SectorID{
 					Miner:  selected.info.ID,
 					Number: abi.SectorNumber(id),
 				},
-				ProofType: selected.info.SealProofType,
+				ProofType: proofType,
 			}
 			i++
 			id++
 		}
 		return allocatedSectors, nil
 	}
+}
+
+func toNiPoRepProofType(proofType abi.RegisteredSealProof) abi.RegisteredSealProof {
+	var pt abi.RegisteredSealProof
+	switch proofType {
+	case abi.RegisteredSealProof_StackedDrg2KiBV1,
+		abi.RegisteredSealProof_StackedDrg2KiBV1_1,
+		abi.RegisteredSealProof_StackedDrg2KiBV1_1_Feat_SyntheticPoRep,
+		abi.RegisteredSealProof_StackedDrg2KiBV1_2_Feat_NiPoRep:
+		pt = abi.RegisteredSealProof_StackedDrg2KiBV1_2_Feat_NiPoRep
+	case abi.RegisteredSealProof_StackedDrg8MiBV1,
+		abi.RegisteredSealProof_StackedDrg8MiBV1_1,
+		abi.RegisteredSealProof_StackedDrg8MiBV1_1_Feat_SyntheticPoRep,
+		abi.RegisteredSealProof_StackedDrg8MiBV1_2_Feat_NiPoRep:
+		pt = abi.RegisteredSealProof_StackedDrg8MiBV1_2_Feat_NiPoRep
+	case abi.RegisteredSealProof_StackedDrg512MiBV1,
+		abi.RegisteredSealProof_StackedDrg512MiBV1_1,
+		abi.RegisteredSealProof_StackedDrg512MiBV1_1_Feat_SyntheticPoRep,
+		abi.RegisteredSealProof_StackedDrg512MiBV1_2_Feat_NiPoRep:
+		pt = abi.RegisteredSealProof_StackedDrg512MiBV1_2_Feat_NiPoRep
+	case abi.RegisteredSealProof_StackedDrg32GiBV1,
+		abi.RegisteredSealProof_StackedDrg32GiBV1_1,
+		abi.RegisteredSealProof_StackedDrg32GiBV1_1_Feat_SyntheticPoRep,
+		abi.RegisteredSealProof_StackedDrg32GiBV1_2_Feat_NiPoRep:
+		pt = abi.RegisteredSealProof_StackedDrg32GiBV1_2_Feat_NiPoRep
+	case abi.RegisteredSealProof_StackedDrg64GiBV1,
+		abi.RegisteredSealProof_StackedDrg64GiBV1_1,
+		abi.RegisteredSealProof_StackedDrg64GiBV1_1_Feat_SyntheticPoRep,
+		abi.RegisteredSealProof_StackedDrg64GiBV1_2_Feat_NiPoRep:
+		pt = abi.RegisteredSealProof_StackedDrg64GiBV1_2_Feat_NiPoRep
+	}
+	return pt
 }

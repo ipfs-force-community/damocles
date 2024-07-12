@@ -132,8 +132,8 @@ func (s *Sealer) checkSectorNumbers(ctx context.Context, mid abi.ActorID, sids [
 	return duplicates.All(uint64(len(sids)))
 }
 
-func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpec) (*core.AllocatedSector, error) {
-	sectors, err := s.AllocateSectorsBatch(ctx, spec, 1)
+func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpec, niporep bool) (*core.AllocatedSector, error) {
+	sectors, err := s.AllocateSectorsBatch(ctx, spec, niporep, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -146,9 +146,10 @@ func (s *Sealer) AllocateSector(ctx context.Context, spec core.AllocateSectorSpe
 func (s *Sealer) AllocateSectorsBatch(
 	ctx context.Context,
 	spec core.AllocateSectorSpec,
+	niporep bool,
 	count uint32,
 ) ([]*core.AllocatedSector, error) {
-	sectors, err := s.sector.Allocate(ctx, spec, count)
+	sectors, err := s.sector.Allocate(ctx, spec, niporep, count)
 	if err != nil {
 		return nil, err
 	}

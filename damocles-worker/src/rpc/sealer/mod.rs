@@ -479,6 +479,7 @@ pub trait Sealer {
     fn allocate_sector(
         &self,
         spec: AllocateSectorSpec,
+        niporep: bool,
     ) -> Result<Option<AllocatedSector>>;
 
     /// api definition
@@ -486,6 +487,7 @@ pub trait Sealer {
     fn allocate_sectors_batch(
         &self,
         spec: AllocateSectorSpec,
+        niporep: bool,
         count: u32,
     ) -> Result<Vec<AllocatedSector>>;
 
