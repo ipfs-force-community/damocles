@@ -67,7 +67,7 @@ func (c CommitProcessor) Process(
 			ddoSectors = append(ddoSectors, sectors[i])
 		}
 	}
-
+	fmt.Printf("%d niPoRep sectors going to process \n", len(niporepSectors))
 	aggregate := c.ShouldBatch(mid) && len(sectors) >= core.MinAggregatedSectors
 	if len(niporepSectors) > 0 {
 		return c.ProcessNiPoRep(ctx, niporepSectors, mid, ctrlAddr, tok, nv, aggregate)
