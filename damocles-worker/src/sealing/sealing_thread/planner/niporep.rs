@@ -332,26 +332,32 @@ impl<'t> NiPoRep<'t> {
         let res = call_rpc! {
             self.task.rpc()=>submit_proof(sector_id, info, self.task.sector.phases.c2_re_submit,)
         }?;
-        info!("[ni] submit proof res");
+        info!(?res.res, "[ni] submit proof res");
+        info!(?res.desc, "[ni] submit proof desc");
         // TODO: submit reset correctly
         match res.res {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => {
+                info!("[ni] event submit proof");
                 Ok(Event::SubmitProof)
             }
 
             SubmitResult::MismatchedSubmission => {
+                info!("[ni] sr err 1");
                 Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm())
             }
 
             SubmitResult::Rejected => {
+                info!("[ni] sr err 2");
                 Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort())
             }
 
-            SubmitResult::FilesMissed => Err(anyhow!(
-                "FilesMissed is not handled currently: {:?}",
-                res.desc
-            )
-            .perm()),
+            SubmitResult::FilesMissed => {
+                info!("[ni] sr err 3");
+                Err(anyhow!(
+                    "FilesMissed is not handled currently: {:?}",
+                    res.desc
+                ).perm())
+            }
         }
     }
 
