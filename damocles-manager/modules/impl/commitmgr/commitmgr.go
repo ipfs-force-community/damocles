@@ -606,6 +606,7 @@ func (c *CommitmentMgrImpl) SubmitProof(
 	info core.ProofInfo,
 	hardReset bool,
 ) (core.SubmitProofResp, error) {
+	fmt.Printf("[ni] t0%d-%d call SubmitProof\n", id.Miner, id.Number)
 	_, err := c.proveSender(ctx, id.Miner)
 	if err != nil {
 		return core.SubmitProofResp{}, err
@@ -622,7 +623,7 @@ func (c *CommitmentMgrImpl) SubmitProof(
 		return core.SubmitProofResp{Res: core.SubmitRejected, Desc: &errMsg}, nil
 	}
 
-	if sector.Pre == nil {
+	if !sector.SectorType.IsNonInteractive() && sector.Pre == nil {
 		return core.SubmitProofResp{Res: core.SubmitRejected, Desc: &errMsgPreCommitInfoNotFound}, nil
 	}
 
