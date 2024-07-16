@@ -5,7 +5,7 @@ use super::{
     common::{self, event::Event, sector::State, task::Task},
     plan, PlannerTrait, PLANNER_NAME_NIPOREP,
 };
-use crate::logging::{debug, warn};
+use crate::logging::{debug, warn, info};
 use crate::rpc::sealer::{
     AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo,
     ProofOnChainInfo, Randomness, Seed, SubmitResult,
@@ -202,6 +202,7 @@ impl<'t> NiPoRep<'t> {
 
     fn handle_piece_added(&self) -> Result<Event, Failure> {
         common::build_tree_d(self.task, true)?;
+        info!("[ni] treed build");
         Ok(Event::BuildTreeD)
     }
 
@@ -231,6 +232,7 @@ impl<'t> NiPoRep<'t> {
     }
 
     fn handle_persisted(&self) -> Result<Event, Failure> {
+        info!("[ni] persisted");
         common::submit_persisted(self.task, false)
             .map(|_| Event::SubmitPersistance)
     }
@@ -267,11 +269,12 @@ impl<'t> NiPoRep<'t> {
             seed,
             self.task.sector.phases.seed
         }
-
+        info!(?seed, "[ni] seed");
         common::commit1_with_seed(self.task, seed).map(Event::C1)
     }
 
     fn handle_c1_done(&self) -> Result<Event, Failure> {
+        info!("[ni] c1 done");
         let _token = self
             .task
             .sealing_ctrl
@@ -310,11 +313,11 @@ impl<'t> NiPoRep<'t> {
                 },
             )
             .perm()?;
-
         Ok(Event::C2(out))
     }
 
     fn handle_c2_done(&self) -> Result<Event, Failure> {
+        info!("[ni] c2 done");
         let sector_id = self.task.sector_id()?.clone();
 
         cloned_required! {
@@ -329,7 +332,7 @@ impl<'t> NiPoRep<'t> {
         let res = call_rpc! {
             self.task.rpc()=>submit_proof(sector_id, info, self.task.sector.phases.c2_re_submit,)
         }?;
-
+        info!("[ni] submit proof res");
         // TODO: submit reset correctly
         match res.res {
             SubmitResult::Accepted | SubmitResult::DuplicateSubmit => {
@@ -353,6 +356,7 @@ impl<'t> NiPoRep<'t> {
     }
 
     fn handle_proof_submitted(&self) -> Result<Event, Failure> {
+        info!("[ni] proof submitted");
         field_required! {
             allocated,
             self.task.sector.base.as_ref().map(|b| &b.allocated)
