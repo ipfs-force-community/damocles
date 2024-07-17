@@ -259,14 +259,14 @@ func (c CommitProcessor) ProcessNiPoRep(
 			UnsealedCID:           p.Pre.CommD,
 		})
 
-		actInfos[i] = miner14.SectorNIActivationInfo{
+		actInfos = append(actInfos, miner14.SectorNIActivationInfo{
 			SealingNumber: p.ID.Number,
 			SealerID:      mid,
 			SealedCID:     p.Pre.CommR,
 			SectorNumber:  p.ID.Number,
 			SealRandEpoch: p.Seed.Epoch,
 			Expiration:    expire,
-		}
+		})
 	}
 
 	if len(infos) == 0 {
