@@ -174,10 +174,11 @@ impl<'t> NiPoRep<'t> {
             }
         };
 
-        let sector = match maybe_allocated {
+        let mut sector = match maybe_allocated {
             Some(a) => a,
             None => return Ok(Event::Idle),
         };
+        sector.proof_type = sector.proof_type.to_ni_porep();
 
         // init required dirs & files
         self.task.cache_dir(&sector.id).prepare().crit()?;
@@ -185,7 +186,7 @@ impl<'t> NiPoRep<'t> {
         self.task.staged_file(&sector.id).prepare().crit()?;
 
         self.task.sealed_file(&sector.id).prepare().crit()?;
-
+    
         Ok(Event::Allocate(sector))
     }
 
