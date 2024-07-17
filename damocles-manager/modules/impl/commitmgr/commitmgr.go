@@ -512,6 +512,10 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(
 	sector.Pre = &info
 	if sector.SectorType.IsNonInteractive() {
 		// only record precommit info, no need submit on chain message
+		err = c.smgr.Update(ctx, sector.ID, core.WorkerOnline, sector.Pre)
+		if err != nil {
+			return core.SubmitPreCommitResp{}, err
+		}
 		return core.SubmitPreCommitResp{Res: core.SubmitAccepted}, nil
 	}
 
