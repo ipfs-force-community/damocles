@@ -205,12 +205,13 @@ func (c CommitProcessor) ProcessNiPoRep(
 	nv network.Version,
 	batch bool,
 ) error {
+	fmt.Println("[ni] start commit process")
 	// Notice: If a sector in sectors has been sent, it's cid failed should be changed already.
 	plog := log.With("proc", "prove", "miner", mid, "ctrl", ctrlAddr.String(), "len", len(sectors))
 
 	start := time.Now()
 	defer func() {
-		plog.Infof("finished process, elapsed %s", time.Since(start))
+		plog.Infof("finished process ni-porep, elapsed %s", time.Since(start))
 	}()
 
 	defer updateSector(ctx, c.smgr, sectors, plog)
@@ -224,7 +225,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 	if err != nil {
 		return fmt.Errorf("get aggregate proof type: %w", err)
 	}
-
+	fmt.Printf("[ni] commit process - %v\n", arp)
 	infos := []core.AggregateSealVerifyInfo{}
 	sectorsMap := map[abi.SectorNumber]core.SectorState{}
 	failed := map[abi.SectorID]struct{}{}
@@ -268,7 +269,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 			Expiration:    expire,
 		})
 	}
-
+	fmt.Printf("[ni] commit process - collateral %d\n", collateral)
 	if len(infos) == 0 {
 		return nil
 	}
@@ -310,7 +311,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 	if err != nil {
 		return fmt.Errorf("aggregate sector failed: %w", err)
 	}
-
+	fmt.Printf("[ni] commit process - aggregateProof size: %d\n", len(params.AggregateProof))
 	enc := new(bytes.Buffer)
 	if err := params.MarshalCBOR(enc); err != nil {
 		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %w", err)
@@ -321,10 +322,12 @@ func (c CommitProcessor) ProcessNiPoRep(
 	if err != nil {
 		return fmt.Errorf("push aggregate prove message failed: %w", err)
 	}
-
+	fmt.Printf("success push message: %s\n", ccid)
 	for i := range sectors {
 		if _, ok := failed[sectors[i].ID]; !ok {
 			sectors[i].MessageInfo.CommitCid = &ccid
+		} else {
+			fmt.Printf("[ni] failed sector id: %d\n", sectors[i].ID)
 		}
 	}
 
