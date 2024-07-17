@@ -510,6 +510,10 @@ func (c *CommitmentMgrImpl) SubmitPreCommit(
 	}
 
 	sector.Pre = &info
+	if sector.SectorType.IsNonInteractive() {
+		// only record precommit info, no need submit on chain message
+		return core.SubmitPreCommitResp{Res: core.SubmitAccepted}, nil
+	}
 
 	err = checkPrecommit(ctx, maddr, sector, c.stateMgr)
 	if err != nil {
@@ -623,7 +627,7 @@ func (c *CommitmentMgrImpl) SubmitProof(
 		return core.SubmitProofResp{Res: core.SubmitRejected, Desc: &errMsg}, nil
 	}
 
-	if !sector.SectorType.IsNonInteractive() && sector.Pre == nil {
+	if sector.Pre == nil {
 		return core.SubmitProofResp{Res: core.SubmitRejected, Desc: &errMsgPreCommitInfoNotFound}, nil
 	}
 

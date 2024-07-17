@@ -221,6 +221,56 @@ impl<'t> NiPoRep<'t> {
     }
 
     fn handle_pc2_done(&self) -> Result<Event, Failure> {
+        field_required! {
+            sector,
+            self.task.sector.base.as_ref().map(|b| b.allocated.clone())
+        }
+
+        field_required! {
+            comm_r,
+            self.task.sector.phases.pc2out.as_ref().map(|out| out.comm_r)
+        }
+
+        field_required! {
+            comm_d,
+            self.task.sector.phases.pc2out.as_ref().map(|out| out.comm_d)
+        }
+
+        field_required! {
+            ticket,
+            self.task.sector.phases.ticket.as_ref().cloned()
+        }
+
+        let pinfo = PreCommitOnChainInfo {
+            comm_r,
+            comm_d,
+            ticket,
+        };
+
+        let res = call_rpc! {
+            self.task.rpc() => submit_pre_commit(sector, pinfo, self.task.sector.phases.pc2_re_submit,)
+        }?;
+
+        // TODO: handle submit reset correctly
+        match res.res {
+            SubmitResult::Accepted | SubmitResult::DuplicateSubmit => {
+                info!("pre_commit info accepted");
+            }
+
+            SubmitResult::MismatchedSubmission => {
+                return Err(anyhow!("{:?}: {:?}", res.res, res.desc).perm())
+            }
+
+            SubmitResult::Rejected => {
+                return Err(anyhow!("{:?}: {:?}", res.res, res.desc).abort())
+            }
+
+            SubmitResult::FilesMissed => {
+                return Err(anyhow!(
+                "FilesMissed should not happen for pc2 submission: {:?}",
+                res.desc).perm())
+            }
+        };
         let sector_id = self.task.sector_id()?;
         let cache_dir = self.task.cache_dir(sector_id);
         let sealed_file = self.task.sealed_file(sector_id);
