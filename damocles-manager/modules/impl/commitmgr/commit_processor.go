@@ -462,7 +462,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 		infos = append(infos, core.AggregateSealVerifyInfo{
 			Number:                p.ID.Number,
 			Randomness:            abi.SealRandomness(p.Ticket.Ticket),
-			InteractiveRandomness: abi.InteractiveSealRandomness(p.Seed.Seed),
+			InteractiveRandomness: make([]byte, 32),
 			SealedCID:             p.Pre.CommR,
 			UnsealedCID:           p.Pre.CommD,
 		})
