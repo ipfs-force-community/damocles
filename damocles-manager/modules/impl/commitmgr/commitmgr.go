@@ -128,6 +128,85 @@ func updateSector(
 	plog.Infof("Process sectors %v finished", sectorID)
 }
 
+func pushMessage2(
+	ctx context.Context,
+	from address.Address,
+	mid abi.ActorID,
+	value abi.TokenAmount,
+	method abi.MethodNum,
+	msgClient messager.API,
+	feeCfg *modules.FeeConfig,
+	params []byte,
+	mlog *logging.ZapLogger,
+	chain chainapi.API,
+) (cid.Cid, error) {
+	to, err := address.NewIDAddress(uint64(mid))
+	if err != nil {
+		return cid.Undef, err
+	}
+
+	spec := feeCfg.GetSendSpec()
+	msg := types.Message{
+		To:        to,
+		From:      from,
+		Value:     value,
+		Method:    method,
+		Params:    params,
+		GasFeeCap: feeCfg.GetGasFeeCap().Std(),
+	}
+	head, err := chain.ChainHead(ctx)
+	if err != nil {
+		return cid.Undef, err
+	}
+
+	gsLimit, err := chain.GasEstimateGasLimit(ctx, &msg, head.Key())
+	if err != nil {
+		return cid.Undef, err
+	}
+	mlog.Infof("[ni] gslimit estiated: %d", gsLimit)
+	bk, err := msg.ToStorageBlock()
+	if err != nil {
+		return cid.Undef, err
+	}
+	mb := bk.RawData()
+
+	mlog = mlog.With("from", from.String(), "to", to.String(), "method", method, "raw-mcid", bk.Cid())
+
+	var mcid cid.Cid
+
+	for i := 0; ; i++ {
+		r := []byte{byte(i)}
+		r = append(r, mb...)
+		mid, err := NewMIdFromBytes(r)
+		if err != nil {
+			return cid.Undef, err
+		}
+
+		has, err := msgClient.HasMessageByUid(ctx, mid.String())
+		if err != nil {
+			return cid.Undef, err
+		}
+
+		mlog.Debugw("check if message exists", "tried", i, "has", has, "msgid", mid.String())
+		if !has {
+			mcid = mid
+			break
+		}
+	}
+
+	uid, err := msgClient.PushMessageWithId(ctx, mcid.String(), &msg, &spec)
+	if err != nil {
+		return cid.Undef, fmt.Errorf("push message with id failed: %w", err)
+	}
+
+	if uid != mcid.String() {
+		return cid.Undef, errors.New("mcid not equal to uid, its out of control")
+	}
+
+	mlog.Infow("message sent", "mcid", uid)
+	return mcid, nil
+}
+
 //revive:disable-next-line:argument-limit
 func pushMessage(
 	ctx context.Context,

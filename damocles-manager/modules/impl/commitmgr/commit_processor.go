@@ -525,8 +525,8 @@ func (c CommitProcessor) ProcessNiPoRep(
 		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %w", err)
 	}
 
-	ccid, err := pushMessage(ctx, ctrlAddr, mid, collateral, stbuiltin.MethodsMiner.ProveCommitSectorsNI,
-		c.msgClient, &mcfg.Commitment.Prove.Batch.FeeConfig, enc.Bytes(), plog)
+	ccid, err := pushMessage2(ctx, ctrlAddr, mid, collateral, stbuiltin.MethodsMiner.ProveCommitSectorsNI,
+		c.msgClient, &mcfg.Commitment.Prove.Batch.FeeConfig, enc.Bytes(), plog, c.chain)
 	if err != nil {
 		return fmt.Errorf("push aggregate prove message failed: %w", err)
 	}
