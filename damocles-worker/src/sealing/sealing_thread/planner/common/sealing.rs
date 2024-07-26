@@ -17,10 +17,10 @@ use crate::{
         failure::{Failure, IntoFailure, MapErrToFailure, MapStdErrToFailure},
         processor::{
             cached_filenames_for_sector, clear_layer_data,
-            generate_synth_proofs, seal_commit_phase1,
+            generate_synth_proofs, seal_commit_phase1, seal_commit_phase2_circuit_proofs,
             snap_generate_partition_proofs, snap_verify_sector_update_proof,
             tree_d_path_in_dir, AddPiecesInput, PC1Input, PC2Input, PieceInfo,
-            RegisteredSealProof, SealCommitPhase1Output,
+            RegisteredSealProof, SealCommitPhase1Output, SectorId, SealCommitPhase2Output,
             SealPreCommitPhase1Output, SealPreCommitPhase2Output,
             SnapEncodeInput, SnapEncodeOutput, SnapProveInput, SnapProveOutput,
             TransferInput, TransferItem, TransferRoute, TransferStoreInfo,
@@ -392,6 +392,16 @@ pub(crate) fn commit1_with_seed_inner(
         piece_infos,
     )
     .perm()?;
+
+    Ok(out)
+}
+
+pub(crate) fn commit2(
+    phase1_output: SealCommitPhase1Output, 
+    sector_id: SectorId,
+) -> Result<SealCommitPhase2Output, Failure> {
+    
+    let out = seal_commit_phase2_circuit_proofs(phase1_output, sector_id).perm()?;
 
     Ok(out)
 }

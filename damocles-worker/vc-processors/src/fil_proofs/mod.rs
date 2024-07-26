@@ -168,6 +168,15 @@ where
     }
 }
 
+pub fn seal_commit_phase2_circuit_proofs(
+    phase1_output: SealCommitPhase1Output,
+    sector_id: SectorId,
+) -> Result<SealCommitPhase2Output> {
+    safe_call! {
+        seal::seal_commit_phase2_circuit_proofs(phase1_output, sector_id)
+    }
+}
+
 pub fn seal_commit_phase2(
     phase1_output: SealCommitPhase1Output,
     prover_id: ProverId,
