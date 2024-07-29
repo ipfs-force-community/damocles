@@ -375,71 +375,38 @@ func (h *snapupCommitHandler) submitMessage() error {
 			delayTime,
 		)
 	}
-	nv, err := h.committer.chain.StateNetworkVersion(h.committer.ctx, tsk)
-	if err != nil {
-		return newTempErr(
-			fmt.Errorf(
-				"call StateNetworkVersion. err: %w", err,
-			),
-			mcfg.SnapUp.Retry.APIFailureWait.Std(),
-		)
-	}
 
-	pams, deals, err := piece.ProcessPieces(
+	pams, _, err := piece.ProcessPieces(
 		h.committer.ctx,
 		&h.state,
 		h.committer.chain,
 		h.committer.lookupID,
-		nv >= network.Version22,
 	)
 	if err != nil {
 		return newTempErr(fmt.Errorf("failed to process pieces: %w", err), mcfg.SnapUp.Retry.APIFailureWait.Std())
 	}
 
-	var method abi.MethodNum
 	enc := new(bytes.Buffer)
-	if len(pams) > 0 {
-		// PRU3
-		params := &miner.ProveReplicaUpdates3Params{
-			SectorUpdates: []miner.SectorUpdateManifest{
-				{
-					Sector:       h.state.ID.Number,
-					Deadline:     sl.Deadline,
-					Partition:    sl.Partition,
-					NewSealedCID: h.state.UpgradedInfo.SealedCID,
-					Pieces:       pams,
-				},
+	params := &miner.ProveReplicaUpdates3Params{
+		SectorUpdates: []miner.SectorUpdateManifest{
+			{
+				Sector:       h.state.ID.Number,
+				Deadline:     sl.Deadline,
+				Partition:    sl.Partition,
+				NewSealedCID: h.state.UpgradedInfo.SealedCID,
+				Pieces:       pams,
 			},
-			SectorProofs:     [][]byte{h.state.UpgradedInfo.Proof},
-			UpdateProofsType: updateProof,
-			// AggregateProof
-			// AggregateProofType
-			RequireActivationSuccess:   mcfg.Sealing.RequireActivationSuccessUpdate,
-			RequireNotificationSuccess: mcfg.Sealing.RequireNotificationSuccessUpdate,
-		}
-		if err := params.MarshalCBOR(enc); err != nil {
-			return fmt.Errorf("serialize params: %w", err)
-		}
-		method = builtin.MethodsMiner.ProveReplicaUpdates3
-	} else {
-		params := &stminer.ProveReplicaUpdatesParams2{
-			Updates: []stminer.ReplicaUpdate2{
-				{
-					SectorID:             h.state.ID.Number,
-					Deadline:             sl.Deadline,
-					Partition:            sl.Partition,
-					NewSealedSectorCID:   h.state.UpgradedInfo.SealedCID,
-					NewUnsealedSectorCID: h.state.UpgradedInfo.UnsealedCID,
-					Deals:                deals,
-					UpdateProofType:      updateProof,
-					ReplicaProof:         h.state.UpgradedInfo.Proof,
-				},
-			},
-		}
-		if err := params.MarshalCBOR(enc); err != nil {
-			return fmt.Errorf("serialize params: %w", err)
-		}
-		method = builtin.MethodsMiner.ProveReplicaUpdates2
+		},
+		SectorProofs:     [][]byte{h.state.UpgradedInfo.Proof},
+		UpdateProofsType: updateProof,
+		//AggregateProof
+		//AggregateProofType
+		RequireActivationSuccess:   mcfg.Sealing.RequireActivationSuccessUpdate,
+		RequireNotificationSuccess: mcfg.Sealing.RequireNotificationSuccessUpdate,
+	}
+
+	if err := params.MarshalCBOR(enc); err != nil {
+		return fmt.Errorf("serialize params: %w", err)
 	}
 
 	msgValue := types.NewInt(0)
@@ -460,7 +427,7 @@ func (h *snapupCommitHandler) submitMessage() error {
 	msg := types.Message{
 		From:      sender,
 		To:        h.maddr,
-		Method:    method,
+		Method:    builtin.MethodsMiner.ProveReplicaUpdates3,
 		Params:    enc.Bytes(),
 		Value:     msgValue,
 		GasFeeCap: mcfg.SnapUp.GetGasFeeCap().Std(),
