@@ -28,7 +28,7 @@ require (
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20231108073455-ac8eebc7d237
-	github.com/ipfs-force-community/metrics v1.0.1-0.20231207081445-30178e706d09
+	github.com/ipfs-force-community/metrics v1.0.1-0.20240725062356-39b286636574
 	github.com/ipfs-force-community/venus-cluster-assets v0.1.0
 	github.com/ipfs/boxo v0.20.0
 	github.com/ipfs/go-cid v0.4.1
