@@ -234,7 +234,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 	collateral := big.Zero()
 	for i, p := range sectors {
 		sectorsMap[p.ID.Number] = sectors[i]
-		expire, err := c.sectorExpiration(ctx, &p)
+		expire, err := c.sectorExpiration(ctx, &sectors[i])
 		if err != nil {
 			plog.Errorf("get sector expiration for %d failed: %s\n", p.ID.Number, err)
 			failed[sectors[i].ID] = struct{}{}
@@ -242,7 +242,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 		}
 
 		if mcfg.Commitment.Prove.SendFund {
-			sc, err := getSectorCollateralNiPoRep(ctx, c.api, mid, &p, tok, expire)
+			sc, err := getSectorCollateralNiPoRep(ctx, c.api, mid, &sectors[i], tok, expire)
 			if err != nil {
 				plog.Errorf("get sector collateral for %d failed: %s\n", p.ID.Number, err)
 				failed[sectors[i].ID] = struct{}{}
