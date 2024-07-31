@@ -419,7 +419,7 @@ impl<'t> Sealer<'t> {
 
         let seed = loop {
             let wait = call_rpc! {
-                self.task.rpc()=>wait_seed(sector_id.clone(), proof_type.clone(),)
+                self.task.rpc()=>wait_seed(sector_id.clone(), *proof_type,)
             }?;
 
             if let Some(seed) = wait.seed {
