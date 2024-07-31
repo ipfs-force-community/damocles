@@ -68,7 +68,6 @@ func (p PreCommitProcessor) preCommitInfo(
 
 		SealedCID:     sector.Pre.CommR,
 		SealRandEpoch: sector.Ticket.Epoch,
-		DealIDs:       sector.DealIDs(), // DDO deal will be passed later in the Commit message
 	}
 
 	if len(sector.Pieces) > 0 || len(sector.LegacyPieces) > 0 {
