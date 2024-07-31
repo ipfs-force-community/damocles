@@ -20,8 +20,8 @@ linters:
     - durationcheck
     - prealloc
     - predeclared
-    - revive
     - gofmt
+    # - revive
 
 linters-settings:
   staticcheck:

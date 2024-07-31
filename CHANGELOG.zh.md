@@ -1,7 +1,10 @@
 # Changelog
 
-## 0.11.0-rc1
+## 0.11.0
+
 - NV23 支持
+- damocles-manager
+  - 移除 ProveCommitSector method [#1088](https://github.com/ipfs-force-community/damocles/pull/1088)
 - damocles-worker
   - 支持以子进程方式启动自定义守护进程. 新增配置项目: `[[processors.sealing_daemons]]`[#1084](https://github.com/ipfs-force-community/damocles/pull/1084)
 

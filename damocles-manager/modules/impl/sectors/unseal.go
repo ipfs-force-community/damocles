@@ -143,7 +143,6 @@ func (u *UnsealManager) SetAndCheck(
 		log.Info("add new dest to unseal task")
 		return true
 	})
-
 	if err != nil {
 		return state, fmt.Errorf("check unseal state: %w", err)
 	}

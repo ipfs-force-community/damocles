@@ -141,7 +141,6 @@ func Dep(cctx *cli.Context, wants ...any) (stop func(), err error) {
 		DepsFromCLICtx(cctx),
 		dix.Override(new(dep.GlobalContext), gctx),
 	)
-
 	if err != nil {
 		gcancel()
 		return

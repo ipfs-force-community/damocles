@@ -547,7 +547,6 @@ func (s *Sealer) SectorSetForRebuild(ctx context.Context, sid abi.SectorID, opt 
 		st.NeedRebuild = true
 		return true, nil
 	})
-
 	if err != nil {
 		return false, fmt.Errorf("restore sector state: %w", err)
 	}
