@@ -73,7 +73,7 @@ func (c CommitProcessor) Process(
 		return c.ProcessNiPoRep(ctx, niporepSectors, mid, ctrlAddr, tok, nv, aggregate)
 	}
 
-	return c.ProcessV2(ctx, ddoSectors, mid, ctrlAddr, tok, nv, aggregate)
+	return c.ProcessV2(ctx, append(ddoSectors, builtinMarketSectors...), mid, ctrlAddr, tok, nv, aggregate)
 }
 
 // processBatchV2 processes a batch of sectors after nv22. It will always send
