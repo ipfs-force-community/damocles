@@ -216,8 +216,7 @@ impl<'t> NiPoRep<'t> {
 
     fn handle_pc1_done(&self) -> Result<Event, Failure> {
         let verify_after_pc2 = self.task.sealing_ctrl.config().verify_after_pc2;
-        common::pre_commit2(self.task, verify_after_pc2)
-            .map(Event::PC2)
+        common::pre_commit2(self.task, verify_after_pc2).map(Event::PC2)
     }
 
     fn handle_pc2_done(&self) -> Result<Event, Failure> {
