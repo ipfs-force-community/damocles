@@ -22,7 +22,7 @@ require (
 	github.com/filecoin-project/go-state-types v0.14.0
 	github.com/filecoin-project/lotus v1.28.1
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.16.0-rc1
+	github.com/filecoin-project/venus v1.16.0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
@@ -205,6 +205,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shirou/gopsutil v2.18.12+incompatible // indirect
 	github.com/sirupsen/logrus v1.9.2 // indirect
+	github.com/smartystreets/assertions v1.13.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.9.2 // indirect
 	github.com/triplewz/poseidon v0.0.0-20230828015038-79d8165c88ed // indirect
