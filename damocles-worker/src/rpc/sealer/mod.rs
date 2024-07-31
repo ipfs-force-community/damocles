@@ -501,7 +501,7 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.AssignTicket")]
-    fn assign_ticket(&self, id: SectorID) -> Result<Ticket>;
+    fn assign_ticket(&self, id: SectorID, proof_type: SealProof,) -> Result<Ticket>;
 
     /// api definition
     #[rpc(name = "Venus.SubmitPreCommit")]

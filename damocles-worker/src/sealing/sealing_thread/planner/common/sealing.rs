@@ -190,7 +190,7 @@ pub(crate) fn pre_commit1(
         Some(ticket) => ticket.clone(),
         None => {
             let ticket = call_rpc! {
-                task.rpc() => assign_ticket(sector_id.clone(),)
+                task.rpc() => assign_ticket(sector_id.clone(),proof_type.clone(),)
             }?;
             tracing::debug!(ticket = ?ticket.ticket.0, epoch = ticket.epoch, "ticket assigned from sector-manager");
             ticket
@@ -400,7 +400,7 @@ pub(crate) fn commit2(
     phase1_output: SealCommitPhase1Output, 
     sector_id: SectorId,
 ) -> Result<SealCommitPhase2Output, Failure> {
-    
+
     let out = seal_commit_phase2_circuit_proofs(phase1_output, sector_id).perm()?;
 
     Ok(out)

@@ -40,7 +40,7 @@ type SealerAPI interface {
 
 	AcquireDeals(ctx context.Context, sid abi.SectorID, spec AcquireDealsSpec) (SectorPieces, error)
 
-	AssignTicket(context.Context, abi.SectorID) (Ticket, error)
+	AssignTicket(context.Context, abi.SectorID, abi.RegisteredSealProof) (Ticket, error)
 
 	SubmitPreCommit(context.Context, AllocatedSector, PreCommitOnChainInfo, bool) (SubmitPreCommitResp, error)
 

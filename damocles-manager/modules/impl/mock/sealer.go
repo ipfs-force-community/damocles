@@ -96,7 +96,7 @@ func (s *Sealer) AcquireDeals(
 	return s.deal.Acquire(ctx, sid, spec, nil, core.SectorWorkerJobSealing)
 }
 
-func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (core.Ticket, error) {
+func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof) (core.Ticket, error) {
 	return s.rand.GetTicket(ctx, types.EmptyTSK, 0, sid.Miner)
 }
 

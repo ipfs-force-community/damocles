@@ -254,13 +254,17 @@ func (s *Sealer) AcquireDeals(
 	return pieces, nil
 }
 
-func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID) (core.Ticket, error) {
+func (s *Sealer) AssignTicket(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof) (core.Ticket, error) {
 	ts, err := s.capi.ChainHead(ctx)
 	if err != nil {
 		return core.Ticket{}, err
 	}
-
-	ticketEpoch := ts.Height() - policy.SealRandomnessLookback
+	var ticketEpoch abi.ChainEpoch
+	if proofType.IsNonInteractive() {
+		ticketEpoch = ts.Height() - 1
+	} else {
+		ticketEpoch = ts.Height() - policy.SealRandomnessLookback
+	}
 	ticket, err := s.rand.GetTicket(ctx, ts.Key(), ticketEpoch, sid.Miner)
 	if err != nil {
 		return core.Ticket{}, err
