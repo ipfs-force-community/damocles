@@ -24,29 +24,19 @@ func ProcessPieces(
 	sector *core.SectorState,
 	chain chainapi.API,
 	lookupID core.LookupID,
-	forceDDO bool,
 ) ([]miner13.PieceActivationManifest, []abi.DealID, error) {
 	sectorPieces := sector.SectorPiece()
 
 	pams := make([]miner13.PieceActivationManifest, 0, len(sectorPieces))
 	dealIDs := make([]abi.DealID, 0, len(sectorPieces))
 
-	hasDDO := forceDDO
-	if !forceDDO {
-		for _, piece := range sectorPieces {
-			if piece.HasDealInfo() && !piece.IsBuiltinMarket() {
-				hasDDO = true
-			}
-		}
-	}
-
 	for _, piece := range sectorPieces {
 		if !piece.HasDealInfo() {
 			continue
 		}
 		pieceInfo := piece.PieceInfo()
-		if hasDDO && piece.IsBuiltinMarket() {
-			// mixed ddo and builtinmarket
+		// If we have a dealID then covert to PAM
+		if piece.IsBuiltinMarket() {
 			alloc, err := chain.StateGetAllocationIdForPendingDeal(ctx, piece.DealID(), types.EmptyTSK)
 			if err != nil {
 				return nil, nil, fmt.Errorf("getting allocation for deal %d: %w", piece, err)

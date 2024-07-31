@@ -532,7 +532,11 @@ pub trait Sealer {
 
     /// api definition
     #[rpc(name = "Venus.WaitSeed")]
-    fn wait_seed(&self, id: SectorID, proof_type: SealProof) -> Result<WaitSeedResp>;
+    fn wait_seed(
+        &self,
+        id: SectorID,
+        proof_type: SealProof,
+    ) -> Result<WaitSeedResp>;
 
     /// api definition
     #[rpc(name = "Venus.SubmitProof")]
