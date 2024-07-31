@@ -171,7 +171,6 @@ func (c CommitProcessor) ProcessV2(
 			AggregateProof: arp,
 			Infos:          infos,
 		}, proofs)
-
 		if err != nil {
 			return fmt.Errorf("aggregate sector failed: %w", err)
 		}
@@ -308,7 +307,6 @@ func (c CommitProcessor) ProcessNiPoRep(
 		AggregateProof: arp,
 		Infos:          infos,
 	}, proofs)
-
 	if err != nil {
 		return fmt.Errorf("aggregate sector failed: %w", err)
 	}

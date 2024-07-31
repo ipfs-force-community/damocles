@@ -399,8 +399,8 @@ func (h *snapupCommitHandler) submitMessage() error {
 		},
 		SectorProofs:     [][]byte{h.state.UpgradedInfo.Proof},
 		UpdateProofsType: updateProof,
-		//AggregateProof
-		//AggregateProofType
+		// AggregateProof
+		// AggregateProofType
 		RequireActivationSuccess:   mcfg.Sealing.RequireActivationSuccessUpdate,
 		RequireNotificationSuccess: mcfg.Sealing.RequireNotificationSuccessUpdate,
 	}

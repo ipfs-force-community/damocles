@@ -173,7 +173,6 @@ func (p *Proving) SingleProvable(
 
 	// use randUint64 % nodeNums as challenge, notice nodeNums = ssize / 32B
 	_, err = p.prover.GenerateSingleVanillaProof(ctx, replica, []uint64{rand.Uint64() % (uint64(ssize) / 32)})
-
 	if err != nil {
 		return fmt.Errorf("generate vanilla proof of %s failed: %w", sref.ID, err)
 	}
