@@ -338,7 +338,11 @@ func (s *Sealer) SubmitPersistedEx(
 	return true, nil
 }
 
-func (s *Sealer) WaitSeed(ctx context.Context, sid abi.SectorID, proofType abi.RegisteredSealProof) (core.WaitSeedResp, error) {
+func (s *Sealer) WaitSeed(
+	ctx context.Context,
+	sid abi.SectorID,
+	proofType abi.RegisteredSealProof,
+) (core.WaitSeedResp, error) {
 	maddr, err := address.NewIDAddress(uint64(sid.Miner))
 	if err != nil {
 		return core.WaitSeedResp{}, err

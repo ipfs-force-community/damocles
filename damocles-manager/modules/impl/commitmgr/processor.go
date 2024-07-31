@@ -6,12 +6,9 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/network"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
 )
-
-const MinDDONetworkVersion = network.Version22
 
 type Processor interface {
 	Process(ctx context.Context, sectors []core.SectorState, mid abi.ActorID, ctrlAddr address.Address) error
