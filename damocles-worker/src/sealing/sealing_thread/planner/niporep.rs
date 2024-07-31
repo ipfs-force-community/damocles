@@ -1,9 +1,5 @@
 use std::{path::PathBuf, time::Duration};
 
-use anyhow::{anyhow, Context, Result};
-use fil_clock::ChainEpoch;
-use vc_processors::builtin::tasks::{STAGE_NAME_C1, STAGE_NAME_C2};
-use vc_processors::b64serde::{BytesArray32, BytesVec};
 use super::{
     super::{call_rpc, cloned_required, field_required},
     common::{self, event::Event, sector::State, task::Task},
@@ -12,13 +8,17 @@ use super::{
 use crate::logging::{debug, warn};
 use crate::rpc::sealer::{
     AcquireDealsSpec, AllocateSectorSpec, OnChainState, PreCommitOnChainInfo,
-    ProofOnChainInfo, SubmitResult, Seed, Randomness,
+    ProofOnChainInfo, Randomness, Seed, SubmitResult,
 };
 use crate::sealing::failure::*;
 use crate::sealing::processor::{
     clear_cache, clear_layer_data, generate_synth_proofs, seal_commit_phase1,
     ApiFeature, C2Input, RegisteredSealProof,
 };
+use anyhow::{anyhow, Context, Result};
+use fil_clock::ChainEpoch;
+use vc_processors::b64serde::{BytesArray32, BytesVec};
+use vc_processors::builtin::tasks::{STAGE_NAME_C1, STAGE_NAME_C2};
 
 #[derive(Default)]
 pub(crate) struct NiPoRepPlanner;
@@ -40,12 +40,12 @@ impl PlannerTrait for NiPoRepPlanner {
             State::Empty => {
                 Event::Allocate(_) => State::Allocated,
             },
-            
+
             State::Allocated => {
                 // As niporep limit to cc sector, will not assign deal at this step
                 Event::AcquireDealsV2(_) => State::DealsAcquired,
             },
-            
+
             State::DealsAcquired => {
                 Event::AddPiece(_) => State::PieceAdded,
             },
@@ -216,9 +216,8 @@ impl<'t> NiPoRep<'t> {
 
     fn handle_pc1_done(&self) -> Result<Event, Failure> {
         let verify_after_pc2 = self.task.sealing_ctrl.config().verify_after_pc2;
-        common::pre_commit2(self.task, verify_after_pc2).map(|out| {
-            Event::PC2(out)
-        })
+        common::pre_commit2(self.task, verify_after_pc2)
+            .map(|out| Event::PC2(out))
     }
 
     fn handle_pc2_done(&self) -> Result<Event, Failure> {
