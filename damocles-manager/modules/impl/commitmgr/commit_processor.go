@@ -508,7 +508,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 		ProvingDeadline:          deadline,
 		RequireActivationSuccess: true,
 	}
-
+	fmt.Printf("[ni] commit process - params: %#v\n", params)
 	proofs := make([][]byte, 0)
 	for i := range infos {
 		proofs = append(proofs, sectorsMap[infos[i].Number].Proof.Proof)
@@ -524,7 +524,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 	if err != nil {
 		return fmt.Errorf("aggregate sector failed: %w", err)
 	}
-	fmt.Printf("[ni] commit process - params: %#v\n", params)
+
 	enc := new(bytes.Buffer)
 	if err := params.MarshalCBOR(enc); err != nil {
 		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %w", err)
