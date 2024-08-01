@@ -161,9 +161,10 @@ func pushMessage2(
 
 	gsLimit, err := chain.GasEstimateGasLimit(ctx, &msg, head.Key())
 	if err != nil {
+		mlog.Errorf("[ni] gslimit estimate failed: %s", err)
 		return cid.Undef, err
 	}
-	mlog.Infof("[ni] gslimit estiated: %d", gsLimit)
+	mlog.Infof("[ni] gslimit estimated: %d", gsLimit)
 	bk, err := msg.ToStorageBlock()
 	if err != nil {
 		return cid.Undef, err
