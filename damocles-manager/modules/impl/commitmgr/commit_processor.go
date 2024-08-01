@@ -432,7 +432,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 	if err != nil {
 		return fmt.Errorf("get aggregate proof type: %w", err)
 	}
-	fmt.Printf("[ni] commit process - %v\n", arp)
+	fmt.Printf("[ni] commit process - aggregateProofType %v\n", arp)
 	infos := []core.AggregateSealVerifyInfo{}
 	sectorsMap := map[abi.SectorNumber]core.SectorState{}
 	failed := map[abi.SectorID]struct{}{}
@@ -508,7 +508,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 		ProvingDeadline:          deadline,
 		RequireActivationSuccess: true,
 	}
-	fmt.Printf("[ni] commit process - params: %#v\n", params)
+	fmt.Printf("[ni] commit process - prooftype: %d\n", params.SealProofType)
 	proofs := make([][]byte, 0)
 	for i := range infos {
 		proofs = append(proofs, sectorsMap[infos[i].Number].Proof.Proof)
