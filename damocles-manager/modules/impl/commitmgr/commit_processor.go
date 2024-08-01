@@ -488,6 +488,11 @@ func (c CommitProcessor) ProcessNiPoRep(
 	sort.Slice(actInfos, func(i, j int) bool {
 		return actInfos[i].SealingNumber < actInfos[j].SealingNumber
 	})
+	fmt.Println("actInfos")
+	fmt.Printf("%#v\n\n", actInfos)
+
+	fmt.Println("infos")
+	fmt.Printf("%#v\n", infos)
 	deadline, err := getProvingDeadline(ctx, c.api, mid, tok)
 	if err != nil {
 		return fmt.Errorf("get miner proving deadline for %d: %w", mid, err)
@@ -495,7 +500,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 
 	// avoid to use current or next deadline
 	deadline = (deadline + mcfg.Sealing.SealingSectorDeadlineDelayNi) % miner.WPoStPeriodDeadlines
-
+	fmt.Printf("deadline %d\n", deadline)
 	params := &miner14.ProveCommitSectorsNIParams{
 		Sectors:                  actInfos,
 		SealProofType:            sectorsMap[infos[0].Number].SectorType,
@@ -519,7 +524,7 @@ func (c CommitProcessor) ProcessNiPoRep(
 	if err != nil {
 		return fmt.Errorf("aggregate sector failed: %w", err)
 	}
-	fmt.Printf("[ni] commit process - aggregateProof size: %d\n", len(params.AggregateProof))
+	fmt.Printf("[ni] commit process - params: %#v\n", params)
 	enc := new(bytes.Buffer)
 	if err := params.MarshalCBOR(enc); err != nil {
 		return fmt.Errorf("couldn't serialize ProveCommitAggregateParams: %w", err)

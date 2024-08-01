@@ -203,7 +203,6 @@ impl<'t> NiPoRep<'t> {
 
     fn handle_piece_added(&self) -> Result<Event, Failure> {
         common::build_tree_d(self.task, true)?;
-        info!("[ni] treed build");
         Ok(Event::BuildTreeD)
     }
 
@@ -213,6 +212,8 @@ impl<'t> NiPoRep<'t> {
 
     fn handle_ticket_assigned(&self) -> Result<Event, Failure> {
         let (ticket, out) = common::pre_commit1(self.task)?;
+        info!(?ticket.epoch, "[ni] ticket epoch");
+        info!(?ticket.ticket, "[ni] ticket");
         Ok(Event::PC1(ticket, out))
     }
 
@@ -231,12 +232,12 @@ impl<'t> NiPoRep<'t> {
             comm_r,
             self.task.sector.phases.pc2out.as_ref().map(|out| out.comm_r)
         }
-
+        info!(?comm_r, "[ni] sealed cid");
         field_required! {
             comm_d,
             self.task.sector.phases.pc2out.as_ref().map(|out| out.comm_d)
         }
-
+        info!(?comm_d, "[ni] unsealed cid");
         field_required! {
             ticket,
             self.task.sector.phases.ticket.as_ref().cloned()
@@ -311,7 +312,8 @@ impl<'t> NiPoRep<'t> {
 
             self.task.sealing_ctrl.wait_or_interrupted(delay)?;
         };
-
+        info!(?seed.epoch, "[ni] seed epoch");
+        info!(?seed.seed, "[ni] seed");
         Ok(Event::AssignSeed(seed))
     }
 
@@ -377,7 +379,7 @@ impl<'t> NiPoRep<'t> {
             proof,
             self.task.sector.phases.c2out
         }
-
+        info!(?proof, "[ni] c2 proof");
         let info = ProofOnChainInfo {
             proof: proof.proof.into(),
         };
