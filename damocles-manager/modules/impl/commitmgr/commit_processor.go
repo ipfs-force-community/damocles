@@ -322,10 +322,13 @@ func (c CommitProcessor) ProcessNiPoRep(
 	actInfos := []miner14.SectorNIActivationInfo{}
 
 	collateral := big.Zero()
-	ir := [32]byte{}
-	for i := range ir {
-		ir[i] = 1
+	ir := [32]byte{
+		1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1,
 	}
+
 	for i, p := range sectors {
 		sectorsMap[p.ID.Number] = sectors[i]
 		expire, err := c.sectorExpiration(ctx, &p)
