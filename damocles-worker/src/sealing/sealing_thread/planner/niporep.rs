@@ -335,7 +335,7 @@ impl<'t> NiPoRep<'t> {
             .wait(STAGE_NAME_C2)
             .crit()?;
 
-        // let miner_id = self.task.sector_id()?.miner;
+        let miner_id = self.task.sector_id()?.miner;
 
         cloned_required! {
             c1out,
@@ -347,27 +347,27 @@ impl<'t> NiPoRep<'t> {
             self.task.sector.base.as_ref().map(|b| b.prove_input)
         }
 
-        let (_, sector_id) = prove_input;
+        let (prover_id, sector_id) = prove_input;
 
-        let out = common::commit2(c1out, sector_id)?;
+        // let out = common::commit2(c1out, sector_id)?;
 
-        // let out = self
-        //     .task
-        //     .sealing_ctrl
-        //     .ctx()
-        //     .global
-        //     .processors
-        //     .c2
-        //     .process(
-        //         self.task.sealing_ctrl.ctrl_ctx(),
-        //         C2Input {
-        //             c1out,
-        //             prover_id,
-        //             sector_id,
-        //             miner_id,
-        //         },
-        //     )
-        //     .perm()?;
+        let out = self
+            .task
+            .sealing_ctrl
+            .ctx()
+            .global
+            .processors
+            .c2
+            .process(
+                self.task.sealing_ctrl.ctrl_ctx(),
+                C2Input {
+                    c1out,
+                    prover_id,
+                    sector_id,
+                    miner_id,
+                },
+            )
+            .perm()?;
         Ok(Event::C2(out))
     }
 
