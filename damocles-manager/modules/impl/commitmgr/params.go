@@ -132,7 +132,12 @@ func getSectorCollateral(
 	return collateral, nil
 }
 
-func currentSealProof(ctx context.Context, maddr address.Address, chainAPI v1.FullNode, useSyntheticPoRep bool) (abi.RegisteredSealProof, error) {
+func currentSealProof(
+	ctx context.Context,
+	maddr address.Address,
+	chainAPI v1.FullNode,
+	useSyntheticPoRep bool,
+) (abi.RegisteredSealProof, error) {
 	mi, err := chainAPI.StateMinerInfo(ctx, maddr, types.EmptyTSK)
 	if err != nil {
 		return 0, err
