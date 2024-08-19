@@ -110,7 +110,7 @@ func SectorWeight(
 			continue
 		}
 
-		w = big.Add(w, big.Mul(sectorDuration, abi.NewStoragePower(int64(pieceInfo.Size))))
+		vw = big.Add(vw, big.Mul(sectorDuration, abi.NewStoragePower(int64(pieceInfo.Size))))
 	}
 
 	// load market actor
