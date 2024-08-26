@@ -125,7 +125,7 @@ func (c CommitProcessor) ProcessV2(
 		}
 		sectorsMap[p.ID.Number] = sectors[i]
 		if mcfg.Commitment.Prove.SendFund {
-			sc, err := getSectorCollateral(ctx, c.api, mid, p.ID.Number, tok)
+			sc, err := getSectorCollateral(ctx, c.api, c.chain, &sectors[i], mid, tok, mcfg.Sealing.UseSyntheticPoRep)
 			if err != nil {
 				plog.Errorf("get sector collateral for %d failed: %s\n", p.ID.Number, err)
 				failed[sectors[i].ID] = struct{}{}

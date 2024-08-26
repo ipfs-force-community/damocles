@@ -8,8 +8,12 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
+	lminer "github.com/filecoin-project/lotus/chain/actors/builtin/miner"
+	v1 "github.com/filecoin-project/venus/venus-shared/api/chain/v1"
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
+	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util/pledge"
 )
 
 func (p PreCommitProcessor) preCommitInfo(
@@ -87,16 +91,18 @@ func (p PreCommitProcessor) preCommitInfo(
 func getSectorCollateral(
 	ctx context.Context,
 	stateMgr SealingAPI,
+	chainAPI v1.FullNode,
+	sector *core.SectorState,
 	mid abi.ActorID,
-	sn abi.SectorNumber,
 	tok core.TipSetToken,
+	useSyntheticPoRep bool,
 ) (abi.TokenAmount, error) {
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {
 		return big.Zero(), fmt.Errorf("invalid miner actor id: %w", err)
 	}
 
-	pci, err := stateMgr.StateSectorPreCommitInfo(ctx, maddr, sn, tok)
+	pci, err := stateMgr.StateSectorPreCommitInfo(ctx, maddr, sector.ID.Number, tok)
 	if err != nil {
 		return big.Zero(), fmt.Errorf("getting precommit info: %w", err)
 	}
@@ -104,7 +110,16 @@ func getSectorCollateral(
 		return big.Zero(), fmt.Errorf("precommit info not found on chain")
 	}
 
-	collateral, err := stateMgr.StateMinerInitialPledgeCollateral(ctx, maddr, pci.Info, tok)
+	sealProof, err := currentSealProof(ctx, maddr, chainAPI, useSyntheticPoRep)
+	if err != nil {
+		return big.Zero(), fmt.Errorf("getting current seal proof type: %w", err)
+	}
+	weight, err := pledge.SectorWeight(ctx, sector, sealProof, chainAPI, pci.Info.Expiration)
+	if err != nil {
+		return big.Zero(), fmt.Errorf("getting sector weight: %w", err)
+	}
+
+	collateral, err := pledge.CalcPledgeForPower(ctx, chainAPI, weight)
 	if err != nil {
 		return big.Zero(), fmt.Errorf("getting initial pledge collateral: %w", err)
 	}
@@ -115,6 +130,25 @@ func getSectorCollateral(
 	}
 
 	return collateral, nil
+}
+
+func currentSealProof(
+	ctx context.Context,
+	maddr address.Address,
+	chainAPI v1.FullNode,
+	useSyntheticPoRep bool,
+) (abi.RegisteredSealProof, error) {
+	mi, err := chainAPI.StateMinerInfo(ctx, maddr, types.EmptyTSK)
+	if err != nil {
+		return 0, err
+	}
+
+	ver, err := chainAPI.StateNetworkVersion(ctx, types.EmptyTSK)
+	if err != nil {
+		return 0, err
+	}
+
+	return lminer.PreferredSealProofTypeFromWindowPoStType(ver, mi.WindowPoStProofType, useSyntheticPoRep)
 }
 
 func getSectorCollateralNiPoRep(
