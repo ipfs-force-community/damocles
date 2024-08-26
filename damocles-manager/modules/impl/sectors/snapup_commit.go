@@ -327,7 +327,7 @@ func (h *snapupCommitHandler) submitMessage() error {
 		return fmt.Errorf("snapup disabled")
 	}
 
-	sender, err := h.committer.senderSelector.Select(h.committer.ctx, h.state.ID.Miner, mcfg.PoSt.GetSenders())
+	sender, err := h.committer.senderSelector.Select(h.committer.ctx, h.state.ID.Miner, mcfg.SnapUp.GetSenders())
 	if err != nil {
 		return fmt.Errorf("select sender for %d: %w", h.state.ID.Miner, err)
 	}
