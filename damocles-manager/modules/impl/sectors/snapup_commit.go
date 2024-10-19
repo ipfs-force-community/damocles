@@ -14,7 +14,6 @@ import (
 	"github.com/filecoin-project/go-state-types/builtin"
 	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	"github.com/filecoin-project/go-state-types/exitcode"
-	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -411,12 +410,7 @@ func (h *snapupCommitHandler) submitMessage() error {
 
 	msgValue := types.NewInt(0)
 	if mcfg.SnapUp.SendFund {
-		proofType, err := h.state.SectorType.RegisteredWindowPoStProof()
-		if err != nil {
-			return fmt.Errorf("get registered window post proof type: %w", err)
-		}
-
-		collateral, err := h.calcCollateral(tsk, proofType)
+		collateral, err := h.calcCollateral(context.Background(), ts)
 		if err != nil {
 			return newTempErr(err, mcfg.SnapUp.Retry.APIFailureWait.Std())
 		}
@@ -467,46 +461,39 @@ func (h *snapupCommitHandler) submitMessage() error {
 	return nil
 }
 
-func (h *snapupCommitHandler) calcCollateral(tsk types.TipSetKey, proofType abi.RegisteredPoStProof) (big.Int, error) {
-	onChainInfo, err := h.committer.chain.StateSectorGetInfo(h.committer.ctx, h.maddr, h.state.ID.Number, tsk)
+func (h *snapupCommitHandler) calcCollateral(ctx context.Context, ts *types.TipSet) (big.Int, error) {
+	onChainInfo, err := h.committer.chain.StateSectorGetInfo(h.committer.ctx, h.maddr, h.state.ID.Number, ts.Key())
 	if err != nil {
 		return big.Int{}, fmt.Errorf("StateSectorGetInfo: %w", err) //revive:disable-line:error-strings
 	}
 
-	nv, err := h.committer.chain.StateNetworkVersion(h.committer.ctx, tsk)
-	if err != nil {
-		return big.Int{}, fmt.Errorf("StateNetworkVersion: %w", err) //revive:disable-line:error-strings
+	if onChainInfo == nil {
+		return big.Int{}, fmt.Errorf("on chain info was nil, sector: %d", h.state.ID.Number)
 	}
-	// TODO: Drop after nv19 comes and goes
-	if nv >= network.Version19 {
-		proofType, err = proofType.ToV1_1PostProof()
-		if err != nil {
-			return big.Int{}, fmt.Errorf("convert to v1_1 post proof: %w", err)
+
+	duration := onChainInfo.Expiration - ts.Height()
+
+	ssize, err := h.state.SectorType.SectorSize()
+	if err != nil {
+		return big.Int{}, fmt.Errorf("failed get sector size: %w", err)
+	}
+
+	var verifiedSize uint64
+	for _, piece := range h.state.SectorPiece() {
+		if piece.HasDealInfo() {
+			alloc, err := pledge.GetAllocation(ctx, h.committer.chain, ts.Key(), piece)
+			if err != nil || alloc == nil {
+				if err != nil {
+					log.Errorw("failed to get allocation", "error", err)
+				}
+			}
+			verifiedSize += uint64(piece.PieceInfo().Size)
 		}
 	}
-	sealType, err := miner.PreferredSealProofTypeFromWindowPoStType(nv, proofType, false)
-	if err != nil {
-		return big.Int{}, fmt.Errorf("get seal proof type: %w", err)
-	}
 
-	weightUpdate, err := pledge.SectorWeight(
-		h.committer.ctx,
-		&h.state,
-		sealType,
-		h.committer.chain,
-		onChainInfo.Expiration,
-	)
+	collateral, err := h.committer.chain.StateMinerInitialPledgeForSector(ctx, duration, ssize, verifiedSize, ts.Key())
 	if err != nil {
-		return big.Int{}, fmt.Errorf("get sector weight: %w", err)
-	}
-
-	collateral, err := pledge.CalcPledgeForPower(h.committer.ctx, h.committer.chain, weightUpdate)
-	if err != nil {
-		return big.Int{}, fmt.Errorf("get pledge for power: %w", err)
-	}
-	collateral = big.Sub(collateral, onChainInfo.InitialPledge)
-	if collateral.LessThan(big.Zero()) {
-		collateral = big.Zero()
+		return big.Int{}, fmt.Errorf("getting initial pledge collateral: %w", err)
 	}
 
 	return collateral, nil

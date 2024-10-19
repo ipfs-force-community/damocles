@@ -15,6 +15,7 @@ import (
 	miner14 "github.com/filecoin-project/go-state-types/builtin/v14/miner"
 
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
+	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin"
@@ -113,6 +114,15 @@ func (c CommitProcessor) ProcessV2(
 	// sort sectors by number
 	sort.Slice(sectors, func(i, j int) bool { return sectors[i].ID.Number < sectors[j].ID.Number })
 
+	tsk, err := types.TipSetKeyFromBytes(tok)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal TipSetToken to TipSetKey: %w", err)
+	}
+	ts, err := c.chain.ChainGetTipSet(ctx, tsk)
+	if err != nil {
+		return err
+	}
+
 	collateral := big.Zero()
 	for i, p := range sectors {
 		activationManifest, dealIDs, err := piece.ProcessPieces(ctx, &sectors[i], c.chain, c.lookupID)
@@ -125,7 +135,7 @@ func (c CommitProcessor) ProcessV2(
 		}
 		sectorsMap[p.ID.Number] = sectors[i]
 		if mcfg.Commitment.Prove.SendFund {
-			sc, err := getSectorCollateral(ctx, c.api, c.chain, &sectors[i], mid, tok, mcfg.Sealing.UseSyntheticPoRep)
+			sc, err := getSectorCollateral(ctx, c.api, c.chain, &sectors[i], mid, ts, activationManifest)
 			if err != nil {
 				plog.Errorf("get sector collateral for %d failed: %s\n", p.ID.Number, err)
 				failed[sectors[i].ID] = struct{}{}
