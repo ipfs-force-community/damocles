@@ -525,8 +525,8 @@ github.com/filecoin-project/specs-actors/v8 v8.0.1 h1:4u0tIRJeT5G7F05lwLRIsDnsrN
 github.com/filecoin-project/specs-actors/v8 v8.0.1/go.mod h1:UYIPg65iPWoFw5NEftREdJwv9b/5yaLKdCgTvNI/2FA=
 github.com/filecoin-project/specs-storage v0.4.1 h1:yvLEaLZj8f+uByhNC4mFOtCUyL2wQku+NGBp6hjTe9M=
 github.com/filecoin-project/specs-storage v0.4.1/go.mod h1:Z2eK6uMwAOSLjek6+sy0jNV2DSsMEENziMUz0GHRFBw=
-github.com/filecoin-project/venus v1.17.0-rc1.0.20241018092400-fb4602badc1d h1:kTsAXPFFqWJZRJLx35ilLIJiAIKZhY1+L0OvFzSWMCg=
-github.com/filecoin-project/venus v1.17.0-rc1.0.20241018092400-fb4602badc1d/go.mod h1:4gM5h4S+leuwbArbYKc5Y/x7XzJL3LDDShBIrYQhn4A=
+github.com/filecoin-project/venus v1.17.0-rc2 h1:DmTqv2J0tUDOrQRXbrgwwB1T5yIwaJDP+O3KpFB4EQk=
+github.com/filecoin-project/venus v1.17.0-rc2/go.mod h1:4gM5h4S+leuwbArbYKc5Y/x7XzJL3LDDShBIrYQhn4A=
 github.com/flynn/noise v1.1.0 h1:KjPQoQCEFdZDiP03phOvGi11+SVVhBG2wOWAorLsstg=
 github.com/flynn/noise v1.1.0/go.mod h1:xbMo+0i6+IGbYdJhF31t2eR1BIU0CYc12+BNAKwUTag=
 github.com/fogleman/gg v1.2.1-0.20190220221249-0403632d5b90/go.mod h1:R/bRT+9gY/C5z7JzPU0zXsXHKM4/ayA+zqcVNZzPa1k=
