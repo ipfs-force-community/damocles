@@ -133,8 +133,19 @@ func getSectorCollateral(
 		collateral = big.Zero()
 	}
 
-	log.Infow("getSectorCollateral", "collateral", types.FIL(collateral), "sn", sector.ID, "precommit", types.FIL(pci.PreCommitDeposit),
-		"pledge", types.FIL(collateral), "verifiedSize", verifiedSize)
+	log.Infow(
+		"getSectorCollateral",
+		"collateral",
+		types.FIL(collateral),
+		"sn",
+		sector.ID,
+		"precommit",
+		types.FIL(pci.PreCommitDeposit),
+		"pledge",
+		types.FIL(collateral),
+		"verifiedSize",
+		verifiedSize,
+	)
 
 	return collateral, nil
 }

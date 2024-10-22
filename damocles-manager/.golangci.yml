@@ -19,7 +19,7 @@ linters:
     - makezero
     - durationcheck
     - prealloc
-    - predeclared
+    # - predeclared
     - gofmt
     # - revive
 
@@ -35,6 +35,7 @@ linters-settings:
       - G101
       - G112
       - G404
+      - G115
   revive:
     # Maximum number of open files at the same time.
     # See https://github.com/mgechev/revive#command-line-flags
