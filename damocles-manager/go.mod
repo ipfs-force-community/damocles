@@ -21,10 +21,10 @@ require (
 	github.com/filecoin-project/go-fil-commcid v0.2.0
 	github.com/filecoin-project/go-jsonrpc v0.6.0
 	github.com/filecoin-project/go-paramfetch v0.0.4
-	github.com/filecoin-project/go-state-types v0.15.0-rc1
+	github.com/filecoin-project/go-state-types v0.15.0
 	github.com/filecoin-project/lotus v1.30.0-rc2
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.17.0-rc2
+	github.com/filecoin-project/venus v1.17.0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
@@ -93,7 +93,7 @@ require (
 	github.com/filecoin-project/go-commp-utils/v2 v2.1.0 // indirect
 	github.com/filecoin-project/go-crypto v0.1.0 // indirect
 	github.com/filecoin-project/go-data-transfer/v2 v2.0.0-rc7 // indirect
-	github.com/filecoin-project/go-f3 v0.7.0 // indirect
+	github.com/filecoin-project/go-f3 v0.7.2 // indirect
 	github.com/filecoin-project/go-fil-commp-hashhash v0.2.0 // indirect
 	github.com/filecoin-project/go-fil-markets v1.28.3 // indirect
 	github.com/filecoin-project/go-hamt-ipld v0.1.5 // indirect
@@ -217,7 +217,7 @@ require (
 	github.com/valyala/fasttemplate v1.1.0 // indirect
 	github.com/whyrusleeping/bencher v0.0.0-20190829221104-bb6607aa8bba // indirect
 	github.com/whyrusleeping/cbor v0.0.0-20171005072247-63513f603b11 // indirect
-	github.com/whyrusleeping/cbor-gen v0.1.2 // indirect
+	github.com/whyrusleeping/cbor-gen v0.2.0 // indirect
 	github.com/whyrusleeping/go-logging v0.0.1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
@@ -241,11 +241,11 @@ require (
 	go.uber.org/dig v1.17.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/crypto v0.27.0 // indirect
+	golang.org/x/crypto v0.28.0 // indirect
 	golang.org/x/mod v0.20.0 // indirect
 	golang.org/x/net v0.29.0 // indirect
-	golang.org/x/sys v0.25.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
+	golang.org/x/sys v0.26.0 // indirect
+	golang.org/x/text v0.19.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/api v0.155.0 // indirect
