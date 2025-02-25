@@ -69,7 +69,7 @@ func (c CommitProcessor) Process(
 		}
 	}
 
-	aggregate := c.ShouldBatch(mid) && len(sectors) >= core.MinAggregatedSectors
+	aggregate := len(sectors) >= core.MinAggregatedSectors
 	if len(niporepSectors) > 0 {
 		return c.ProcessNiPoRep(ctx, niporepSectors, mid, ctrlAddr, tok, nv, aggregate)
 	}
@@ -374,42 +374,6 @@ func (c CommitProcessor) CheckAfter(mid abi.ActorID) *time.Timer {
 
 func (c CommitProcessor) Threshold(mid abi.ActorID) int {
 	return c.config.MustMinerConfig(mid).Commitment.Prove.Batch.Threshold
-}
-
-func (c CommitProcessor) EnableBatch(mid abi.ActorID) bool {
-	return !c.config.MustMinerConfig(mid).Commitment.Prove.Batch.BatchCommitAboveBaseFee.IsZero()
-}
-
-func (c CommitProcessor) ShouldBatch(mid abi.ActorID) bool {
-	if !c.EnableBatch(mid) {
-		return false
-	}
-
-	bLog := log.With("actor", mid, "type", "prove")
-
-	basefee, err := func() (abi.TokenAmount, error) {
-		ctx := context.Background()
-		tok, _, err := c.api.ChainHead(ctx)
-		if err != nil {
-			return abi.NewTokenAmount(0), err
-		}
-		return c.api.ChainBaseFee(ctx, tok)
-	}()
-	if err != nil {
-		bLog.Errorf("get basefee: %w", err)
-		return false
-	}
-
-	bcfg := c.config.MustMinerConfig(mid).Commitment.Prove.Batch
-	basefeeAbove := basefee.GreaterThanEqual(abi.TokenAmount(bcfg.BatchCommitAboveBaseFee))
-	bLog.Debugf(
-		"should batch(%t): basefee(%s), basefee above(%s)",
-		basefeeAbove,
-		modules.FIL(basefee).Short(),
-		bcfg.BatchCommitAboveBaseFee.Short(),
-	)
-
-	return basefeeAbove
 }
 
 var _ Processor = (*CommitProcessor)(nil)

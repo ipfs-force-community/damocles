@@ -70,7 +70,7 @@ func (b *Batcher) run() {
 		cleanAll := false
 		if len(pending) > 0 {
 			var processList []core.SectorState
-			if full || manual || !b.processor.EnableBatch(b.mid) {
+			if full || manual {
 				processList = make([]core.SectorState, len(pending))
 				copy(processList, pending)
 
