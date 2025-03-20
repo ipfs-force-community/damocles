@@ -929,7 +929,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 			if !found {
 				return fmt.Errorf("sector %d is not active", id)
 			}
-			if len(si.DealIDs) > 0 && onlyCC {
+			if len(si.DeprecatedDealIDs) > 0 && onlyCC {
 				continue
 			}
 

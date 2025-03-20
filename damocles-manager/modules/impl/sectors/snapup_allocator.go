@@ -23,7 +23,7 @@ import (
 )
 
 func sectorGoodForSnapup(sinfo *miner.SectorOnChainInfo, currentHeight abi.ChainEpoch) bool {
-	return sinfo.SectorKeyCID == nil && len(sinfo.DealIDs) == 0 &&
+	return sinfo.SectorKeyCID == nil && len(sinfo.DeprecatedDealIDs) == 0 &&
 		sinfo.Expiration-currentHeight >= market8.DealMinDuration
 }
 

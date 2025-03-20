@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.11.1
+## 0.12.1
 
 - NV25 网络升级 [#1109](https://github.com/ipfs-force-community/damocles/pull/1109)
 - damocles-manager
