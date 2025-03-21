@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.1
+
+- NV25 网络升级 [#1109](https://github.com/ipfs-force-community/damocles/pull/1109)
+- damocles-manager
+  - 移除PreCommit和ProveCommit的BatchCommitAboveBaseFee配置
+  - PreCommitBatch Threshold默认值调整到2
+  - ProveCommitBatch Threshold默认值调整到4
+  - TerminateCommitBatch Threshold默认值调整到2
+
 ## 0.11.0
 
 - NV23 网络升级 [#1092](https://github.com/ipfs-force-community/damocles/pull/1092)
