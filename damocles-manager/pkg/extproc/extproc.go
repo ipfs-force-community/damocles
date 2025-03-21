@@ -397,7 +397,7 @@ func (ep *ExtProcessor) process(ctx context.Context, data any, res any) error {
 
 	case resp := <-respCh:
 		if resp.ErrMsg != nil {
-			return fmt.Errorf(*resp.ErrMsg)
+			return fmt.Errorf("%s", *resp.ErrMsg)
 		}
 
 		if res != nil {

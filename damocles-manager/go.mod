@@ -1,8 +1,6 @@
 module github.com/ipfs-force-community/damocles/damocles-manager
 
-go 1.23.7
-
-toolchain go1.24.1
+go 1.24.1
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2

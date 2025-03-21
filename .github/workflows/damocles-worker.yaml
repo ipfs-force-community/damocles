@@ -3,11 +3,25 @@ name: damocles-worker
 on:
   pull_request:
     branches: ["main", "release/**", "dev/coop/**"]
-    paths-ignore: ["*.md", "docs/**"]
+    paths-ignore:
+      [
+        "*.md",
+        "docs/**",
+        "damocles-manager/**",
+        "manager-plugin/**",
+        "damocles-worker-util/**",
+      ]
 
   push:
     branches: ["main", "release/**", "dev/coop/**"]
-    paths-ignore: ["*.md", "docs/**"]
+    paths-ignore:
+      [
+        "*.md",
+        "docs/**",
+        "damocles-manager/**",
+        "manager-plugin/**",
+        "damocles-worker-util/**",
+      ]
 
 jobs:
   build:
