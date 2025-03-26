@@ -212,8 +212,20 @@ impl Module for SealingThread {
                     },
 
                     default(resume_loop_tick) => {
-                        warn!("worker has been waiting for resume signal during the last {:?}", resume_loop_tick);
-                        continue 'SEAL_LOOP
+                        // TODO: this is a temporary solution
+                        if cfg!(feature = "auto_resume") {
+                            warn!("worker has been waiting for resume signal during the last {:?}, try to resume", resume_loop_tick);
+                            wait_for_resume = false;
+                            resume_state = None;
+
+                            self.ctrl_ctx.update_state(|cst| {
+                                cst.state = SealingThreadState::Idle;
+                                cst.job.last_error.take();
+                            })?;
+                        } else {
+                            warn!("worker has been waiting for resume signal during the last {:?}", resume_loop_tick);
+                            continue 'SEAL_LOOP
+                        }
                     }
                 }
             }
