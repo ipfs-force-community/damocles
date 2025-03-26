@@ -213,7 +213,7 @@ impl Module for SealingThread {
 
                     default(resume_loop_tick) => {
                         // TODO: this is a temporary solution
-                        if cfg!(feature = "auto_resume") {
+                        if cfg!(feature = "auto-resume") {
                             warn!("worker has been waiting for resume signal during the last {:?}, try to resume", resume_loop_tick);
                             wait_for_resume = false;
                             resume_state = None;
