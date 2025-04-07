@@ -1072,8 +1072,8 @@ github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20231108073455-ac
 github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20231108073455-ac8eebc7d237/go.mod h1:EpGeK7b251iv7L5TnHl1PJGFH4KbliE03ctYt5thy6c=
 github.com/ipfs-force-community/go-jsonrpc v0.1.9 h1:5QavBltfvV6fz/+EbYsCkVxJ1MSJncZm6YuPs1SLdZU=
 github.com/ipfs-force-community/go-jsonrpc v0.1.9/go.mod h1:jBSvPTl8V1N7gSTuCR4bis8wnQnIjHbRPpROol6iQKM=
-github.com/ipfs-force-community/lotus v0.8.1-0.20250331084623-f8eb6af8a92d h1:uC5OXoSPZNhHLjRUSkE83R6AxQqZOgYgXJLn/FXYIhw=
-github.com/ipfs-force-community/lotus v0.8.1-0.20250331084623-f8eb6af8a92d/go.mod h1:ym6bqoElZP8rU6Bfd5hZSJ7FjJlUHbF9+8mxG0u4TXw=
+github.com/ipfs-force-community/lotus v0.8.1-0.20250407022756-07bf480efae5 h1:V5PmXTgiaWNq2F3tpFdWljcypyEmqs3e+8ukzjtdXOg=
+github.com/ipfs-force-community/lotus v0.8.1-0.20250407022756-07bf480efae5/go.mod h1:ym6bqoElZP8rU6Bfd5hZSJ7FjJlUHbF9+8mxG0u4TXw=
 github.com/ipfs-force-community/metrics v1.0.1-0.20240725062356-39b286636574 h1:XOkJFbRIlCkEwjkPnVLL/gDt5sfqrii5An4SzBtBtLM=
 github.com/ipfs-force-community/metrics v1.0.1-0.20240725062356-39b286636574/go.mod h1:VJhKwTZEUTTgJI/uPmfJrslV4xdANy/FjkWLLx89J8k=
 github.com/ipfs-force-community/venus-cluster-assets v0.1.0 h1:K/0+OV9Jm7HjSa7O9MAtgfLDIudQYZUTymhJsp8rGXg=
