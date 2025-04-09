@@ -661,8 +661,8 @@ github.com/filecoin-project/specs-actors/v8 v8.0.1 h1:4u0tIRJeT5G7F05lwLRIsDnsrN
 github.com/filecoin-project/specs-actors/v8 v8.0.1/go.mod h1:UYIPg65iPWoFw5NEftREdJwv9b/5yaLKdCgTvNI/2FA=
 github.com/filecoin-project/specs-storage v0.4.1 h1:yvLEaLZj8f+uByhNC4mFOtCUyL2wQku+NGBp6hjTe9M=
 github.com/filecoin-project/specs-storage v0.4.1/go.mod h1:Z2eK6uMwAOSLjek6+sy0jNV2DSsMEENziMUz0GHRFBw=
-github.com/filecoin-project/venus v1.18.0 h1:6RxU29jfDJbv+3GbhFXEI1pqp3NMh38LOxGqLK+NEOU=
-github.com/filecoin-project/venus v1.18.0/go.mod h1:CSSCYMdnMu0jGVO/v/eCUTywQy/FMWp/2K6EgVgY9cY=
+github.com/filecoin-project/venus v1.18.1 h1:KOCEw8MjJaAhhxwW5V/8CIAcmqaoO4MN/9D7fBQRdTg=
+github.com/filecoin-project/venus v1.18.1/go.mod h1:CSSCYMdnMu0jGVO/v/eCUTywQy/FMWp/2K6EgVgY9cY=
 github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568/go.mod h1:xEzjJPgXI435gkrCt3MPfRiAkVrwSbHsst4LCFVfpJc=
 github.com/flynn/noise v0.0.0-20180327030543-2492fe189ae6/go.mod h1:1i71OnUq3iUe1ma7Lr6yG6/rjvM3emb6yoL7xLFzcVQ=
 github.com/flynn/noise v1.0.0/go.mod h1:xbMo+0i6+IGbYdJhF31t2eR1BIU0CYc12+BNAKwUTag=
@@ -1072,8 +1072,8 @@ github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20231108073455-ac
 github.com/ipfs-force-community/damocles/manager-plugin v0.0.0-20231108073455-ac8eebc7d237/go.mod h1:EpGeK7b251iv7L5TnHl1PJGFH4KbliE03ctYt5thy6c=
 github.com/ipfs-force-community/go-jsonrpc v0.1.9 h1:5QavBltfvV6fz/+EbYsCkVxJ1MSJncZm6YuPs1SLdZU=
 github.com/ipfs-force-community/go-jsonrpc v0.1.9/go.mod h1:jBSvPTl8V1N7gSTuCR4bis8wnQnIjHbRPpROol6iQKM=
-github.com/ipfs-force-community/lotus v0.8.1-0.20250331084623-f8eb6af8a92d h1:uC5OXoSPZNhHLjRUSkE83R6AxQqZOgYgXJLn/FXYIhw=
-github.com/ipfs-force-community/lotus v0.8.1-0.20250331084623-f8eb6af8a92d/go.mod h1:ym6bqoElZP8rU6Bfd5hZSJ7FjJlUHbF9+8mxG0u4TXw=
+github.com/ipfs-force-community/lotus v0.8.1-0.20250407022756-07bf480efae5 h1:V5PmXTgiaWNq2F3tpFdWljcypyEmqs3e+8ukzjtdXOg=
+github.com/ipfs-force-community/lotus v0.8.1-0.20250407022756-07bf480efae5/go.mod h1:ym6bqoElZP8rU6Bfd5hZSJ7FjJlUHbF9+8mxG0u4TXw=
 github.com/ipfs-force-community/metrics v1.0.1-0.20240725062356-39b286636574 h1:XOkJFbRIlCkEwjkPnVLL/gDt5sfqrii5An4SzBtBtLM=
 github.com/ipfs-force-community/metrics v1.0.1-0.20240725062356-39b286636574/go.mod h1:VJhKwTZEUTTgJI/uPmfJrslV4xdANy/FjkWLLx89J8k=
 github.com/ipfs-force-community/venus-cluster-assets v0.1.0 h1:K/0+OV9Jm7HjSa7O9MAtgfLDIudQYZUTymhJsp8rGXg=
