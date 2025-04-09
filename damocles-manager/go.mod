@@ -22,7 +22,7 @@ require (
 	github.com/filecoin-project/go-state-types v0.16.0
 	github.com/filecoin-project/lotus v1.32.2
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.18.1-0.20250407051628-1786cc17af8e
+	github.com/filecoin-project/venus v1.18.1
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
