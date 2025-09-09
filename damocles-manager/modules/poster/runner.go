@@ -527,10 +527,7 @@ func (pr *postRunner) batchPartitions(partitions []chain.Partition, nv network.V
 		return nil, fmt.Errorf("getting sectors per partition: %w", err)
 	}
 
-	declMax, err := specpolicy.GetDeclarationsMax(nv)
-	if err != nil {
-		return nil, fmt.Errorf("getting max declarations: %w", err)
-	}
+	declMax := specpolicy.DeclarationsMax
 
 	if partitionsPerMsg > declMax {
 		partitionsPerMsg = declMax

@@ -56,18 +56,7 @@ func (tp TerminateProcessor) Process(
 		}
 	}()
 
-	tok, _, err := tp.api.ChainHead(ctx)
-	if err != nil {
-		return fmt.Errorf("get chain head: %w", err)
-	}
-	nv, err := tp.api.StateNetworkVersion(ctx, tok)
-	if err != nil {
-		return fmt.Errorf("get network version : %w", err)
-	}
-	declMax, err := specpolicy.GetDeclarationsMax(nv)
-	if err != nil {
-		return fmt.Errorf("get max declarations: %w", err)
-	}
+	declMax := specpolicy.DeclarationsMax
 
 	maddr, err := address.NewIDAddress(uint64(mid))
 	if err != nil {

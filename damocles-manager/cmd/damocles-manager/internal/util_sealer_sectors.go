@@ -1022,10 +1022,7 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 			return err
 		}
 
-		declMax, err := specpolicy.GetDeclarationsMax(nv)
-		if err != nil {
-			return err
-		}
+		declMax := specpolicy.DeclarationsMax
 
 		addrSectors := sectorsMax
 		if cctx.Int("max-sectors") != 0 {
