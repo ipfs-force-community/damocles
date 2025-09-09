@@ -11,7 +11,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/go-state-types/big"
 
 	"github.com/filecoin-project/venus/venus-shared/actors"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
@@ -249,6 +248,11 @@ var utilMinerCreateCmd = &cli.Command{
 			return fmt.Errorf("serialize params: %w", err)
 		}
 
+		deposit, err := api.Chain.StateMinerCreationDeposit(gctx, tsk)
+		if err != nil {
+			return fmt.Errorf("get miner creation deposit: %w", err)
+		}
+
 		msg := &messager.UnsignedMessage{
 			From: from,
 
@@ -256,7 +260,7 @@ var utilMinerCreateCmd = &cli.Command{
 			Method: power.Methods.CreateMiner,
 			Params: params,
 
-			Value: big.Zero(),
+			Value: deposit,
 		}
 
 		var retval core.CreateMinerReturn

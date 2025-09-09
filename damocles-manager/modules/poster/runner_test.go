@@ -78,7 +78,7 @@ func TestBatchPartitions(t *testing.T) {
 	partitionsPerMsg, err := specpolicy.GetMaxPoStPartitions(nv, runner.proofType)
 	require.NoError(t, err, "get partitions per msg")
 
-	declMax, err := specpolicy.GetDeclarationsMax(nv)
+	declMax := specpolicy.DeclarationsMax
 	require.NoError(t, err, "get declaration max")
 
 	if partitionsPerMsg > declMax {

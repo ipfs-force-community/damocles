@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.13.0-rc1
+- NV27 网络升级 [#1117](https://github.com/ipfs-force-community/damocles/pull/1117)
+
 ## 0.12.1
 
 - NV25 网络升级 [#1109](https://github.com/ipfs-force-community/damocles/pull/1109)
