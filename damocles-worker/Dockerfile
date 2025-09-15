@@ -1,6 +1,6 @@
 ARG RUST_TOOLCHAIN
 
-FROM rust:${RUST_TOOLCHAIN}-buster AS build
+FROM rust:${RUST_TOOLCHAIN}-bullseye AS build
 
 RUN apt-get update
 RUN apt-get install -y \
@@ -27,7 +27,7 @@ ARG RUSTFLAGS=""
 RUN cargo clean -q
 RUN make build-all
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 
