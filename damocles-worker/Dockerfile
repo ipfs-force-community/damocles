@@ -2,6 +2,7 @@ ARG RUST_TOOLCHAIN
 
 FROM rust:${RUST_TOOLCHAIN}-bullseye AS build
 
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
 RUN apt-get update
 RUN apt-get install -y \
     --no-install-recommends \
@@ -24,24 +25,19 @@ ARG GIT_FALLBACK="Unknown (no git or not git repo)"
 ARG GIT_COMMIT=${GIT_FALLBACK}
 ARG RUSTFLAGS=""
 
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
+
 RUN cargo clean -q
 RUN make build-all
+RUN make /dependencies
+RUN ldd /build/dist/bin/damocles-worker | grep "=>" | awk '{print $3}' | xargs -I {} cp {} /dependencies
 
 FROM ubuntu:22.04
 
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 
 COPY --from=build /etc/ssl/certs              /etc/ssl/certs
-COPY --from=build /lib/*/libdl.so.2           /lib/
-COPY --from=build /lib/*/librt.so.1           /lib/
-COPY --from=build /lib/*/libgcc_s.so.1        /lib/
-COPY --from=build /lib/*/libutil.so.1         /lib/
-COPY --from=build /usr/lib/*/libltdl.so.7     /lib/
-COPY --from=build /usr/lib/*/libnuma.so.1     /lib/
-COPY --from=build /usr/lib/*/libhwloc.so.5    /lib/
-COPY --from=build /usr/lib/*/libOpenCL.so.1   /lib/
-COPY --from=build /usr/lib/*/libssl.so.1.1    /lib/
-COPY --from=build /usr/lib/*/libcrypto.so.1.1 /lib/
+COPY --from=build /dependencies/              /lib/
 
 RUN mkdir -p /etc/OpenCL/vendors \
  && echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
