@@ -263,7 +263,10 @@ var utilMinerCreateCmd = &cli.Command{
 			return fmt.Errorf("get miner creation deposit: %w", err)
 		}
 
-		scaledDeposit := types.BigDiv(types.BigMul(deposit, types.NewInt(uint64(depositMarginFactor*100))), types.NewInt(100))
+		scaledDeposit := types.BigDiv(
+			types.BigMul(deposit, types.NewInt(uint64(depositMarginFactor*100))),
+			types.NewInt(100),
+		)
 
 		msg := &messager.UnsignedMessage{
 			From: from,
