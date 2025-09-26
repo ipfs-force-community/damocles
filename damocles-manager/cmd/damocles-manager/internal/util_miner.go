@@ -141,6 +141,11 @@ var utilMinerCreateCmd = &cli.Command{
 			Name:  "exid",
 			Usage: "extra identifier to avoid duplicate msg id for pushing into sophon-messager",
 		},
+		&cli.Float64Flag{
+			Name:  "deposit-margin-factor",
+			Usage: "Multiplier (>=1.0) to scale the suggested deposit for on-chain variance (e.g. 1.01 adds 1%)",
+			Value: 1.01,
+		},
 	},
 	Action: func(cctx *cli.Context) error {
 		api, gctx, stop, err := extractAPI(cctx)
@@ -248,10 +253,17 @@ var utilMinerCreateCmd = &cli.Command{
 			return fmt.Errorf("serialize params: %w", err)
 		}
 
+		depositMarginFactor := cctx.Float64("deposit-margin-factor")
+		if depositMarginFactor < 1 {
+			return fmt.Errorf("deposit margin factor must be greater than 1")
+		}
+
 		deposit, err := api.Chain.StateMinerCreationDeposit(gctx, tsk)
 		if err != nil {
 			return fmt.Errorf("get miner creation deposit: %w", err)
 		}
+
+		scaledDeposit := types.BigDiv(types.BigMul(deposit, types.NewInt(uint64(depositMarginFactor*100))), types.NewInt(100))
 
 		msg := &messager.UnsignedMessage{
 			From: from,
@@ -260,7 +272,7 @@ var utilMinerCreateCmd = &cli.Command{
 			Method: power.Methods.CreateMiner,
 			Params: params,
 
-			Value: deposit,
+			Value: scaledDeposit,
 		}
 
 		var retval core.CreateMinerReturn
