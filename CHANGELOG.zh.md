@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0
+- damocles-manager 依赖库升级
+  - filecoin-ffi: v1.33.1-dev → v1.34.0
+  - go-state-types: v0.17.0-dev2 → v0.17.0
+  - lotus: v1.34.0-rc2 → v1.34.1
+  - venus: v1.19.0-rc1 → v1.19.0
+
 ## 0.13.0-rc1
 - NV27 网络升级 [#1117](https://github.com/ipfs-force-community/damocles/pull/1117)
 
