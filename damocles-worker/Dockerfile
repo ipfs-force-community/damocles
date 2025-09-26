@@ -29,7 +29,7 @@ ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 
 RUN cargo clean -q
 RUN make build-all
-RUN make /dependencies
+RUN mkdir /dependencies
 RUN ldd /build/dist/bin/damocles-worker | grep "=>" | awk '{print $3}' | xargs -I {} cp {} /dependencies
 
 FROM ubuntu:22.04
