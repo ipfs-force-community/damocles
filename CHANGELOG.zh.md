@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.1
+- damocles-manager
+  - 在 util miner create 命令中添加存款 `deposit-margin-factor` 选项，以确保发送的存款仍然满足链上要求（即使在查找和执行之间上升），防止因存款不足而导致矿工创建失败。
+
 ## 0.13.0
 - damocles-manager 依赖库升级
   - filecoin-ffi: v1.33.1-dev → v1.34.0
