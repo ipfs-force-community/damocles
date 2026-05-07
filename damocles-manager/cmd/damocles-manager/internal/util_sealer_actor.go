@@ -886,7 +886,11 @@ var utilSealerActorConfirmChangeWorker = &cli.Command{
 		if head, err := api.Chain.ChainHead(ctx); err != nil {
 			return fmt.Errorf("failed to get the chain head: %w", err)
 		} else if head.Height() < mi.WorkerChangeEpoch {
-			return fmt.Errorf("worker key change cannot be confirmed until %d, current height is %d", mi.WorkerChangeEpoch, head.Height()) //revive:disable-line:line-length-limit
+			return fmt.Errorf(
+				"worker key change cannot be confirmed until %d, current height is %d",
+				mi.WorkerChangeEpoch,
+				head.Height(),
+			) //revive:disable-line:line-length-limit
 		}
 
 		if !cctx.Bool("really-do-it") {

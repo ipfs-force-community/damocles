@@ -363,7 +363,12 @@ func (h *snapupCommitHandler) submitMessage() error {
 	// `abi.ChainEpoch(10)` indicates that we assume that the message will be real executed within 10 heights
 	//nolint:all
 	// See: https://github.com/filecoin-project/builtin-actors/blob/10f547c950a99a07231c08a3c6f4f76ff0080a7c/actors/miner/src/lib.rs#L1113-L1124
-	if isMut, delayBlock := deadlineIsMutable(currDeadline.PeriodStart, sl.Deadline, ts.Height(), abi.ChainEpoch(10)); !isMut { //revive:disable-line:line-length-limit
+	if isMut, delayBlock := deadlineIsMutable(
+		currDeadline.PeriodStart,
+		sl.Deadline,
+		ts.Height(),
+		abi.ChainEpoch(10),
+	); !isMut { //revive:disable-line:line-length-limit
 		delayTime := time.Duration(mpolicy.NetParams.BlockDelaySecs*uint64(delayBlock)) * time.Second
 		return newTempErr(
 			fmt.Errorf(

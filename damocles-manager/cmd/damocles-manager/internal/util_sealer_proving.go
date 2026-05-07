@@ -751,7 +751,10 @@ var utilSealerProvingSimulateWdPoStCmd = &cli.Command{
 
 		toProve := partitions[pidx].LiveSectors
 		if !cctx.Bool("include-faulty") {
-			if toProve, err = bitfield.SubtractBitField(partitions[pidx].LiveSectors, partitions[pidx].FaultySectors); err != nil { //revive:disable-line:line-length-limit
+			if toProve, err = bitfield.SubtractBitField(
+				partitions[pidx].LiveSectors,
+				partitions[pidx].FaultySectors,
+			); err != nil { //revive:disable-line:line-length-limit
 				return err
 			}
 		}
