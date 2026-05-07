@@ -1071,7 +1071,11 @@ var utilSealerSectorsExtendCmd = &cli.Command{
 									currEpoch <= (claim.TermStart+claim.TermMin) ||
 									// FIP-0045 requires the sector to be in its last 30 days of life
 									(currEpoch <= sectorInfo.Expiration-stbuiltin.EndOfLifeClaimDropPeriod) {
-									fmt.Printf("skipping sector %d because claim %d does not live long enough \n", sectorNumber, claimID) //revive:disable-line:line-length-limit
+									fmt.Printf(
+										"skipping sector %d because claim %d does not live long enough \n",
+										sectorNumber,
+										claimID,
+									) //revive:disable-line:line-length-limit
 									cannotExtendSector = true
 									break
 								}
@@ -2101,9 +2105,17 @@ func sectorInfo2SectorState(
 				spiece.DealInfo.Provider = lotusPiece.DealInfo.DealProposal.Provider
 			} else {
 				// DDO deal
-				spiece.DealInfo.AllocationID = types.AllocationId(lotusPiece.DealInfo.PieceActivationManifest.VerifiedAllocationKey.ID)                               //revive:disable-line:line-length-limit
-				if spiece.DealInfo.Client, err = address.NewIDAddress(uint64(lotusPiece.DealInfo.PieceActivationManifest.VerifiedAllocationKey.Client)); err != nil { //revive:disable-line:line-length-limit
-					return nil, fmt.Errorf("invalid client(%s): %w", lotusPiece.DealInfo.PieceActivationManifest.VerifiedAllocationKey.Client, err) //revive:disable-line:line-length-limit
+				spiece.DealInfo.AllocationID = types.AllocationId(
+					lotusPiece.DealInfo.PieceActivationManifest.VerifiedAllocationKey.ID,
+				) //revive:disable-line:line-length-limit
+				if spiece.DealInfo.Client, err = address.NewIDAddress(
+					uint64(lotusPiece.DealInfo.PieceActivationManifest.VerifiedAllocationKey.Client),
+				); err != nil { //revive:disable-line:line-length-limit
+					return nil, fmt.Errorf(
+						"invalid client(%s): %w",
+						lotusPiece.DealInfo.PieceActivationManifest.VerifiedAllocationKey.Client,
+						err,
+					) //revive:disable-line:line-length-limit
 				}
 			}
 			if spiece.DealInfo.StartEpoch, err = lotusPiece.DealInfo.StartEpoch(); err != nil {
@@ -2580,7 +2592,14 @@ var utilSealerSectorsUnsealCmd = &cli.Command{
 			}
 		} else {
 			// todo: set payloadsize to unseal task
-			stream, err := cli.Damocles.UnsealPiece(gctx, sectorID, pieceCid, types.UnpaddedByteIndex(offset), size, dest) //revive:disable-line:line-length-limit
+			stream, err := cli.Damocles.UnsealPiece(
+				gctx,
+				sectorID,
+				pieceCid,
+				types.UnpaddedByteIndex(offset),
+				size,
+				dest,
+			) //revive:disable-line:line-length-limit
 			if err != nil {
 				return fmt.Errorf("set task for unseal failed: %w", err)
 			}
@@ -2782,7 +2801,13 @@ func showSectorState(state *core.SectorState) {
 				_, _ = fmt.Fprintf(os.Stdout, "\tAllocID: %s\n", piece.DisplayDealID())
 			}
 			pieceInfo := piece.PieceInfo()
-			_, _ = fmt.Fprintf(os.Stdout, "\tPiece: { cid: %s; size: %d; offset: %d }\n", pieceInfo.Cid, pieceInfo.Size, pieceInfo.Offset) //revive:disable-line:line-length-limit
+			_, _ = fmt.Fprintf(
+				os.Stdout,
+				"\tPiece: { cid: %s; size: %d; offset: %d }\n",
+				pieceInfo.Cid,
+				pieceInfo.Size,
+				pieceInfo.Offset,
+			) //revive:disable-line:line-length-limit
 		}
 	}
 

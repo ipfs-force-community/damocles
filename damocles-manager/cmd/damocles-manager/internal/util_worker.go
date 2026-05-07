@@ -356,7 +356,11 @@ var utilWorkerWdPostListCmd = &cli.Command{
 				),
 			)
 		} else {
-			_, err = w.Write([]byte("JobID\tMinerID\tDDL\tPartitions\tSectors\tWorker\tState\tTry\tCreateAt\tElapsed\tHeartbeat\tError\n")) //revive:disable-line:line-length-limit
+			_, err = w.Write(
+				[]byte(
+					"JobID\tMinerID\tDDL\tPartitions\tSectors\tWorker\tState\tTry\tCreateAt\tElapsed\tHeartbeat\tError\n",
+				),
+			) //revive:disable-line:line-length-limit
 		}
 		if err != nil {
 			return err

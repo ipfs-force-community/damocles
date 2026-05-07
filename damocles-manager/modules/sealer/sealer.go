@@ -364,7 +364,10 @@ func (s *Sealer) WaitSeed(
 			return core.WaitSeedResp{}, err
 		}
 		if pci == nil {
-			return core.WaitSeedResp{}, fmt.Errorf("precommit info not found on chain. sid: %s", util.FormatSectorID(sid))
+			return core.WaitSeedResp{}, fmt.Errorf(
+				"precommit info not found on chain. sid: %s",
+				util.FormatSectorID(sid),
+			)
 		}
 
 		// TODO: remove this guard
