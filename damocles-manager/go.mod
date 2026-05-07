@@ -255,4 +255,5 @@ replace (
 	github.com/filecoin-project/filecoin-ffi => ./extern/filecoin-ffi
 	github.com/filecoin-project/go-jsonrpc => github.com/ipfs-force-community/go-jsonrpc v0.1.9
 	github.com/filecoin-project/lotus => github.com/ipfs-force-community/lotus v0.8.1-0.20260504023953-13dcc710da44
+	golang.org/x/tools => golang.org/x/tools v0.43.0
 )
