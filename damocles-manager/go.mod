@@ -20,9 +20,9 @@ require (
 	github.com/filecoin-project/go-jsonrpc v0.10.1
 	github.com/filecoin-project/go-paramfetch v0.0.5
 	github.com/filecoin-project/go-state-types v0.18.0
-	github.com/filecoin-project/lotus v1.36.0-rc1
+	github.com/filecoin-project/lotus v1.36.0
 	github.com/filecoin-project/specs-storage v0.4.1
-	github.com/filecoin-project/venus v1.20.0-rc1
+	github.com/filecoin-project/venus v1.20.0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
@@ -254,6 +254,6 @@ require (
 replace (
 	github.com/filecoin-project/filecoin-ffi => ./extern/filecoin-ffi
 	github.com/filecoin-project/go-jsonrpc => github.com/ipfs-force-community/go-jsonrpc v0.1.9
-	github.com/filecoin-project/lotus => github.com/ipfs-force-community/lotus v0.8.1-0.20260504023953-13dcc710da44
+	github.com/filecoin-project/lotus => github.com/ipfs-force-community/lotus v0.8.1-0.20260518081040-4da472ff9689
 	golang.org/x/tools => golang.org/x/tools v0.43.0
 )
