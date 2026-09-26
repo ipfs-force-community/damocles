@@ -16,9 +16,6 @@ import (
 	chainapi "github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 )
 
-// stubChain answers the chain calls ProcessPieces can make. The embedded nil
-// interface makes every other FullNode method panic rather than return a zero
-// value the test would silently accept.
 type stubChain struct {
 	chainapi.API
 
@@ -60,10 +57,6 @@ func builtinMarketSector(dealID abi.DealID, pieceCID cid.Cid, size abi.PaddedPie
 	}
 }
 
-// FIP-0118 grants every sector full quality-adjusted power, which the PAM
-// expresses as a fully verified sector. nv29 therefore must not ask the chain
-// for a per-deal allocation: StateGetAllocationIdForPendingDeal is unsupported
-// from actors v19 and fails the whole batch.
 func TestProcessPiecesBuiltinMarketAllocationLookup(t *testing.T) {
 	const dealID = abi.DealID(42)
 	const allocationID = verifreg.AllocationId(7)
