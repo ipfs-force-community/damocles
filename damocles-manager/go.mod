@@ -251,6 +251,6 @@ require (
 replace (
 	github.com/filecoin-project/filecoin-ffi => ./extern/filecoin-ffi
 	github.com/filecoin-project/go-jsonrpc => github.com/ipfs-force-community/go-jsonrpc v0.1.9
-	github.com/filecoin-project/lotus => github.com/ipfs-force-community/lotus v0.8.1-0.20260926013146-bdd0c4b3b2ae
+	github.com/filecoin-project/lotus => github.com/ipfs-force-community/lotus v1.37.0-venus-rc1
 	golang.org/x/tools => golang.org/x/tools v0.43.0
 )
