@@ -14,6 +14,7 @@ import (
 	"github.com/filecoin-project/go-state-types/builtin"
 	stminer "github.com/filecoin-project/go-state-types/builtin/v9/miner"
 	"github.com/filecoin-project/go-state-types/exitcode"
+	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/miner"
 	"github.com/filecoin-project/venus/venus-shared/actors/policy"
 	"github.com/filecoin-project/venus/venus-shared/types"
@@ -24,7 +25,6 @@ import (
 	mpolicy "github.com/ipfs-force-community/damocles/damocles-manager/modules/policy"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util"
 	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util/piece"
-	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util/pledge"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/chain"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/messager"
 	"github.com/ipfs-force-community/damocles/damocles-manager/pkg/objstore"
@@ -483,16 +483,21 @@ func (h *snapupCommitHandler) calcCollateral(ctx context.Context, ts *types.TipS
 		return big.Int{}, fmt.Errorf("failed get sector size: %w", err)
 	}
 
+	// FIP-0118 gives every sector maximum quality-adjusted power regardless of
+	// deal content, which this API expresses as a fully verified sector.
+	nv, err := h.committer.chain.StateNetworkVersion(ctx, ts.Key())
+	if err != nil {
+		return big.Int{}, fmt.Errorf("getting network version: %w", err)
+	}
+
 	var verifiedSize uint64
-	for _, piece := range h.state.SectorPiece() {
-		if piece.HasDealInfo() {
-			alloc, err := pledge.GetAllocation(ctx, h.committer.chain, ts.Key(), piece)
-			if err != nil || alloc == nil {
-				if err != nil {
-					log.Errorw("failed to get allocation", "error", err)
-				}
+	if nv >= network.Version29 {
+		verifiedSize = uint64(ssize)
+	} else {
+		for _, piece := range h.state.SectorPiece() {
+			if piece.HasDealInfo() {
+				verifiedSize += uint64(piece.PieceInfo().Size)
 			}
-			verifiedSize += uint64(piece.PieceInfo().Size)
 		}
 	}
 
