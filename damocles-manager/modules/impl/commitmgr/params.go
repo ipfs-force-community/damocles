@@ -8,12 +8,12 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/builtin/v9/miner"
-	"github.com/filecoin-project/go-state-types/network"
 	lminer "github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	v1 "github.com/filecoin-project/venus/venus-shared/api/chain/v1"
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
+	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util/pledge"
 )
 
 func (p PreCommitProcessor) preCommitInfo(
@@ -117,23 +117,19 @@ func getSectorCollateral(
 		return big.Zero(), fmt.Errorf("failed to resolve sector size for seal proof: %w", err)
 	}
 
-	// FIP-0118 gives every sector maximum quality-adjusted power regardless of
-	// deal content, which this API expresses as a fully verified sector.
 	nv, err := chainAPI.StateNetworkVersion(ctx, ts.Key())
 	if err != nil {
 		return big.Zero(), fmt.Errorf("getting network version: %w", err)
 	}
 
-	var verifiedSize uint64
-	if nv >= network.Version29 {
-		verifiedSize = uint64(ssize)
-	} else {
-		for _, piece := range pieces {
-			if piece.VerifiedAllocationKey != nil {
-				verifiedSize += uint64(piece.Size)
-			}
+	var sumVerified uint64
+	for _, piece := range pieces {
+		if piece.VerifiedAllocationKey != nil {
+			sumVerified += uint64(piece.Size)
 		}
 	}
+
+	verifiedSize := pledge.VerifiedSectorSize(nv, ssize, sumVerified)
 
 	collateral, err := chainAPI.StateMinerInitialPledgeForSector(ctx, duration, ssize, verifiedSize, ts.Key())
 	if err != nil {
