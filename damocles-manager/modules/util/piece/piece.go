@@ -10,6 +10,7 @@ import (
 	miner13 "github.com/filecoin-project/go-state-types/builtin/v13/miner"
 	verifreg13 "github.com/filecoin-project/go-state-types/builtin/v13/verifreg"
 	"github.com/filecoin-project/go-state-types/builtin/v9/verifreg"
+	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/venus/venus-shared/actors/builtin/market"
 	"github.com/filecoin-project/venus/venus-shared/types"
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
@@ -37,26 +38,35 @@ func ProcessPieces(
 		pieceInfo := piece.PieceInfo()
 		// If we have a dealID then covert to PAM
 		if piece.IsBuiltinMarket() {
-			alloc, err := chain.StateGetAllocationIdForPendingDeal(ctx, piece.DealID(), types.EmptyTSK)
+			nv, err := chain.StateNetworkVersion(ctx, types.EmptyTSK)
 			if err != nil {
-				return nil, nil, fmt.Errorf("getting allocation for deal %d: %w", piece, err)
+				return nil, nil, fmt.Errorf("getting network version: %w", err)
 			}
 
-			clid, err := lookupID.StateLookupID(ctx, piece.Client())
-			if err != nil {
-				return nil, nil, fmt.Errorf("getting client address for deal %d: %w", piece.DealID(), err)
-			}
-
-			clientID, err := address.IDFromAddress(clid)
-			if err != nil {
-				return nil, nil, fmt.Errorf("getting client address for deal %d: %w", piece.DealID(), err)
-			}
-
+			// FIP-0118 gives every sector maximum quality-adjusted power regardless of
+			// deal content, which this API expresses as a fully verified sector.
 			var vac *miner13.VerifiedAllocationKey
-			if alloc != verifreg.NoAllocationID {
-				vac = &miner13.VerifiedAllocationKey{
-					Client: abi.ActorID(clientID),
-					ID:     verifreg13.AllocationId(alloc),
+			if nv < network.Version29 {
+				alloc, err := chain.StateGetAllocationIdForPendingDeal(ctx, piece.DealID(), types.EmptyTSK)
+				if err != nil {
+					return nil, nil, fmt.Errorf("getting allocation for deal %d: %w", piece, err)
+				}
+
+				if alloc != verifreg.NoAllocationID {
+					clid, err := lookupID.StateLookupID(ctx, piece.Client())
+					if err != nil {
+						return nil, nil, fmt.Errorf("getting client address for deal %d: %w", piece.DealID(), err)
+					}
+
+					clientID, err := address.IDFromAddress(clid)
+					if err != nil {
+						return nil, nil, fmt.Errorf("getting client address for deal %d: %w", piece.DealID(), err)
+					}
+
+					vac = &miner13.VerifiedAllocationKey{
+						Client: abi.ActorID(clientID),
+						ID:     verifreg13.AllocationId(alloc),
+					}
 				}
 			}
 			payload, err := cborutil.Dump(piece.DealID())

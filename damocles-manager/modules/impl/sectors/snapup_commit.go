@@ -483,18 +483,19 @@ func (h *snapupCommitHandler) calcCollateral(ctx context.Context, ts *types.TipS
 		return big.Int{}, fmt.Errorf("failed get sector size: %w", err)
 	}
 
-	var verifiedSize uint64
+	nv, err := h.committer.chain.StateNetworkVersion(ctx, ts.Key())
+	if err != nil {
+		return big.Int{}, fmt.Errorf("getting network version: %w", err)
+	}
+
+	var sumVerified uint64
 	for _, piece := range h.state.SectorPiece() {
 		if piece.HasDealInfo() {
-			alloc, err := pledge.GetAllocation(ctx, h.committer.chain, ts.Key(), piece)
-			if err != nil || alloc == nil {
-				if err != nil {
-					log.Errorw("failed to get allocation", "error", err)
-				}
-			}
-			verifiedSize += uint64(piece.PieceInfo().Size)
+			sumVerified += uint64(piece.PieceInfo().Size)
 		}
 	}
+
+	verifiedSize := pledge.VerifiedSectorSize(nv, ssize, sumVerified)
 
 	collateral, err := h.committer.chain.StateMinerInitialPledgeForSector(ctx, duration, ssize, verifiedSize, ts.Key())
 	if err != nil {

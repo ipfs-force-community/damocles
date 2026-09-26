@@ -13,6 +13,7 @@ import (
 	"github.com/filecoin-project/venus/venus-shared/types"
 
 	"github.com/ipfs-force-community/damocles/damocles-manager/core"
+	"github.com/ipfs-force-community/damocles/damocles-manager/modules/util/pledge"
 )
 
 func (p PreCommitProcessor) preCommitInfo(
@@ -116,12 +117,19 @@ func getSectorCollateral(
 		return big.Zero(), fmt.Errorf("failed to resolve sector size for seal proof: %w", err)
 	}
 
-	var verifiedSize uint64
+	nv, err := chainAPI.StateNetworkVersion(ctx, ts.Key())
+	if err != nil {
+		return big.Zero(), fmt.Errorf("getting network version: %w", err)
+	}
+
+	var sumVerified uint64
 	for _, piece := range pieces {
 		if piece.VerifiedAllocationKey != nil {
-			verifiedSize += uint64(piece.Size)
+			sumVerified += uint64(piece.Size)
 		}
 	}
+
+	verifiedSize := pledge.VerifiedSectorSize(nv, ssize, sumVerified)
 
 	collateral, err := chainAPI.StateMinerInitialPledgeForSector(ctx, duration, ssize, verifiedSize, ts.Key())
 	if err != nil {
